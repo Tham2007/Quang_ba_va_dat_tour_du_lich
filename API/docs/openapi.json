@@ -1,0 +1,1491 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Delta Travel 2.0 API",
+    "version": "2.0.0"
+  },
+  "paths": {
+    "/api/v1/health/ready": {
+      "get": {
+        "summary": "Ready",
+        "operationId": "ready_api_v1_health_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "summary": "Register",
+        "operationId": "register_api_v1_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Signup"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "summary": "Login",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Login"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "summary": "Current",
+        "operationId": "current_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "summary": "Logout",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/profile": {
+      "patch": {
+        "summary": "Change Profile",
+        "operationId": "change_profile_api_v1_auth_profile_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfilePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/favorites": {
+      "get": {
+        "summary": "Favorites",
+        "operationId": "favorites_api_v1_favorites_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/favorites/{tour_id}": {
+      "post": {
+        "summary": "Favorite Add",
+        "operationId": "favorite_add_api_v1_favorites__tour_id__post",
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tour Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Favorite Remove",
+        "operationId": "favorite_remove_api_v1_favorites__tour_id__delete",
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tour Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/change-password": {
+      "post": {
+        "summary": "Change Password",
+        "operationId": "change_password_api_v1_auth_change_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePassword"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tours": {
+      "get": {
+        "summary": "Tours",
+        "operationId": "tours_api_v1_tours_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "region",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Region"
+            }
+          },
+          {
+            "name": "flash",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Flash"
+            }
+          },
+          {
+            "name": "max_price",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Price"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tours/{tour_id}": {
+      "get": {
+        "summary": "Tour One",
+        "operationId": "tour_one_api_v1_tours__tour_id__get",
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tour Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tours/{tour_id}/schedules": {
+      "get": {
+        "summary": "Schedules",
+        "operationId": "schedules_api_v1_tours__tour_id__schedules_get",
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tour Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/quote": {
+      "post": {
+        "summary": "Quote",
+        "operationId": "quote_api_v1_bookings_quote_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings": {
+      "post": {
+        "summary": "Create Booking",
+        "operationId": "create_booking_api_v1_bookings_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "My Bookings",
+        "operationId": "my_bookings_api_v1_bookings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/{booking_id}": {
+      "get": {
+        "summary": "My Booking",
+        "operationId": "my_booking_api_v1_bookings__booking_id__get",
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/{booking_id}/cancel": {
+      "post": {
+        "summary": "Cancel Booking",
+        "operationId": "cancel_booking_api_v1_bookings__booking_id__cancel_post",
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tours": {
+      "get": {
+        "summary": "Admin Tours",
+        "operationId": "admin_tours_api_v1_admin_tours_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Admin Tour Create",
+        "operationId": "admin_tour_create_api_v1_admin_tours_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TourCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tours/{tour_id}": {
+      "patch": {
+        "summary": "Admin Tour Patch",
+        "operationId": "admin_tour_patch_api_v1_admin_tours__tour_id__patch",
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tour Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TourPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/schedules": {
+      "post": {
+        "summary": "Add Schedule",
+        "operationId": "add_schedule_api_v1_admin_schedules_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Admin All Schedules",
+        "operationId": "admin_all_schedules_api_v1_admin_schedules_get",
+        "parameters": [
+          {
+            "name": "tour_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tour Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/schedules/{schedule_id}": {
+      "patch": {
+        "summary": "Patch Schedule",
+        "operationId": "patch_schedule_api_v1_admin_schedules__schedule_id__patch",
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Schedule Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/bookings/{booking_id}/confirm-payment": {
+      "post": {
+        "summary": "Confirm Payment",
+        "description": "Offline bank verification MUST be performed by a human before using this endpoint.\nThis is NOT an automated payment gateway and does not read a client payment flag.",
+        "operationId": "confirm_payment_api_v1_admin_bookings__booking_id__confirm_payment_post",
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentEvidence"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/bookings": {
+      "get": {
+        "summary": "Admin Bookings",
+        "operationId": "admin_bookings_api_v1_admin_bookings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/metrics": {
+      "get": {
+        "summary": "Metrics",
+        "operationId": "metrics_api_v1_admin_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/audit": {
+      "get": {
+        "summary": "Audit List",
+        "operationId": "audit_list_api_v1_admin_audit_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/chat": {
+      "post": {
+        "summary": "Assistant Message",
+        "operationId": "assistant_message_api_v1_assistant_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantMessage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AssistantMessage": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "AssistantMessage"
+      },
+      "BookingInput": {
+        "properties": {
+          "schedule_id": {
+            "type": "string",
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Schedule Id"
+          },
+          "adults": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Adults"
+          },
+          "children": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Children"
+          },
+          "infants": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Infants"
+          },
+          "customer_name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 2,
+            "title": "Customer Name"
+          },
+          "customer_phone": {
+            "type": "string",
+            "pattern": "^0[35789][0-9]{8}$",
+            "title": "Customer Phone"
+          },
+          "customer_email": {
+            "type": "string",
+            "title": "Customer Email"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schedule_id",
+          "adults",
+          "children",
+          "infants",
+          "customer_name",
+          "customer_phone",
+          "customer_email"
+        ],
+        "title": "BookingInput"
+      },
+      "ChangePassword": {
+        "properties": {
+          "old_password": {
+            "type": "string",
+            "title": "Old Password"
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 12,
+            "title": "New Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "old_password",
+          "new_password"
+        ],
+        "title": "ChangePassword"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Login": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "Login"
+      },
+      "PaymentEvidence": {
+        "properties": {
+          "reference": {
+            "type": "string",
+            "maxLength": 250,
+            "minLength": 8,
+            "title": "Reference"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reference"
+        ],
+        "title": "PaymentEvidence"
+      },
+      "ProfilePatch": {
+        "properties": {
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^0[35789][0-9]{8}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ProfilePatch"
+      },
+      "QuoteInput": {
+        "properties": {
+          "schedule_id": {
+            "type": "string",
+            "title": "Schedule Id"
+          },
+          "adults": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Adults"
+          },
+          "children": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Children"
+          },
+          "infants": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Infants"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schedule_id",
+          "adults",
+          "children",
+          "infants"
+        ],
+        "title": "QuoteInput"
+      },
+      "ScheduleCreate": {
+        "properties": {
+          "tour_id": {
+            "type": "string",
+            "title": "Tour Id"
+          },
+          "departure_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Departure At"
+          },
+          "total_seats": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Total Seats"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tour_id",
+          "departure_at",
+          "total_seats"
+        ],
+        "title": "ScheduleCreate"
+      },
+      "SchedulePatch": {
+        "properties": {
+          "total_seats": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Seats"
+          },
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          }
+        },
+        "type": "object",
+        "title": "SchedulePatch"
+      },
+      "Signup": {
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 2,
+            "title": "Full Name"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "phone": {
+            "type": "string",
+            "pattern": "^0[35789][0-9]{8}$",
+            "title": "Phone"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 12,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "full_name",
+          "email",
+          "phone",
+          "password"
+        ],
+        "title": "Signup"
+      },
+      "TourCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 3,
+            "title": "Title"
+          },
+          "price": {
+            "type": "integer",
+            "maximum": 2000000000.0,
+            "minimum": 1.0,
+            "title": "Price"
+          },
+          "original_price": {
+            "type": "integer",
+            "maximum": 2000000000.0,
+            "minimum": 1.0,
+            "title": "Original Price"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 6000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "flash_sale": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flash Sale"
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^DL-[A-Z0-9]{2,20}$",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "title": "Slug"
+          },
+          "region": {
+            "type": "string",
+            "pattern": "^(north|central|south)$",
+            "title": "Region"
+          },
+          "duration": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 3,
+            "title": "Duration"
+          },
+          "departure": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 2,
+            "title": "Departure"
+          },
+          "transport": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 2,
+            "title": "Transport"
+          },
+          "image": {
+            "type": "string",
+            "maxLength": 1200,
+            "title": "Image",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "price",
+          "original_price",
+          "id",
+          "slug",
+          "region",
+          "duration",
+          "departure",
+          "transport"
+        ],
+        "title": "TourCreate"
+      },
+      "TourPatch": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "minLength": 3
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2000000000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "original_price": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2000000000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Price"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 6000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "flash_sale": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flash Sale"
+          }
+        },
+        "type": "object",
+        "title": "TourPatch"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+# LOCAL ACADEMIC DEMO ONLY. This is NOT a commercial deployment.
+services:
+  delta-demo:
+    build: .
+    ports:
+      - '127.0.0.1:8000:8000'
+    environment:
+      DELTA_ENV: development
+      DATABASE_URL: sqlite:////data/delta.db
+      AUTO_CREATE_SCHEMA: '1'
+      DEMO_SEED: '1'
+    volumes:
+      - delta-demo-data:/data
+volumes:
+  delta-demo-data:
