@@ -120,6 +120,14 @@ class Audit(Base):
 
 def make_engine(url=None):
     url = url or os.getenv('DATABASE_URL', 'sqlite:///./delta_dev.db')
+    # The legacy ORM uses a different schema than Tham's 12-table SQL Server.
+    # Refuse accidental table creation on her SQL Server; use the separate
+    # api.tham_sqlserver_app read-only bridge with THAM_SQLSERVER_URL instead.
+    if url.startswith(('mssql:', 'mssql+')):
+        raise RuntimeError(
+            'Legacy ORM cannot use Tham SQL Server. '
+            'Run api.tham_sqlserver_app with THAM_SQLSERVER_URL.'
+        )
     is_sqlite = url.startswith('sqlite')
     eng = create_engine(url, connect_args={'check_same_thread': False, 'timeout': 30} if is_sqlite else {},
                         pool_pre_ping=True)
