@@ -1,0 +1,36 @@
+name: Read-only SQL Server contract (mock only)
+
+on:
+  push:
+    paths:
+      - 'API/api/tham_sqlserver_app.py'
+      - 'API/tests/test_tham_sqlserver_app.py'
+      - 'API/docs/THAM_*'
+      - '.github/workflows/ci-tham-sqlserver-bridge.yml'
+  pull_request:
+    paths:
+      - 'API/api/tham_sqlserver_app.py'
+      - 'API/tests/test_tham_sqlserver_app.py'
+      - 'API/docs/THAM_*'
+      - '.github/workflows/ci-tham-sqlserver-bridge.yml'
+
+jobs:
+  mocked-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: API/requirements.txt
+      - name: Install tested dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r API/requirements.txt pytest httpx
+      - name: Syntax check
+        run: python -m py_compile API/api/tham_sqlserver_app.py API/tests/test_tham_sqlserver_app.py
+      - name: Contract tests (MOCKED, not a real database)
+        working-directory: API
+        run: python -m pytest -q tests/test_tham_sqlserver_app.py
