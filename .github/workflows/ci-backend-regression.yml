@@ -1,0 +1,38 @@
+name: Legacy FastAPI regression (SQLite academic demo)
+
+on:
+  push:
+    paths:
+      - 'API/api/*.py'
+      - 'API/tests/test_api.py'
+      - '.github/workflows/ci-backend-regression.yml'
+  pull_request:
+    paths:
+      - 'API/api/*.py'
+      - 'API/tests/test_api.py'
+      - '.github/workflows/ci-backend-regression.yml'
+  workflow_dispatch:
+
+jobs:
+  test-demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: API/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r API/requirements.txt pytest httpx
+      - name: Test original FastAPI (SQLite demo ONLY)
+        working-directory: API
+        env:
+          DELTA_ENV: development
+          DATABASE_URL: sqlite:///./ci_demo.db
+          AUTO_CREATE_SCHEMA: '1'
+          DEMO_SEED: '1'
+        run: python -m pytest -q tests/test_api.py
