@@ -4,15 +4,18 @@ on:
   push:
     paths:
       - 'API/api/tham_sqlserver_app.py'
-      - 'API/tests/test_tham_sqlserver_app.py'
+      - 'API/scripts/check_tham_sqlserver.py'
+      - 'API/tests/test_tham_sqlserver_*.py'
       - 'API/docs/THAM_*'
       - '.github/workflows/ci-tham-sqlserver-bridge.yml'
   pull_request:
     paths:
       - 'API/api/tham_sqlserver_app.py'
-      - 'API/tests/test_tham_sqlserver_app.py'
+      - 'API/scripts/check_tham_sqlserver.py'
+      - 'API/tests/test_tham_sqlserver_*.py'
       - 'API/docs/THAM_*'
       - '.github/workflows/ci-tham-sqlserver-bridge.yml'
+  workflow_dispatch:
 
 jobs:
   mocked-contract:
@@ -30,7 +33,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r API/requirements.txt pytest httpx
       - name: Syntax check
-        run: python -m py_compile API/api/tham_sqlserver_app.py API/tests/test_tham_sqlserver_app.py
-      - name: Contract tests (MOCKED, not a real database)
+        run: python -m py_compile API/api/tham_sqlserver_app.py API/scripts/check_tham_sqlserver.py API/tests/test_tham_sqlserver_app.py API/tests/test_tham_sqlserver_checker.py
+      - name: Mocked tests (NOT an SQL Server integration test)
         working-directory: API
-        run: python -m pytest -q tests/test_tham_sqlserver_app.py
+        run: python -m pytest -q tests/test_tham_sqlserver_app.py tests/test_tham_sqlserver_checker.py
