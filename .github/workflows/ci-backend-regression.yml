@@ -3,15 +3,15 @@ name: Legacy FastAPI regression (SQLite academic demo)
 on:
   push:
     paths:
-      - 'API/api/*.py'
-      - 'API/tests/test_*.py'
+      - 'API/api/**'
+      - 'API/tests/**'
       - 'API/frontend/**'
       - 'API/scripts/check_static_assets.py'
       - '.github/workflows/ci-backend-regression.yml'
   pull_request:
     paths:
-      - 'API/api/*.py'
-      - 'API/tests/test_*.py'
+      - 'API/api/**'
+      - 'API/tests/**'
       - 'API/frontend/**'
       - 'API/scripts/check_static_assets.py'
       - '.github/workflows/ci-backend-regression.yml'
