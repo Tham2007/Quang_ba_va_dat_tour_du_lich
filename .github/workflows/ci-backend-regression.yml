@@ -5,11 +5,15 @@ on:
     paths:
       - 'API/api/*.py'
       - 'API/tests/test_*.py'
+      - 'API/frontend/**'
+      - 'API/scripts/check_static_assets.py'
       - '.github/workflows/ci-backend-regression.yml'
   pull_request:
     paths:
       - 'API/api/*.py'
-      - 'API/tests/test_api.py'
+      - 'API/tests/test_*.py'
+      - 'API/frontend/**'
+      - 'API/scripts/check_static_assets.py'
       - '.github/workflows/ci-backend-regression.yml'
   workflow_dispatch:
 
@@ -35,4 +39,7 @@ jobs:
           DATABASE_URL: sqlite:///./ci_demo.db
           AUTO_CREATE_SCHEMA: '1'
           DEMO_SEED: '1'
-        run: python -m pytest -q tests/test_api.py tests/test_legacy_schema_guard.py
+        run: python -m pytest -q tests/test_api.py tests/test_legacy_schema_guard.py tests/test_static_assets.py
+      - name: Audit static assets
+        working-directory: API
+        run: python -m scripts.check_static_assets

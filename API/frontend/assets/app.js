@@ -24,7 +24,7 @@ function text(parent,tag,value,cls=''){const x=el(tag,cls?{class:cls}:{},value);
 function button(label,callback,cls='solid'){const b=el('button',{type:'button',class:cls},label);b.addEventListener('click',callback);return b}
 function input(parent,label,name,type='text',attrs={}){const wrap=el('label',{class:'form-label'},label);const item=el('input',{class:'full-input',name,type,required:'required',...attrs});wrap.append(item);parent.append(wrap);return item}
 function setUser(user){state.user=user;if(!user)state.favorites.clear();$('loginOpen').hidden=!!user;$('adminOpen').hidden=!(user&&user.role==='ADMIN');$('userMenu').hidden=!user;$('welcome').textContent=user?'Xin chào, '+user.fullName.split(' ').at(-1):'';}
-async function syncUser(){try{setUser(await api('/auth/me'));await loadFavorites()}catch{setUser(null)}}
+async function syncUser(){try{const session=await api('/auth/session');setUser(session.authenticated?session.user:null);if(session.authenticated)await loadFavorites()}catch(e){setUser(null);notify('Không xác định được phiên đăng nhập: '+e.message)}}
 async function loadFavorites(){if(!state.user)return;state.favorites=new Set(await api('/favorites'));renderTours()}
 async function loadTours(){try{state.tours=await api('/tours');renderTours()}catch(e){notify(e.message);$('count').textContent='Không tải được dữ liệu tour'}}
 function renderTours(){

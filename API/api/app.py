@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Depends, Request, Response, Header
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from sqlalchemy import select, func
@@ -275,6 +275,26 @@ def login(body:Login,request:Request,response:Response,db:Session=Depends(db_ses
 @app.get('/api/v1/auth/me')
 def current(user=Depends(me)):
     return user_dict(user)
+
+
+@app.get('/api/v1/auth/session')
+def auth_session(request:Request, response:Response, db:Session=Depends(db_session)):
+    """Non-error bootstrap probe for anonymous visitors.
+
+    This is NOT an authentication bypass: /auth/me and every protected
+    endpoint keep their 401/403 semantics. Session tokens are never returned.
+    """
+    response.headers['Cache-Control'] = 'no-store'
+    raw = request.cookies.get(SESSION_NAME, '')
+    if not raw:
+        return {'authenticated': False, 'user': None}
+    session = db.get(SessionToken, token_hash(raw))
+    if session is None or utc(session.expires_at) <= now():
+        return {'authenticated': False, 'user': None}
+    u = db.get(User, session.user_id)
+    if u is None or not u.active:
+        return {'authenticated': False, 'user': None}
+    return {'authenticated': True, 'user': user_dict(u)}
 
 
 @app.post('/api/v1/auth/logout')
@@ -640,6 +660,12 @@ def assistant_message(body:AssistantMessage,request:Request,db:Session=Depends(d
 @app.api_route('/api/v1/{unknown_path:path}',methods=['GET','POST','PUT','PATCH','DELETE'],include_in_schema=False)
 def unknown_api(unknown_path:str):
     fail(404,'API endpoint không tồn tại.')
+
+
+@app.get('/favicon.ico',include_in_schema=False)
+def favicon_compat():
+    # Browsers may request the classic ICO URL even when the page uses SVG.
+    return RedirectResponse('/favicon.svg',status_code=307)
 
 
 FRONTEND=Path(__file__).resolve().parents[1]/'frontend'
