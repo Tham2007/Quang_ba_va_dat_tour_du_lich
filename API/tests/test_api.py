@@ -220,3 +220,43 @@ def test_l_password_rotation_invalidates_all_sessions():
         assert c2.get('/api/v1/auth/me').status_code==401
         assert c1.post('/api/v1/auth/login',json={'email':p['email'],'password':p['password']}).status_code==401
         assert c1.post('/api/v1/auth/login',json={'email':p['email'],'password':'NewVeryStrongPassword123!'}).status_code==200
+
+
+def test_m_anonymous_safe_session_probe_does_not_weaken_auth():
+    with TestClient(app) as client:
+        # A normal first visit should not generate 401 noise in the frontend.
+        anonymous = client.get('/api/v1/auth/session')
+        assert anonymous.status_code == 200
+        assert anonymous.json() == {'authenticated': False, 'user': None}
+        assert anonymous.headers['cache-control'] == 'no-store'
+        # Protected route must still require authentication.
+        assert client.get('/api/v1/auth/me').status_code == 401
+        reg(client, 401)
+        signed_in = client.get('/api/v1/auth/session')
+        assert signed_in.status_code == 200
+        assert signed_in.json()['authenticated'] is True
+        assert signed_in.json()['user']['email'] == 'user401@example.com'
+        assert 'token' not in signed_in.text.lower()
+        assert client.post('/api/v1/auth/logout', json={}, headers=csrf(client)).status_code == 200
+        assert client.get('/api/v1/auth/session').json() == {'authenticated': False, 'user': None}
+        assert client.get('/api/v1/auth/me').status_code == 401
+
+
+def test_n_expired_or_forged_cookie_cannot_become_authenticated():
+    with TestClient(app) as client:
+        reg(client, 402)
+        client.cookies.set('delta_session', 'forged-session-value')
+        assert client.get('/api/v1/auth/session').json()['authenticated'] is False
+        assert client.get('/api/v1/auth/me').status_code == 401
+
+
+def test_o_local_favicon_and_references_are_servable():
+    with TestClient(app) as client:
+        assert 'href="/favicon.svg"' in client.get('/').text
+        image = client.get('/favicon.svg')
+        assert image.status_code == 200
+        assert '<svg ' in image.text
+        legacy = client.get('/favicon.ico', follow_redirects=False)
+        assert legacy.status_code == 307
+        assert legacy.headers['location'] == '/favicon.svg'
+        assert client.get('/favicon.ico').status_code == 200
