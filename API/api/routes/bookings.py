@@ -29,13 +29,6 @@ def quote(body:QuoteInput,db:Session=Depends(db_session)):
             'addonsSupported':False,'vouchersSupported':False}
 
 
-def booking_dict(b):
-    return {'id':b.id,'reference':b.reference,'scheduleId':b.schedule_id,'tourTitle':b.tour_title,
-            'customerName':b.customer_name,'adults':b.adults,'children':b.children,'infants':b.infants,
-            'seats':b.seats_held,'unitPrice':b.unit_price,'totalPrice':b.total_price,
-            'status':b.status,'paid':b.status in ('PAID','CONFIRMED','COMPLETED'),
-            'expiresAt':iso(b.expires_at),'createdAt':iso(b.created_at)}
-
 
 @router.post('/api/v1/bookings',status_code=201)
 def create_booking(body:BookingInput,request:Request,user=Depends(me),db:Session=Depends(db_session),
