@@ -50,3 +50,9 @@ jobs:
             curl --silent --show-error --fail --output /dev/null "http://127.0.0.1:8765$path"
             echo "OK $path"
           done
+      - name: Install Chromium driver (browser smoke)
+        run: |
+          command -v google-chrome || command -v chromium
+          npm install --no-save playwright-core@1.56.1
+      - name: Exercise real browser (customer + admin)
+        run: node Frontend/tests/browser-smoke.cjs
