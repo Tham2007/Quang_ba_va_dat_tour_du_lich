@@ -1,0 +1,52 @@
+name: An frontend demo validation
+
+on:
+  push:
+    paths:
+      - 'Frontend/**'
+      - 'API/scripts/check_static_assets.py'
+      - '.github/workflows/ci-frontend-preview.yml'
+  pull_request:
+    paths:
+      - 'Frontend/**'
+      - 'API/scripts/check_static_assets.py'
+      - '.github/workflows/ci-frontend-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate all JavaScript syntax
+        run: |
+          set -euo pipefail
+          for file in Frontend/assets/js/*.js; do node --check "$file"; done
+      - name: Validate HTML/CSS asset references
+        run: python API/scripts/check_static_assets.py Frontend
+      - name: No fake paid or card/CVV capture in static prototype
+        run: python Frontend/tools/check_demo_integrity.py
+      - name: Verify static HTTP routing and MIME types
+        run: |
+          set -euo pipefail
+          python -m http.server 8765 --bind 127.0.0.1 --directory Frontend >/tmp/frontend-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 20); do
+            if curl --silent --fail http://127.0.0.1:8765/ >/dev/null; then break; fi
+            sleep 0.2
+          done
+          for path in / /index.html /admin.html /assets/js/main.js /assets/js/admin.js /assets/css/admin.css /assets/images/hero-bg.png /favicon_logo_delta.png; do
+            curl --silent --show-error --fail --output /dev/null "http://127.0.0.1:8765$path"
+            echo "OK $path"
+          done
