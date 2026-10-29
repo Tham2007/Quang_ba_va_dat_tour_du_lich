@@ -1023,7 +1023,7 @@ function handleBookingSubmission(e) {
   }
 
   // Kiểm tra số điện thoại Việt Nam (10 số, bắt đầu bằng 0)
-  const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/;
+  const phoneRegex = /^0[35789][0-9]{8}$/;
   if (!phone || !phoneRegex.test(phone)) {
     showToast("Số điện thoại không hợp lệ (gồm 10 số, VD: 0987654321)", "error");
     document.getElementById("customerPhone")?.focus();
@@ -1044,26 +1044,21 @@ function handleBookingSubmission(e) {
     return;
   }
 
-  // 3. Nếu chọn phương thức thẻ ATM/Visa thì kiểm tra thông tin thẻ
+  // Không thu thông tin thẻ/CVV trong bản demo thuần frontend.
+  // Thanh toán thật phải được xử lý qua nhà cung cấp PCI và backend đã xác thực.
   if (AppState.selectedPaymentMethod === "card") {
-    const cardNumber = document.getElementById("cardNum")?.value.trim();
-    const cardHolder = document.getElementById("cardHolder")?.value.trim();
-    const cardExp = document.getElementById("cardExpiry")?.value.trim();
-    const cardCvv = document.getElementById("cardCvv")?.value.trim();
-
-    if (!cardNumber || !cardHolder || !cardExp || !cardCvv) {
-      showToast("Vui lòng điền đầy đủ thông tin thẻ thanh toán", "error");
-      return;
-    }
+    showToast("Bản demo không hỗ trợ nhập thông tin thẻ. Vui lòng chọn phương thức mô phỏng khác.", "error");
+    return;
   }
 
   // 4. Tính toán số tiền cuối
   const pricing = calculateOrderPricing();
 
-  // Xác định trạng thái thanh toán
-  const isPaid = (AppState.selectedPaymentMethod !== "cash");
-  const statusText = isPaid ? "ĐÃ THANH TOÁN" : "CHỜ THANH TOÁN (24H)";
-  const statusCode = isPaid ? "PAID" : "AWAITING_CASH";
+  // KHÔNG bao giờ tự xác nhận đã thu tiền ở phía trình duyệt.
+  // API/SQL Server chưa kết nối: mọi đơn tạo ở đây chỉ là dữ liệu demo cục bộ.
+  const isPaid = false;
+  const statusText = "ĐƠN MẪU - CHƯA THANH TOÁN";
+  const statusCode = "PENDING_DEMO";
 
   // 5. Tạo đối tượng đơn hàng đầy đủ
   const currentUser = (typeof getCurrentUser === "function") ? getCurrentUser() : null;
@@ -1078,7 +1073,8 @@ function handleBookingSubmission(e) {
       fullName,
       phone,
       email,
-      cccd: cccd || "Chưa cung cấp",
+      // Không lưu số CCCD thật trong localStorage của bản demo.
+      cccd: "Không thu thập (bản demo)",
       notes: notes || "Không có yêu cầu đặc biệt"
     },
     passengers: {
@@ -1108,7 +1104,7 @@ function handleBookingSubmission(e) {
   // Mở ngay màn hình Chi Tiết Đơn Hàng & Cổng Thanh Toán chuẩn deltatravel-main
   openCustomerBookingDetail(newOrder.bookingId);
 
-  showToast("Đặt tour thành công! Mã đơn của bạn là " + newOrder.bookingId, "success");
+  showToast("Đã lưu đơn mẫu trên trình duyệt. Chưa đặt tour hoặc thanh toán thật: " + newOrder.bookingId, "info");
 }
 
 function getPaymentMethodLabel(method) {
@@ -1144,7 +1140,7 @@ function saveBookingToLocalStorage(order) {
     localStorage.setItem("delta_bookings_v2", JSON.stringify(orders));
   }
 
-  // Tự động tạo bản ghi thanh toán thật vào hệ thống
+  // Chỉ ghi trạng thái thanh toán MÔ PHỎNG vào localStorage, không có giao dịch thật.
   try {
     const payments = (typeof getPaymentsData === "function") ? getPaymentsData() : [];
     const providerKey = (AppState.selectedPaymentMethod === "cash") ? "CASH" : (AppState.selectedPaymentMethod === "qr") ? "QR" : (AppState.selectedPaymentMethod === "ewallet") ? "MOMO" : "VNPAY";
@@ -1159,7 +1155,7 @@ function saveBookingToLocalStorage(order) {
       providerName: getPaymentMethodLabel(AppState.selectedPaymentMethod),
       status: order.isPaid ? "SUCCEEDED" : "INITIATED",
       reference: refCode,
-      note: order.isPaid ? "Thanh toán trực tuyến thành công" : "Chờ thu tiền mặt trực tiếp tại quầy",
+      note: "Giao dịch mô phỏng, không có thanh toán thực tế",
       createdAt: order.createdAt
     };
     payments.unshift(newPay);
