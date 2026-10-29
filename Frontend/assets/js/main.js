@@ -1492,7 +1492,7 @@ function openCustomerBookingDetail(bookingId) {
 
           <!-- Chi tiết VietQR -->
           <div id="detailVietQrBox" class="p-3 bg-light rounded-3 border mb-2 text-center">
-            <img src="assets/images/qr-payment.png" alt="Mã VietQR Thanh Toán" style="width: 160px; height: 160px; object-fit: contain; border-radius: 8px;" class="mb-2 shadow-xs" onerror="this.onerror=null; this.src='assets/images/qr-payment.jpg';">
+            <img src="assets/images/qr-payment.png" alt="Mã VietQR Thanh Toán" style="width: 160px; height: 160px; object-fit: contain; border-radius: 8px;" class="mb-2 shadow-xs" onerror="this.onerror=null; this.src='assets/images/qr-payment.png';">
             <div class="small fw-bold text-dark">Ngân Hàng Vietcombank - CN Hà Nội</div>
             <div class="small text-muted font-monospace">STK: <strong>1900 8899 88</strong> • Chủ TK: <strong>DELTA TRAVEL CORP</strong></div>
             <div class="small text-danger fw-bold mt-1">Cú pháp CK: <code class="p-1 bg-white border rounded text-danger">${b.bookingId}</code></div>
