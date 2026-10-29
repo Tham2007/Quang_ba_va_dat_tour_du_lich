@@ -12,7 +12,7 @@ Hệ thống giới thiệu tour trong nước, lịch khởi hành, quản lý 
 | FastAPI demo của Mạnh | [`API/api/`](API/api/) | Backend chạy với SQLite demo; đã tách thành các module auth/tours/bookings/admin/assistant |
 | Giao diện demo đi kèm backend | [`API/frontend/`](API/frontend/) | Giao diện thử API, **không phải** frontend An bàn giao |
 | API đọc SQL Server 12 bảng | [`API/api/tham_sqlserver_app.py`](API/api/tham_sqlserver_app.py) | Ứng dụng độc lập, **read-only**, có kiểm thử giả lập; chưa xác minh kết nối DB thật |
-| Frontend của An | [`Frontend/`](Frontend/) | Chờ An nộp mã chính thức cùng hướng dẫn chạy |
+| Frontend của An | [`Frontend/`](Frontend/) | Đã import bản **demo HTML/CSS/JS + admin** vào repo chung; CI browser test. Chưa kết nối database/auth/thanh toán thật |
 | Thiết kế database của Thắm | [`database/`](database/) | Script **Microsoft SQL Server/T-SQL**, không phải PostgreSQL; cần duyệt ERD và chạy thử trên DB thật |
 | Yêu cầu và quyết định | [`docs/`](docs/) | SRS, 20 use cases, API contract, ADR đang chờ thống nhất |
 
@@ -40,7 +40,7 @@ Hệ thống giới thiệu tour trong nước, lịch khởi hành, quản lý 
 │   ├── scripts/                    # Check schema và static assets
 │   ├── tests/                      # Backend regression/mock contracts
 │   └── docs/                       # Hướng dẫn API, test, release gates
-├── Frontend/                       # An: frontend chính thức
+├── Frontend/                       # Giao diện demo An: index.html + admin.html + CSS/JS/assets
 ├── database/                       # Thắm: thiết kế và script database
 └── docs/                           # SRS, ADR, phân công và truy vết
 ```
@@ -77,7 +77,7 @@ Xem [hướng dẫn kiểm chứng database](API/docs/SQLSERVER_LIVE_VERIFICATIO
 
 1. **Thắm:** chốt phát biểu bài toán/ERD, loại DBMS, migration và test dữ liệu.
 2. **Mạnh:** review API contract, tích hợp FastAPI theo schema đã chốt, auth/booking/payment an toàn.
-3. **An:** đưa frontend thật vào `Frontend/`, tích hợp API và bàn giao ảnh/test.
+3. **An:** rà soát bản frontend đã import vào `Frontend/`, chuyển dữ liệu từ localStorage sang API/DB chính thức sau khi schema được chốt; đọc `Frontend/README.md`.
 4. **Đăng:** test cases, E2E, bảo mật, đồng thời và UAT.
 5. **Phúc:** CI/CD, SQL Server test/staging, HTTPS, backup, deploy.
 

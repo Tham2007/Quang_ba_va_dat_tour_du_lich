@@ -1,0 +1,505 @@
+/* ==========================================================================
+   DELTA TRAVEL - BOOKING, CHECKOUT & E-TICKET (checkout.css)
+   ========================================================================== */
+
+/* Modal Đặt tour & Thanh toán */
+.modal-booking .modal-dialog {
+  max-width: 1050px;
+}
+
+.modal-booking .modal-content {
+  border-radius: var(--radius-xl);
+  border: none;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+}
+
+.modal-booking .modal-header {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  color: #ffffff;
+  padding: 1.25rem 2rem;
+  border-bottom: none;
+}
+
+.modal-booking .modal-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.booking-step-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.step-num {
+  width: 28px;
+  height: 28px;
+  background: var(--primary-color);
+  color: #ffffff;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* Khối nhập số lượng khách hàng theo độ tuổi */
+.passenger-counter-card {
+  background: var(--bg-light);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--border-color);
+}
+
+.passenger-info .name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-main);
+  margin-bottom: 0.1rem;
+}
+
+.passenger-info .sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.quantity-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-qty {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border-color);
+  background: #ffffff;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-qty:hover {
+  background: var(--primary-color);
+  color: #ffffff;
+  border-color: var(--primary-color);
+}
+
+.qty-input {
+  width: 44px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 1rem;
+  border: none;
+  background: transparent;
+}
+
+/* Dịch vụ bổ sung Addon Services */
+.addon-item {
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.65rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.addon-item:hover,
+.addon-item.selected {
+  border-color: var(--secondary-color);
+  background-color: rgba(8, 131, 149, 0.04);
+}
+
+.addon-item .form-check-input {
+  cursor: pointer;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.addon-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-left: 0.5rem;
+  cursor: pointer;
+}
+
+.addon-price {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--secondary-color);
+}
+
+/* ==========================================================================
+   CỔNG PHƯƠNG THỨC THANH TOÁN (Payment Gateways)
+   ========================================================================== */
+.payment-methods-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.65rem;
+  margin-bottom: 1.25rem;
+}
+
+.payment-tab-btn {
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.5rem;
+  background: #ffffff;
+  color: var(--text-main);
+  font-weight: 600;
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.payment-tab-btn i {
+  font-size: 1.35rem;
+  color: var(--text-muted);
+}
+
+.payment-tab-btn:hover,
+.payment-tab-btn.active {
+  border-color: var(--secondary-color);
+  background: rgba(8, 131, 149, 0.06);
+  color: var(--primary-color);
+}
+
+.payment-tab-btn.active i {
+  color: var(--secondary-color);
+}
+
+/* Hộp hiển thị QR Chuyển khoản */
+.qr-payment-box {
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.qr-payment-img {
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+  margin: 0 auto 1rem auto;
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.bank-info-table {
+  width: 100%;
+  font-size: 0.85rem;
+  text-align: left;
+  margin-top: 0.75rem;
+}
+
+.bank-info-table td {
+  padding: 0.35rem 0.5rem;
+}
+
+.bank-info-table .label {
+  color: var(--text-muted);
+  width: 40%;
+}
+
+.bank-info-table .value {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.highlight-code {
+  color: #dc2626;
+  font-family: monospace;
+  font-size: 1rem;
+  background: #fef2f2;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+/* ==========================================================================
+   BẢNG TÍNH TIỀN & TÓM TẮT ĐƠN HÀNG (Order Summary Card)
+   ========================================================================== */
+.order-summary-card {
+  background: var(--bg-light);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  padding: 1.5rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.summary-tour-header {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px dashed var(--border-color);
+  margin-bottom: 1rem;
+}
+
+.summary-tour-thumb {
+  width: 75px;
+  height: 75px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+}
+
+.summary-tour-info h5 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: 0.25rem;
+  line-height: 1.3;
+}
+
+.summary-tour-info .badge {
+  font-size: 0.7rem;
+}
+
+.summary-cost-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.cost-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.cost-row.discount-row {
+  color: var(--success-color);
+  font-weight: 700;
+}
+
+/* Khối nhập mã giảm giá Voucher */
+.voucher-input-group {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.voucher-input-group input {
+  text-transform: uppercase;
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.5px;
+}
+
+.voucher-status-msg {
+  font-size: 0.8rem;
+  margin-top: -0.5rem;
+  margin-bottom: 0.75rem;
+  display: none;
+}
+
+.voucher-status-msg.success {
+  display: block;
+  color: var(--success-color);
+}
+
+.voucher-status-msg.error {
+  display: block;
+  color: var(--danger-color);
+}
+
+/* Hàng tổng cộng */
+.total-checkout-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 0.75rem;
+  border-top: 2px solid var(--border-color);
+  margin-bottom: 1.25rem;
+}
+
+.total-checkout-label {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.total-checkout-val {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: var(--accent-color);
+}
+
+/* ==========================================================================
+   VÉ ĐIỆN TỬ (E-TICKET / HÓA ĐƠN XÁC NHẬN)
+   ========================================================================== */
+.modal-eticket .modal-dialog {
+  max-width: 780px;
+}
+
+.eticket-paper {
+  background: #ffffff;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border-color);
+  position: relative;
+}
+
+.eticket-header {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  color: #ffffff;
+  padding: 1.75rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.eticket-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.eticket-code-block {
+  text-align: right;
+}
+
+.eticket-code-block .label {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.eticket-code-val {
+  font-size: 1.25rem;
+  font-weight: 800;
+  font-family: monospace;
+  color: #ffb703;
+  letter-spacing: 1px;
+}
+
+.eticket-status-bar {
+  padding: 0.75rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.eticket-status-bar.paid {
+  background: #ecfdf5;
+  color: #065f46;
+  border-bottom: 1px solid #a7f3d0;
+}
+
+.eticket-status-bar.pending {
+  background: #fffbeb;
+  color: #92400e;
+  border-bottom: 1px solid #fde68a;
+}
+
+.eticket-body {
+  padding: 2rem;
+}
+
+.eticket-section-title {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.eticket-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.eticket-field .lbl {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.eticket-field .val {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.eticket-barcode-mock {
+  text-align: center;
+  padding: 1.25rem 0 0.5rem 0;
+  border-top: 2px dashed #cbd5e1;
+}
+
+.barcode-stripes {
+  height: 48px;
+  background: repeating-linear-gradient(
+    90deg,
+    #0f172a,
+    #0f172a 2px,
+    transparent 2px,
+    transparent 4px,
+    #0f172a 4px,
+    #0f172a 7px,
+    transparent 7px,
+    transparent 9px
+  );
+  width: 60%;
+  margin: 0 auto 0.5rem auto;
+}
+
+/* In ấn vé điện tử (Print Mode) */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .modal-eticket, .modal-eticket * {
+    visibility: visible;
+  }
+  .modal-eticket {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

@@ -1,0 +1,517 @@
+/* ==========================================================================
+   DELTA TRAVEL - APPLE LIQUID GLASS HEADER & TOPBAR (header.css)
+   Ported 100% from deltatravel-main design system (Pure CSS, HTML, JS)
+   ========================================================================== */
+
+/* Topbar trên cùng */
+.topbar {
+  background: #09090b;
+  color: #a1a1aa;
+  font-size: 0.82rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.topbar a {
+  color: #e4e4e7;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.topbar a:hover {
+  color: #f59e0b;
+}
+
+.topbar-divider {
+  display: inline-block;
+  width: 1px;
+  height: 12px;
+  background-color: rgba(255, 255, 255, 0.18);
+  margin: 0 0.75rem;
+  vertical-align: middle;
+}
+
+.topbar-badge {
+  background: #f59e0b;
+  color: #000000;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 0.12rem 0.45rem;
+  border-radius: 9999px;
+  margin-left: 0.35rem;
+}
+
+/* ════════════════════════════════════════════════════════════
+   LIQUID GLASS NAVBAR CONTAINER
+   ════════════════════════════════════════════════════════════ */
+.navbar-delta {
+  background: rgba(255, 255, 255, 0.82);
+  -webkit-backdrop-filter: blur(28px) saturate(190%) brightness(1.04);
+  backdrop-filter: blur(28px) saturate(190%) brightness(1.04);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  padding: 0.65rem 0;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar-delta.scrolled {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  padding: 0.5rem 0;
+}
+
+/* ════════════════════════════════════════════════════════════
+   1. BRAND LOGO (Matching deltatravel-main glass-brand-logo)
+   Pure Luxury Black "DELTA TRAVEL" & Neutral Tagline
+   ════════════════════════════════════════════════════════════ */
+.navbar-brand-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none !important;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.brand-icon-crystal {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.06),
+    inset 0 1.5px 2px rgba(255, 255, 255, 1);
+  padding: 4px;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.navbar-brand-delta:hover .brand-icon-crystal {
+  transform: scale(1.08) rotate(4deg);
+}
+
+.brand-logo-img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* DELTA TRAVEL: Solid Black, No Orange/Teal Split */
+.brand-title {
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: #000000 !important;
+  text-transform: uppercase;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  display: block;
+  line-height: 1.1;
+}
+
+/* KHÁM PHÁ & NGHỈ DƯỠNG: Neutral-600 Uppercase */
+.brand-subtitle {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #52525b !important;
+  text-transform: uppercase;
+  display: block;
+  margin-top: 3px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+@media (max-width: 575.98px) {
+  .brand-subtitle {
+    display: none !important;
+  }
+  .brand-title {
+    font-size: 1.1rem;
+  }
+  .brand-icon-crystal {
+    width: 36px;
+    height: 36px;
+  }
+  .brand-logo-img {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   2. LIQUID GLASS NAV DOCK (Floating Pill Capsule)
+   NO COLUMN WRAPPING (white-space: nowrap)
+   ════════════════════════════════════════════════════════════ */
+.liquid-nav-dock {
+  position: relative;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.8);
+  -webkit-backdrop-filter: blur(28px) saturate(190%) brightness(1.04);
+  backdrop-filter: blur(28px) saturate(190%) brightness(1.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 4px 24px -2px rgba(0, 0, 0, 0.06),
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 1.5px 0 rgba(0, 0, 0, 0.03);
+  padding: 4px 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  user-select: none;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  margin: 0 auto;
+}
+
+/* Mọi tab nav tuyệt đối nằm trên một hàng ngang, không bị ngắt thành cột dọc */
+.liquid-nav-link {
+  position: relative;
+  z-index: 2;
+  padding: 5px 11px;
+  border-radius: 9999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #3f3f46 !important;
+  text-decoration: none !important;
+  white-space: nowrap !important; /* KHÔNG BAO GIỜ BỊ RỚT DÒNG CỘT DỌC */
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+@media (min-width: 1400px) {
+  .liquid-nav-link {
+    padding: 6px 14px;
+    font-size: 13px;
+    gap: 5px;
+  }
+}
+
+.liquid-nav-link:hover {
+  color: #000000 !important;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.liquid-nav-link.active {
+  color: #000000 !important;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    0 2px 10px -1px rgba(0, 0, 0, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    inset 0 1px 1.5px #ffffff;
+}
+
+/* Đốm ngọc hổ phách biểu thị tab đang kích hoạt (Amber bead indicator) */
+.liquid-nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.95);
+}
+
+/* Badge số đơn hàng trên tab Đơn của tôi */
+.booking-counter-badge {
+  font-size: 10px;
+  padding: 0.15rem 0.4rem;
+  font-weight: 800;
+}
+
+/* ════════════════════════════════════════════════════════════
+   3. RIGHT SECTION: USER MENU PILL & EXPLORE BUTTON
+   Matching deltatravel-main glass-user-menu.tsx
+   ════════════════════════════════════════════════════════════ */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-shrink: 0;
+}
+
+/* Liquid User Glass Pill */
+.liquid-user-glass {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 9999px;
+  padding: 4px 12px 4px 5px;
+  background: rgba(255, 255, 255, 0.78);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.04),
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.95);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  text-decoration: none !important;
+  color: #000000 !important;
+  user-select: none;
+}
+
+.liquid-user-glass:hover {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.16);
+  transform: scale(1.02);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.user-avatar-gold-rim {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #fcd34d;
+  background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+}
+
+.liquid-user-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #18181b;
+  white-space: nowrap;
+}
+
+/* Nút đăng xuất nhỏ dạng glass capsule tròn */
+.liquid-logout-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: #71717a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  padding: 0;
+}
+
+.liquid-logout-btn:hover {
+  color: #dc2626;
+  background: #fef2f2;
+  border-color: #fecaca;
+  transform: scale(1.08);
+}
+
+/* Nút icon phong cách Liquid Glass bo tròn (Wishlist & Mobile Menu Toggle) */
+.liquid-btn-icon {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #18181b;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 1.5px rgba(255, 255, 255, 0.95);
+  padding: 0;
+  text-decoration: none !important;
+}
+
+.liquid-btn-icon:hover {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.16);
+  transform: scale(1.06);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  color: #000000;
+}
+
+.liquid-btn-icon .liquid-icon-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  background: #f59e0b;
+  color: #000000;
+  font-size: 10px;
+  font-weight: 800;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #ffffff;
+  padding: 0 3px;
+}
+
+/* ════════════════════════════════════════════════════════════
+   GLASS MOBILE DRAWER DROPDOWN
+   Tuyệt đối ẩn trên desktop (>=992px), mở mượt mà trên Mobile
+   ════════════════════════════════════════════════════════════ */
+.glass-mobile-drawer {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1050;
+  padding: 1rem 1.25rem 1.25rem;
+  background: rgba(255, 255, 255, 0.97);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  backdrop-filter: blur(28px) saturate(190%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+  animation: fadeInDrawer 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.glass-mobile-drawer.show {
+  display: block !important;
+}
+
+@media (min-width: 992px) {
+  .glass-mobile-drawer {
+    display: none !important;
+  }
+}
+
+.mobile-nav-item {
+  padding: 0.65rem 1rem;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #27272a;
+  text-decoration: none !important;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.mobile-nav-item:hover, .mobile-nav-item:active {
+  background: rgba(0, 0, 0, 0.05);
+  color: #000000;
+}
+
+@keyframes fadeInDrawer {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Luxury Button: Khám phá Tour */
+.btn-explore-liquid {
+  background: #09090b;
+  color: #ffffff !important;
+  border-radius: 9999px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none !important;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.btn-explore-liquid:hover {
+  background: #000000;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Dropdown menu của tài khoản */
+.auth-dropdown-menu {
+  border-radius: 18px;
+  padding: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15);
+  min-width: 250px;
+}
+
+.auth-dropdown-header {
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 12px;
+  margin-bottom: 6px;
+}
+
+.auth-dropdown-header .user-name {
+  font-weight: 800;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.auth-dropdown-menu .dropdown-item {
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-dropdown-menu .dropdown-item:hover {
+  background: #f1f5f9;
+}
+
+/* ════════════════════════════════════════════════════════════
+   RESPONSIVE CHO MOBILE & TABLET
+   ════════════════════════════════════════════════════════════ */
+@media (max-width: 991.98px) {
+  .liquid-nav-dock {
+    display: none !important;
+  }
+}

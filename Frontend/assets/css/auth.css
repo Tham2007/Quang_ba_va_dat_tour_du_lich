@@ -1,0 +1,434 @@
+/* ==========================================================================
+   DELTA TRAVEL - AUTHENTICATION & USER MANAGEMENT STYLES (auth.css)
+   ========================================================================== */
+
+/* 1. Nút Đăng nhập / Đăng ký trên Header */
+.btn-outline-delta-auth {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.15rem;
+  border-radius: var(--radius-full);
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: var(--transition);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.navbar-delta.scrolled .btn-outline-delta-auth {
+  border-color: var(--primary-color);
+  background: rgba(10, 77, 104, 0.08);
+  color: var(--primary-color);
+}
+
+.btn-outline-delta-auth:hover {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(10, 77, 104, 0.25);
+}
+
+/* 2. Menu Dropdown Tài Khoản khi đã Đăng nhập */
+.user-account-dropdown {
+  position: relative;
+}
+
+.btn-auth-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.35rem 0.85rem 0.35rem 0.45rem;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.18);
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(10px);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: var(--transition);
+  cursor: pointer;
+}
+
+.navbar-delta.scrolled .btn-auth-user {
+  background: #ffffff;
+  border-color: var(--border-color);
+  color: var(--text-main);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-auth-user:hover,
+.btn-auth-user:focus {
+  background: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  border-color: #ffffff;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.navbar-delta.scrolled .btn-auth-user:hover {
+  background: var(--bg-light);
+  color: var(--primary-color);
+  border-color: var(--secondary-light);
+}
+
+.user-avatar-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff6b35, #f59e0b);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 6px rgba(255, 107, 53, 0.4);
+  flex-shrink: 0;
+}
+
+.user-display-name {
+  max-width: 130px;
+}
+
+/* Dropdown Menu tùy chỉnh */
+.auth-dropdown-menu {
+  min-width: 260px;
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 15px 35px rgba(10, 77, 104, 0.18);
+  padding: 0.75rem 0;
+  animation: authDropdownSlide 0.25s ease-out;
+  margin-top: 0.5rem !important;
+  background: #ffffff;
+}
+
+@keyframes authDropdownSlide {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.auth-dropdown-header {
+  padding: 0.75rem 1.25rem 0.5rem;
+}
+
+.auth-dropdown-header .user-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.15rem;
+}
+
+.auth-dropdown-header .user-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #0a4d68, #088395);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+}
+
+.auth-dropdown-menu .dropdown-item {
+  padding: 0.65rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: var(--transition);
+}
+
+.auth-dropdown-menu .dropdown-item i {
+  font-size: 1.1rem;
+  width: 20px;
+  text-align: center;
+}
+
+.auth-dropdown-menu .dropdown-item:hover {
+  background: rgba(10, 77, 104, 0.06);
+  color: var(--primary-color);
+  padding-left: 1.5rem;
+}
+
+.auth-dropdown-menu .dropdown-item.text-danger:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--danger-color);
+}
+
+/* 3. Modal Đăng nhập / Đăng ký / Quên mật khẩu */
+.modal-auth .modal-content {
+  border: none;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: 0 25px 50px rgba(10, 77, 104, 0.25);
+}
+
+.auth-modal-header {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  color: #ffffff;
+  padding: 1.75rem 1.75rem 1.25rem;
+  position: relative;
+  text-align: center;
+}
+
+.auth-modal-header .brand-icon {
+  width: 52px;
+  height: 52px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(6px);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.auth-modal-header .modal-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  margin-bottom: 0.25rem;
+}
+
+.auth-modal-header .modal-subtitle {
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 0;
+}
+
+.auth-modal-header .btn-close {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  filter: brightness(0) invert(1);
+  opacity: 0.8;
+  transition: var(--transition);
+}
+
+.auth-modal-header .btn-close:hover {
+  opacity: 1;
+  transform: rotate(90deg);
+}
+
+/* Thanh điều hướng Tab Đăng nhập / Đăng ký / Quên mật khẩu */
+.auth-tabs-nav {
+  display: flex;
+  background: var(--bg-light);
+  padding: 0.4rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border-color);
+}
+
+.auth-tabs-nav .nav-link {
+  flex: 1;
+  text-align: center;
+  padding: 0.6rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  border: none;
+  background: transparent;
+  transition: var(--transition);
+  cursor: pointer;
+}
+
+.auth-tabs-nav .nav-link.active {
+  background: #ffffff;
+  color: var(--primary-color);
+  box-shadow: var(--shadow-sm);
+}
+
+.auth-tabs-nav .nav-link:hover:not(.active) {
+  color: var(--text-main);
+}
+
+/* Các trường nhập liệu (Inputs & Labels) */
+.auth-form-group {
+  margin-bottom: 1.15rem;
+}
+
+.auth-form-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 0.35rem;
+  display: block;
+}
+
+.auth-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.auth-input-wrapper .input-icon {
+  position: absolute;
+  left: 1rem;
+  color: var(--text-muted);
+  font-size: 1rem;
+  pointer-events: none;
+  transition: var(--transition);
+}
+
+.auth-input-wrapper .form-control {
+  padding: 0.72rem 1rem 0.72rem 2.65rem;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border-color);
+  font-size: 0.92rem;
+  transition: var(--transition);
+  background: #ffffff;
+}
+
+.auth-input-wrapper .form-control:focus {
+  border-color: var(--secondary-color);
+  box-shadow: 0 0 0 4px rgba(8, 131, 149, 0.15);
+}
+
+.auth-input-wrapper .form-control:focus + .input-icon,
+.auth-input-wrapper .form-control:focus ~ .input-icon {
+  color: var(--secondary-color);
+}
+
+.auth-input-wrapper .btn-toggle-pass {
+  position: absolute;
+  right: 0.75rem;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  font-size: 1rem;
+  transition: var(--transition);
+}
+
+.auth-input-wrapper .btn-toggle-pass:hover {
+  color: var(--primary-color);
+}
+
+.auth-error-msg {
+  font-size: 0.8rem;
+  color: var(--danger-color);
+  margin-top: 0.3rem;
+  display: none;
+}
+
+.auth-error-msg.show {
+  display: block;
+}
+
+/* Nút Submit chính */
+.btn-auth-submit {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  border: none;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: var(--transition);
+  box-shadow: 0 4px 15px rgba(10, 77, 104, 0.25);
+  cursor: pointer;
+}
+
+.btn-auth-submit:hover {
+  background: linear-gradient(135deg, var(--primary-hover), var(--primary-color));
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(10, 77, 104, 0.35);
+  color: #ffffff;
+}
+
+.auth-footer-text {
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin-top: 1.25rem;
+  margin-bottom: 0;
+}
+
+.auth-footer-text a {
+  color: var(--secondary-color);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.auth-footer-text a:hover {
+  text-decoration: underline;
+}
+
+/* 4. Modal Thông Tin Tài Khoản (Profile Modal) */
+.profile-card-header {
+  background: linear-gradient(135deg, #0a4d68 0%, #05bfdb 100%);
+  color: #ffffff;
+  padding: 2rem 1.5rem 1.5rem;
+  text-align: center;
+  position: relative;
+}
+
+.profile-avatar-large {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--primary-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 800;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  margin-bottom: 0.75rem;
+  border: 3px solid rgba(255, 255, 255, 0.6);
+}
+
+.profile-stats-row {
+  display: flex;
+  background: var(--bg-light);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.5rem;
+  margin: 1.25rem 0;
+  border: 1px solid var(--border-color);
+}
+
+.profile-stat-box {
+  flex: 1;
+  text-align: center;
+  border-right: 1px solid var(--border-color);
+}
+
+.profile-stat-box:last-child {
+  border-right: none;
+}
+
+.profile-stat-box .stat-val {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--primary-color);
+}
+
+.profile-stat-box .stat-lbl {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-top: 0.15rem;
+}
