@@ -1,0 +1,62 @@
+name: Alternate Tham backend regression (SQLite demo only)
+
+on:
+  push:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ci-tham-new-backend.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ci-tham-new-backend.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prototype-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Detect alternate backend availability (do not fake a test pass)
+        id: availability
+        run: |
+          if [ -f backend/app/main.py ]; then
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'present=false' >> "$GITHUB_OUTPUT"
+            echo 'SKIPPED: backend/ not yet pushed; no alternate-backend tests executed.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Install test dependencies
+        if: steps.availability.outputs.present == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install fastapi sqlalchemy pydantic uvicorn httpx pytest argon2-cffi
+      - name: Compile and run tests (SQLite only)
+        if: steps.availability.outputs.present == 'true'
+        env:
+          DELTA_ENV: development
+          DEMO_SEED: '1'
+          AUTO_CREATE_SCHEMA: '1'
+        run: |
+          python -m compileall -q backend/app backend/tests
+          python -m pytest backend/tests -q
+      - name: Verify SQL Server safety guard in alternate ORM
+        if: steps.availability.outputs.present == 'true'
+        run: |
+          python - <<'PY'
+          from backend.app.core.database import make_engine
+          for url in ('mssql://invalid', 'mssql+pyodbc://invalid'):
+              try:
+                  make_engine(url)
+              except RuntimeError as err:
+                  assert 'schema' in str(err).lower() or 'SQL Server' in str(err)
+              else:
+                  raise SystemExit('FAIL: alternate ORM must refuse SQL Server URL')
+          print('PASS: alternate ORM cannot be pointed at Tham 12-table MSSQL')
+          PY
