@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal Quản Trị Hệ Thống - Delta Travel</title>
+  <meta name="description" content="Trung tâm điều hành và quản trị thực tế của Delta Travel: quản lý catalog tour, kho chỗ, đơn đặt, đối soát thanh toán và kiểm toán.">
+  <link rel="icon" type="image/png" href="favicon_logo_delta.png">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="apple-touch-icon" href="favicon_logo_delta.png">
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap 5 CSS CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <!-- Bootstrap Icons CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  <!-- Admin Dedicated Styling -->
+  <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body class="admin-body">
+
+  <!-- ==========================================================================
+       1. MÀN HÌNH KHÓA XÁC THỰC (AUTH LOCK SCREEN CHO KHÁCH / CHƯA ĐĂNG NHẬP)
+       ========================================================================== -->
+  <div class="admin-lock-screen" id="adminLockScreen" style="display: none;">
+    <div class="admin-lock-box" style="max-width: 520px; text-align: left;">
+      <div class="text-center mb-3">
+        <div class="admin-lock-icon mx-auto">
+          <i class="bi bi-shield-lock-fill"></i>
+        </div>
+        <h3 class="fw-bold text-dark mb-1">Khu Vực Quản Trị Hệ Thống</h3>
+        <p class="text-muted small mb-0">
+          Dành riêng cho <strong>Ban Quản Trị Nhóm (5 thành viên)</strong> của Delta Travel.
+        </p>
+      </div>
+
+      <div class="p-3 bg-light rounded-3 border mb-3">
+        <div class="small fw-bold text-dark mb-2 text-uppercase text-muted" style="font-size: 11px; letter-spacing: 0.5px;">
+          <i class="bi bi-people-fill text-primary me-1"></i> Chọn tài khoản thành viên nhóm để đăng nhập:
+        </div>
+        <div class="d-flex flex-column gap-2">
+          <!-- Thành viên 1: Hồng Thắm (Trưởng nhóm) -->
+          <button type="button" class="btn btn-outline-dark bg-white d-flex align-items-center justify-content-between p-2 rounded-3 text-start hover-shadow" onclick="handleQuickAdminLogin('USR-01')">
+            <div class="d-flex align-items-center gap-2.5">
+              <div class="rounded-circle bg-warning text-dark fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; font-size: 14px;">HT</div>
+              <div>
+                <div class="fw-bold text-dark small mb-0">Hồng Thắm <span class="badge bg-warning text-dark ms-1" style="font-size: 10px;">Trưởng nhóm</span></div>
+                <div class="text-muted" style="font-size: 11px;">hongtham@deltatravel.vn</div>
+              </div>
+            </div>
+            <span class="badge bg-primary-subtle text-primary border small" style="font-size: 11px;">Đăng nhập <i class="bi bi-arrow-right"></i></span>
+          </button>
+
+          <!-- Thành viên 2: Lê Văn An -->
+          <button type="button" class="btn btn-outline-dark bg-white d-flex align-items-center justify-content-between p-2 rounded-3 text-start hover-shadow" onclick="handleQuickAdminLogin('USR-02')">
+            <div class="d-flex align-items-center gap-2.5">
+              <div class="rounded-circle bg-primary text-white fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; font-size: 14px;">LA</div>
+              <div>
+                <div class="fw-bold text-dark small mb-0">Lê Văn An <span class="badge bg-secondary text-white ms-1" style="font-size: 10px;">Bạn</span></div>
+                <div class="text-muted" style="font-size: 11px;">an.levan@gmail.com</div>
+              </div>
+            </div>
+            <span class="badge bg-primary-subtle text-primary border small" style="font-size: 11px;">Đăng nhập <i class="bi bi-arrow-right"></i></span>
+          </button>
+
+          <!-- Thành viên 3: Lê Hải Đăng -->
+          <button type="button" class="btn btn-outline-dark bg-white d-flex align-items-center justify-content-between p-2 rounded-3 text-start hover-shadow" onclick="handleQuickAdminLogin('USR-03')">
+            <div class="d-flex align-items-center gap-2.5">
+              <div class="rounded-circle bg-success text-white fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; font-size: 14px;">HĐ</div>
+              <div>
+                <div class="fw-bold text-dark small mb-0">Lê Hải Đăng <span class="badge bg-light text-dark border ms-1" style="font-size: 10px;">Thành viên</span></div>
+                <div class="text-muted" style="font-size: 11px;">haidang@deltatravel.vn</div>
+              </div>
+            </div>
+            <span class="badge bg-primary-subtle text-primary border small" style="font-size: 11px;">Đăng nhập <i class="bi bi-arrow-right"></i></span>
+          </button>
+
+          <!-- Thành viên 4: Nguyễn Phúc -->
+          <button type="button" class="btn btn-outline-dark bg-white d-flex align-items-center justify-content-between p-2 rounded-3 text-start hover-shadow" onclick="handleQuickAdminLogin('USR-04')">
+            <div class="d-flex align-items-center gap-2.5">
+              <div class="rounded-circle bg-info text-dark fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; font-size: 14px;">NP</div>
+              <div>
+                <div class="fw-bold text-dark small mb-0">Nguyễn Phúc <span class="badge bg-light text-dark border ms-1" style="font-size: 10px;">Thành viên</span></div>
+                <div class="text-muted" style="font-size: 11px;">nguyenphuc@deltatravel.vn</div>
+              </div>
+            </div>
+            <span class="badge bg-primary-subtle text-primary border small" style="font-size: 11px;">Đăng nhập <i class="bi bi-arrow-right"></i></span>
+          </button>
+
+          <!-- Thành viên 5: Mạnh Lê -->
+          <button type="button" class="btn btn-outline-dark bg-white d-flex align-items-center justify-content-between p-2 rounded-3 text-start hover-shadow" onclick="handleQuickAdminLogin('USR-05')">
+            <div class="d-flex align-items-center gap-2.5">
+              <div class="rounded-circle bg-secondary text-white fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; font-size: 14px;">ML</div>
+              <div>
+                <div class="fw-bold text-dark small mb-0">Mạnh Lê (Manh Le) <span class="badge bg-light text-dark border ms-1" style="font-size: 10px;">Thành viên</span></div>
+                <div class="text-muted" style="font-size: 11px;">manhle@deltatravel.vn</div>
+              </div>
+            </div>
+            <span class="badge bg-primary-subtle text-primary border small" style="font-size: 11px;">Đăng nhập <i class="bi bi-arrow-right"></i></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center justify-content-between pt-1">
+        <a href="index.html" class="text-decoration-none small text-muted">
+          <i class="bi bi-arrow-left me-1"></i> Quay về Website khách hàng
+        </a>
+        <span class="text-muted" style="font-size: 11px;">
+          <i class="bi bi-shield-check text-success"></i> Quyền ADMIN đầy đủ
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       2. KHUNG GIAO DIỆN QUẢN TRỊ CHÍNH (SIDEBAR + MAIN CONTENT)
+       ========================================================================== -->
+  <div class="admin-layout-wrapper" id="adminLayoutWrapper">
+    
+    <!-- ─── SIDEBAR TRÁI ─── -->
+    <aside class="admin-sidebar" id="adminSidebar">
+      <div>
+        <!-- Logo thương hiệu Delta Travel -->
+        <a href="admin.html" class="admin-brand">
+          <div class="admin-brand-icon">
+            <img src="favicon_logo_delta.png" alt="Delta Travel" onerror="this.onerror=null; this.src='assets/images/favicon_logo_delta.png';">
+          </div>
+          <div>
+            <span class="admin-brand-name">DELTA TRAVEL</span>
+            <span class="admin-brand-sub">BAN QUẢN TRỊ DỰ ÁN</span>
+          </div>
+        </a>
+
+        <!-- Thẻ người dùng Admin đang đăng nhập -->
+        <div class="admin-user-card position-relative">
+          <div class="admin-user-avatar" id="adminAvatarInitials">AD</div>
+          <div class="admin-user-info flex-grow-1">
+            <div class="admin-user-name" id="adminUserName">Quản Trị Viên</div>
+            <div class="admin-user-role" id="adminUserRoleBadge">
+              <i class="bi bi-shield-check text-warning"></i> QUẢN TRỊ VIÊN HỆ THỐNG
+            </div>
+          </div>
+          <div class="dropdown">
+            <button class="btn btn-sm btn-link text-white-50 p-0 dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Đổi thành viên làm việc">
+              <i class="bi bi-arrow-repeat text-light"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end shadow" style="font-size: 12px; min-width: 220px;">
+              <li><h6 class="dropdown-header text-warning fw-bold"><i class="bi bi-people-fill me-1"></i> Đổi tài khoản thành viên:</h6></li>
+              <li><button class="dropdown-item" type="button" onclick="handleQuickAdminLogin('USR-01')"><strong>Hồng Thắm</strong> (Trưởng nhóm)</button></li>
+              <li><button class="dropdown-item" type="button" onclick="handleQuickAdminLogin('USR-02')"><strong>Lê Văn An</strong> (Bạn)</button></li>
+              <li><button class="dropdown-item" type="button" onclick="handleQuickAdminLogin('USR-03')"><strong>Lê Hải Đăng</strong></button></li>
+              <li><button class="dropdown-item" type="button" onclick="handleQuickAdminLogin('USR-04')"><strong>Nguyễn Phúc</strong></button></li>
+              <li><button class="dropdown-item" type="button" onclick="handleQuickAdminLogin('USR-05')"><strong>Mạnh Lê</strong></button></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Menu Điều Hướng (Sidebar Navigation) -->
+        <nav class="admin-nav" aria-label="Menu quản trị">
+          <div class="admin-nav-heading">Menu Quản Trị Hệ Thống</div>
+
+          <a href="#dashboard" class="admin-nav-item active" data-tab="dashboard">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-speedometer2 admin-nav-icon"></i>
+              <span>Tổng quan vận hành</span>
+            </div>
+          </a>
+
+          <a href="#tours" class="admin-nav-item" data-tab="tours">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-compass admin-nav-icon"></i>
+              <span>Quản lý Tour</span>
+            </div>
+            <span class="admin-badge-pill">CHÍNH</span>
+          </a>
+
+          <a href="#schedules" class="admin-nav-item" data-tab="schedules">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-calendar3 admin-nav-icon"></i>
+              <span>Lịch khởi hành & Slot</span>
+            </div>
+          </a>
+
+          <a href="#bookings" class="admin-nav-item" data-tab="bookings">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-ticket-perforated admin-nav-icon"></i>
+              <span>Quản lý Đơn & Sao kê</span>
+            </div>
+          </a>
+
+          <a href="#payments" class="admin-nav-item" data-tab="payments">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-credit-card-2-front admin-nav-icon"></i>
+              <span>Thanh toán & Hoàn tiền</span>
+            </div>
+          </a>
+
+          <a href="#system" class="admin-nav-item" data-tab="system">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-cpu admin-nav-icon"></i>
+              <span>AI & trạng thái hệ thống</span>
+            </div>
+          </a>
+
+          <a href="#audit" class="admin-nav-item" data-tab="audit">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-file-earmark-text admin-nav-icon"></i>
+              <span>Nhật ký kiểm toán</span>
+            </div>
+            <span class="badge bg-dark text-warning small font-monospace" style="font-size: 8px;">ADMIN</span>
+          </a>
+        </nav>
+      </div>
+
+      <!-- Thao tác chân trang: Về Website & Đăng xuất -->
+      <div class="admin-sidebar-footer">
+        <a href="index.html" class="admin-footer-btn btn-web">
+          <i class="bi bi-box-arrow-up-right"></i>
+          <span>Về trang khách (Website)</span>
+        </a>
+        <button type="button" class="admin-footer-btn btn-logout" onclick="handleAdminLogout()">
+          <i class="bi bi-box-arrow-right"></i>
+          <span>Đăng xuất tài khoản</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ─── NỘI DUNG CHÍNH (MAIN RIGHT PANE) ─── -->
+    <main class="admin-main">
+      <!-- Topbar phía trên -->
+      <header class="admin-topbar">
+        <div class="d-flex align-items-center gap-3">
+          <button class="admin-mobile-toggle" id="adminMobileToggle" title="Mở menu">
+            <i class="bi bi-list"></i>
+          </button>
+          <div>
+            <h1 class="admin-topbar-title" id="adminTopbarTitle">
+              Trung Tâm Điều Hành Delta Travel
+            </h1>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+          <span class="admin-topbar-badge" id="adminTopbarBadge">OPERATIONS OVERVIEW</span>
+          <button class="btn btn-admin-outline btn-admin-sm" onclick="refreshAdminData(); renderCurrentTab(); showAdminToast('Dữ liệu đã được làm mới!', 'info');">
+            <i class="bi bi-arrow-repeat"></i> Làm Mới
+          </button>
+        </div>
+      </header>
+
+      <!-- Vùng hiển thị nội dung chi tiết -->
+      <div class="admin-content-inner">
+        <!-- AI Operations Copilot Strip -->
+        <div class="ai-copilot-card">
+          <div class="ai-copilot-eyebrow">
+            <i class="bi bi-stars"></i> DELTA AI • OPERATIONS COPILOT
+          </div>
+          <h2 class="ai-copilot-title" id="aiCopilotTitle">
+            AI đọc tình hình vận hành trước khi bạn mở từng bảng
+          </h2>
+          <p class="ai-copilot-desc" id="aiCopilotDesc">
+            Copilot chạy theo quyền ADMIN/OPERATIONS, ưu tiên booking, hoàn tiền và trạng thái hệ thống cần chú ý.
+          </p>
+
+          <!-- Gợi ý câu hỏi nhanh -->
+          <div class="ai-suggestions-list" id="aiCopilotChips"></div>
+
+          <!-- Khung phản hồi kết quả AI -->
+          <div class="ai-copilot-response-box" id="aiCopilotResponse"></div>
+        </div>
+
+        <!-- Khung chứa nội dung Tab động -->
+        <div id="adminTabContentContainer">
+          <!-- JavaScript sẽ render động Dashboard, Tours, Schedules, Bookings, Payments, System, Audit -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ==========================================================================
+       3. MODAL: THÊM / SỬA TOUR
+       ========================================================================== -->
+  <div class="modal fade" id="adminTourModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 rounded-4 shadow-lg">
+        <div class="modal-header border-bottom p-4">
+          <h5 class="modal-title fw-bold" id="tourModalTitle">Thêm Tour Du Lịch Mới</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="tourForm" onsubmit="handleSaveTourSubmit(event)">
+          <div class="modal-body p-4">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Mã Tour (ID)</label>
+                <input type="text" class="form-control" id="formTourId" required readonly style="background-color: #f8fafc;">
+              </div>
+              <div class="col-md-8">
+                <label class="form-label small fw-bold">Tên Tour Du Lịch <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="formTourTitle" placeholder="VD: Tour Du Thuyền 5 Sao..." required>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Slug URL (tùy chọn)</label>
+                <input type="text" class="form-control" id="formTourSlug" placeholder="ha-long-cruise-5-star">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Vùng Miền</label>
+                <select class="form-select" id="formTourRegion">
+                  <option value="north">Miền Bắc (Hạ Long, Sa Pa...)</option>
+                  <option value="central">Miền Trung (Đà Nẵng, Hội An, Đà Lạt...)</option>
+                  <option value="south">Miền Nam (Phú Quốc, Miền Tây...)</option>
+                </select>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Thời Lượng Tour</label>
+                <input type="text" class="form-control" id="formTourDuration" value="3N2Đ" placeholder="3N2Đ">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Giá Gốc Niêm Yết (đ)</label>
+                <input type="number" class="form-control" id="formTourOriginalPrice" placeholder="VD: 4890000">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Giá Khuyến Mãi Bán (đ) <span class="text-danger">*</span></label>
+                <input type="number" class="form-control" id="formTourPrice" placeholder="VD: 3890000" required>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Điểm Đón Khách</label>
+                <input type="text" class="form-control" id="formTourDeparture" placeholder="Hà Nội / Sân bay..." value="Hà Nội (Xe Limousine đón)">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Phương Tiện Di Chuyển</label>
+                <input type="text" class="form-control" id="formTourTransport" placeholder="Du thuyền + Limousine VIP" value="Du thuyền 5* + Limousine VIP">
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Số Chỗ Mở Bán (Kho)</label>
+                <input type="number" class="form-control" id="formTourSeats" value="25">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Trạng Thái Mở Bán</label>
+                <select class="form-select" id="formTourStatus">
+                  <option value="ACTIVE">Đang mở bán (ACTIVE)</option>
+                  <option value="DRAFT">Bản nháp (DRAFT)</option>
+                  <option value="INACTIVE">Tạm ẩn (INACTIVE)</option>
+                </select>
+              </div>
+              <!-- Quản lý & Chỉnh sửa hình ảnh Tour -->
+              <div class="col-12">
+                <label class="form-label small fw-bold">Hình Ảnh Bìa Tour Du Lịch <span class="text-danger">*</span></label>
+                <div class="card border p-3 rounded-3 bg-light">
+                  <div class="row align-items-center g-3">
+                    <!-- Ảnh preview trực quan -->
+                    <div class="col-auto">
+                      <div class="tour-modal-img-preview-box position-relative" style="width: 150px; height: 105px; border-radius: 10px; overflow: hidden; background: #e2e8f0; border: 2px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;">
+                        <img id="formTourImagePreview" src="assets/images/halong.png" alt="Tour Preview" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='assets/images/halong.png';">
+                        <span class="badge bg-dark bg-opacity-75 position-absolute bottom-0 start-0 m-1" style="font-size: 10px;">Xem trước</span>
+                      </div>
+                    </div>
+                    <!-- Tùy chọn nguồn ảnh: Tải từ máy tính / Chọn ảnh có sẵn / Nhập URL -->
+                    <div class="col">
+                      <div class="d-flex flex-column gap-2">
+                        <!-- Tùy chọn 1: Tải ảnh từ máy tính -->
+                        <div>
+                          <label class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 mb-1 cursor-pointer">
+                            <i class="bi bi-cloud-arrow-up-fill"></i> Tải ảnh từ máy tính...
+                            <input type="file" id="formTourImageFileInput" accept="image/*" style="display: none;" onchange="handleTourImageFileSelect(event)">
+                          </label>
+                          <span class="text-muted small ms-2" id="formTourImageFileName">(JPG, PNG, WebP)</span>
+                        </div>
+                        <!-- Tùy chọn 2: Chọn nhanh ảnh thư viện chuẩn Delta Travel -->
+                        <div>
+                          <span class="small fw-semibold text-secondary d-block mb-1" style="font-size: 12px;">Hoặc chọn nhanh ảnh điểm đến chuẩn:</span>
+                          <div class="d-flex flex-wrap gap-1">
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/halong.png')">Hạ Long</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/danang.png')">Đà Nẵng</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/phuquoc.png')">Phú Quốc</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/dalat.png')">Đà Lạt</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/sapa.png')">Sa Pa</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/mientay.png')">Miền Tây</button>
+                          </div>
+                        </div>
+                        <!-- Tùy chọn 3: Nhập URL hoặc đường dẫn ảnh trực tiếp -->
+                        <div class="input-group input-group-sm">
+                          <span class="input-group-text"><i class="bi bi-link-45deg"></i> Đường dẫn / URL ảnh:</span>
+                          <input type="text" class="form-control" id="formTourImage" placeholder="assets/images/halong.png hoặc link ảnh online" oninput="updateTourImagePreview(this.value)">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label small fw-bold">Điểm Nổi Bật (Mỗi dòng 1 gạch đầu dòng)</label>
+                <textarea class="form-control" id="formTourDesc" rows="3" placeholder="Trải nghiệm du thuyền 5 sao đẳng cấp quốc tế&#10;Chèo kayak qua hang động bí ẩn&#10;Tiệc buffet hải sản tươi sống"></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer border-top p-3">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy bỏ</button>
+            <button type="submit" class="btn btn-admin-primary">Lưu Tour Du Lịch</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       4. MODAL: THÊM / SỬA LỊCH KHỞI HÀNH (SCHEDULE MODAL)
+       ========================================================================== -->
+  <div class="modal fade" id="adminScheduleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4 shadow-lg">
+        <div class="modal-header border-bottom p-4">
+          <h5 class="modal-title fw-bold" id="scheduleModalTitle">Thêm Lịch Khởi Hành</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="scheduleForm" onsubmit="handleSaveScheduleSubmit(event)">
+          <div class="modal-body p-4">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label small fw-bold">Mã Lịch (ID)</label>
+                <input type="text" class="form-control" id="formSchId" readonly style="background-color: #f8fafc;">
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-bold">Chọn Tour Du Lịch <span class="text-danger">*</span></label>
+                <select class="form-select" id="formSchTourId" required></select>
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-bold">Ngày Giờ Khởi Hành <span class="text-danger">*</span></label>
+                <input type="datetime-local" class="form-control" id="formSchDate" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Tổng Số Chỗ (Capacity)</label>
+                <input type="number" class="form-control" id="formSchSeats" value="30" min="1" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Trạng Thái Lịch</label>
+                <select class="form-select" id="formSchStatus">
+                  <option value="OPEN">Mở bán (OPEN)</option>
+                  <option value="CLOSED">Đã khóa sổ (CLOSED)</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Giá Vé Người Lớn (đ)</label>
+                <input type="number" class="form-control" id="formSchAdultPrice" value="3890000" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Giá Vé Trẻ Em (đ)</label>
+                <input type="number" class="form-control" id="formSchChildPrice" value="2490000" required>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer border-top p-3">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy bỏ</button>
+            <button type="submit" class="btn btn-admin-primary">Lưu Lịch Khởi Hành</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       5. MODAL: CHI TIẾT ĐƠN ĐẶT TOUR (BOOKING DETAIL MODAL)
+       ========================================================================== -->
+  <div class="modal fade" id="adminBookingDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 rounded-4 shadow-lg">
+        <div class="modal-header border-bottom p-4">
+          <div>
+            <span class="badge bg-warning text-dark mb-1" id="detailModalBookingId">DL-982101</span>
+            <h5 class="modal-title fw-bold">Hồ Sơ Chi Tiết Đơn Đặt Tour</h5>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="row g-4">
+            <!-- Cột trái: Thông tin khách hàng & Ghi chú -->
+            <div class="col-md-6">
+              <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2">Thông Tin Khách Hàng</h6>
+              <div class="d-flex flex-column gap-2 small">
+                <div><strong>Họ và tên:</strong> <span id="detailCustomerName">Lê Văn An</span></div>
+                <div><strong>Số điện thoại:</strong> <span id="detailCustomerPhone">0987654321</span></div>
+                <div><strong>Email:</strong> <span id="detailCustomerEmail">an.levan@gmail.com</span></div>
+                <div><strong>CCCD / Hộ chiếu:</strong> <span id="detailCustomerCccd">001200012345</span></div>
+                <div><strong>Thời điểm đặt:</strong> <span id="detailModalCreatedAt" class="text-muted">26/10/2026 14:32</span></div>
+                <div><strong>Ghi chú đơn:</strong> <p class="p-2 bg-light rounded-2 border text-muted mb-0 mt-1" id="detailCustomerNotes">Yêu cầu phòng thoáng mát</p></div>
+              </div>
+            </div>
+
+            <!-- Cột phải: Thông tin tour & Chi phí -->
+            <div class="col-md-6">
+              <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2">Hành Trình & Bảng Giá</h6>
+              <div class="d-flex flex-column gap-2 small">
+                <div><strong>Tour:</strong> <span id="detailTourTitle" class="fw-bold text-dark">Du Thuyền Hạ Long</span></div>
+                <div><strong>Ngày khởi hành:</strong> <span id="detailTourDate" class="text-primary fw-bold">15/11/2026</span></div>
+                <div><strong>Cơ cấu khách:</strong> <span id="detailTourPax">2 Người lớn, 1 Trẻ em</span></div>
+                <div><strong>Hình thức thanh toán:</strong> <span id="detailPaymentMethod">Chuyển khoản QR</span></div>
+                <div><strong>Trạng thái hiện tại:</strong> <span id="detailModalStatus"></span></div>
+
+                <div class="p-3 bg-light rounded-3 border mt-2">
+                  <div class="d-flex justify-content-between mb-1">
+                    <span>Tạm tính tour:</span>
+                    <strong id="detailSubtotal">9.270.000 đ</strong>
+                  </div>
+                  <div class="d-flex justify-content-between mb-1 text-success">
+                    <span>Giảm giá Voucher:</span>
+                    <strong id="detailDiscount">- 500.000 đ</strong>
+                  </div>
+                  <div class="d-flex justify-content-between border-top pt-2 mt-2 fs-6">
+                    <span class="fw-bold">Tổng thanh toán:</span>
+                    <strong class="text-danger fw-bold" id="detailGrandTotal">8.770.000 đ</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-top p-3">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       6. MODAL: HỦY ĐƠN ĐẶT TOUR (CANCEL MODAL KÈM LÝ DO CHUẨN)
+       ========================================================================== -->
+  <div class="modal fade" id="adminCancelModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4 shadow-lg">
+        <div class="modal-header border-bottom p-4">
+          <h5 class="modal-title fw-bold text-danger">
+            <i class="bi bi-x-circle-fill me-1"></i> Xác Nhận Hủy Đơn Đặt Tour
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form onsubmit="handleConfirmCancelSubmit(event)">
+          <input type="hidden" id="cancelModalTargetId">
+          <div class="modal-body p-4">
+            <p class="small text-muted mb-3">
+              Bạn đang thao tác hủy đơn <strong id="cancelModalBookingId" class="text-dark"></strong> của khách hàng <strong id="cancelModalCustomer" class="text-dark"></strong>.
+              Hành động hủy sẽ cập nhật kho chỗ và tự động ghi nhận vào Nhật ký kiểm toán.
+            </p>
+
+            <label class="form-label small fw-bold">Chọn nhanh lý do hủy:</label>
+            <div class="d-flex flex-wrap gap-1 mb-3">
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="handleQuickCancelReason('Thay đổi kế hoạch công tác / gia đình')">Lịch bận đột xuất</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="handleQuickCancelReason('Đặt nhầm ngày khởi hành hoặc số lượng khách')">Đặt nhầm ngày/số khách</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="handleQuickCancelReason('Khách muốn đổi sang hành trình tour khác')">Đổi sang tour khác</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="handleQuickCancelReason('Hết thời gian giữ chỗ 24h thu tiền mặt')">Quá hạn giữ chỗ 24h</button>
+            </div>
+
+            <label class="form-label small fw-bold">Lý do hủy đơn chi tiết <span class="text-danger">*</span></label>
+            <textarea class="form-control" id="cancelReasonInput" rows="3" placeholder="Nhập lý do hủy đơn bắt buộc..." required></textarea>
+          </div>
+          <div class="modal-footer border-top p-3">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy bỏ</button>
+            <button type="submit" class="btn btn-danger fw-bold">Xác Nhận Hủy Đơn</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       7. MODAL: GHI NHẬN THU TIỀN MẶT (RECORD CASH RECEIPT)
+       ========================================================================== -->
+  <div class="modal fade" id="adminCashModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4 shadow-lg">
+        <div class="modal-header border-bottom p-4">
+          <h5 class="modal-title fw-bold text-success">
+            <i class="bi bi-cash-coin me-1"></i> Ghi Nhận Thu Tiền Mặt (CASH)
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form onsubmit="handleRecordCashSubmit(event)">
+          <input type="hidden" id="cashTargetPaymentId">
+          <div class="modal-body p-4">
+            <div class="p-3 bg-light border rounded-3 mb-3 small">
+              <div>Mã giao dịch: <strong id="cashModalPaymentId"></strong></div>
+              <div>Mã đơn đặt: <strong id="cashModalBookingId"></strong></div>
+              <div>Số tiền thu: <strong id="cashModalAmount" class="text-success fs-6"></strong></div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Mã Biên Lai / Phiếu Thu Tiền Mặt <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="cashRefInput" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Ghi Chú Nghiệp Vụ</label>
+              <textarea class="form-control" id="cashNoteInput" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer border-top p-3">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+            <button type="submit" class="btn btn-success fw-bold">Xác Nhận Đã Thu Tiền</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       8. MODAL: GHI NHẬN HOÀN TIỀN (RECORD REFUND)
+       ========================================================================== -->
+  <div class="modal fade" id="adminRefundModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4 shadow-lg">
+        <div class="modal-header border-bottom p-4">
+          <h5 class="modal-title fw-bold text-warning">
+            <i class="bi bi-arrow-counterclockwise me-1"></i> Ghi Nhận Hoàn Tiền (Refund)
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form onsubmit="handleRecordRefundSubmit(event)">
+          <input type="hidden" id="refundTargetPaymentId">
+          <div class="modal-body p-4">
+            <div class="p-3 bg-light border rounded-3 mb-3 small">
+              <div>Mã giao dịch: <strong id="refundModalPaymentId"></strong></div>
+              <div>Mã đơn đặt: <strong id="refundModalBookingId"></strong></div>
+              <div>Số tiền hoàn trả: <strong id="refundModalAmount" class="text-danger fs-6"></strong></div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Mã Tham Chiếu Hoàn Tiền Ngân Hàng <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="refundRefInput" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Ghi Chú Hoàn Trả</label>
+              <textarea class="form-control" id="refundNoteInput" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer border-top p-3">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+            <button type="submit" class="btn btn-warning fw-bold text-dark">Xác Nhận Hoàn Tiền</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Container chứa Toast thông báo Admin -->
+  <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 99999;" id="adminToastContainer"></div>
+
+  <!-- Bootstrap Bundle JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Nạp dữ liệu hệ thống & Xác thực & Chatbot -->
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/chatbot.js"></script>
+
+  <!-- Bộ điều khiển chuyên sâu Admin -->
+  <script src="assets/js/admin.js"></script>
+</body>
+</html>
+

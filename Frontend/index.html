@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delta Travel - Đặt Tour Du Lịch & Nghỉ Dưỡng Cao Cấp Việt Nam</title>
+  <meta name="description" content="Delta Travel - Thương hiệu lữ hành hàng đầu chuyên cung cấp tour du lịch Hạ Long, Đà Nẵng, Phú Quốc, Sa Pa, Đà Lạt với dịch vụ cao cấp và giá ưu đãi tốt nhất.">
+  <meta name="keywords" content="Delta Travel, đặt tour du lịch, du lịch việt nam, tour hạ long, tour đà nẵng, tour phú quốc">
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="icon" type="image/png" href="favicon_logo_delta.png">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap 5 CSS CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <!-- Bootstrap Icons CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  <!-- Tách nhỏ file CSS theo từng thành phần giao diện -->
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/header.css">
+  <link rel="stylesheet" href="assets/css/hero-search.css">
+  <link rel="stylesheet" href="assets/css/tour-cards.css">
+  <link rel="stylesheet" href="assets/css/itinerary.css">
+  <link rel="stylesheet" href="assets/css/checkout.css">
+  <link rel="stylesheet" href="assets/css/sections.css">
+  <link rel="stylesheet" href="assets/css/responsive.css">
+  <link rel="stylesheet" href="assets/css/auth.css">
+  <link rel="stylesheet" href="assets/css/chatbot.css">
+</head>
+<body>
+
+  <!-- ==========================================================================
+       1. TOPBAR & HEADER
+       ========================================================================== -->
+  <header class="sticky-top">
+    <!-- Topbar liên hệ & tiện ích (Chỉ hiển thị trên màn hình lớn >= 992px để tránh vỡ giao diện trên Mobile) -->
+    <div class="topbar d-none d-lg-block">
+      <div class="container d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+          <a href="tel:19008899"><i class="bi bi-telephone-fill text-warning"></i> Hotline: <strong>1900 8899</strong></a>
+          <span class="topbar-divider"></span>
+          <a href="mailto:support@deltatravel.vn"><i class="bi bi-envelope-fill"></i> support@deltatravel.vn</a>
+          <span class="topbar-divider"></span>
+          <span class="text-light small"><i class="bi bi-shield-check text-success"></i> Cam kết 100% bảo hiểm & giá chuẩn</span>
+        </div>
+        <div class="d-flex align-items-center">
+          <div id="topbarAuthContainer" class="d-none d-md-inline-flex align-items-center me-3"></div>
+          <a href="javascript:void(0)" onclick="openMyBookingsModal()">
+            <i class="bi bi-ticket-perforated-fill text-info"></i> Tra cứu đơn đặt chỗ
+          </a>
+          <span class="topbar-divider"></span>
+          <a href="javascript:void(0)" onclick="openWishlistModal()">
+            <i class="bi bi-heart-fill text-danger"></i> Yêu thích
+            <span class="topbar-badge wishlist-counter">0</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Thanh điều hướng chính (Navbar chuẩn Apple Liquid Glass) -->
+    <nav class="navbar navbar-delta position-relative">
+      <div class="container-fluid px-3 px-xl-5 d-flex align-items-center justify-content-between flex-nowrap">
+        <!-- Logo thương hiệu: Chữ Đen Luxury chuẩn deltatravel-main -->
+        <a class="navbar-brand-delta" href="#home">
+          <div class="brand-icon-crystal">
+            <img src="favicon_logo_delta.png" alt="DELTA TRAVEL Logo" class="brand-logo-img">
+          </div>
+          <div class="brand-text">
+            <span class="brand-title">DELTA TRAVEL</span>
+            <span class="brand-subtitle">KHÁM PHÁ & NGHỈ DƯỠNG</span>
+          </div>
+        </a>
+
+        <!-- Thanh Tab Liquid Glass Capsule Dock (Nằm ngang chuẩn, không bao giờ ngắt cột dọc) -->
+        <div class="liquid-nav-dock d-none d-lg-inline-flex" id="liquidNavDock">
+          <a href="#home" class="liquid-nav-link active" onclick="setActiveNavLink(this)">Trang chủ</a>
+          <a href="javascript:void(0)" onclick="filterToursRegion('north', this)" class="liquid-nav-link">Miền Bắc</a>
+          <a href="javascript:void(0)" onclick="filterToursRegion('central', this)" class="liquid-nav-link">Miền Trung</a>
+          <a href="javascript:void(0)" onclick="filterToursRegion('south', this)" class="liquid-nav-link">Miền Nam</a>
+          <a href="#toursSection" onclick="filterToursRegion('all', this)" class="liquid-nav-link">Tất cả tour</a>
+          <a href="javascript:void(0)" onclick="openMyBookingsModal()" class="liquid-nav-link position-relative">
+            <span>Đơn của tôi</span>
+            <span id="navBookingBadge" class="badge rounded-pill bg-warning text-dark ms-1 booking-counter-badge" style="font-size: 10px; display: none;">0</span>
+          </a>
+          <a href="javascript:void(0)" onclick="openChatbot()" class="liquid-nav-link">
+            <i class="bi bi-stars text-warning"></i> Trợ lý AI
+          </a>
+        </div>
+
+        <!-- Thao tác góc phải: Liquid User Profile Pill + Wishlist + Khám phá Tour -->
+        <div class="header-actions">
+          <!-- Khu vực tài khoản người dùng (Liquid Glass Capsule) -->
+          <div id="headerAuthContainer" class="d-inline-flex align-items-center"></div>
+
+          <!-- Nút Yêu thích phong cách Liquid Capsule bo tròn -->
+          <button class="liquid-btn-icon d-none d-sm-inline-flex" onclick="openWishlistModal()" title="Tour yêu thích">
+            <i class="bi bi-heart"></i>
+            <span class="liquid-icon-badge wishlist-counter">0</span>
+          </button>
+
+          <!-- Nút Khám phá Tour Luxury (Hiển thị từ màn hình lớn >= 1200px) -->
+          <a href="#toursSection" class="btn-explore-liquid d-none d-xl-inline-flex">
+            <i class="bi bi-compass"></i> Khám phá Tour
+          </a>
+
+          <!-- Nút menu mobile chuẩn Liquid Glass (chỉ hiển thị dưới 992px) -->
+          <button class="liquid-btn-icon d-lg-none" type="button" onclick="toggleMobileMenu()" aria-label="Mở Menu">
+            <i class="bi bi-list fs-5" id="mobileMenuIcon"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile Dropdown Nav Drawer (Chỉ mở khi click menu mobile, tuyệt đối ẩn 100% trên Desktop) -->
+      <div class="glass-mobile-drawer" id="mobileDrawerMenu">
+        <div class="d-flex flex-column gap-1 max-w-md mx-auto">
+          <a href="#home" class="mobile-nav-item" onclick="closeMobileMenu()">Trang chủ</a>
+          <a href="javascript:void(0)" onclick="filterToursRegion('north'); closeMobileMenu();" class="mobile-nav-item">Miền Bắc</a>
+          <a href="javascript:void(0)" onclick="filterToursRegion('central'); closeMobileMenu();" class="mobile-nav-item">Miền Trung</a>
+          <a href="javascript:void(0)" onclick="filterToursRegion('south'); closeMobileMenu();" class="mobile-nav-item">Miền Nam</a>
+          <a href="#toursSection" onclick="filterToursRegion('all'); closeMobileMenu();" class="mobile-nav-item">Tất cả tour</a>
+          <a href="javascript:void(0)" onclick="openMyBookingsModal(); closeMobileMenu();" class="mobile-nav-item d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-ticket-perforated me-2 text-primary"></i> Đơn của tôi</span>
+            <span id="navBookingBadgeMobile" class="badge bg-warning text-dark" style="display: none;">0</span>
+          </a>
+          <a href="javascript:void(0)" onclick="openChatbot(); closeMobileMenu();" class="mobile-nav-item text-dark fw-bold">
+            <i class="bi bi-stars text-warning me-2"></i> Trợ lý AI Concierge
+          </a>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <!-- ==========================================================================
+       2. HERO BANNER
+       ========================================================================== -->
+  <section class="hero-section" id="home">
+    <div class="hero-overlay"></div>
+    <div class="container hero-content">
+      <div class="row align-items-center">
+        <div class="col-lg-9 col-xl-8">
+          <div class="hero-badge">
+            <i class="bi bi-award-fill text-warning"></i> Thương hiệu lữ hành xuất sắc nhất năm 2026
+          </div>
+          <h1 class="hero-title">
+            Khám Phá Vẻ Đẹp Việt Nam Cùng <span>Delta Travel</span>
+          </h1>
+          <p class="hero-description">
+            Trải nghiệm những hành trình du lịch nghỉ dưỡng trọn vẹn tại Vịnh Hạ Long, Đảo Ngọc Phú Quốc, Phố Cổ Hội An và Xứ Sở Sương Mù Sa Pa với dịch vụ chuẩn 5 sao và mức giá ưu đãi hàng đầu.
+          </p>
+
+          <!-- Chỉ số tin cậy -->
+          <div class="hero-stats">
+            <div class="stat-item">
+              <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+              <div>
+                <div class="stat-number">50.000+</div>
+                <p class="stat-label">Khách hàng tin chọn</p>
+              </div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-icon"><i class="bi bi-patch-check-fill"></i></div>
+              <div>
+                <div class="stat-number">100%</div>
+                <p class="stat-label">Đảm bảo an toàn</p>
+              </div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-icon"><i class="bi bi-star-fill"></i></div>
+              <div>
+                <div class="stat-number">4.95 / 5</div>
+                <p class="stat-label">Đánh giá xuất sắc</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       3. BỘ LỌC TÌM KIẾM TOUR THÔNG MINH
+       ========================================================================== -->
+  <div class="container search-box-container">
+    <div class="search-box-card">
+      <form id="heroSearchForm">
+        <div class="row g-3 align-items-end">
+          <!-- Từ khóa -->
+          <div class="col-lg-4 col-md-6">
+            <label class="form-label"><i class="bi bi-search"></i> Bạn muốn đi đâu?</label>
+            <div class="search-input-group">
+              <input type="text" class="form-control" id="heroKeyword" placeholder="Nhập tên tour, Hạ Long, Phú Quốc...">
+            </div>
+          </div>
+
+          <!-- Vùng miền -->
+          <div class="col-lg-3 col-md-6">
+            <label class="form-label"><i class="bi bi-geo-alt"></i> Khu vực / Vùng miền</label>
+            <div class="search-input-group">
+              <select class="form-select" id="heroRegion">
+                <option value="all">Tất cả vùng miền</option>
+                <option value="north">Miền Bắc (Hạ Long, Sa Pa...)</option>
+                <option value="central">Miền Trung (Đà Nẵng, Hội An, Đà Lạt...)</option>
+                <option value="south">Miền Nam (Phú Quốc, Miền Tây...)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Mức ngân sách -->
+          <div class="col-lg-3 col-md-6">
+            <label class="form-label"><i class="bi bi-cash-stack"></i> Mức ngân sách</label>
+            <div class="search-input-group">
+              <select class="form-select" id="heroPrice">
+                <option value="all">Tất cả mức giá</option>
+                <option value="under3m">Dưới 3.000.000 đ</option>
+                <option value="3to5m">Từ 3.000.000 - 5.000.000 đ</option>
+                <option value="above5m">Trên 5.000.000 đ</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Nút tìm kiếm -->
+          <div class="col-lg-2 col-md-6">
+            <button type="submit" class="btn-search-submit">
+              <i class="bi bi-search"></i> Tìm kiếm
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       4. DANH SÁCH TOUR DU LỊCH NỔI BẬT & BỘ LỌC TABS
+       ========================================================================== -->
+  <section class="container my-5" id="toursSection">
+    <div class="section-header">
+      <div class="section-tag"><i class="bi bi-stars"></i> Hành trình chọn lọc</div>
+      <h2 class="section-title">Tour Du Lịch Trọn Gói Được Yêu Thích Nhất</h2>
+      <p class="section-subtitle">Tận hưởng dịch vụ đẳng cấp quốc tế với đội ngũ hướng dẫn viên giàu kinh nghiệm và lịch trình thiết kế tối ưu nhất.</p>
+    </div>
+
+    <!-- Thanh chuyển Tab bộ lọc nhanh & Sắp xếp -->
+    <div class="tours-control-bar">
+      <div class="tour-filter-pills">
+        <button class="filter-pill active" data-region="all">
+          <i class="bi bi-grid-fill"></i> Tất cả tour
+        </button>
+        <button class="filter-pill" data-region="north">
+          Miền Bắc
+        </button>
+        <button class="filter-pill" data-region="central">
+          Miền Trung & Tây Nguyên
+        </button>
+        <button class="filter-pill" data-region="south">
+          Miền Nam & Đảo Ngọc
+        </button>
+      </div>
+
+      <div class="tour-sort-wrapper">
+        <span class="text-muted small fw-semibold me-2" id="tourResultCount">Hiển thị 16 / 16 tour</span>
+        <label for="tourSortSelect"><i class="bi bi-sort-down"></i> Sắp xếp:</label>
+        <select class="form-select form-select-sm tour-sort-select" id="tourSortSelect">
+          <option value="default">Mặc định nổi bật</option>
+          <option value="price-asc">Giá: Thấp đến cao</option>
+          <option value="price-desc">Giá: Cao đến thấp</option>
+          <option value="rating-desc">Đánh giá cao nhất</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Danh sách thẻ tour được render từ main.js -->
+    <div class="row" id="toursContainer">
+      <!-- Nội dung thẻ Tour sẽ tự động nạp qua renderTourCards() trong main.js -->
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       6. ĐIỂM ĐẾN THỊNH HÀNH (POPULAR DESTINATIONS)
+       ========================================================================== -->
+  <section class="container my-5 py-4" id="destinations">
+    <div class="section-header">
+      <div class="section-tag"><i class="bi bi-pin-map-fill"></i> Tọa độ hấp dẫn</div>
+      <h2 class="section-title">Khám Phá Những Vùng Đất Kỳ Thú</h2>
+      <p class="section-subtitle">Từ kỳ quan thiên nhiên thế giới Hạ Long đến bãi biển xanh ngọc Phú Quốc, cùng Delta Travel lưu giữ những khoảnh khắc đẹp nhất.</p>
+    </div>
+
+    <div class="row" id="destinationsGrid">
+      <!-- Điểm đến sẽ nạp từ data.js -->
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       7. TẠI SAO CHỌN DELTA TRAVEL (WHY CHOOSE US)
+       ========================================================================== -->
+  <section class="bg-light py-5 my-5" id="whyChooseUs">
+    <div class="container py-4">
+      <div class="section-header">
+        <div class="section-tag"><i class="bi bi-shield-check"></i> Giá trị cốt lõi</div>
+        <h2 class="section-title">Tại Sao Khách Hàng Luôn Tin Chọn Delta Travel?</h2>
+        <p class="section-subtitle">Chúng tôi không chỉ bán tour du lịch, chúng tôi đồng hành và mang đến cho bạn những trải nghiệm cảm xúc đáng giá nhất.</p>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-lg-3 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <i class="bi bi-tag-fill"></i>
+            </div>
+            <h4 class="feature-title">Giá Luôn Tốt & Rõ Ràng</h4>
+            <p class="feature-desc">Cam kết giá trọn gói minh bạch, không phí ẩn. Luôn có chính sách ưu đãi giảm giá tốt nhất thị trường.</p>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <i class="bi bi-building-check"></i>
+            </div>
+            <h4 class="feature-title">Khách Sạn & Du Thuyền 5*</h4>
+            <p class="feature-desc">Hợp tác độc quyền với các chuỗi resort, du thuyền và khách sạn cao cấp, phòng ốc tiện nghi đạt chuẩn.</p>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <i class="bi bi-shield-lock-fill"></i>
+            </div>
+            <h4 class="feature-title">Bảo Hiểm Trọn Gói 100%</h4>
+            <p class="feature-desc">Mọi khách hàng đều được hưởng gói bảo hiểm du lịch toàn diện với mức bồi thường lên tới 120 triệu đồng.</p>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <i class="bi bi-headset"></i>
+            </div>
+            <h4 class="feature-title">Hỗ Trợ 24/7 Tận Tâm</h4>
+            <p class="feature-desc">Đội ngũ chuyên viên tư vấn và hướng dẫn viên sẵn sàng hỗ trợ chăm sóc quý khách trên mọi cung đường.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       8. ĐÁNH GIÁ TỪ KHÁCH HÀNG (TESTIMONIALS)
+       ========================================================================== -->
+  <section class="container my-5 py-4" id="testimonials">
+    <div class="section-header">
+      <div class="section-tag"><i class="bi bi-chat-heart-fill"></i> Khách hàng chia sẻ</div>
+      <h2 class="section-title">Cảm Nhận Từ Những Người Bạn Đồng Hành</h2>
+      <p class="section-subtitle">Sự hài lòng và nụ cười rạng rỡ của bạn là niềm tự hào lớn nhất của đại gia đình Delta Travel.</p>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-4 col-md-6">
+        <div class="testimonial-card">
+          <i class="bi bi-quote quote-icon"></i>
+          <div class="testimonial-stars">
+            <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+          </div>
+          <p class="testimonial-text">
+            "Chuyến đi du thuyền Hạ Long 3N2Đ cùng Delta Travel thật sự ngoài mong đợi! Phòng có ban công ngắm vịnh cực chill, đồ ăn buffet hải sản tươi ngon ngập tràn. Bạn HDV rất chu đáo và chụp ảnh siêu có tâm!"
+          </p>
+          <div class="testimonial-author">
+            <div class="author-avatar">MQ</div>
+            <div class="author-info">
+              <h6>Trần Minh Quân</h6>
+              <p>Khách hàng Tour Hạ Long - Lan Hạ</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-4 col-md-6">
+        <div class="testimonial-card">
+          <i class="bi bi-quote quote-icon"></i>
+          <div class="testimonial-stars">
+            <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+          </div>
+          <p class="testimonial-text">
+            "Gia đình mình có cả người lớn tuổi và trẻ nhỏ đi tour Đà Nẵng - Hội An. Xe đưa đón VIP rất êm ái, lịch trình không bị gấp gáp. Khâu thanh toán và nhận vé điện tử của Delta Travel rất hiện đại và nhanh chóng."
+          </p>
+          <div class="testimonial-author">
+            <div class="author-avatar">TH</div>
+            <div class="author-info">
+              <h6>Trần Thu Hà</h6>
+              <p>Khách hàng Tour Đà Nẵng 4N3Đ</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-4 col-md-6">
+        <div class="testimonial-card">
+          <i class="bi bi-quote quote-icon"></i>
+          <div class="testimonial-stars">
+            <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+          </div>
+          <p class="testimonial-text">
+            "Đi Phú Quốc lặn ngắm san hô cano riêng và đi cáp treo Hòn Thơm rất tuyệt vời. Giá tour ưu đãi trọn gói của Delta Travel rẻ hơn nhiều so với tự book lẻ từng dịch vụ. Nhất định sẽ quay lại ủng hộ tiếp!"
+          </p>
+          <div class="testimonial-author">
+            <div class="author-avatar">LQ</div>
+            <div class="author-info">
+              <h6>Lê Quang Huy</h6>
+              <p>Khách hàng Tour Phú Quốc 3N2Đ</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       9. CẨM NANG DU LỊCH & KINH NGHIỆM (TRAVEL BLOG)
+       ========================================================================== -->
+  <section class="container my-5 py-4" id="travelBlog">
+    <div class="section-header">
+      <div class="section-tag"><i class="bi bi-journal-bookmark-fill"></i> Cẩm nang du lịch</div>
+      <h2 class="section-title">Kinh Nghiệm & Điểm Đến Mới Lạ</h2>
+      <p class="section-subtitle">Tổng hợp những thông tin hữu ích, địa điểm ăn uống ngon bổ rẻ và bí quyết chụp ảnh du lịch tuyệt đẹp.</p>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-4 col-md-6">
+        <div class="blog-card">
+          <div class="blog-thumb">
+            <img src="assets/images/halong.png" alt="Kinh nghiệm du thuyền Hạ Long">
+          </div>
+          <div class="blog-body">
+            <div class="blog-meta">
+              <span><i class="bi bi-calendar3"></i> 15/10/2026</span>
+              <span>&bull;</span>
+              <span><i class="bi bi-eye"></i> 1.250 lượt xem</span>
+            </div>
+            <h4 class="blog-title">Kinh nghiệm đi tour du thuyền Hạ Long 5 sao chi tiết từ A-Z</h4>
+            <p class="blog-excerpt">Bỏ túi những lưu ý quan trọng về cách chọn hạng phòng, trang phục check-in hoàng hôn và hoạt động câu mực đêm thú vị.</p>
+            <a href="javascript:void(0)" class="blog-link" onclick="openItineraryModal('DL-HL01')">Xem chi tiết hành trình <i class="bi bi-arrow-right"></i></a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-4 col-md-6">
+        <div class="blog-card">
+          <div class="blog-thumb">
+            <img src="assets/images/dalat.png" alt="Kinh nghiệm săn mây Đà Lạt">
+          </div>
+          <div class="blog-body">
+            <div class="blog-meta">
+              <span><i class="bi bi-calendar3"></i> 12/10/2026</span>
+              <span>&bull;</span>
+              <span><i class="bi bi-eye"></i> 2.140 lượt xem</span>
+            </div>
+            <h4 class="blog-title">Bí kíp săn biển mây Đồi Chè Cầu Đất Đà Lạt triệu view</h4>
+            <p class="blog-excerpt">Thời điểm vàng để bắt trọn khoảnh khắc mây bồng bềnh lúc bình minh và những quán cafe view thung lũng đẹp mê hồn.</p>
+            <a href="javascript:void(0)" class="blog-link" onclick="openItineraryModal('DL-DL04')">Xem chi tiết hành trình <i class="bi bi-arrow-right"></i></a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-4 col-md-6">
+        <div class="blog-card">
+          <div class="blog-thumb">
+            <img src="assets/images/mientay.png" alt="Khám phá chợ nổi miền Tây">
+          </div>
+          <div class="blog-body">
+            <div class="blog-meta">
+              <span><i class="bi bi-calendar3"></i> 08/10/2026</span>
+              <span>&bull;</span>
+              <span><i class="bi bi-eye"></i> 980 lượt xem</span>
+            </div>
+            <h4 class="blog-title">Thưởng thức tô hủ tiếu bồng bềnh tại Chợ Nổi Cái Răng</h4>
+            <p class="blog-excerpt">Nét văn hóa giao thương độc đáo trên sông nước Cửu Long và trải nghiệm len lỏi rừng tràm xanh ngắt bằng xuồng ba lá.</p>
+            <a href="javascript:void(0)" class="blog-link" onclick="openItineraryModal('DL-MT06')">Xem chi tiết hành trình <i class="bi bi-arrow-right"></i></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       10. CÂU HỎI THƯỜNG GẶP (FAQ ACCORDION)
+       ========================================================================== -->
+  <section class="container my-5 py-4" id="faq">
+    <div class="section-header">
+      <div class="section-tag"><i class="bi bi-question-circle-fill"></i> Giải đáp thắc mắc</div>
+      <h2 class="section-title">Câu Hỏi Thường Gặp Về Dịch Vụ Tour</h2>
+      <p class="section-subtitle">Tất cả những thông tin bạn cần biết về thủ tục đặt lịch, chính sách giá vé trẻ em và hoàn tiền.</p>
+    </div>
+
+    <div class="row justify-content-center">
+      <div class="col-lg-10">
+        <div class="accordion delta-accordion" id="faqAccordion">
+          <!-- Câu 1 -->
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="headingOne">
+              <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                1. Quy trình đặt tour trực tuyến tại Delta Travel diễn ra như thế nào?
+              </button>
+            </h2>
+            <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#faqAccordion">
+              <div class="accordion-body">
+                Bạn chỉ cần chọn tour ưng ý, bấm <strong>"Đặt ngay"</strong>, điền thông tin người đi, số lượng khách và chọn phương thức thanh toán (Chuyển khoản QR, Thẻ ATM/Visa hoặc Tiền mặt). Sau khi hoàn tất, hệ thống sẽ cấp ngay <strong>Vé Điện Tử (E-Ticket)</strong> có mã đặt chỗ hợp lệ. Bạn có thể in vé hoặc lưu lại trên trình duyệt để sử dụng khi khởi hành.
+              </div>
+            </div>
+          </div>
+
+          <!-- Câu 2 -->
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="headingTwo">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                2. Chính sách giá tour dành cho trẻ em và em bé được tính ra sao?
+              </button>
+            </h2>
+            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#faqAccordion">
+              <div class="accordion-body">
+                - <strong>Người lớn (từ 11 tuổi trở lên):</strong> Tính 100% giá tour tiêu chuẩn.<br>
+                - <strong>Trẻ em (từ 5 đến 10 tuổi):</strong> Hưởng ưu đãi chỉ 75% giá tour (có suất ăn riêng, ghế ngồi riêng trên xe).<br>
+                - <strong>Em bé (dưới 5 tuổi):</strong> Chỉ thu 10% chi phí vé bảo hiểm và thủ tục bến bãi, ngủ chung giường với bố mẹ.
+              </div>
+            </div>
+          </div>
+
+          <!-- Câu 3 -->
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="headingThree">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                3. Tôi có thể hủy hoặc đổi ngày khởi hành sau khi đã đặt không?
+              </button>
+            </h2>
+            <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#faqAccordion">
+              <div class="accordion-body">
+                Delta Travel hỗ trợ đổi ngày khởi hành hoàn toàn miễn phí nếu thông báo trước 07 ngày. Trong trường hợp cần hủy tour, bạn có thể vào mục <strong>"Tra cứu đơn đặt chỗ"</strong> để hủy trực tiếp trên website. Tiền cọc sẽ được hoàn lại theo quy định hợp đồng du lịch nội địa.
+              </div>
+            </div>
+          </div>
+
+          <!-- Câu 4 -->
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="headingFour">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+                4. Khi tham gia tour cần chuẩn bị những giấy tờ tùy thân gì?
+              </button>
+            </h2>
+            <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#faqAccordion">
+              <div class="accordion-body">
+                Quý khách cần mang theo bản gốc Căn cước công dân (CCCD) hoặc Hộ chiếu (Passport) còn hạn sử dụng. Đối với trẻ em dưới 14 tuổi chưa có CCCD, cần mang theo bản sao Giấy khai sinh trích lục để làm thủ tục check-in máy bay, khách sạn và du thuyền.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       11. CHÂN TRANG (FOOTER)
+       ========================================================================== -->
+  <footer class="footer-delta" id="contact">
+    <div class="container">
+      <div class="row">
+        <!-- Cột 1: Thông tin thương hiệu -->
+        <div class="col-lg-4 col-md-6 mb-4">
+          <div class="navbar-brand-delta d-flex align-items-center gap-2.5 mb-3" style="color: #ffffff !important;">
+            <div class="brand-icon-crystal" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2);">
+              <img src="favicon_logo_delta.png" alt="DELTA TRAVEL Logo" style="width: 32px; height: 32px; object-fit: contain;">
+            </div>
+            <div class="brand-text">
+              <span class="brand-title text-white">DELTA TRAVEL</span>
+              <span class="brand-subtitle" style="color: #94a3b8 !important;">KHÁM PHÁ & NGHỈ DƯỠNG</span>
+            </div>
+          </div>
+          <p class="small text-muted mb-4">
+            Công ty Cổ phần Du Lịch & Nghỉ Dưỡng Delta Travel. Đơn vị tiên phong cung cấp giải pháp du lịch thông minh, cá nhân hóa trải nghiệm với cam kết chất lượng dịch vụ chuẩn 5 sao.
+          </p>
+          <div class="social-links">
+            <a href="#" class="social-btn"><i class="bi bi-facebook"></i></a>
+            <a href="#" class="social-btn"><i class="bi bi-youtube"></i></a>
+            <a href="#" class="social-btn"><i class="bi bi-tiktok"></i></a>
+            <a href="#" class="social-btn"><i class="bi bi-instagram"></i></a>
+          </div>
+        </div>
+
+        <!-- Cột 2: Liên kết nhanh -->
+        <div class="col-lg-2 col-md-6 mb-4">
+          <h5>Khám Phá</h5>
+          <ul class="footer-links">
+            <li><a href="#toursSection"><i class="bi bi-chevron-right"></i> Tour Miền Bắc</a></li>
+            <li><a href="#toursSection"><i class="bi bi-chevron-right"></i> Tour Miền Trung</a></li>
+            <li><a href="#toursSection"><i class="bi bi-chevron-right"></i> Tour Miền Nam</a></li>
+            <li><a href="#destinations"><i class="bi bi-chevron-right"></i> Điểm Đến Hấp Dẫn</a></li>
+          </ul>
+        </div>
+
+        <!-- Cột 3: Chính sách & Hỗ trợ -->
+        <div class="col-lg-3 col-md-6 mb-4">
+          <h5>Chính Sách & Hỗ Trợ</h5>
+          <ul class="footer-links">
+            <li><a href="javascript:void(0)" onclick="openMyBookingsModal()"><i class="bi bi-chevron-right"></i> Tra Cứu Vé Đã Đặt</a></li>
+            <li><a href="#faq"><i class="bi bi-chevron-right"></i> Điều Khoản Dịch Vụ</a></li>
+            <li><a href="#faq"><i class="bi bi-chevron-right"></i> Chính Sách Hoàn Hủy</a></li>
+            <li><a href="#whyChooseUs"><i class="bi bi-chevron-right"></i> Bảo Hiểm Du Lịch</a></li>
+            <li><a href="#faq"><i class="bi bi-chevron-right"></i> Câu Hỏi Thường Gặp</a></li>
+          </ul>
+        </div>
+
+        <!-- Cột 4: Liên hệ & Đăng ký nhận tin -->
+        <div class="col-lg-3 col-md-6 mb-4">
+          <h5>Liên Hệ Trực Tiếp</h5>
+          <ul class="footer-contact-list mb-3">
+            <li><i class="bi bi-geo-alt-fill"></i> <span>Tầng 8, Tòa nhà Delta Building, 128 Nguyễn Du, Hà Nội</span></li>
+            <li><i class="bi bi-telephone-fill"></i> <span>Hotline: 1900 8899 - 0988 123 456</span></li>
+            <li><i class="bi bi-envelope-fill"></i> <span>contact@deltatravel.vn</span></li>
+          </ul>
+
+          <h6 class="text-white small fw-bold mb-2">Đăng ký nhận khuyến mãi:</h6>
+          <form class="footer-newsletter d-flex" onsubmit="event.preventDefault(); showToast('Đăng ký nhận tin khuyến mãi thành công!', 'success'); this.reset();">
+            <input type="email" class="form-control form-control-sm" placeholder="Email của bạn..." required>
+            <button class="btn btn-sm btn-delta-accent" type="submit"><i class="bi bi-send"></i></button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Chân trang dưới cùng -->
+      <div class="footer-bottom d-flex flex-wrap justify-content-between align-items-center">
+        <div>
+          &copy; 2026 Delta Travel. Tất cả quyền được bảo lưu. Thiết kế giao diện Frontend đồ án chuẩn thương mại điện tử.
+        </div>
+        <div class="d-flex align-items-center gap-3 mt-2 mt-md-0">
+          <span class="badge bg-success"><i class="bi bi-shield-check"></i> Đã thông báo Bộ Công Thương</span>
+          <span class="badge bg-primary"><i class="bi bi-check-all"></i> Giấy phép Lữ hành Quốc tế số 01-1829/TCDL-GP LHQT</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==========================================================================
+       12. CÁC MODAL HỆ THỐNG
+       ========================================================================== -->
+
+  <!-- MODAL 1: XEM CHI TIẾT LỊCH TRÌNH TỪNG NGÀY (ITINERARY MODAL) -->
+  <div class="modal fade modal-itinerary" id="itineraryModal" tabindex="-1" aria-labelledby="itineraryModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <span class="badge bg-warning text-dark mb-1" id="itineraryCode">DL-HL01</span>
+            <h4 class="modal-title" id="itineraryModalTitle">Chi Tiết Lịch Trình</h4>
+          </div>
+          <button type="button" class="btn-close-modal" data-bs-dismiss="modal" aria-label="Close">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Ảnh đại diện -->
+          <img src="" id="itineraryHeroImg" alt="Tour Thumbnail" class="itinerary-hero-img">
+
+          <!-- Thanh thông số tóm tắt -->
+          <div class="itinerary-meta-bar">
+            <div class="itinerary-meta-item">
+              <i class="bi bi-clock-history"></i>
+              <span>Thời gian: <strong id="itineraryDuration">3N2Đ</strong></span>
+            </div>
+            <div class="itinerary-meta-item">
+              <i class="bi bi-geo-alt-fill"></i>
+              <span>Điểm đón: <strong id="itineraryDeparture">Hà Nội</strong></span>
+            </div>
+            <div class="itinerary-meta-item">
+              <i class="bi bi-bus-front-fill"></i>
+              <span>Phương tiện: <strong id="itineraryTransport">Xe Limousine</strong></span>
+            </div>
+          </div>
+
+          <!-- Các Tab nội dung -->
+          <ul class="nav itinerary-nav-tabs" id="itineraryTabs" role="tablist">
+            <li class="nav-item">
+              <button class="nav-link active" id="timeline-tab" data-bs-toggle="tab" data-bs-target="#tabTimeline" type="button" role="tab">
+                <i class="bi bi-calendar3-week"></i> Lịch Trình Từng Ngày
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" id="inclusions-tab" data-bs-toggle="tab" data-bs-target="#tabInclusions" type="button" role="tab">
+                <i class="bi bi-check-all"></i> Dịch Vụ Bao Gồm
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" id="terms-tab" data-bs-toggle="tab" data-bs-target="#tabTerms" type="button" role="tab">
+                <i class="bi bi-shield-check"></i> Chính Sách Hoàn Hủy
+              </button>
+            </li>
+          </ul>
+
+          <div class="tab-content" id="itineraryTabContent">
+            <!-- Tab 1: Timeline Lịch trình từng ngày -->
+            <div class="tab-pane fade show active" id="tabTimeline" role="tabpanel">
+              <div class="itinerary-timeline" id="itineraryTimeline">
+                <!-- Sẽ render bằng JS -->
+              </div>
+            </div>
+
+            <!-- Tab 2: Bao gồm & Không bao gồm -->
+            <div class="tab-pane fade" id="tabInclusions" role="tabpanel">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="policy-box">
+                    <h5 class="policy-box-title included"><i class="bi bi-check-circle-fill"></i> Giá Tour Bao Gồm</h5>
+                    <ul class="policy-list included" id="itineraryInclusions">
+                      <!-- Render bằng JS -->
+                    </ul>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="policy-box">
+                    <h5 class="policy-box-title excluded"><i class="bi bi-x-circle-fill"></i> Giá Tour Không Bao Gồm</h5>
+                    <ul class="policy-list excluded" id="itineraryExclusions">
+                      <!-- Render bằng JS -->
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 3: Chính sách hoàn hủy -->
+            <div class="tab-pane fade" id="tabTerms" role="tabpanel">
+              <div class="policy-box">
+                <h5 class="fw-bold mb-3 text-primary"><i class="bi bi-info-circle-fill"></i> Quy định hoàn / đổi vé tour</h5>
+                <ul class="policy-list">
+                  <li><i class="bi bi-dot text-primary fs-4"></i> Hủy tour trước 15 ngày khởi hành: Miễn phí 100% chi phí hủy.</li>
+                  <li><i class="bi bi-dot text-primary fs-4"></i> Hủy tour từ 07 - 14 ngày trước khởi hành: Tính phí 30% giá tour.</li>
+                  <li><i class="bi bi-dot text-primary fs-4"></i> Hủy tour từ 03 - 06 ngày trước khởi hành: Tính phí 50% giá tour.</li>
+                  <li><i class="bi bi-dot text-primary fs-4"></i> Hủy tour trong vòng 48h trước giờ xuất phát: Tính phí 100% giá tour.</li>
+                  <li><i class="bi bi-dot text-primary fs-4"></i> Trường hợp thiên tai bão lũ, hoãn chuyến bay: Delta Travel hỗ trợ bảo lưu 100% tiền cọc hoặc đổi sang tour tương đương.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sticky Footer Bar trong Modal -->
+        <div class="modal-itinerary-footer">
+          <div class="itinerary-footer-price">
+            <span class="label">Giá trọn gói khuyến mãi:</span>
+            <span class="val" id="itineraryPrice">3.890.000 đ</span>
+          </div>
+          <button class="btn btn-delta-accent btn-lg" id="itineraryBookBtn">
+            <i class="bi bi-cart-check-fill"></i> Đặt tour này ngay
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: ĐẶT TOUR & TÍNH TIỀN THANH TOÁN (BOOKING & CHECKOUT MODAL) -->
+  <div class="modal fade modal-booking" id="bookingModal" tabindex="-1" aria-labelledby="bookingModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="bookingModalTitle">
+            <i class="bi bi-cart-check-fill text-warning"></i> Đặt Tour & Thanh Toán Trực Tuyến
+          </h4>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body p-4">
+          <form id="deltaBookingForm">
+            <div class="row g-4">
+              <!-- Cột trái: Cấu hình thông tin khách & Phương thức thanh toán -->
+              <div class="col-lg-7">
+                <!-- Bước 1: Thông tin liên hệ -->
+                <div class="mb-4">
+                  <h5 class="booking-step-title"><span class="step-num">1</span> Thông tin người đặt tour</h5>
+                  <div class="row g-2">
+                    <div class="col-md-6">
+                      <label class="form-label small fw-bold">Họ và tên *</label>
+                      <input type="text" class="form-control" id="customerName" placeholder="Nguyễn Văn A" required>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label small fw-bold">Số điện thoại *</label>
+                      <input type="tel" class="form-control" id="customerPhone" placeholder="0987654321" required>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label small fw-bold">Địa chỉ Email *</label>
+                      <input type="email" class="form-control" id="customerEmail" placeholder="nguyenvana@gmail.com" required>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label small fw-bold">Số CCCD / Hộ chiếu (Tùy chọn)</label>
+                      <input type="text" class="form-control" id="customerCCCD" placeholder="00120000xxxx">
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label small fw-bold">Ghi chú đặc biệt (ăn chay, dị ứng, yêu cầu phòng...)</label>
+                      <input type="text" class="form-control" id="customerNotes" placeholder="Ví dụ: Cần phòng tầng cao, 1 khách ăn chay...">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bước 2: Ngày đi & Số lượng khách -->
+                <div class="mb-4">
+                  <h5 class="booking-step-title"><span class="step-num">2</span> Ngày khởi hành & Số lượng khách</h5>
+                  
+                  <div class="mb-3">
+                    <label class="form-label small fw-bold">Chọn ngày khởi hành *</label>
+                    <input type="date" class="form-control" id="bookingDepartureDate" required>
+                  </div>
+
+                  <!-- Người lớn -->
+                  <div class="passenger-counter-card">
+                    <div class="passenger-info">
+                      <div class="name">Người lớn</div>
+                      <div class="sub">Từ 11 tuổi trở lên (100% giá vé)</div>
+                    </div>
+                    <div class="quantity-control">
+                      <button type="button" class="btn-qty" onclick="changePassengerQty('Adults', -1)">-</button>
+                      <input type="text" class="qty-input" id="qtyAdults" value="1" readonly>
+                      <button type="button" class="btn-qty" onclick="changePassengerQty('Adults', 1)">+</button>
+                    </div>
+                  </div>
+
+                  <!-- Trẻ em -->
+                  <div class="passenger-counter-card">
+                    <div class="passenger-info">
+                      <div class="name">Trẻ em</div>
+                      <div class="sub">Từ 5 đến 10 tuổi (75% giá vé)</div>
+                    </div>
+                    <div class="quantity-control">
+                      <button type="button" class="btn-qty" onclick="changePassengerQty('Children', -1)">-</button>
+                      <input type="text" class="qty-input" id="qtyChildren" value="0" readonly>
+                      <button type="button" class="btn-qty" onclick="changePassengerQty('Children', 1)">+</button>
+                    </div>
+                  </div>
+
+                  <!-- Em bé -->
+                  <div class="passenger-counter-card">
+                    <div class="passenger-info">
+                      <div class="name">Em bé</div>
+                      <div class="sub">Dưới 5 tuổi (10% phí bảo hiểm)</div>
+                    </div>
+                    <div class="quantity-control">
+                      <button type="button" class="btn-qty" onclick="changePassengerQty('Infants', -1)">-</button>
+                      <input type="text" class="qty-input" id="qtyInfants" value="0" readonly>
+                      <button type="button" class="btn-qty" onclick="changePassengerQty('Infants', 1)">+</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bước 3: Dịch vụ gia tăng -->
+                <div class="mb-4">
+                  <h5 class="booking-step-title"><span class="step-num">3</span> Dịch vụ bổ sung (Tùy chọn)</h5>
+
+                  <div class="addon-item">
+                    <div class="d-flex align-items-center">
+                      <input class="form-check-input addon-checkbox" type="checkbox" id="addonSingleRoom">
+                      <label class="addon-label" for="addonSingleRoom">Phụ thu phòng đơn riêng tư</label>
+                    </div>
+                    <span class="addon-price">+500.000 đ</span>
+                  </div>
+
+                  <div class="addon-item">
+                    <div class="d-flex align-items-center">
+                      <input class="form-check-input addon-checkbox" type="checkbox" id="addonAirport">
+                      <label class="addon-label" for="addonAirport">Đưa đón sân bay VIP 2 chiều</label>
+                    </div>
+                    <span class="addon-price">+300.000 đ</span>
+                  </div>
+
+                  <div class="addon-item">
+                    <div class="d-flex align-items-center">
+                      <input class="form-check-input addon-checkbox" type="checkbox" id="addonInsurance">
+                      <label class="addon-label" for="addonInsurance">Bảo hiểm du lịch nâng cao 200tr</label>
+                    </div>
+                    <span class="addon-price">+150.000 đ / người</span>
+                  </div>
+                </div>
+
+                <!-- Bước 4: Phương thức thanh toán -->
+                <div class="mb-3">
+                  <h5 class="booking-step-title"><span class="step-num">4</span> Chọn phương thức thanh toán</h5>
+
+                  <div class="payment-methods-tabs">
+                    <div class="payment-tab-btn active" data-method="qr" onclick="selectPaymentTab('qr')">
+                      <i class="bi bi-qr-code-scan"></i>
+                      <span>QR Chuyển khoản</span>
+                    </div>
+                    <div class="payment-tab-btn" data-method="card" onclick="selectPaymentTab('card')">
+                      <i class="bi bi-credit-card-2-front"></i>
+                      <span>Thẻ Quốc tế / ATM</span>
+                    </div>
+                    <div class="payment-tab-btn" data-method="ewallet" onclick="selectPaymentTab('ewallet')">
+                      <i class="bi bi-wallet2"></i>
+                      <span>Ví MoMo / VNPay</span>
+                    </div>
+                    <div class="payment-tab-btn" data-method="cash" onclick="selectPaymentTab('cash')">
+                      <i class="bi bi-cash-coin"></i>
+                      <span>Tiền mặt tại quầy</span>
+                    </div>
+                  </div>
+
+                  <!-- Khung 1: QR Chuyển khoản VietQR -->
+                  <div id="paymentPane_qr" class="qr-payment-box">
+                    <h6 class="fw-bold text-primary mb-2"><i class="bi bi-shield-check"></i> Quét mã VietQR thanh toán tức thì</h6>
+                    <img src="assets/images/qr-payment.png" alt="QR Code Payment" class="qr-payment-img">
+                    <table class="bank-info-table">
+                      <tr>
+                        <td class="label">Ngân hàng:</td>
+                        <td class="value">Vietcombank (VCB)</td>
+                      </tr>
+                      <tr>
+                        <td class="label">Số tài khoản:</td>
+                        <td class="value">1012345678</td>
+                      </tr>
+                      <tr>
+                        <td class="label">Chủ tài khoản:</td>
+                        <td class="value">DELTA TRAVEL VIETNAM</td>
+                      </tr>
+                      <tr>
+                        <td class="label">Số tiền:</td>
+                        <td class="value text-danger" id="qrTransferAmount">3.890.000 đ</td>
+                      </tr>
+                      <tr>
+                        <td class="label">Nội dung CK:</td>
+                        <td><span class="highlight-code" id="qrTransferContent">DELTA-849201</span></td>
+                      </tr>
+                    </table>
+                  </div>
+
+                  <!-- Khung 2: Thẻ ATM / Visa / Mastercard -->
+                  <div id="paymentPane_card" style="display: none;" class="p-3 bg-light rounded-3 border">
+                    <div class="row g-2">
+                      <div class="col-12">
+                        <label class="form-label small fw-bold">Số thẻ thanh toán</label>
+                        <input type="text" class="form-control" id="cardNum" placeholder="4123 4567 8901 2345">
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label small fw-bold">Tên in trên thẻ</label>
+                        <input type="text" class="form-control" id="cardHolder" placeholder="NGUYEN VAN A">
+                      </div>
+                      <div class="col-6">
+                        <label class="form-label small fw-bold">Hạn thẻ (MM/YY)</label>
+                        <input type="text" class="form-control" id="cardExpiry" placeholder="12/28">
+                      </div>
+                      <div class="col-6">
+                        <label class="form-label small fw-bold">Mã CVV</label>
+                        <input type="password" class="form-control" id="cardCvv" placeholder="123" maxlength="3">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Khung 3: Ví điện tử -->
+                  <div id="paymentPane_ewallet" style="display: none;" class="p-3 bg-light rounded-3 border text-center">
+                    <p class="small text-muted mb-2">Hỗ trợ thanh toán một chạm qua các ví điện tử hàng đầu:</p>
+                    <div class="d-flex justify-content-center gap-3">
+                      <span class="badge bg-danger p-2 fs-6">MoMo</span>
+                      <span class="badge bg-primary p-2 fs-6">VNPay QR</span>
+                      <span class="badge bg-info p-2 fs-6">ZaloPay</span>
+                    </div>
+                  </div>
+
+                  <!-- Khung 4: Tiền mặt tại quầy -->
+                  <div id="paymentPane_cash" style="display: none;" class="p-3 bg-light rounded-3 border">
+                    <p class="small text-muted mb-0">
+                      <i class="bi bi-clock-history text-warning"></i> Bạn có thể thanh toán trực tiếp tại văn phòng Delta Travel (Tầng 8 Delta Building, Hà Nội hoặc Chi nhánh Quận 1, TP.HCM). Hệ thống sẽ <strong>giữ chỗ ưu đãi cho bạn trong vòng 24 giờ</strong>.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Cột phải: Bảng tóm tắt & tính tiền thời gian thực -->
+              <div class="col-lg-5">
+                <div class="order-summary-card">
+                  <h5 class="fw-bold text-primary mb-3"><i class="bi bi-receipt"></i> Tóm tắt đơn đặt tour</h5>
+
+                  <div class="summary-tour-header">
+                    <img src="" id="summaryTourThumb" alt="Tour Thumbnail" class="summary-tour-thumb">
+                    <div class="summary-tour-info">
+                      <span class="badge bg-primary mb-1" id="summaryTourCode">DL-HL01</span>
+                      <h5 id="summaryTourTitle">Tour Tên</h5>
+                      <span class="text-muted small"><i class="bi bi-clock"></i> <span id="summaryTourDuration">3N2Đ</span></span>
+                    </div>
+                  </div>
+
+                  <!-- Danh sách các khoản tiền -->
+                  <div class="summary-cost-list">
+                    <div class="cost-row">
+                      <span>Người lớn (<span id="costAdultText">1 x 3.890.000 đ</span>)</span>
+                      <span class="fw-bold" id="costAdultTotal">3.890.000 đ</span>
+                    </div>
+                    <div class="cost-row" id="costChildRow" style="display: none;">
+                      <span>Trẻ em (<span id="costChildText">0 x 0 đ</span>)</span>
+                      <span class="fw-bold" id="costChildTotal">0 đ</span>
+                    </div>
+                    <div class="cost-row" id="costInfantRow" style="display: none;">
+                      <span>Em bé (<span id="costInfantText">0 x 0 đ</span>)</span>
+                      <span class="fw-bold" id="costInfantTotal">0 đ</span>
+                    </div>
+                    <div class="cost-row" id="costAddonRow" style="display: none;">
+                      <span>Dịch vụ gia tăng:</span>
+                      <span class="fw-bold text-info" id="costAddonTotal">0 đ</span>
+                    </div>
+                    <div class="cost-row discount-row" id="costDiscountRow" style="display: none;">
+                      <span>Ưu đãi Voucher:</span>
+                      <span id="costDiscountVal">-0 đ</span>
+                    </div>
+                  </div>
+
+                  <!-- Ô nhập mã Voucher -->
+                  <div class="voucher-input-group">
+                    <input type="text" class="form-control" id="voucherCodeInput" placeholder="Nhập DELTA10 hoặc HE2026">
+                    <button type="button" class="btn btn-dark" id="btnApplyVoucher">Áp dụng</button>
+                  </div>
+                  <div id="voucherStatusMsg" class="voucher-status-msg"></div>
+
+                  <!-- Gợi ý voucher -->
+                  <div class="small text-muted mb-3">
+                    <i class="bi bi-tag-fill text-warning"></i> Gợi ý: Nhập mã <strong>DELTA10</strong> (-10%), <strong>HE2026</strong> (-500k), <strong>VIPTOUR</strong> (-15%)
+                  </div>
+
+                  <!-- Tổng cộng thanh toán -->
+                  <div class="total-checkout-row">
+                    <span class="total-checkout-label">TỔNG THANH TOÁN:</span>
+                    <span class="total-checkout-val" id="checkoutGrandTotal">3.890.000 đ</span>
+                  </div>
+
+                  <!-- Nút hoàn tất -->
+                  <button type="submit" class="btn btn-delta-accent w-100 py-3 fs-5 fw-bold">
+                    <i class="bi bi-shield-lock-fill"></i> Xác Nhận & Xuất Vé
+                  </button>
+
+                  <p class="text-center small text-muted mt-2 mb-0">
+                    <i class="bi bi-lock-fill"></i> Giao dịch bảo mật chuẩn SSL 256-bit
+                  </p>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: VÉ ĐIỆN TỬ (E-TICKET / HÓA ĐƠN XÁC NHẬN) -->
+  <div class="modal fade modal-eticket" id="eticketModal" tabindex="-1" aria-labelledby="eticketModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 bg-transparent">
+        <div class="eticket-paper">
+          <!-- Header vé -->
+          <div class="eticket-header">
+            <div class="eticket-brand">
+              <div class="brand-icon">
+                <i class="bi bi-send-fill"></i>
+              </div>
+              <div>
+                <h4 class="mb-0 fw-bold">DELTA TRAVEL</h4>
+                <span class="small text-light">Vé Điện Tử Xác Nhận Đặt Chỗ</span>
+              </div>
+            </div>
+            <div class="eticket-code-block">
+              <div class="label">Mã Đặt Chỗ (Booking Ref)</div>
+              <div class="eticket-code-val" id="ticketBookingId">DELTA-849201</div>
+            </div>
+          </div>
+
+          <!-- Trạng thái -->
+          <div class="eticket-status-bar paid" id="ticketStatusBadge">
+            <i class="bi bi-check-circle-fill"></i> ĐÃ THANH TOÁN THÀNH CÔNG
+          </div>
+
+          <!-- Nội dung vé -->
+          <div class="eticket-body">
+            <div class="eticket-section-title">Chi Tiết Chuyến Đi</div>
+            <div class="eticket-grid">
+              <div class="eticket-field">
+                <div class="lbl">Tên Tour:</div>
+                <div class="val" id="ticketTourTitle">Tour Du Thuyền 5 Sao Vịnh Hạ Long</div>
+              </div>
+              <div class="eticket-field">
+                <div class="lbl">Ngày Khởi Hành:</div>
+                <div class="val text-primary" id="ticketDepartureDate">25/10/2026</div>
+              </div>
+              <div class="eticket-field">
+                <div class="lbl">Ngày Đặt Vé:</div>
+                <div class="val" id="ticketCreatedAt">17/10/2026 15:30</div>
+              </div>
+              <div class="eticket-field">
+                <div class="lbl">Số Lượng Khách:</div>
+                <div class="val" id="ticketPassengerCount">2 Người lớn</div>
+              </div>
+            </div>
+
+            <div class="eticket-section-title">Thông Tin Hành Khách</div>
+            <div class="eticket-grid">
+              <div class="eticket-field">
+                <div class="lbl">Họ và Tên:</div>
+                <div class="val" id="ticketCustomerName">Nguyễn Văn A</div>
+              </div>
+              <div class="eticket-field">
+                <div class="lbl">Số Điện Thoại:</div>
+                <div class="val" id="ticketCustomerPhone">0987654321</div>
+              </div>
+              <div class="eticket-field">
+                <div class="lbl">Email:</div>
+                <div class="val" id="ticketCustomerEmail">nguyenvana@gmail.com</div>
+              </div>
+              <div class="eticket-field">
+                <div class="lbl">Số CCCD / Hộ Chiếu:</div>
+                <div class="val" id="ticketCustomerCCCD">00120000xxxx</div>
+              </div>
+            </div>
+
+            <div class="eticket-section-title">Thanh Toán & Hóa Đơn</div>
+            <div class="eticket-grid">
+              <div class="eticket-field">
+                <div class="lbl">Phương Thức:</div>
+                <div class="val" id="ticketPaymentMethod">Chuyển khoản QR Ngân hàng</div>
+              </div>
+              <div class="eticket-field">
+                <div class="lbl">Tổng Tiền Đã Thanh Toán:</div>
+                <div class="val fs-5 text-danger fw-bold" id="ticketTotalAmount">3.890.000 đ</div>
+              </div>
+            </div>
+
+            <!-- Mã vạch giả lập -->
+            <div class="eticket-barcode-mock">
+              <div class="barcode-stripes"></div>
+              <span class="small text-muted font-monospace">* Vui lòng xuất trình mã vé này khi lên xe/du thuyền *</span>
+            </div>
+
+            <!-- Nút thao tác -->
+            <div class="d-flex gap-2 justify-content-center mt-4 no-print">
+              <button class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                <i class="bi bi-x"></i> Đóng
+              </button>
+              <button class="btn btn-delta-primary" onclick="printETicket()">
+                <i class="bi bi-printer-fill"></i> In vé / Tải PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL 4: QUẢN LÝ ĐƠN HÀNG CỦA TÔI (MY BOOKINGS - BÊ NGUYÊN TỪ DELTATRAVEL-MAIN)
+       ========================================================================== -->
+  <div class="modal fade modal-my-bookings" id="myBookingsModal" tabindex="-1" aria-labelledby="myBookingsModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+      <div class="modal-content liquid-modal-content border-0 shadow-2xl">
+        <div class="modal-header border-bottom p-4 bg-white d-flex align-items-center justify-content-between">
+          <div>
+            <span class="badge bg-amber-100 text-dark border px-2.5 py-1 rounded-pill small fw-bold mb-1" style="font-size: 11px; background: #fef3c7; color: #92400e;">
+              LỊCH SỬ ĐẶT TOUR • MY BOOKINGS
+            </span>
+            <h4 class="modal-title fw-bold text-dark mb-0">Quản Lý Chuyến Đi Của Bạn</h4>
+            <p class="text-muted small mb-0 mt-0.5">Theo dõi mã đơn, tiến độ xác nhận chỗ và thanh toán các hành trình nghỉ dưỡng cao cấp.</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body p-4" style="background: #fafafa;">
+          <!-- AI Trip Concierge Card (Chuẩn deltatravel-main) -->
+          <div class="ai-concierge-card">
+            <div class="ai-concierge-eyebrow">
+              <i class="bi bi-stars"></i> DELTA AI • TRIP CONCIERGE
+            </div>
+            <div class="ai-concierge-title">AI theo dõi toàn bộ chuyến đi của bạn</div>
+            <div class="ai-concierge-desc">
+              AI đọc booking theo tài khoản để tóm tắt việc cần làm, hạn thanh toán và chính sách liên quan.
+            </div>
+
+            <!-- Gợi ý tương tác nhanh -->
+            <div class="ai-concierge-chips">
+              <button type="button" class="ai-concierge-chip" onclick="handleAiConciergePrompt('pending')">
+                <i class="bi bi-hourglass-split me-1 text-warning"></i> Đơn nào của tôi đang chờ thanh toán?
+              </button>
+              <button type="button" class="ai-concierge-chip" onclick="handleAiConciergePrompt('cancel')">
+                <i class="bi bi-shield-exclamation me-1 text-info"></i> Booking nào có thể hủy và điều kiện là gì?
+              </button>
+              <button type="button" class="ai-concierge-chip" onclick="handleAiConciergePrompt('next')">
+                <i class="bi bi-arrow-right-circle me-1 text-success"></i> Tôi cần làm gì tiếp theo cho chuyến đi?
+              </button>
+            </div>
+
+            <!-- Khung phản hồi AI -->
+            <div class="ai-concierge-response" id="aiConciergeResponseBox"></div>
+          </div>
+
+          <!-- Thanh tìm kiếm & Tabs lọc trạng thái chuẩn -->
+          <div class="d-flex flex-column flex-md-row gap-3 align-items-md-center justify-content-between mb-4">
+            <!-- Ô tìm kiếm -->
+            <div class="input-group input-group-sm" style="max-width: 340px;">
+              <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+              <input type="text" class="form-control border-start-0" id="searchCustomerBookingInput" placeholder="Tìm theo Mã đơn (DL-...) hoặc SĐT..." oninput="handleCustomerBookingSearch(this.value)">
+            </div>
+
+            <!-- Tabs lọc trạng thái -->
+            <div class="d-flex flex-wrap gap-1" id="customerBookingStatusFilters">
+              <button type="button" class="btn btn-xs btn-dark rounded-pill px-3 py-1 fw-bold active" onclick="filterCustomerBookings('all', this)" style="font-size: 11.5px;">Tất cả</button>
+              <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2.5 py-1 fw-semibold" onclick="filterCustomerBookings('PENDING_PAYMENT', this)" style="font-size: 11.5px;">Chờ thanh toán</button>
+              <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2.5 py-1 fw-semibold" onclick="filterCustomerBookings('PAID', this)" style="font-size: 11.5px;">Đã thanh toán</button>
+              <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2.5 py-1 fw-semibold" onclick="filterCustomerBookings('CONFIRMED', this)" style="font-size: 11.5px;">Đã duyệt chỗ</button>
+              <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2.5 py-1 fw-semibold" onclick="filterCustomerBookings('CANCELLED', this)" style="font-size: 11.5px;">Đã hủy</button>
+            </div>
+          </div>
+
+          <!-- Danh sách đơn hàng từ delta_bookings_v2 -->
+          <div id="myBookingsContainer">
+            <!-- JavaScript render các thẻ đơn hàng hoặc Empty State -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL 4.1: CHI TIẾT ĐƠN HÀNG & CỔNG THANH TOÁN (BOOKING DETAIL & GATEWAY)
+       Ported 100% from deltatravel-main app/(account)/bookings/[id]/page.tsx
+       ========================================================================== -->
+  <div class="modal fade modal-booking-detail" id="customerBookingDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content liquid-modal-content border-0 shadow-2xl">
+        <div class="modal-header border-bottom p-4 bg-white d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-circle" style="width: 32px; height: 32px; padding: 0;" onclick="openMyBookingsModal()">
+              <i class="bi bi-arrow-left"></i>
+            </button>
+            <div>
+              <span class="badge bg-dark text-white font-monospace px-2 py-0.5" id="cDetailBookingCode">DL-982101</span>
+              <h5 class="modal-title fw-bold text-dark mb-0 mt-0.5" id="cDetailTourTitle">Chi Tiết Đơn Đặt Chỗ</h5>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body p-4" id="customerBookingDetailBody">
+          <!-- Sẽ render động thông tin đơn, đồng hồ đếm ngược 15 phút và cổng thanh toán -->
+        </div>
+
+        <div class="modal-footer border-top p-3 bg-light">
+          <button type="button" class="btn btn-outline-secondary" onclick="openMyBookingsModal()">
+            <i class="bi bi-arrow-left me-1"></i> Danh Sách Đơn
+          </button>
+          <button type="button" class="btn btn-dark" onclick="printETicketFromDetail()">
+            <i class="bi bi-printer me-1"></i> In Vé Điện Tử
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL 4.2: XÁC NHẬN HỦY ĐƠN ĐẶT TOUR (CUSTOMER CANCEL MODAL)
+       Ported 100% from deltatravel-main với 4 lý do chuẩn
+       ========================================================================== -->
+  <div class="modal fade modal-cancel-order" id="customerCancelBookingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content liquid-modal-content border-0 shadow-2xl">
+        <div class="modal-header border-bottom p-4">
+          <h5 class="modal-title fw-bold text-danger">
+            <i class="bi bi-x-circle-fill me-1"></i> Xác Nhận Hủy Đơn Đặt Tour
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form onsubmit="handleCustomerConfirmCancel(event)">
+          <input type="hidden" id="customerCancelTargetId">
+          <div class="modal-body p-4">
+            <p class="small text-muted mb-3">
+              Bạn đang yêu cầu hủy đơn <strong id="customerCancelBookingId" class="text-dark"></strong> cho hành trình <strong id="customerCancelTourTitle" class="text-dark"></strong>.
+              Sau khi hủy, số chỗ giữ sẽ được hoàn lại kho và bạn có thể đặt lại bất cứ lúc nào.
+            </p>
+
+            <label class="form-label small fw-bold">Chọn nhanh lý do hủy tour:</label>
+            <div class="d-flex flex-wrap gap-1.5 mb-3">
+              <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2.5 rounded-pill" style="font-size: 11.5px;" onclick="setCustomerCancelReason('Thay đổi kế hoạch công tác / gia đình')">
+                Lịch bận công tác / gia đình
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2.5 rounded-pill" style="font-size: 11.5px;" onclick="setCustomerCancelReason('Có việc bận đột xuất')">
+                Việc bận đột xuất
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2.5 rounded-pill" style="font-size: 11.5px;" onclick="setCustomerCancelReason('Đặt nhầm ngày hoặc số lượng khách')">
+                Đặt nhầm ngày / số khách
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2.5 rounded-pill" style="font-size: 11.5px;" onclick="setCustomerCancelReason('Muốn đổi sang hành trình khác')">
+                Đổi sang tour khác
+              </button>
+            </div>
+
+            <label class="form-label small fw-bold">Lý do hủy đơn chi tiết <span class="text-danger">*</span></label>
+            <textarea class="form-control" id="customerCancelReasonInput" rows="3" placeholder="Nhập lý do hủy đơn của bạn..." required></textarea>
+          </div>
+          <div class="modal-footer border-top p-3 bg-light">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>
+            <button type="submit" class="btn btn-danger fw-bold">Xác Nhận Hủy Đơn</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: DANH SÁCH TOUR YÊU THÍCH (WISHLIST MODAL) -->
+  <div class="modal fade" id="wishlistModal" tabindex="-1" aria-labelledby="wishlistModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title" id="wishlistModalTitle">
+            <i class="bi bi-heart-fill"></i> Danh Sách Tour Yêu Thích Của Bạn
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div id="wishlistContainer">
+            <!-- Render bằng JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: HỆ THỐNG ĐĂNG NHẬP / ĐĂNG KÝ / QUÊN MẬT KHẨU (AUTH MODAL) -->
+  <div class="modal fade modal-auth" id="authModal" tabindex="-1" aria-labelledby="authModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <!-- Header -->
+        <div class="auth-modal-header">
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          <div class="brand-icon">
+            <i class="bi bi-person-badge"></i>
+          </div>
+          <h4 class="modal-title" id="authModalTitle">Tài Khoản Delta Travel</h4>
+          <p class="modal-subtitle">Trải nghiệm đặt tour cao cấp & quản lý hành trình dễ dàng</p>
+        </div>
+
+        <div class="modal-body p-4">
+          <!-- 3 Tab điều hướng -->
+          <div class="auth-tabs-nav mb-4">
+            <button type="button" class="nav-link auth-tab-btn active" data-tab="login" onclick="switchAuthTab('login')">
+              <i class="bi bi-box-arrow-in-right me-1"></i> Đăng nhập
+            </button>
+            <button type="button" class="nav-link auth-tab-btn" data-tab="register" onclick="switchAuthTab('register')">
+              <i class="bi bi-person-plus me-1"></i> Đăng ký
+            </button>
+            <button type="button" class="nav-link auth-tab-btn" data-tab="forgot" onclick="switchAuthTab('forgot')">
+              <i class="bi bi-key me-1"></i> Quên MK
+            </button>
+          </div>
+
+          <!-- PANE 1: FORM ĐĂNG NHẬP -->
+          <div id="authPane_login" class="auth-pane">
+            <form id="loginForm" novalidate>
+              <div class="auth-form-group">
+                <label for="loginAccount">Email hoặc Số điện thoại <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-person-fill input-icon"></i>
+                  <input type="text" class="form-control" id="loginAccount" placeholder="Nhập Email hoặc Số điện thoại..." required>
+                </div>
+                <div class="auth-error-msg" id="loginAccountError"></div>
+              </div>
+
+              <div class="auth-form-group">
+                <label for="loginPassword">Mật khẩu <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-lock-fill input-icon"></i>
+                  <input type="password" class="form-control" id="loginPassword" placeholder="Nhập mật khẩu..." required>
+                  <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('loginPassword', this)" title="Ẩn/hiện mật khẩu">
+                    <i class="bi bi-eye-fill"></i>
+                  </button>
+                </div>
+                <div class="auth-error-msg" id="loginPasswordError"></div>
+              </div>
+
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="loginRemember" checked>
+                  <label class="form-check-label small text-muted" for="loginRemember">Ghi nhớ đăng nhập</label>
+                </div>
+                <a href="javascript:void(0)" class="small text-decoration-none text-primary fw-semibold" onclick="switchAuthTab('forgot')">Quên mật khẩu?</a>
+              </div>
+
+              <div class="auth-error-msg mb-3" id="loginGeneralError"></div>
+
+              <button type="submit" class="btn btn-auth-submit">
+                <i class="bi bi-box-arrow-in-right me-1"></i> Đăng Nhập Ngay
+              </button>
+
+              <p class="auth-footer-text">
+                Chưa có tài khoản? <a href="javascript:void(0)" onclick="switchAuthTab('register')">Đăng ký thành viên mới</a>
+              </p>
+            </form>
+          </div>
+
+          <!-- PANE 2: FORM ĐĂNG KÝ -->
+          <div id="authPane_register" class="auth-pane" style="display: none;">
+            <form id="registerForm" novalidate>
+              <div class="auth-form-group">
+                <label for="registerName">Họ và tên <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-person-fill input-icon"></i>
+                  <input type="text" class="form-control" id="registerName" placeholder="Nguyễn Văn A" required>
+                </div>
+                <div class="auth-error-msg" id="registerNameError"></div>
+              </div>
+
+              <div class="auth-form-group">
+                <label for="registerEmail">Địa chỉ Email <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-envelope-fill input-icon"></i>
+                  <input type="email" class="form-control" id="registerEmail" placeholder="name@example.com" required>
+                </div>
+                <div class="auth-error-msg" id="registerEmailError"></div>
+              </div>
+
+              <div class="auth-form-group">
+                <label for="registerPhone">Số điện thoại (10 số) <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-telephone-fill input-icon"></i>
+                  <input type="tel" class="form-control" id="registerPhone" placeholder="0987654321" required>
+                </div>
+                <div class="auth-error-msg" id="registerPhoneError"></div>
+              </div>
+
+              <div class="auth-form-group">
+                <label for="registerPassword">Mật khẩu (tối thiểu 6 ký tự) <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-shield-lock-fill input-icon"></i>
+                  <input type="password" class="form-control" id="registerPassword" placeholder="Nhập mật khẩu an toàn..." required>
+                  <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('registerPassword', this)" title="Ẩn/hiện mật khẩu">
+                    <i class="bi bi-eye-fill"></i>
+                  </button>
+                </div>
+                <div class="auth-error-msg" id="registerPasswordError"></div>
+              </div>
+
+              <div class="auth-form-group">
+                <label for="registerConfirmPassword">Xác nhận mật khẩu <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-check2-circle input-icon"></i>
+                  <input type="password" class="form-control" id="registerConfirmPassword" placeholder="Nhập lại mật khẩu..." required>
+                  <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('registerConfirmPassword', this)" title="Ẩn/hiện mật khẩu">
+                    <i class="bi bi-eye-fill"></i>
+                  </button>
+                </div>
+                <div class="auth-error-msg" id="registerConfirmError"></div>
+              </div>
+
+              <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="registerTerms" required>
+                <label class="form-check-label small text-muted" for="registerTerms">
+                  Tôi đồng ý với <a href="javascript:void(0)" class="text-decoration-none">Điều khoản dịch vụ</a> & <a href="javascript:void(0)" class="text-decoration-none">Chính sách bảo mật</a> của Delta Travel.
+                </label>
+                <div class="auth-error-msg" id="registerTermsError"></div>
+              </div>
+
+              <button type="submit" class="btn btn-auth-submit">
+                <i class="bi bi-person-check-fill me-1"></i> Đăng Ký Tài Khoản
+              </button>
+
+              <p class="auth-footer-text">
+                Đã có tài khoản? <a href="javascript:void(0)" onclick="switchAuthTab('login')">Đăng nhập ngay</a>
+              </p>
+            </form>
+          </div>
+
+          <!-- PANE 3: FORM QUÊN MẬT KHẨU -->
+          <div id="authPane_forgot" class="auth-pane" style="display: none;">
+            <p class="text-muted small mb-3">
+              Nhập Email hoặc Số điện thoại đã đăng ký để tạo mật khẩu mới cho tài khoản của bạn.
+            </p>
+            <form id="forgotForm" novalidate>
+              <div class="auth-form-group">
+                <label for="forgotAccount">Email hoặc Số điện thoại <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-envelope-at-fill input-icon"></i>
+                  <input type="text" class="form-control" id="forgotAccount" placeholder="Nhập Email hoặc SĐT..." required>
+                </div>
+                <div class="auth-error-msg" id="forgotAccountError"></div>
+              </div>
+
+              <div class="auth-form-group">
+                <label for="forgotNewPassword">Mật khẩu mới (tối thiểu 6 ký tự) <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-key-fill input-icon"></i>
+                  <input type="password" class="form-control" id="forgotNewPassword" placeholder="Nhập mật khẩu mới..." required>
+                  <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('forgotNewPassword', this)" title="Ẩn/hiện mật khẩu">
+                    <i class="bi bi-eye-fill"></i>
+                  </button>
+                </div>
+                <div class="auth-error-msg" id="forgotNewPasswordError"></div>
+              </div>
+
+              <div class="auth-form-group">
+                <label for="forgotConfirmPassword">Xác nhận mật khẩu mới <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-check2-all input-icon"></i>
+                  <input type="password" class="form-control" id="forgotConfirmPassword" placeholder="Nhập lại mật khẩu mới..." required>
+                  <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('forgotConfirmPassword', this)" title="Ẩn/hiện mật khẩu">
+                    <i class="bi bi-eye-fill"></i>
+                  </button>
+                </div>
+                <div class="auth-error-msg" id="forgotConfirmPasswordError"></div>
+              </div>
+
+              <button type="submit" class="btn btn-auth-submit">
+                <i class="bi bi-arrow-repeat me-1"></i> Đặt Lại Mật Khẩu
+              </button>
+
+              <p class="auth-footer-text">
+                Nhớ lại mật khẩu? <a href="javascript:void(0)" onclick="switchAuthTab('login')">Quay lại Đăng nhập</a>
+              </p>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 7: HỒ SƠ & THÔNG TIN TÀI KHOẢN (USER PROFILE MODAL) -->
+  <div class="modal fade" id="userProfileModal" tabindex="-1" aria-labelledby="userProfileModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4 overflow-hidden shadow-lg">
+        <div class="profile-card-header text-center">
+          <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Close"></button>
+          <div class="profile-avatar-large" id="profileAvatar">NA</div>
+          <h5 class="fw-bold text-white mb-1" id="profileFullName">Lê Văn An</h5>
+          <p class="text-white-50 small mb-0" id="profileEmail">an.levan@gmail.com</p>
+        </div>
+
+        <div class="modal-body p-4">
+          <!-- Chỉ số thống kê -->
+          <div class="profile-stats-row">
+            <div class="profile-stat-box">
+              <div class="stat-val" id="profileTotalBookings">0</div>
+              <div class="stat-lbl">Đơn đã đặt</div>
+            </div>
+            <div class="profile-stat-box">
+              <div class="stat-val text-warning">VIP 1</div>
+              <div class="stat-lbl">Hạng thành viên</div>
+            </div>
+            <div class="profile-stat-box">
+              <div class="stat-val text-info" id="profileCreatedAt">15/10/2026</div>
+              <div class="stat-lbl">Ngày tham gia</div>
+            </div>
+          </div>
+
+          <!-- Tab điều hướng trong Profile -->
+          <ul class="nav nav-pills nav-fill mb-3" id="profilePills" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active small py-2 fw-semibold" id="pill-info-tab" data-bs-toggle="pill" data-bs-target="#pill-info" type="button" role="tab">
+                <i class="bi bi-person-lines-fill me-1"></i> Thông tin cá nhân
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link small py-2 fw-semibold" id="pill-password-tab" data-bs-toggle="pill" data-bs-target="#pill-password" type="button" role="tab">
+                <i class="bi bi-shield-lock me-1"></i> Đổi mật khẩu
+              </button>
+            </li>
+          </ul>
+
+          <div class="tab-content">
+            <!-- Tab 1: Cập nhật thông tin -->
+            <div class="tab-pane fade show active" id="pill-info" role="tabpanel">
+              <form id="profileEditForm">
+                <div class="mb-3">
+                  <label class="form-label small fw-bold text-muted">Họ và tên</label>
+                  <input type="text" class="form-control" id="profileEditName" required>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label small fw-bold text-muted">Số điện thoại</label>
+                  <input type="tel" class="form-control" id="profileEditPhone" required>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label small fw-bold text-muted">Email (Định danh tài khoản)</label>
+                  <input type="email" class="form-control bg-light" id="profileEmailDisplay" disabled>
+                </div>
+                <button type="submit" class="btn btn-delta-primary w-100">
+                  <i class="bi bi-check2-circle me-1"></i> Lưu Thay Đổi
+                </button>
+              </form>
+            </div>
+
+            <!-- Tab 2: Đổi mật khẩu -->
+            <div class="tab-pane fade" id="pill-password" role="tabpanel">
+              <form id="changePasswordForm">
+                <div class="mb-3">
+                  <label class="form-label small fw-bold text-muted">Mật khẩu hiện tại</label>
+                  <input type="password" class="form-control" id="profileCurrentPass" required>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label small fw-bold text-muted">Mật khẩu mới (tối thiểu 6 ký tự)</label>
+                  <input type="password" class="form-control" id="profileNewPass" required>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label small fw-bold text-muted">Xác nhận mật khẩu mới</label>
+                  <input type="password" class="form-control" id="profileConfirmNewPass" required>
+                </div>
+                <button type="submit" class="btn btn-outline-danger w-100">
+                  <i class="bi bi-shield-check me-1"></i> Cập Nhật Mật Khẩu
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       13. TIỆN ÍCH NỔI (FLOATING WIDGETS) & TOAST NOTIFICATION
+       ========================================================================== -->
+  <div class="floating-actions no-print">
+    <a href="tel:19008899" class="floating-btn floating-phone" title="Gọi Hotline 1900 8899">
+      <i class="bi bi-telephone-fill"></i>
+    </a>
+    <button class="floating-btn floating-top" id="backToTopBtn" title="Cuộn lên đầu trang">
+      <i class="bi bi-arrow-up"></i>
+    </button>
+  </div>
+
+  <!-- BONG BÓNG CHATBOT AI & CỬA SỔ CHAT TRỰC TUYẾN -->
+  <div class="chatbot-launcher no-print" id="chatbotLauncher">
+    <div class="chatbot-invite-pill" id="chatbotInvitePill">
+      <span>✨ Hỏi Delta AI về tour, giá vé & ưu đãi!</span>
+    </div>
+    <button class="chatbot-btn" id="chatbotLauncherBtn" title="Trò chuyện cùng Delta AI" aria-label="Mở khung trò chuyện AI">
+      <span class="chatbot-pulse-ring"></span>
+      <span class="chatbot-online-badge"></span>
+      <i class="bi bi-robot"></i>
+    </button>
+  </div>
+
+  <!-- Cửa sổ Chatbot chính -->
+  <div class="chatbot-window hidden no-print" id="chatbotWindow">
+    <!-- Header -->
+    <div class="chatbot-header">
+      <div class="chatbot-header-info">
+        <div class="chatbot-avatar-header">
+          <i class="bi bi-robot"></i>
+          <span class="status-dot"></span>
+        </div>
+        <div class="chatbot-title-box">
+          <h6>Trợ lý Delta AI <span class="badge-model">Gemini 2.5</span></h6>
+          <small><i class="bi bi-circle-fill text-success" style="font-size: 0.55rem;"></i> Trực tuyến 24/7 • Dữ liệu thật</small>
+        </div>
+      </div>
+      <div class="chatbot-header-actions">
+        <button class="chatbot-header-btn" id="chatbotResetBtn" title="Làm mới cuộc hội thoại">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+        <button class="chatbot-header-btn" id="chatbotCloseBtn" title="Thu nhỏ chat">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Danh sách tin nhắn -->
+    <div class="chatbot-messages" id="chatbotMessages">
+      <div class="chat-msg bot">
+        <div class="chat-msg-avatar" title="Delta AI"><i class="bi bi-robot"></i></div>
+        <div class="chat-msg-bubble">
+          <p class="mb-1">Xin chào bạn! 👋 Tôi là <strong>Delta AI</strong> - Trợ lý tư vấn du lịch thông minh của <strong>Delta Travel</strong>.</p>
+          <p class="mb-2">Tôi được nạp dữ liệu chi tiết về lịch trình, bảng giá, ưu đãi và chính sách của toàn bộ tour hiện có trên website. Bạn cần tư vấn tour nào hoặc có câu hỏi gì không?</p>
+          <span class="chat-msg-time">Vừa xong</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gợi ý câu hỏi nhanh (Quick Replies) -->
+    <div class="chatbot-quick-replies">
+      <button class="quick-reply-btn" data-query="Tư vấn tour đi Đà Nẵng 4N3Đ">🏖️ Tour Đà Nẵng</button>
+      <button class="quick-reply-btn" data-query="Có tour du thuyền Hạ Long nào hot?">🚢 Du thuyền Hạ Long</button>
+      <button class="quick-reply-btn" data-query="Gợi ý tour có giá dưới 4 triệu đồng">💰 Tour dưới 4 triệu</button>
+      <button class="quick-reply-btn" data-query="Hiện tại có những mã giảm giá voucher nào?">🎟️ Mã giảm giá</button>
+      <button class="quick-reply-btn" data-query="Chính sách thanh toán và hủy tour như thế nào?">📋 Chính sách hoàn hủy</button>
+      <button class="quick-reply-btn" data-query="Tư vấn tour Phú Quốc 3N2Đ nghỉ dưỡng">🌴 Tour Phú Quốc</button>
+    </div>
+
+    <!-- Khung nhập tin nhắn -->
+    <div class="chatbot-footer">
+      <div class="chatbot-input-group">
+        <input type="text" class="chatbot-input" id="chatbotInput" placeholder="Hỏi Delta AI về tour, giá vé, lịch trình..." autocomplete="off">
+        <button class="chatbot-send-btn" id="chatbotSendBtn" title="Gửi tin nhắn">
+          <i class="bi bi-send-fill"></i>
+        </button>
+      </div>
+      <p class="chatbot-footnote">⚡ Powered by Google Gemini AI • Tư vấn thông minh 24/7</p>
+    </div>
+  </div>
+
+  <!-- Container chứa Toast thông báo -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ==========================================================================
+       14. SCRIPTS (BOOTSTRAP 5 & VANILLA JAVASCRIPT)
+       ========================================================================== -->
+  <!-- Bootstrap 5 Bundle JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Cơ sở dữ liệu Tour & Voucher thuần Client -->
+  <script src="assets/js/data.js"></script>
+
+  <!-- Bộ điều khiển xử lý logic sự kiện & tính tiền -->
+  <script src="assets/js/main.js"></script>
+
+  <!-- Hệ thống Đăng ký, Đăng nhập & Quản lý Tài khoản -->
+  <script src="assets/js/auth.js"></script>
+
+  <!-- Trợ lý ảo Chatbot AI kết nối Google Gemini API -->
+  <script src="assets/js/chatbot.js"></script>
+</body>
+</html>

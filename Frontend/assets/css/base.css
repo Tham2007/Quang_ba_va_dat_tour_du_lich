@@ -1,0 +1,322 @@
+/* ==========================================================================
+   DELTA TRAVEL - BASE STYLES & DESIGN TOKENS (base.css)
+   ========================================================================== */
+
+:root {
+  /* Bảng màu nhận diện thương hiệu biển đảo & du lịch cao cấp */
+  --primary-color: #0a4d68;        /* Xanh dương đại dương sâu */
+  --primary-hover: #083b50;
+  --secondary-color: #088395;      /* Xanh ngọc lam nhiệt đới */
+  --secondary-light: #05bfdb;
+  --accent-color: #ff6b35;         /* Cam hoàng hôn rực rỡ */
+  --accent-hover: #e85923;
+  --gold-color: #f59e0b;           /* Vàng ánh kim đánh giá sao */
+  --danger-color: #ef4444;
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --info-color: #3b82f6;
+
+  /* Màu nền & chữ */
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-light: #f1f5f9;
+  --bg-dark: #0f172a;
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --text-light: #94a3b8;
+  --border-color: #e2e8f0;
+
+  /* Bóng đổ cao cấp (Elevation Shadow) */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-colored: 0 10px 25px -5px rgba(10, 77, 104, 0.25);
+
+  /* Bo góc & Chuyển động */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Typography */
+  --font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+/* Reset CSS cơ bản */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+a:hover {
+  color: var(--accent-color);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Thanh cuộn tùy chỉnh */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary-color);
+}
+
+/* Tiêu đề & Section Headings */
+.section-header {
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto 3rem auto;
+}
+
+.section-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 1.1rem;
+  background: rgba(8, 131, 149, 0.1);
+  color: var(--secondary-color);
+  border-radius: var(--radius-full);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+
+.section-title {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: var(--primary-color);
+  margin-bottom: 0.75rem;
+  line-height: 1.25;
+}
+
+.section-subtitle {
+  color: var(--text-muted);
+  font-size: 1.05rem;
+}
+
+/* Nút bấm (Custom Buttons) */
+.btn-delta-primary {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  color: #ffffff !important;
+  font-weight: 600;
+  padding: 0.65rem 1.5rem;
+  border-radius: var(--radius-md);
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 14px rgba(10, 77, 104, 0.3);
+  transition: var(--transition);
+}
+
+.btn-delta-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(10, 77, 104, 0.45);
+  color: #ffffff !important;
+}
+
+.btn-delta-accent {
+  background: linear-gradient(135deg, var(--accent-color) 0%, #ff8c42 100%);
+  color: #ffffff !important;
+  font-weight: 700;
+  padding: 0.65rem 1.5rem;
+  border-radius: var(--radius-md);
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 14px rgba(255, 107, 53, 0.35);
+  transition: var(--transition);
+}
+
+.btn-delta-accent:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 53, 0.5);
+  color: #ffffff !important;
+}
+
+.btn-delta-outline {
+  background: transparent;
+  color: var(--primary-color) !important;
+  font-weight: 600;
+  padding: 0.6rem 1.4rem;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--primary-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: var(--transition);
+}
+
+.btn-delta-outline:hover {
+  background: var(--primary-color);
+  color: #ffffff !important;
+  transform: translateY(-2px);
+}
+
+/* Badge huy hiệu */
+.badge-custom {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-full);
+}
+
+.badge-sale {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+}
+
+.badge-feature {
+  background: linear-gradient(135deg, var(--secondary-color) 0%, #05bfdb 100%);
+  color: #fff;
+}
+
+/* Toast thông báo nổi */
+.toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.custom-toast {
+  background: #ffffff;
+  color: var(--text-main);
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xl);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 300px;
+  max-width: 420px;
+  border-left: 4px solid var(--primary-color);
+  animation: slideInRight 0.35s ease forwards;
+}
+
+.custom-toast.toast-success {
+  border-left-color: var(--success-color);
+}
+.custom-toast.toast-error {
+  border-left-color: var(--danger-color);
+}
+.custom-toast.toast-warning {
+  border-left-color: var(--warning-color);
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Nút liên hệ nhanh góc màn hình (Floating Widget) */
+.floating-actions {
+  position: fixed;
+  bottom: 2rem;
+  right: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  z-index: 1000;
+}
+
+.floating-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 1.25rem;
+  box-shadow: var(--shadow-lg);
+  transition: var(--transition);
+  cursor: pointer;
+  border: none;
+}
+
+.floating-btn:hover {
+  transform: scale(1.1);
+  color: #ffffff;
+}
+
+.floating-phone {
+  background: var(--accent-color);
+  animation: pulseShadow 2s infinite;
+}
+
+.floating-top {
+  background: var(--primary-color);
+  opacity: 0;
+  visibility: hidden;
+}
+
+.floating-top.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+@keyframes pulseShadow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(255, 107, 53, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 107, 53, 0);
+  }
+}
