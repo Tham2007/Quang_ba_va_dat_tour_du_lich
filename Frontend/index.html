@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
   <title>Delta Travel - Đặt Tour Du Lịch & Nghỉ Dưỡng Cao Cấp Việt Nam</title>
   <meta name="description" content="Delta Travel - Thương hiệu lữ hành hàng đầu chuyên cung cấp tour du lịch Hạ Long, Đà Nẵng, Phú Quốc, Sa Pa, Đà Lạt với dịch vụ cao cấp và giá ưu đãi tốt nhất.">
   <meta name="keywords" content="Delta Travel, đặt tour du lịch, du lịch việt nam, tour hạ long, tour đà nẵng, tour phú quốc">
@@ -33,6 +34,9 @@
   <link rel="stylesheet" href="assets/css/chatbot.css">
 </head>
 <body>
+  <aside class="delta-demo-notice" role="status" aria-label="Trạng thái bản demo" style="position:relative;z-index:1050;background:#fff3cd;color:#4d3a04;text-align:center;padding:9px 16px;font:600 13px/1.5 system-ui,sans-serif;border-bottom:1px solid #e9d48d">
+    🧪 Bản demo học phần: tour, tài khoản, đơn và thanh toán chỉ mô phỏng trên trình duyệt. Không chuyển tiền hoặc nhập dữ liệu cá nhân/mật khẩu thật.
+  </aside>
 
   <!-- ==========================================================================
        1. TOPBAR & HEADER
@@ -906,7 +910,7 @@
                   <!-- Khung 1: QR Chuyển khoản VietQR -->
                   <div id="paymentPane_qr" class="qr-payment-box">
                     <h6 class="fw-bold text-primary mb-2"><i class="bi bi-shield-check"></i> Quét mã VietQR thanh toán tức thì</h6>
-                    <img src="assets/images/qr-payment.png" alt="QR Code Payment" class="qr-payment-img">
+                    <img src="assets/images/qr-payment.png" alt="Mã QR minh họa, không sử dụng để chuyển tiền" class="qr-payment-img">
                     <table class="bank-info-table">
                       <tr>
                         <td class="label">Ngân hàng:</td>
@@ -933,24 +937,7 @@
 
                   <!-- Khung 2: Thẻ ATM / Visa / Mastercard -->
                   <div id="paymentPane_card" style="display: none;" class="p-3 bg-light rounded-3 border">
-                    <div class="row g-2">
-                      <div class="col-12">
-                        <label class="form-label small fw-bold">Số thẻ thanh toán</label>
-                        <input type="text" class="form-control" id="cardNum" placeholder="4123 4567 8901 2345">
-                      </div>
-                      <div class="col-12">
-                        <label class="form-label small fw-bold">Tên in trên thẻ</label>
-                        <input type="text" class="form-control" id="cardHolder" placeholder="NGUYEN VAN A">
-                      </div>
-                      <div class="col-6">
-                        <label class="form-label small fw-bold">Hạn thẻ (MM/YY)</label>
-                        <input type="text" class="form-control" id="cardExpiry" placeholder="12/28">
-                      </div>
-                      <div class="col-6">
-                        <label class="form-label small fw-bold">Mã CVV</label>
-                        <input type="password" class="form-control" id="cardCvv" placeholder="123" maxlength="3">
-                      </div>
-                    </div>
+                    <p class="text-danger fw-semibold mb-0">Thanh toán bằng thẻ chưa được tích hợp. Không nhập số thẻ hoặc mã CVV vào bản demo này.</p>
                   </div>
 
                   <!-- Khung 3: Ví điện tử -->
@@ -1688,7 +1675,7 @@
           <i class="bi bi-send-fill"></i>
         </button>
       </div>
-      <p class="chatbot-footnote">⚡ Powered by Google Gemini AI • Tư vấn thông minh 24/7</p>
+      <p class="chatbot-footnote">🧪 Trợ lý demo: chưa cấu hình API AI thật</p>
     </div>
   </div>
 
