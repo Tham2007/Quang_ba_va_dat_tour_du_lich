@@ -1,0 +1,49 @@
+name: One-time import An frontend (review branch only)
+
+on:
+  push:
+    paths:
+      - '.github/workflows/import-an-frontend-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  import-an:
+    if: github.repository == 'Tham2007/Quang_ba_va_dat_tour_du_lich' && github.ref == 'refs/heads/feature/import-an-frontend-demo-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 1
+      - name: Fetch exactly An's supplied public frontend commit
+        run: |
+          set -euo pipefail
+          git clone --quiet --depth 1 --branch main https://github.com/Anniehatani/deltatrdelt2.0.git /tmp/an-frontend
+          test "$(git -C /tmp/an-frontend rev-parse HEAD)" = "2457a46d6f3ffdabc4d246b9f61dc260ac4d1c50"
+          test -f /tmp/an-frontend/index.html
+          test -f /tmp/an-frontend/admin.html
+          test -f /tmp/an-frontend/assets/js/admin.js
+      - name: Import source without deleting or overwriting backend/SQL
+        run: |
+          set -euo pipefail
+          mkdir -p Frontend
+          rsync -a --exclude='.git' --exclude='.gitignore' --exclude='README.md' --exclude='FRONTEND_STRUCTURE.md' /tmp/an-frontend/ Frontend/
+          cp /tmp/an-frontend/README.md Frontend/README_AN_ORIGINAL.md
+          cp /tmp/an-frontend/FRONTEND_STRUCTURE.md Frontend/FRONTEND_STRUCTURE_AN.md
+          test -f Frontend/index.html
+          test -f Frontend/admin.html
+      - name: JavaScript parse validation (no code execution)
+        run: |
+          set -euo pipefail
+          for file in Frontend/assets/js/*.js; do node --check "$file"; done
+      - name: Commit An's supplied files to a review branch only
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Frontend/
+          git commit -m "feat(frontend): import An's 2026-10-29 client/admin prototype source" 
+          git push origin HEAD:refs/heads/feature/import-an-frontend-demo-20261029
