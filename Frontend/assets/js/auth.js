@@ -347,7 +347,7 @@ function handleRegisterSubmit(e) {
   }
 
   // 3. Kiểm tra Số điện thoại (10 số, bắt đầu 0)
-  const phoneRegex = /^0[3|5|7|8|9]\d{8}$/;
+  const phoneRegex = /^0[35789]\d{8}$/;
   if (!phone || !phoneRegex.test(phone)) {
     showAuthError("registerPhoneError", "Số điện thoại không hợp lệ (gồm 10 số, bắt đầu 03, 05, 07, 08, 09)");
     isValid = false;
@@ -387,6 +387,8 @@ function handleRegisterSubmit(e) {
     return;
   }
 
+  // CHỈ DEMO: tài khoản/mật khẩu lưu localStorage, không phải đăng ký thật.
+  // Không dùng mật khẩu cá nhân hoặc dữ liệu nhạy cảm trong bản trình diễn.
   // 8. Tạo tài khoản mới
   const newUser = {
     id: "USR-" + Date.now(),
@@ -601,7 +603,7 @@ function handleProfileUpdate(e) {
     return;
   }
 
-  const phoneRegex = /^0[3|5|7|8|9]\d{8}$/;
+  const phoneRegex = /^0[35789]\d{8}$/;
   if (!newPhone || !phoneRegex.test(newPhone)) {
     alert("Số điện thoại không hợp lệ (10 số, bắt đầu 03, 05, 07, 08, 09).");
     return;
