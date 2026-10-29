@@ -394,7 +394,7 @@ async function askAiCopilot(queryText) {
     .reduce((sum, b) => sum + (b.pricing?.total || 0), 0);
 
   const contextData = `
-    [Hệ thống Delta Travel Production Snapshot]:
+    [DỮ LIỆU DEMO: chỉ đọc localStorage, không phải số liệu sản xuất]:
     - Tổng số tour: ${totalTours}
     - Tổng đơn đặt: ${totalBookings}
     - Đơn chờ thanh toán tiền mặt: ${pendingCashBookings}
