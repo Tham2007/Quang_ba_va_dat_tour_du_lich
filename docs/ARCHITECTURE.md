@@ -46,7 +46,7 @@ Phải có `THAM_SQLSERVER_URL` tới DB test và tài khoản chỉ SELECT; xem
 
 ### C. Frontend chính thức của An — `Frontend/`
 
-Chỉ An mới xác nhận đúng commit/source frontend chính thức. Hiện trên repo chưa có ứng dụng hoàn chỉnh trong `Frontend/`; giao diện thử nghiệm của backend ở `API/frontend/` **không tự thay thế phần An**.
+Đã đồng bộ frontend do An cung cấp từ `Anniehatani/deltatrdelt2.0` vào `Frontend/` (HTML/CSS/JS, `index.html`, `admin.html`, ảnh tour). **Đây vẫn là DEMO localStorage**, chưa được tích hợp thực tế với FastAPI hoặc SQL Server. Giao diện thử nghiệm riêng của backend vẫn nằm trong `API/frontend/`. Chi tiết chạy và cảnh báo: `Frontend/README.md`.
 
 Frontend không được tin dữ liệu `PAID`, giá hoặc tồn chỗ tự tính từ localStorage. Cần API backend đã kết nối DB thật, cookie/CSRF/origin thống nhất, thông báo lỗi rõ ràng và sanitize HTML không tin cậy.
 
@@ -74,7 +74,7 @@ Một số SQL tạo DB có `DROP DATABASE`, **không được chạy trên dữ
 
 ## 4. Quy tắc dọn repo
 
-- Không đẩy thêm UI demo vào `Frontend/` để giả frontend chính thức.
+- `Frontend/` chứa prototype UI do An bàn giao, rõ nhãn DEMO; không đánh tráo nó thành website đã xác thực/thu tiền thật.
 - Không đưa SQL chứa `DROP DATABASE` vào lệnh deploy tự động.
 - Không lưu token/API key/secret, `.env`, database local, `node_modules`, `.venv` trên Git.
 - Tài liệu phát biểu bài toán/SRS/ADR có trạng thái `DRAFT/PENDING` cho đến khi nhóm duyệt.
