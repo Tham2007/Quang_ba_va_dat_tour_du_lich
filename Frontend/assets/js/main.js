@@ -1726,8 +1726,16 @@ function handleCustomerConfirmCancel(e) {
   const bookings = getLocalBookings();
   const idx = bookings.findIndex(x => x.bookingId === bookingId);
   if (idx === -1) return;
+  if (bookings[idx].statusCode === "CANCELLED") {
+    showToast("Đơn mẫu đã được hủy trước đó.", "info");
+    return;
+  }
+  if (bookings[idx].isPaid || ["PAID", "CONFIRMED", "COMPLETED"].includes(bookings[idx].statusCode)) {
+    showToast("Đơn đã xác nhận cần quản trị viên xử lý hủy hoặc hoàn tiền.", "error");
+    return;
+  }
 
-  const wasPaid = bookings[idx].isPaid;
+  const wasPaid = false;
 
   bookings[idx].statusCode = "CANCELLED";
   bookings[idx].status = "ĐÃ HỦY THEO YÊU CẦU";
@@ -1739,29 +1747,7 @@ function handleCustomerConfirmCancel(e) {
     localStorage.setItem("delta_bookings_v2", JSON.stringify(bookings));
   }
 
-  // Hoàn trả chỗ vào kho tour
-  try {
-    const tours = (typeof getToursData === "function") ? getToursData() : [];
-    const tIdx = tours.findIndex(t => t.id === bookings[idx].tourId);
-    if (tIdx !== -1) {
-      tours[tIdx].availableSeats = (tours[tIdx].availableSeats || 20) + (bookings[idx].passengers?.adults || 1);
-      if (typeof saveToursData === "function") saveToursData(tours);
-    }
-  } catch (e) {}
-
-  // Nếu đơn đã thanh toán thì chuyển payment sang REFUND_REQUIRED
-  if (wasPaid) {
-    try {
-      const payments = (typeof getPaymentsData === "function") ? getPaymentsData() : [];
-      const pIdx = payments.findIndex(p => p.bookingId === bookingId);
-      if (pIdx !== -1) {
-        payments[pIdx].status = "REFUND_REQUIRED";
-        payments[pIdx].note = `Khách hủy đơn: ${reason}. Cần đối soát hoàn tiền.`;
-        if (typeof savePaymentsData === "function") savePaymentsData(payments);
-      }
-    } catch (e) {}
-  }
-
+  // Đơn demo không giữ chỗ ở database nên không được cộng tồn kho lúc hủy.
   // Ghi nhật ký kiểm toán
   try {
     if (typeof addAuditLog === "function") {
