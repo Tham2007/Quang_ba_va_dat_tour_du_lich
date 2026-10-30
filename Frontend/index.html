@@ -796,8 +796,9 @@
                       <input type="email" class="form-control" id="customerEmail" placeholder="nguyenvana@gmail.com" required>
                     </div>
                     <div class="col-md-6">
-                      <label class="form-label small fw-bold">Số CCCD / Hộ chiếu (Tùy chọn)</label>
-                      <input type="text" class="form-control" id="customerCCCD" placeholder="00120000xxxx">
+                      <label class="form-label small fw-bold" for="customerCCCD">Số CCCD / Hộ chiếu (Tùy chọn)</label>
+                      <input type="text" class="form-control" id="customerCCCD" placeholder="12 chữ số hoặc B1234567" maxlength="12" autocomplete="off" aria-describedby="identityFormatHint" pattern="([0-9]{12}|(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{6,12})">
+                      <small class="text-muted" id="identityFormatHint">Bỏ trống nếu chưa có. CCCD 12 số hoặc hộ chiếu gồm chữ và số; không lưu giấy tờ trong bản demo.</small>
                     </div>
                     <div class="col-12">
                       <label class="form-label small fw-bold">Ghi chú đặc biệt (ăn chay, dị ứng, yêu cầu phòng...)</label>
