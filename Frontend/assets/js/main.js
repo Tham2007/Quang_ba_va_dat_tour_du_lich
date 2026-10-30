@@ -1004,6 +1004,12 @@ function selectPaymentTab(method) {
 // =============================================================================
 // XII. KIỂM TRA HỢP LỆ VÀ XÁC NHẬN ĐẶT TOUR (SUBMIT & CHECKOUT)
 // =============================================================================
+function isIdentityDocumentFormatValid(v) {
+  const x = String(v ?? "").trim().toUpperCase();
+  if (!x) return true;
+  return /^[0-9]{12}$/.test(x) || (/^[A-Z0-9]{6,12}$/.test(x) && /[A-Z]/.test(x) && /[0-9]/.test(x));
+}
+
 function handleBookingSubmission(e) {
   e.preventDefault();
 
