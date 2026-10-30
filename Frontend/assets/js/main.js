@@ -1044,6 +1044,12 @@ function handleBookingSubmission(e) {
     return;
   }
 
+  if (!isIdentityDocumentFormatValid(cccd)) {
+    showToast("CCCD: 12 số; hộ chiếu: 6–12 ký tự gồm chữ và số.", "error");
+    document.getElementById("customerCCCD")?.focus();
+    return;
+  }
+
   if (!departureDate) {
     showToast("Vui lòng chọn ngày khởi hành", "error");
     document.getElementById("bookingDepartureDate")?.focus();
