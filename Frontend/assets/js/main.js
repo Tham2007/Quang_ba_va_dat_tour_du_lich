@@ -1679,53 +1679,13 @@ function selectDetailPaymentOption(provider, cardEl) {
  * Xử lý Khách Hàng Thanh Toán Ngay từ màn hình chi tiết
  */
 function handleCustomerPayNow(bookingId) {
-  const bookings = getLocalBookings();
-  const idx = bookings.findIndex(x => x.bookingId === bookingId);
-  if (idx === -1) return;
-
-  const selectedRadio = document.querySelector("input[name='detailPayMethod']:checked");
-  const method = selectedRadio ? selectedRadio.value : "QR";
-
-  if (method === "CASH") {
-    bookings[idx].statusCode = "AWAITING_CASH";
-    bookings[idx].status = "CHỜ THU TIỀN MẶT";
-    bookings[idx].paymentMethod = "Tiền mặt tại quầy giao dịch";
-    bookings[idx].isPaid = false;
-    showToast("Đã ghi nhận thanh toán tiền mặt. Vui lòng thanh toán trong 24h!", "info");
-  } else {
-    bookings[idx].statusCode = "PAID";
-    bookings[idx].status = "ĐÃ THANH TOÁN";
-    bookings[idx].isPaid = true;
-    bookings[idx].paymentMethod = (method === "QR") ? "Chuyển khoản VietQR" : (method === "VNPAY") ? "Cổng VNPay" : "Ví điện tử MoMo";
-    showToast("Thanh toán thành công! Chuyến đi của bạn đã được xác nhận.", "success");
+  // Demo only: frontend must never mark a payment successful.
+  const booking = getLocalBookings().find(b => b.bookingId === bookingId);
+  if (!booking) {
+    showToast("Không tìm thấy đơn mẫu.", "error");
+    return;
   }
-
-  if (typeof saveBookingsData === "function") {
-    saveBookingsData(bookings);
-  } else {
-    localStorage.setItem("delta_bookings_v2", JSON.stringify(bookings));
-  }
-
-  // Cập nhật payment trong delta_payments_v2
-  try {
-    const payments = (typeof getPaymentsData === "function") ? getPaymentsData() : [];
-    const pIdx = payments.findIndex(p => p.bookingId === bookingId);
-    if (pIdx !== -1) {
-      payments[pIdx].status = bookings[idx].isPaid ? "SUCCEEDED" : "INITIATED";
-      payments[pIdx].provider = method;
-      if (typeof savePaymentsData === "function") savePaymentsData(payments);
-    }
-  } catch (e) {}
-
-  // Ghi nhật ký kiểm toán
-  try {
-    if (typeof addAuditLog === "function") {
-      addAuditLog("PAY_BOOKING", "Payment", bookingId, `Khách hàng ${bookings[idx].customer.fullName} thanh toán đơn ${bookingId} qua cổng ${method}`);
-    }
-  } catch (e) {}
-
-  updateCustomerBookingCounters();
-  openCustomerBookingDetail(bookingId);
+  showToast("Đây chỉ là mô phỏng; chưa có cổng thanh toán thực.", "info");
 }
 
 /**
