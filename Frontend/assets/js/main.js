@@ -1108,6 +1108,8 @@ function handleBookingSubmission(e) {
 
   // 6. Lưu vào LocalStorage
   saveBookingToLocalStorage(newOrder);
+  const docInput = document.getElementById("customerCCCD");
+  if (docInput) docInput.value = "";
 
   // 7. Ẩn modal đặt hàng, cập nhật badge số đơn và mở màn hình Chi Tiết Đơn & Thanh Toán
   bootstrap.Modal.getInstance(document.getElementById("bookingModal"))?.hide();
