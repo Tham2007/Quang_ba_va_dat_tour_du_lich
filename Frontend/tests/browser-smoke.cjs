@@ -41,6 +41,46 @@ async function main() {
     // Require a demo page to stay a demo even if the user chooses QR.
     assert.equal(await page.evaluate(() => document.body.innerHTML.includes('cardCvv')), false, "CVV input found");
 
+    // KTHP regression: optional identity must reject text-only input.
+    const documentCases = await page.evaluate(() => ({
+      empty: isIdentityDocumentFormatValid(""),
+      id: isIdentityDocumentFormatValid("000000000000"),
+      passport: isIdentityDocumentFormatValid("B1234567"),
+      text: isIdentityDocumentFormatValid("onlyletters"),
+      short: isIdentityDocumentFormatValid("12345"),
+      punct: isIdentityDocumentFormatValid("<script>")
+    }));
+    assert.deepEqual(documentCases, {
+      empty: true, id: true, passport: true,
+      text: false, short: false, punct: false
+    });
+    const booking = await page.evaluate(() => {
+      const count = getLocalBookings().length;
+      openBookingModal(TOURS_DATA[0].id);
+      document.getElementById("customerName").value = "Khach Hang Test";
+      document.getElementById("customerPhone").value = "0987654321";
+      document.getElementById("customerEmail").value = "demo@example.test";
+      document.getElementById("customerCCCD").value = "onlyletters";
+      handleBookingSubmission({ preventDefault() {} });
+      const invalidRejected = getLocalBookings().length === count;
+
+      document.getElementById("customerCCCD").value = "B1234567";
+      handleBookingSubmission({ preventDefault() {} });
+      const orders = getLocalBookings();
+      const created = orders.length === count + 1 ? orders[0] : null;
+      const documentIsNotStored = created?.customer?.cccd === "Không thu thập (bản demo)";
+      const inputIsCleared = document.getElementById("customerCCCD").value === "";
+      const beforePay = JSON.stringify(orders);
+      handleCustomerPayNow(created?.bookingId);
+      const paymentCouldNotMutateOrder = JSON.stringify(getLocalBookings()) === beforePay;
+      return { invalidRejected, created: Boolean(created), documentIsNotStored, inputIsCleared, paymentCouldNotMutateOrder };
+    });
+    assert.deepEqual(booking, {
+      invalidRejected: true, created: true, documentIsNotStored: true,
+      inputIsCleared: true, paymentCouldNotMutateOrder: true
+    });
+    console.log("PASS: identity format, booking rejects all letters, no ID persistence and no client-side PAID.");
+
     await page.goto(base + "/admin.html", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1200);
     assert((await page.locator("body").innerText()).includes("Cổng quản trị DEMO"), "Admin demo banner missing");
