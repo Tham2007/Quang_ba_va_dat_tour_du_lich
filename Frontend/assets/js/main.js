@@ -1004,6 +1004,12 @@ function selectPaymentTab(method) {
 // =============================================================================
 // XII. KIỂM TRA HỢP LỆ VÀ XÁC NHẬN ĐẶT TOUR (SUBMIT & CHECKOUT)
 // =============================================================================
+function isIdentityDocumentFormatValid(v) {
+  const x = String(v ?? "").trim().toUpperCase();
+  if (!x) return true;
+  return /^[0-9]{12}$/.test(x) || (/^[A-Z0-9]{6,12}$/.test(x) && /[A-Z]/.test(x) && /[0-9]/.test(x));
+}
+
 function handleBookingSubmission(e) {
   e.preventDefault();
 
@@ -1035,6 +1041,12 @@ function handleBookingSubmission(e) {
   if (!email || !emailRegex.test(email)) {
     showToast("Vui lòng nhập địa chỉ email hợp lệ để nhận vé điện tử", "error");
     document.getElementById("customerEmail")?.focus();
+    return;
+  }
+
+  if (!isIdentityDocumentFormatValid(cccd)) {
+    showToast("CCCD: 12 số; hộ chiếu: 6–12 ký tự gồm chữ và số.", "error");
+    document.getElementById("customerCCCD")?.focus();
     return;
   }
 
@@ -1096,6 +1108,8 @@ function handleBookingSubmission(e) {
 
   // 6. Lưu vào LocalStorage
   saveBookingToLocalStorage(newOrder);
+  const docInput = document.getElementById("customerCCCD");
+  if (docInput) docInput.value = "";
 
   // 7. Ẩn modal đặt hàng, cập nhật badge số đơn và mở màn hình Chi Tiết Đơn & Thanh Toán
   bootstrap.Modal.getInstance(document.getElementById("bookingModal"))?.hide();
@@ -1454,7 +1468,7 @@ function openCustomerBookingDetail(bookingId) {
     activeCountdownTimer = null;
   }
 
-  const isPending = (b.statusCode === "PENDING_PAYMENT");
+  const isPending = (b.statusCode === "PENDING_PAYMENT" || b.statusCode === "PENDING_DEMO");
   const isAwaitingCash = (b.statusCode === "AWAITING_CASH");
   const isPaid = (b.statusCode === "PAID" || b.statusCode === "CONFIRMED");
   const isCancelled = (b.statusCode === "CANCELLED");
@@ -1484,7 +1498,7 @@ function openCustomerBookingDetail(bookingId) {
               <i class="bi bi-qr-code fs-4 text-primary"></i>
               <div>
                 <div class="fw-bold small text-dark">Chuyển khoản VietQR Ngân Hàng (Khuyên dùng)</div>
-                <div class="text-muted" style="font-size: 11px;">Quét mã QR tự động xác nhận tức thì qua Napas247</div>
+                <div class="text-muted" style="font-size: 11px;">QR chỉ minh họa giao diện, không chuyển tiền</div>
               </div>
             </div>
             <input type="radio" name="detailPayMethod" value="QR" checked class="form-check-input">
@@ -1493,8 +1507,8 @@ function openCustomerBookingDetail(bookingId) {
           <!-- Chi tiết VietQR -->
           <div id="detailVietQrBox" class="p-3 bg-light rounded-3 border mb-2 text-center">
             <img src="assets/images/qr-payment.png" alt="Mã VietQR Thanh Toán" style="width: 160px; height: 160px; object-fit: contain; border-radius: 8px;" class="mb-2 shadow-xs" onerror="this.onerror=null; this.src='assets/images/qr-payment.png';">
-            <div class="small fw-bold text-dark">Ngân Hàng Vietcombank - CN Hà Nội</div>
-            <div class="small text-muted font-monospace">STK: <strong>1900 8899 88</strong> • Chủ TK: <strong>DELTA TRAVEL CORP</strong></div>
+            <div class="small fw-bold text-dark">BẢN DEMO — KHÔNG CHUYỂN TIỀN</div>
+            <div class="small text-muted font-monospace">Không có tài khoản nhận thanh toán</div>
             <div class="small text-danger fw-bold mt-1">Cú pháp CK: <code class="p-1 bg-white border rounded text-danger">${b.bookingId}</code></div>
           </div>
 
@@ -1536,7 +1550,7 @@ function openCustomerBookingDetail(bookingId) {
         </div>
 
         <button type="button" class="btn btn-dark w-100 py-2.5 fw-bold rounded-3 shadow-sm mt-2" onclick="handleCustomerPayNow('${b.bookingId}')">
-          <i class="bi bi-check-circle-fill text-warning me-1"></i> Xác Nhận Thanh Toán Ngay (${formatVND(b.pricing?.total || 0)})
+          <i class="bi bi-check-circle-fill text-warning me-1"></i> Xem mô phỏng thanh toán (${formatVND(b.pricing?.total || 0)})
         </button>
       </div>
     ` : ''}
@@ -1665,53 +1679,13 @@ function selectDetailPaymentOption(provider, cardEl) {
  * Xử lý Khách Hàng Thanh Toán Ngay từ màn hình chi tiết
  */
 function handleCustomerPayNow(bookingId) {
-  const bookings = getLocalBookings();
-  const idx = bookings.findIndex(x => x.bookingId === bookingId);
-  if (idx === -1) return;
-
-  const selectedRadio = document.querySelector("input[name='detailPayMethod']:checked");
-  const method = selectedRadio ? selectedRadio.value : "QR";
-
-  if (method === "CASH") {
-    bookings[idx].statusCode = "AWAITING_CASH";
-    bookings[idx].status = "CHỜ THU TIỀN MẶT";
-    bookings[idx].paymentMethod = "Tiền mặt tại quầy giao dịch";
-    bookings[idx].isPaid = false;
-    showToast("Đã ghi nhận thanh toán tiền mặt. Vui lòng thanh toán trong 24h!", "info");
-  } else {
-    bookings[idx].statusCode = "PAID";
-    bookings[idx].status = "ĐÃ THANH TOÁN";
-    bookings[idx].isPaid = true;
-    bookings[idx].paymentMethod = (method === "QR") ? "Chuyển khoản VietQR" : (method === "VNPAY") ? "Cổng VNPay" : "Ví điện tử MoMo";
-    showToast("Thanh toán thành công! Chuyến đi của bạn đã được xác nhận.", "success");
+  // Demo only: frontend must never mark a payment successful.
+  const booking = getLocalBookings().find(b => b.bookingId === bookingId);
+  if (!booking) {
+    showToast("Không tìm thấy đơn mẫu.", "error");
+    return;
   }
-
-  if (typeof saveBookingsData === "function") {
-    saveBookingsData(bookings);
-  } else {
-    localStorage.setItem("delta_bookings_v2", JSON.stringify(bookings));
-  }
-
-  // Cập nhật payment trong delta_payments_v2
-  try {
-    const payments = (typeof getPaymentsData === "function") ? getPaymentsData() : [];
-    const pIdx = payments.findIndex(p => p.bookingId === bookingId);
-    if (pIdx !== -1) {
-      payments[pIdx].status = bookings[idx].isPaid ? "SUCCEEDED" : "INITIATED";
-      payments[pIdx].provider = method;
-      if (typeof savePaymentsData === "function") savePaymentsData(payments);
-    }
-  } catch (e) {}
-
-  // Ghi nhật ký kiểm toán
-  try {
-    if (typeof addAuditLog === "function") {
-      addAuditLog("PAY_BOOKING", "Payment", bookingId, `Khách hàng ${bookings[idx].customer.fullName} thanh toán đơn ${bookingId} qua cổng ${method}`);
-    }
-  } catch (e) {}
-
-  updateCustomerBookingCounters();
-  openCustomerBookingDetail(bookingId);
+  showToast("Đây chỉ là mô phỏng; chưa có cổng thanh toán thực.", "info");
 }
 
 /**
@@ -1752,8 +1726,16 @@ function handleCustomerConfirmCancel(e) {
   const bookings = getLocalBookings();
   const idx = bookings.findIndex(x => x.bookingId === bookingId);
   if (idx === -1) return;
+  if (bookings[idx].statusCode === "CANCELLED") {
+    showToast("Đơn mẫu đã được hủy trước đó.", "info");
+    return;
+  }
+  if (bookings[idx].isPaid || ["PAID", "CONFIRMED", "COMPLETED"].includes(bookings[idx].statusCode)) {
+    showToast("Đơn đã xác nhận cần quản trị viên xử lý hủy hoặc hoàn tiền.", "error");
+    return;
+  }
 
-  const wasPaid = bookings[idx].isPaid;
+  const wasPaid = false;
 
   bookings[idx].statusCode = "CANCELLED";
   bookings[idx].status = "ĐÃ HỦY THEO YÊU CẦU";
@@ -1765,29 +1747,7 @@ function handleCustomerConfirmCancel(e) {
     localStorage.setItem("delta_bookings_v2", JSON.stringify(bookings));
   }
 
-  // Hoàn trả chỗ vào kho tour
-  try {
-    const tours = (typeof getToursData === "function") ? getToursData() : [];
-    const tIdx = tours.findIndex(t => t.id === bookings[idx].tourId);
-    if (tIdx !== -1) {
-      tours[tIdx].availableSeats = (tours[tIdx].availableSeats || 20) + (bookings[idx].passengers?.adults || 1);
-      if (typeof saveToursData === "function") saveToursData(tours);
-    }
-  } catch (e) {}
-
-  // Nếu đơn đã thanh toán thì chuyển payment sang REFUND_REQUIRED
-  if (wasPaid) {
-    try {
-      const payments = (typeof getPaymentsData === "function") ? getPaymentsData() : [];
-      const pIdx = payments.findIndex(p => p.bookingId === bookingId);
-      if (pIdx !== -1) {
-        payments[pIdx].status = "REFUND_REQUIRED";
-        payments[pIdx].note = `Khách hủy đơn: ${reason}. Cần đối soát hoàn tiền.`;
-        if (typeof savePaymentsData === "function") savePaymentsData(payments);
-      }
-    } catch (e) {}
-  }
-
+  // Đơn demo không giữ chỗ ở database nên không được cộng tồn kho lúc hủy.
   // Ghi nhật ký kiểm toán
   try {
     if (typeof addAuditLog === "function") {
