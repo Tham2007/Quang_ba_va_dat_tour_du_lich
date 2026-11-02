@@ -37,9 +37,11 @@ async def lifespan(app):
         from alembic import command
         from alembic.config import Config
 
-        cfg = Config(
-            str(Path(__file__).resolve().parents[2] / "database" / "database" / "alembic.ini")
-        )
+        migration_file = Path(__file__).resolve().parents[2]
+        migration_file /= "database"
+        migration_file /= "database"
+        migration_file /= "alembic.ini"
+        cfg = Config(str(migration_file))
         command.upgrade(cfg, "head")
         if os.getenv("DEMO_SEED") == "1":
             seed_demo()
