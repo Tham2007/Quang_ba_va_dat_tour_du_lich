@@ -9,6 +9,7 @@ import os
 import re
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -151,6 +152,62 @@ def main():
             if after_cancel != seats_before:
                 raise AssertionError("Cancel trigger must restore exactly two seats")
         print("PASS: SQL Server stored procedures BOOK and CANCEL, inventory holds/restores exactly once")
+
+        # Concurrency: 20 requests compete for one seat on the ACTUAL SQL Server.
+        with conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO dbo.CHUYENKHOIHANH
+                   (MaTour, NgayKhoiHanh, NgayKetThuc, GiaThucTe,
+                    SoChoToiDa, SoChoDaDat, TrangThaiChuyen)
+                   OUTPUT INSERTED.MaChuyen
+                   VALUES (2, DATEADD(day, 90, GETDATE()),
+                           DATEADD(day, 93, GETDATE()), 2500000,
+                           1, 0, N'Mở bán')"""
+            )
+            last_seat_schedule = cur.fetchone()[0]
+
+        def try_last_seat(worker: int) -> bool:
+            session = pymssql.connect(
+                server=host, user="sa", password=password,
+                database=DB_NAME, login_timeout=4, timeout=20,
+                autocommit=True,
+            )
+            try:
+                with session.cursor() as cursor:
+                    cursor.execute(
+                        """DECLARE @new_id INT;
+                           EXEC dbo.sp_TaoDonDatTour
+                             @MaKhachHang=%s, @MaChuyen=%s,
+                             @SoLuongKhach=1, @HoTenTruongDoan=%s,
+                             @SoDienThoai='0912345678',
+                             @MaDatTourMoi=@new_id OUTPUT;
+                           SELECT @new_id;""",
+                        (4, last_seat_schedule, f"CI User {worker}"),
+                    )
+                    while cursor.nextset():
+                        pass
+                return True
+            except pymssql.Error:
+                return False
+            finally:
+                session.close()
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            wins = list(pool.map(try_last_seat, range(20)))
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT SoChoDaDat, SoChoToiDa FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=%s",
+                (last_seat_schedule,),
+            )
+            reserved, total = cur.fetchone()
+            cur.execute("SELECT COUNT(*) FROM dbo.DATTOUR WHERE MaChuyen=%s", (last_seat_schedule,))
+            bookings_count = cur.fetchone()[0]
+        if sum(wins) != 1 or reserved != 1 or total != 1 or bookings_count != 1:
+            raise AssertionError(
+                f"Last-seat integrity failure: successes={sum(wins)}, "
+                f"reserved={reserved}, bookings={bookings_count}"
+            )
+        print("PASS: real SQL Server concurrency, 20 simultaneous booking attempts, exactly 1 seat reserved")
 
         engine = create_engine(
             f"mssql+pymssql://sa:{quote_plus(password)}@{host}:1433/{DB_NAME}",
