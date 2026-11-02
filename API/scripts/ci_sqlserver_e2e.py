@@ -94,6 +94,8 @@ def main():
         for path in (
             scripts / "01_schema/02_create_tables_3nf.sql",
             scripts / "02_constraints/01_foreign_keys_and_checks.sql",
+            # Seed script disables and re-enables booking trigger, so it must exist.
+            scripts / "04_programmability/01_triggers_booking_inventory.sql",
             scripts / "05_seed_data/01_sample_data_realistic.sql",
         ):
             execute_script(conn, path)
