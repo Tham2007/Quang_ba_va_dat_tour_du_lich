@@ -51,7 +51,7 @@ def main() -> None:
         schedules = c.get("/api/v1/tours/" + tours[0]["id"] + "/schedules").json()
         schedule = next(x for x in schedules if x["availableSeats"] > 0)
         original = schedule["availableSeats"]
-        quote = c.post("/api/v1/bookings/quote", json={"schedule_id": schedule["id"], "adults": 1})
+        quote = c.post("/api/v1/bookings/quote", json={"schedule_id": schedule["id"], "adults": 1, "children": 0, "infants": 0})
         must(quote.status_code == 200 and quote.json()["totalPrice"] > 0, "Quote failed")
         data = {
             "schedule_id": schedule["id"], "adults": 1, "children": 0, "infants": 0,
