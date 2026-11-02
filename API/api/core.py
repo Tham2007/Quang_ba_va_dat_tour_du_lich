@@ -10,7 +10,7 @@ from api.models import SessionLocal, User, SessionToken, Audit, now
 from api.security import random_token, token_hash
 
 ENV = os.getenv("DELTA_ENV", "development")
-SECURE_COOKIE = ENV == "production"
+SECURE_COOKIE = ENV in ("staging", "production")
 SESSION_NAME = "delta_session"
 CSRF_NAME = "delta_csrf"
 HOLD_MINUTES = 15
