@@ -260,3 +260,121 @@ def test_o_local_favicon_and_references_are_servable():
         assert legacy.status_code == 307
         assert legacy.headers['location'] == '/favicon.svg'
         assert client.get('/favicon.ico').status_code == 200
+
+
+def test_p_admin_tour_crud_soft_delete_preserves_references_and_permissions():
+    """KTHP CRUD: create/read/update/soft-delete/restore with ADMIN + CSRF."""
+    with TestClient(app) as admin_client, TestClient(app) as customer_client:
+        person = reg(admin_client, 601)
+        reg(customer_client, 602)
+        with SessionLocal.begin() as db:
+            db.scalar(select(User).where(User.email == person["email"])).role = "ADMIN"
+
+        target = "/api/v1/admin/tours/DL-KTHP99"
+        body = {
+            "id": "DL-KTHP99",
+            "slug": "tour-kiem-thu-kthp-2026",
+            "title": "Tour kiểm thử quản lý danh mục",
+            "price": 1200000,
+            "original_price": 1300000,
+            "region": "north",
+            "duration": "2N1D",
+            "departure": "Hà Nội",
+            "transport": "Xe du lịch",
+            "image": "/static/test-tour.jpg",
+        }
+
+        assert customer_client.post(
+            "/api/v1/admin/tours", json=body, headers=csrf(customer_client)
+        ).status_code == 403
+        assert admin_client.post("/api/v1/admin/tours", json=body).status_code == 403
+
+        created = admin_client.post(
+            "/api/v1/admin/tours", json=body, headers=csrf(admin_client)
+        )
+        assert created.status_code == 201, created.text
+        assert created.json()["id"] == body["id"]
+        assert admin_client.post(
+            "/api/v1/admin/tours", json=body, headers=csrf(admin_client)
+        ).status_code == 409
+        assert admin_client.get("/api/v1/tours/DL-KTHP99").status_code == 200
+
+        changed = admin_client.patch(
+            target, json={"title": "Tour KTHP đã cập nhật", "price": 1400000},
+            headers=csrf(admin_client)
+        )
+        assert changed.status_code == 200, changed.text
+        assert changed.json()["price"] == 1400000
+
+        assert customer_client.delete(target, headers=csrf(customer_client)).status_code == 403
+        assert admin_client.delete(target).status_code == 403
+        removed = admin_client.delete(target, headers=csrf(admin_client))
+        assert removed.status_code == 200, removed.text
+        assert removed.json() == {"id": "DL-KTHP99", "active": False, "deleted": True}
+        assert admin_client.get("/api/v1/tours/DL-KTHP99").status_code == 404
+
+        # DELETE is idempotent and must not duplicate audit events.
+        assert admin_client.delete(target, headers=csrf(admin_client)).status_code == 200
+        event_count = sum(
+            e["event"] == "TOUR_SOFT_DELETED" and e["subjectId"] == body["id"]
+            for e in admin_client.get("/api/v1/admin/audit").json()
+        )
+        assert event_count == 1
+        listing = admin_client.get("/api/v1/admin/tours").json()
+        assert next(x for x in listing if x["id"] == body["id"])["active"] is False
+
+        restored = admin_client.patch(
+            target, json={"active": True}, headers=csrf(admin_client)
+        )
+        assert restored.status_code == 200
+        assert admin_client.get("/api/v1/tours/DL-KTHP99").status_code == 200
+        assert admin_client.delete(
+            "/api/v1/admin/tours/DL-DOESNOTEXIST", headers=csrf(admin_client)
+        ).status_code == 404
+
+
+def test_q_payment_reference_unique_across_bookings_and_reject_invalid_proof():
+    """A bank transfer reference cannot approve two independent orders."""
+    with TestClient(app) as c:
+        account = reg(c, 701)
+        with SessionLocal.begin() as db:
+            db.scalar(select(User).where(User.email == account["email"])).role = "ADMIN"
+        body = booking_body(c)
+        departure = (datetime.now(timezone.utc) + timedelta(days=150)).replace(
+            microsecond=0
+        )
+        schedule = c.post(
+            "/api/v1/admin/schedules",
+            headers=csrf(c),
+            json={
+                "tour_id": "DL-HL01",
+                "departure_at": departure.isoformat(),
+                "total_seats": 10,
+            },
+        )
+        assert schedule.status_code == 201, schedule.text
+        body["schedule_id"] = schedule.json()["id"]
+        first = post_booking(c, body)
+        second = post_booking(c, body)
+        assert first.status_code == 201 and second.status_code == 201
+        assert first.json()["id"] != second.json()["id"]
+
+        url1 = "/api/v1/admin/bookings/" + first.json()["id"] + "/confirm-payment"
+        url2 = "/api/v1/admin/bookings/" + second.json()["id"] + "/confirm-payment"
+        ref = "BANK-KTHP-00001"
+        ok = c.post(url1, json={"reference": "  " + ref + "  "}, headers=csrf(c))
+        assert ok.status_code == 200, ok.text
+        assert ok.json()["paid"] is True
+
+        same = c.post(url1, json={"reference": ref}, headers=csrf(c))
+        assert same.status_code == 200, same.text
+
+        duplicate = c.post(url2, json={"reference": ref}, headers=csrf(c))
+        assert duplicate.status_code == 409, duplicate.text
+        assert c.get("/api/v1/bookings/" + second.json()["id"]).json()["paid"] is False
+
+        assert c.post(url2, json={"reference": "         "}, headers=csrf(c)).status_code == 422
+        assert c.post(url2, json={"reference": "BANK-NEW-00002", "paid": True}, headers=csrf(c)).status_code == 422
+        independent = c.post(url2, json={"reference": "BANK-NEW-00002"}, headers=csrf(c))
+        assert independent.status_code == 200, independent.text
+        assert independent.json()["paid"] is True

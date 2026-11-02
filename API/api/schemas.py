@@ -131,7 +131,16 @@ class SchedulePatch(BaseModel):
 
 
 class PaymentEvidence(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     reference: str = Field(min_length=8, max_length=250)
+
+    @field_validator("reference")
+    @classmethod
+    def normalize_reference(cls, value: str):
+        value = value.strip()
+        if len(value) < 8:
+            raise ValueError("Mã đối soát phải có ít nhất 8 ký tự.")
+        return value
 
 
 class AssistantMessage(BaseModel):

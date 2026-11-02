@@ -60,6 +60,30 @@ def admin_tour_patch(
     return public_tour(t)
 
 
+@router.delete("/api/v1/admin/tours/{tour_id}")
+def admin_tour_delete(
+    tour_id: str,
+    user=Depends(admin),
+    db: Session = Depends(db_session),
+):
+    """Soft-delete the catalog record without destroying booking history.
+
+    A previously booked tour remains in storage for referential integrity and
+    audit, but is hidden from public catalog queries. Repeated DELETE is safe.
+    Requires an authenticated ADMIN and valid CSRF token.
+    """
+    with db.begin_nested():
+        lock_writes(db)
+        tour = db.scalar(select(Tour).where(Tour.id == tour_id).with_for_update())
+        if tour is None:
+            fail(404, "Không tìm thấy tour.")
+        if tour.active:
+            tour.active = False
+            audit(db, user, "TOUR_SOFT_DELETED", tour.id)
+    db.commit()
+    return {"id": tour.id, "active": False, "deleted": True}
+
+
 @router.post("/api/v1/admin/schedules", status_code=201)
 def add_schedule(
     body: ScheduleCreate, user=Depends(admin), db: Session = Depends(db_session)
@@ -136,6 +160,16 @@ def confirm_payment(
                 409,
                 "Đơn không còn chờ thanh toán. Cần xử lý hoàn tiền ngoài hệ thống nếu đã chuyển.",
             )
+        duplicate = db.scalar(
+            select(Booking.id)
+            .where(
+                Booking.payment_evidence == body.reference,
+                Booking.id != b.id,
+            )
+            .limit(1)
+        )
+        if duplicate:
+            fail(409, "Mã giao dịch đã được sử dụng cho đơn khác.")
         b.status = "PAID"
         b.payment_evidence = body.reference
         b.payment_confirmed_at = now()
