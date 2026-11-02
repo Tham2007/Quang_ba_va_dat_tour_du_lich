@@ -378,3 +378,20 @@ def test_q_payment_reference_unique_across_bookings_and_reject_invalid_proof():
         independent = c.post(url2, json={"reference": "BANK-NEW-00002"}, headers=csrf(c))
         assert independent.status_code == 200, independent.text
         assert independent.json()["paid"] is True
+
+
+def test_r_an_original_frontend_served_on_same_origin_as_fastapi():
+    """An's existing UI and independently labeled live booking panel share API origin."""
+    with TestClient(app) as c:
+        html = c.get("/an-live/")
+        assert html.status_code == 200
+        assert "assets/js/live-api-bridge.js" in html.text
+        admin = c.get("/an-live/admin.html")
+        assert admin.status_code == 200
+        assert "assets/js/live-api-bridge.js" in admin.text
+        bridge = c.get("/an-live/assets/js/live-api-bridge.js")
+        assert bridge.status_code == 200
+        assert "javascript" in bridge.headers.get("content-type", "").lower()
+        assert '"/api/v1"' in bridge.text
+        assert "credentials: \"same-origin\"" in bridge.text
+        assert c.get("/api/v1/tours").status_code == 200
