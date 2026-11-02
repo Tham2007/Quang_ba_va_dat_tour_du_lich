@@ -63,7 +63,10 @@ def execute_script(conn, path: Path):
                     pass
         except pymssql.Error as exc:
             # No connection string or password is written to logs.
-            raise RuntimeError(f"{path.name}, T-SQL batch {i} failed: {type(exc).__name__}") from None
+            safe_reason = str(exc).replace(os.environ.get("CI_SQLSERVER_SA_PASSWORD", ""), "[REDACTED]")
+            raise RuntimeError(
+                f"{path.name}, T-SQL batch {i} failed: {type(exc).__name__}: {safe_reason[:450]}"
+            ) from None
     print(f"PASS: executed {path.name}")
 
 
