@@ -47,7 +47,7 @@
 
   const style = node("style");
   style.textContent = `
-    #kthpLiveBtn{position:fixed!important;right:17px;bottom:22px;z-index:20005;
+    #kthpLiveBtn{position:fixed!important;right:17px;bottom:22px;z-index:2147483646;
       background:#0c4960;color:white;border:2px solid white;border-radius:35px;
       box-shadow:0 9px 27px #0006;font:700 14px/1.4 system-ui,sans-serif;
       padding:13px 19px;cursor:pointer}
