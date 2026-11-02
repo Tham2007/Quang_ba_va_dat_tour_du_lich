@@ -95,7 +95,12 @@
   const surface = node("div");
   main.append(info, status, surface);
   dialog.append(header, main);
-  document.body.append(button, dialog);
+  // An's old admin lock is a full-viewport pointer barrier. Place the
+  // separate real-API entry point INSIDE that barrier, not underneath it.
+  const legacyAdminLock = document.getElementById("adminLockScreen");
+  if (legacyAdminLock) legacyAdminLock.append(button);
+  else document.body.append(button);
+  document.body.append(dialog);
   const flash = message => { status.textContent = message; };
   const action = (name, callback, primary = false) => {
     const b = node("button", name, primary ? "kthp-primary" : "");
