@@ -72,6 +72,7 @@ class Schedule(Base):
 class Booking(Base):
     __tablename__ = 'bookings'
     __table_args__ = (UniqueConstraint('user_id', 'idempotency_key', name='uq_user_booking_key'),
+                      UniqueConstraint('payment_evidence', name='uq_booking_payment_evidence'),
                       CheckConstraint("status IN ('PENDING_PAYMENT','PAID','CONFIRMED','COMPLETED','CANCELLED','EXPIRED')",name='ck_booking_status'),
                       CheckConstraint('adults >= 1 AND children >= 0 AND infants >= 0 AND seats_held >= 1 AND total_price >= 0',name='ck_booking_counts'))
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
