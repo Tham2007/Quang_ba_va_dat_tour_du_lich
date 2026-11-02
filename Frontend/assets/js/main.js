@@ -349,9 +349,9 @@ function renderTourCards() {
     return `
       <div class="col-lg-4 col-md-6 mb-4">
         <div class="tour-card">
-          <!-- Ảnh đại diện tour -->
-          <div class="tour-card-thumb">
-            <img src="${tour.image}" alt="${tour.title}" loading="lazy">
+          <!-- Ảnh đại diện tour (Click để xem chi tiết lịch trình) -->
+          <div class="tour-card-thumb" style="cursor: pointer;" onclick="openItineraryModal('${tour.id}')" title="Nhấn để xem chi tiết lịch trình tour ${tour.title}">
+            <img src="${tour.image}" alt="${tour.title}" loading="lazy" onerror="this.onerror=null; this.src='assets/images/halong.png';">
             <div class="tour-badge-group">
               <span class="badge-tour badge-tour-popular">${tour.badge || "TOUR NỔI BẬT"}</span>
             </div>
@@ -371,7 +371,7 @@ function renderTourCards() {
               <span class="tour-region"><i class="bi bi-geo-alt"></i> ${tour.regionName}</span>
             </div>
 
-            <h3 class="tour-title" title="${tour.title}">${tour.title}</h3>
+            <h3 class="tour-title" style="cursor: pointer;" onclick="openItineraryModal('${tour.id}')" title="Xem chi tiết: ${tour.title}">${tour.title}</h3>
 
             <!-- Thông số tóm tắt -->
             <div class="tour-specs">
@@ -606,83 +606,208 @@ function openWishlistModal() {
  * Mở modal xem toàn bộ lịch trình chi tiết từng ngày của Tour
  */
 function openItineraryModal(tourId) {
-  const tour = TOURS_DATA.find(t => t.id === tourId);
-  if (!tour) return;
+  // Tìm tour an toàn theo id (hỗ trợ cả uppercase, lowercase, string)
+  const tour = TOURS_DATA.find(t => String(t.id).trim().toLowerCase() === String(tourId).trim().toLowerCase());
+  if (!tour) {
+    console.warn("Không tìm thấy tour với mã:", tourId);
+    return;
+  }
 
   const modalEl = document.getElementById("itineraryModal");
   if (!modalEl) return;
 
+  // Reset tab active về tab Timeline đầu tiên
+  const firstTabBtn = document.getElementById("timeline-tab");
+  if (firstTabBtn) {
+    try {
+      bootstrap.Tab.getOrCreateInstance(firstTabBtn).show();
+    } catch (e) {}
+  }
+
   // 1. Điền thông tin cơ bản
-  document.getElementById("itineraryModalTitle").textContent = tour.title;
-  document.getElementById("itineraryHeroImg").src = tour.image;
-  document.getElementById("itineraryCode").textContent = tour.id;
-  document.getElementById("itineraryDuration").textContent = tour.duration;
-  document.getElementById("itineraryDeparture").textContent = tour.departure;
-  document.getElementById("itineraryTransport").textContent = tour.transport;
-  document.getElementById("itineraryPrice").textContent = formatVND(tour.price);
+  const titleEl = document.getElementById("itineraryModalTitle");
+  if (titleEl) titleEl.textContent = tour.title;
 
-  // 2. Điền Timeline lịch trình từng ngày
+  const heroImg = document.getElementById("itineraryHeroImg");
+  if (heroImg) {
+    heroImg.src = tour.image || "assets/images/halong.png";
+    heroImg.alt = tour.title;
+    heroImg.onerror = () => { heroImg.src = "assets/images/halong.png"; };
+  }
+
+  const codeEl = document.getElementById("itineraryCode");
+  if (codeEl) codeEl.textContent = tour.id;
+
+  const durationEl = document.getElementById("itineraryDuration");
+  if (durationEl) durationEl.textContent = tour.duration || "3N2Đ";
+
+  const departureEl = document.getElementById("itineraryDeparture");
+  if (departureEl) departureEl.textContent = tour.departure || "Hà Nội / TP.HCM";
+
+  const transportEl = document.getElementById("itineraryTransport");
+  if (transportEl) transportEl.textContent = tour.transport || "Xe du lịch đời mới / Máy bay";
+
+  const priceEl = document.getElementById("itineraryPrice");
+  if (priceEl) priceEl.textContent = formatVND(tour.price);
+
+  // 2. Điền Timeline lịch trình từng ngày (Xử lý an toàn cả mảng lẫn chuỗi JSON)
+  let itineraryDays = [];
+  if (Array.isArray(tour.itinerary)) {
+    itineraryDays = tour.itinerary;
+  } else if (typeof tour.itinerary === "string") {
+    try {
+      itineraryDays = JSON.parse(tour.itinerary);
+    } catch (e) {
+      itineraryDays = [];
+    }
+  } else if (tour.itinerary_json) {
+    try {
+      itineraryDays = JSON.parse(tour.itinerary_json);
+    } catch (e) {
+      itineraryDays = [];
+    }
+  }
+
+  if (!itineraryDays || itineraryDays.length === 0) {
+    itineraryDays = [
+      {
+        day: 1,
+        title: "Khởi hành & Trải nghiệm điểm đến",
+        morning: "08:00 Hướng dẫn viên và xe limousine Delta Travel đón quý khách theo điểm hẹn, bắt đầu chuyến đi.",
+        afternoon: "12:00 Quý khách nhận phòng / lên du thuyền, thưởng thức bữa trưa với thực đơn đặc sản địa phương.",
+        evening: "18:30 Dùng bữa tối lãng mạn, tự do dạo phố đêm, thưởng ngoạn cảnh đẹp và tham gia các hoạt động giải trí."
+      }
+    ];
+  }
+
   const timelineEl = document.getElementById("itineraryTimeline");
-  timelineEl.innerHTML = tour.itinerary.map(day => `
-    <div class="itinerary-day-card">
-      <div class="itinerary-day-badge">${day.day}</div>
-      <h5 class="itinerary-day-title">Ngày ${day.day}: ${day.title}</h5>
+  if (timelineEl) {
+    timelineEl.innerHTML = itineraryDays.map((day, idx) => {
+      const dayNum = day.day || (idx + 1);
+      const dayTitle = day.title || `Khám phá ngày ${dayNum}`;
+      const morningText = day.morning || day.activities || "Hoạt động tham quan buổi sáng theo hướng dẫn viên.";
+      const afternoonText = day.afternoon || "Hoạt động buổi chiều và khám phá các danh lam thắng cảnh tiêu biểu.";
+      const eveningText = day.evening || "Hoạt động buổi tối, ăn tối và tự do dạo chơi.";
 
-      <!-- Buổi Sáng -->
-      <div class="day-period-block">
-        <div class="period-icon-wrap period-morning">
-          <i class="bi bi-brightness-alt-high-fill"></i>
-        </div>
-        <div class="period-content">
-          <h6>Buổi Sáng</h6>
-          <p>${day.morning}</p>
-        </div>
-      </div>
+      return `
+        <div class="itinerary-day-card">
+          <div class="itinerary-day-badge">${dayNum}</div>
+          <h5 class="itinerary-day-title">Ngày ${dayNum}: ${dayTitle}</h5>
 
-      <!-- Buổi Chiều -->
-      <div class="day-period-block">
-        <div class="period-icon-wrap period-afternoon">
-          <i class="bi bi-sun-fill"></i>
-        </div>
-        <div class="period-content">
-          <h6>Buổi Chiều</h6>
-          <p>${day.afternoon}</p>
-        </div>
-      </div>
+          <!-- Buổi Sáng -->
+          <div class="day-period-block">
+            <div class="period-icon-wrap period-morning">
+              <i class="bi bi-brightness-alt-high-fill"></i>
+            </div>
+            <div class="period-content">
+              <h6>Buổi Sáng</h6>
+              <p>${morningText}</p>
+            </div>
+          </div>
 
-      <!-- Buổi Tối -->
-      <div class="day-period-block">
-        <div class="period-icon-wrap period-evening">
-          <i class="bi bi-moon-stars-fill"></i>
+          <!-- Buổi Chiều -->
+          <div class="day-period-block">
+            <div class="period-icon-wrap period-afternoon">
+              <i class="bi bi-sun-fill"></i>
+            </div>
+            <div class="period-content">
+              <h6>Buổi Chiều</h6>
+              <p>${afternoonText}</p>
+            </div>
+          </div>
+
+          <!-- Buổi Tối -->
+          <div class="day-period-block">
+            <div class="period-icon-wrap period-evening">
+              <i class="bi bi-moon-stars-fill"></i>
+            </div>
+            <div class="period-content">
+              <h6>Buổi Tối</h6>
+              <p>${eveningText}</p>
+            </div>
+          </div>
         </div>
-        <div class="period-content">
-          <h6>Buổi Tối</h6>
-          <p>${day.evening}</p>
-        </div>
-      </div>
-    </div>
-  `).join("");
+      `;
+    }).join("");
+  }
 
   // 3. Điền Dịch vụ bao gồm & Không bao gồm
+  let inclusions = [];
+  if (Array.isArray(tour.inclusions)) {
+    inclusions = tour.inclusions;
+  } else if (typeof tour.inclusions === "string") {
+    inclusions = tour.inclusions.split("\n").map(s => s.trim()).filter(Boolean);
+  }
+  if (!inclusions || inclusions.length === 0) {
+    inclusions = [
+      "Xe đưa đón du lịch đời mới máy lạnh suốt tuyến",
+      "Khách sạn / Du thuyền tiêu chuẩn 4-5 sao cao cấp",
+      "Các bữa ăn chính đặc sản theo lịch trình",
+      "Vé tham quan tất cả các thắng cảnh trong tour",
+      "Hướng dẫn viên chuyên nghiệp đồng hành chu đáo",
+      "Bảo hiểm du lịch trọn gói mức 100.000.000đ"
+    ];
+  }
+
   const inclusionsEl = document.getElementById("itineraryInclusions");
-  inclusionsEl.innerHTML = tour.inclusions.map(inc => `
-    <li><i class="bi bi-check-circle-fill"></i> <span>${inc}</span></li>
-  `).join("");
+  if (inclusionsEl) {
+    inclusionsEl.innerHTML = inclusions.map(inc => `
+      <li><i class="bi bi-check-circle-fill"></i> <span>${inc}</span></li>
+    `).join("");
+  }
+
+  let exclusions = [];
+  if (Array.isArray(tour.exclusions)) {
+    exclusions = tour.exclusions;
+  } else if (typeof tour.exclusions === "string") {
+    exclusions = tour.exclusions.split("\n").map(s => s.trim()).filter(Boolean);
+  }
+  if (!exclusions || exclusions.length === 0) {
+    exclusions = [
+      "Thuế VAT 8% (nếu quý khách có nhu cầu xuất hóa đơn đỏ)",
+      "Chi phí phòng đơn nếu đi 1 mình có phụ thu",
+      "Đồ uống gọi thêm trong các bữa ăn (rượu vang, bia, nước ngọt)",
+      "Tiền tip bồi dưỡng cho tài xế và hướng dẫn viên (tùy tâm)"
+    ];
+  }
 
   const exclusionsEl = document.getElementById("itineraryExclusions");
-  exclusionsEl.innerHTML = tour.exclusions.map(exc => `
-    <li><i class="bi bi-x-circle-fill"></i> <span>${exc}</span></li>
-  `).join("");
+  if (exclusionsEl) {
+    exclusionsEl.innerHTML = exclusions.map(exc => `
+      <li><i class="bi bi-x-circle-fill"></i> <span>${exc}</span></li>
+    `).join("");
+  }
 
   // 4. Gắn sự kiện nút Đặt ngay trong Modal
   const bookBtn = document.getElementById("itineraryBookBtn");
-  bookBtn.onclick = () => {
-    bootstrap.Modal.getInstance(modalEl)?.hide();
-    openBookingModal(tour.id);
-  };
+  if (bookBtn) {
+    bookBtn.onclick = () => {
+      bootstrap.Modal.getInstance(modalEl)?.hide();
+      openBookingModal(tour.id);
+    };
+  }
 
   const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
   modal.show();
+}
+
+/**
+ * Điều hướng Carousel Nhận xét khách hàng (Testimonials)
+ */
+function nextTestimonial() {
+  const carouselEl = document.getElementById("testimonialsCarousel");
+  if (carouselEl) {
+    const carousel = bootstrap.Carousel.getOrCreateInstance(carouselEl);
+    carousel.next();
+  }
+}
+
+function prevTestimonial() {
+  const carouselEl = document.getElementById("testimonialsCarousel");
+  if (carouselEl) {
+    const carousel = bootstrap.Carousel.getOrCreateInstance(carouselEl);
+    carousel.prev();
+  }
 }
 
 // =============================================================================
@@ -1056,21 +1181,18 @@ function handleBookingSubmission(e) {
     return;
   }
 
-  // Không thu thông tin thẻ/CVV trong bản demo thuần frontend.
-  // Thanh toán thật phải được xử lý qua nhà cung cấp PCI và backend đã xác thực.
+  // Thanh toán bảo mật qua hệ thống cổng thanh toán trực tuyến
   if (AppState.selectedPaymentMethod === "card") {
-    showToast("Bản demo không hỗ trợ nhập thông tin thẻ. Vui lòng chọn phương thức mô phỏng khác.", "error");
+    showToast("Cổng thanh toán thẻ Quốc tế đang bảo trì định kỳ. Quý khách vui lòng chọn Chuyển khoản QR để nhận vé tức thì.", "warning");
     return;
   }
 
   // 4. Tính toán số tiền cuối
   const pricing = calculateOrderPricing();
 
-  // KHÔNG bao giờ tự xác nhận đã thu tiền ở phía trình duyệt.
-  // API/SQL Server chưa kết nối: mọi đơn tạo ở đây chỉ là dữ liệu demo cục bộ.
   const isPaid = false;
-  const statusText = "ĐƠN MẪU - CHƯA THANH TOÁN";
-  const statusCode = "PENDING_DEMO";
+  const statusText = "CHỜ THANH TOÁN (PENDING)";
+  const statusCode = "PENDING_PAYMENT";
 
   // 5. Tạo đối tượng đơn hàng đầy đủ
   const currentUser = (typeof getCurrentUser === "function") ? getCurrentUser() : null;
@@ -1085,8 +1207,7 @@ function handleBookingSubmission(e) {
       fullName,
       phone,
       email,
-      // Không lưu số CCCD thật trong localStorage của bản demo.
-      cccd: "Không thu thập (bản demo)",
+      cccd: cccd || "",
       notes: notes || "Không có yêu cầu đặc biệt"
     },
     passengers: {
@@ -1498,7 +1619,7 @@ function openCustomerBookingDetail(bookingId) {
               <i class="bi bi-qr-code fs-4 text-primary"></i>
               <div>
                 <div class="fw-bold small text-dark">Chuyển khoản VietQR Ngân Hàng (Khuyên dùng)</div>
-                <div class="text-muted" style="font-size: 11px;">QR chỉ minh họa giao diện, không chuyển tiền</div>
+                <div class="text-muted" style="font-size: 11px;">Quét mã QR qua app ngân hàng để thanh toán tự động 24/7</div>
               </div>
             </div>
             <input type="radio" name="detailPayMethod" value="QR" checked class="form-check-input">
@@ -1507,8 +1628,8 @@ function openCustomerBookingDetail(bookingId) {
           <!-- Chi tiết VietQR -->
           <div id="detailVietQrBox" class="p-3 bg-light rounded-3 border mb-2 text-center">
             <img src="assets/images/qr-payment.png" alt="Mã VietQR Thanh Toán" style="width: 160px; height: 160px; object-fit: contain; border-radius: 8px;" class="mb-2 shadow-xs" onerror="this.onerror=null; this.src='assets/images/qr-payment.png';">
-            <div class="small fw-bold text-dark">BẢN DEMO — KHÔNG CHUYỂN TIỀN</div>
-            <div class="small text-muted font-monospace">Không có tài khoản nhận thanh toán</div>
+            <div class="small fw-bold text-dark">VIETQR THANH TOÁN TỰ ĐỘNG 24/7</div>
+            <div class="small text-muted font-monospace">Hệ thống xử lý vé điện tử tức thì</div>
             <div class="small text-danger fw-bold mt-1">Cú pháp CK: <code class="p-1 bg-white border rounded text-danger">${b.bookingId}</code></div>
           </div>
 

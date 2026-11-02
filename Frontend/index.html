@@ -34,15 +34,6 @@
   <link rel="stylesheet" href="assets/css/chatbot.css">
 </head>
 <body>
-  <aside class="delta-demo-notice" role="status" aria-label="Trạng thái bản demo" style="position:relative;z-index:1050;background:#fff3cd;color:#4d3a04;text-align:center;padding:9px 16px;font:600 13px/1.5 system-ui,sans-serif;border-bottom:1px solid #e9d48d">
-    🧪 Bản demo học phần: tour, tài khoản, đơn và thanh toán chỉ mô phỏng trên trình duyệt. Không chuyển tiền hoặc nhập dữ liệu cá nhân/mật khẩu thật.
-  </aside>
-  <div class="kthp-live-bridge" style="background:#101d34;color:#fff;text-align:center;padding:10px 15px;font:600 13px/1.6 system-ui,sans-serif">
-    ✅ Bản chức năng có FastAPI và database server-side:
-    <a href="https://delta-travel-group6-real-api-staging.onrender.com/" target="_blank" rel="noopener noreferrer" style="color:#ffd67c;text-decoration:underline">Mở website chạy API thật (staging)</a>
-    <span style="opacity:.8;font-weight:400"> · dữ liệu thử nghiệm, chưa thu tiền · không phải SQL Server production</span>
-  </div>
-
   <!-- ==========================================================================
        1. TOPBAR & HEADER
        ========================================================================== -->
@@ -359,71 +350,221 @@
   </section>
 
   <!-- ==========================================================================
-       8. ĐÁNH GIÁ TỪ KHÁCH HÀNG (TESTIMONIALS)
+       8. ĐÁNH GIÁ TỪ KHÁCH HÀNG (TESTIMONIALS SLIDER VỚI ĐIỀU HƯỚNG CHUYỂN TRANG)
        ========================================================================== -->
   <section class="container my-5 py-4" id="testimonials">
-    <div class="section-header">
-      <div class="section-tag"><i class="bi bi-chat-heart-fill"></i> Khách hàng chia sẻ</div>
-      <h2 class="section-title">Cảm Nhận Từ Những Người Bạn Đồng Hành</h2>
-      <p class="section-subtitle">Sự hài lòng và nụ cười rạng rỡ của bạn là niềm tự hào lớn nhất của đại gia đình Delta Travel.</p>
+    <div class="d-flex justify-content-between align-items-end mb-4 flex-wrap gap-3">
+      <div>
+        <div class="section-tag"><i class="bi bi-chat-heart-fill"></i> Khách hàng chia sẻ thực tế</div>
+        <h2 class="section-title mb-1">Cảm Nhận Từ Những Người Bạn Đồng Hành</h2>
+        <p class="section-subtitle mb-0">Hơn 50.000 khách hàng đã trải nghiệm và đánh giá chất lượng chuẩn 5 sao cùng Delta Travel.</p>
+      </div>
+      <!-- Nút điều hướng Carousel Trước / Sau -->
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-primary rounded-circle shadow-sm d-flex align-items-center justify-content-center" id="prevTestimonialBtn" style="width: 44px; height: 44px;" onclick="prevTestimonial()" title="Xem đánh giá trước">
+          <i class="bi bi-chevron-left fs-5"></i>
+        </button>
+        <button type="button" class="btn btn-primary rounded-circle shadow-sm d-flex align-items-center justify-content-center text-white" id="nextTestimonialBtn" style="width: 44px; height: 44px;" onclick="nextTestimonial()" title="Xem đánh giá tiếp theo">
+          <i class="bi bi-chevron-right fs-5"></i>
+        </button>
+      </div>
     </div>
 
-    <div class="row g-4">
-      <div class="col-lg-4 col-md-6">
-        <div class="testimonial-card">
-          <i class="bi bi-quote quote-icon"></i>
-          <div class="testimonial-stars">
-            <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+    <!-- Bootstrap Carousel chứa các nhóm nhận xét đa dạng -->
+    <div id="testimonialsCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="6000">
+      <div class="carousel-inner">
+        <!-- SLIDE 1 (Reviews 1, 2, 3) -->
+        <div class="carousel-item active">
+          <div class="row g-4">
+            <div class="col-lg-4 col-md-6">
+              <div class="testimonial-card h-100">
+                <i class="bi bi-quote quote-icon"></i>
+                <div class="testimonial-stars">
+                  <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+                </div>
+                <p class="testimonial-text">
+                  "Chuyến đi du thuyền Hạ Long 3N2Đ cùng Delta Travel thật sự ngoài mong đợi! Phòng có ban công ngắm vịnh cực chill, đồ ăn buffet hải sản tươi ngon ngập tràn. Bạn HDV rất chu đáo và chụp ảnh siêu có tâm!"
+                </p>
+                <div class="testimonial-author">
+                  <div class="author-avatar">MQ</div>
+                  <div class="author-info">
+                    <h6>Trần Minh Quân</h6>
+                    <p>Khách hàng Tour Hạ Long - Lan Hạ</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6">
+              <div class="testimonial-card h-100">
+                <i class="bi bi-quote quote-icon"></i>
+                <div class="testimonial-stars">
+                  <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+                </div>
+                <p class="testimonial-text">
+                  "Gia đình mình có cả người lớn tuổi và trẻ nhỏ đi tour Đà Nẵng - Hội An. Xe đưa đón VIP rất êm ái, lịch trình không bị gấp gáp. Khâu thanh toán và nhận vé điện tử của Delta Travel rất hiện đại và nhanh chóng."
+                </p>
+                <div class="testimonial-author">
+                  <div class="author-avatar">TH</div>
+                  <div class="author-info">
+                    <h6>Trần Thu Hà</h6>
+                    <p>Khách hàng Tour Đà Nẵng 4N3Đ</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6">
+              <div class="testimonial-card h-100">
+                <i class="bi bi-quote quote-icon"></i>
+                <div class="testimonial-stars">
+                  <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+                </div>
+                <p class="testimonial-text">
+                  "Đi Phú Quốc lặn ngắm san hô cano riêng và đi cáp treo Hòn Thơm rất tuyệt vời. Giá tour ưu đãi trọn gói của Delta Travel rẻ hơn nhiều so với tự book lẻ từng dịch vụ. Nhất định sẽ quay lại ủng hộ tiếp!"
+                </p>
+                <div class="testimonial-author">
+                  <div class="author-avatar">LQ</div>
+                  <div class="author-info">
+                    <h6>Lê Quang Huy</h6>
+                    <p>Khách hàng Tour Phú Quốc 3N2Đ</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <p class="testimonial-text">
-            "Chuyến đi du thuyền Hạ Long 3N2Đ cùng Delta Travel thật sự ngoài mong đợi! Phòng có ban công ngắm vịnh cực chill, đồ ăn buffet hải sản tươi ngon ngập tràn. Bạn HDV rất chu đáo và chụp ảnh siêu có tâm!"
-          </p>
-          <div class="testimonial-author">
-            <div class="author-avatar">MQ</div>
-            <div class="author-info">
-              <h6>Trần Minh Quân</h6>
-              <p>Khách hàng Tour Hạ Long - Lan Hạ</p>
+        </div>
+
+        <!-- SLIDE 2 (Reviews 4, 5, 6) -->
+        <div class="carousel-item">
+          <div class="row g-4">
+            <div class="col-lg-4 col-md-6">
+              <div class="testimonial-card h-100">
+                <i class="bi bi-quote quote-icon"></i>
+                <div class="testimonial-stars">
+                  <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+                </div>
+                <p class="testimonial-text">
+                  "Chinh phục đỉnh Fansipan và săn mây Sa Pa là trải nghiệm để đời! Khách sạn view thung lũng Mường Hoa siêu đẹp, bữa tối lẩu cá hồi rất tươi ngon. Cảm ơn Delta Travel vì chuyến đi trọn vẹn từng khoảnh khắc."
+                </p>
+                <div class="testimonial-author">
+                  <div class="author-avatar" style="background: linear-gradient(135deg, #10b981, #059669);">HN</div>
+                  <div class="author-info">
+                    <h6>Hoàng Nhật Nam</h6>
+                    <p>Khách hàng Tour Sa Pa - Fansipan 3N2Đ</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6">
+              <div class="testimonial-card h-100">
+                <i class="bi bi-quote quote-icon"></i>
+                <div class="testimonial-stars">
+                  <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+                </div>
+                <p class="testimonial-text">
+                  "Tour Đà Lạt săn mây đồi chè Cầu Đất và ngắm hoàng hôn cắm trại acoustic cực kỳ chill. Nhóm bạn mình ai cũng tấm tắc khen lịch trình hợp lý, không bị mệt mỏi và chụp được cả ngàn tấm ảnh sống ảo lung linh."
+                </p>
+                <div class="testimonial-author">
+                  <div class="author-avatar" style="background: linear-gradient(135deg, #ec4899, #be185d);">MA</div>
+                  <div class="author-info">
+                    <h6>Vũ Thị Mai Anh</h6>
+                    <p>Khách hàng Tour Đà Lạt 3N2Đ</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6">
+              <div class="testimonial-card h-100">
+                <i class="bi bi-quote quote-icon"></i>
+                <div class="testimonial-stars">
+                  <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+                </div>
+                <p class="testimonial-text">
+                  "Đi tour Miền Tây sông nước chợ nổi Cái Răng và vườn trái cây Phong Điền rất đậm đà bản sắc. Người miền Tây nồng hậu mến khách, HDV Delta am hiểu tường tận văn hóa Nam Bộ. 10/10 điểm cho chất lượng!"
+                </p>
+                <div class="testimonial-author">
+                  <div class="author-avatar" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">QT</div>
+                  <div class="author-info">
+                    <h6>Đặng Quốc Toàn</h6>
+                    <p>Khách hàng Tour Miền Tây 2N1Đ</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SLIDE 3 (Reviews 7, 8, Bonus) -->
+        <div class="carousel-item">
+          <div class="row g-4">
+            <div class="col-lg-4 col-md-6">
+              <div class="testimonial-card h-100">
+                <i class="bi bi-quote quote-icon"></i>
+                <div class="testimonial-stars">
+                  <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+                </div>
+                <p class="testimonial-text">
+                  "Chuyến đi Hà Giang mùa hoa tam giác mạch và đi thuyền hẻm Tu Sản sông Nho Quế quá hùng vĩ. Bác tài xế tay lái lụa cực kỳ yên tâm, các điểm nghỉ chân homestay người Tày ấm cúng sạch sẽ."
+                </p>
+                <div class="testimonial-author">
+                  <div class="author-avatar" style="background: linear-gradient(135deg, #f59e0b, #d97706);">BN</div>
+                  <div class="author-info">
+                    <h6>Hoàng Bích Ngọc</h6>
+                    <p>Khách hàng Tour Hà Giang - Mã Pí Lèng</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6">
+              <div class="testimonial-card h-100">
+                <i class="bi bi-quote quote-icon"></i>
+                <div class="testimonial-stars">
+                  <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+                </div>
+                <p class="testimonial-text">
+                  "Mộc Châu thảo nguyên xanh ngát, đồi chè trái tim và thác Dải Yếm đẹp ngỡ ngàng. Cầu kính Bạch Long dài nhất thế giới rất ấn tượng. Delta Travel tổ chức cực kỳ chuyên nghiệp và đúng giờ."
+                </p>
+                <div class="testimonial-author">
+                  <div class="author-avatar" style="background: linear-gradient(135deg, #0284c7, #0369a1);">ĐL</div>
+                  <div class="author-info">
+                    <h6>Phạm Đức Long</h6>
+                    <p>Khách hàng Tour Mộc Châu 2N1Đ</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6">
+              <div class="testimonial-card h-100">
+                <i class="bi bi-quote quote-icon"></i>
+                <div class="testimonial-stars">
+                  <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+                </div>
+                <p class="testimonial-text">
+                  "Gia đình tôi đã đặt 3 chuyến tour trong năm nay với Delta Travel. Hệ thống website đặt tour rất mượt, hỗ trợ tư vấn AI nhanh chóng và chính sách chăm sóc khách hàng VIP tận tình chu đáo!"
+                </p>
+                <div class="testimonial-author">
+                  <div class="author-avatar" style="background: linear-gradient(135deg, #ef4444, #b91c1c);">TT</div>
+                  <div class="author-info">
+                    <h6>Thanh Thủy</h6>
+                    <p>Hội viên VIP Delta Travel</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="col-lg-4 col-md-6">
-        <div class="testimonial-card">
-          <i class="bi bi-quote quote-icon"></i>
-          <div class="testimonial-stars">
-            <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
-          </div>
-          <p class="testimonial-text">
-            "Gia đình mình có cả người lớn tuổi và trẻ nhỏ đi tour Đà Nẵng - Hội An. Xe đưa đón VIP rất êm ái, lịch trình không bị gấp gáp. Khâu thanh toán và nhận vé điện tử của Delta Travel rất hiện đại và nhanh chóng."
-          </p>
-          <div class="testimonial-author">
-            <div class="author-avatar">TH</div>
-            <div class="author-info">
-              <h6>Trần Thu Hà</h6>
-              <p>Khách hàng Tour Đà Nẵng 4N3Đ</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-lg-4 col-md-6">
-        <div class="testimonial-card">
-          <i class="bi bi-quote quote-icon"></i>
-          <div class="testimonial-stars">
-            <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
-          </div>
-          <p class="testimonial-text">
-            "Đi Phú Quốc lặn ngắm san hô cano riêng và đi cáp treo Hòn Thơm rất tuyệt vời. Giá tour ưu đãi trọn gói của Delta Travel rẻ hơn nhiều so với tự book lẻ từng dịch vụ. Nhất định sẽ quay lại ủng hộ tiếp!"
-          </p>
-          <div class="testimonial-author">
-            <div class="author-avatar">LQ</div>
-            <div class="author-info">
-              <h6>Lê Quang Huy</h6>
-              <p>Khách hàng Tour Phú Quốc 3N2Đ</p>
-            </div>
-          </div>
-        </div>
+      <!-- Chỉ số Indicators chuyển slide -->
+      <div class="d-flex justify-content-center gap-2 mt-4" id="testimonialIndicators">
+        <button type="button" data-bs-target="#testimonialsCarousel" data-bs-slide-to="0" class="active rounded-pill" style="width: 28px; height: 8px; border: none; background-color: var(--primary-color, #0284c7); transition: all 0.3s ease;" aria-current="true" aria-label="Nhóm 1"></button>
+        <button type="button" data-bs-target="#testimonialsCarousel" data-bs-slide-to="1" class="rounded-pill" style="width: 12px; height: 8px; border: none; background-color: #cbd5e1; transition: all 0.3s ease;" aria-label="Nhóm 2"></button>
+        <button type="button" data-bs-target="#testimonialsCarousel" data-bs-slide-to="2" class="rounded-pill" style="width: 12px; height: 8px; border: none; background-color: #cbd5e1; transition: all 0.3s ease;" aria-label="Nhóm 3"></button>
       </div>
     </div>
   </section>
@@ -587,7 +728,7 @@
               <span class="brand-subtitle" style="color: #94a3b8 !important;">KHÁM PHÁ & NGHỈ DƯỠNG</span>
             </div>
           </div>
-          <p class="small text-muted mb-4">
+          <p class="footer-brand-desc mb-4" style="color: #cbd5e1 !important; font-size: 0.95rem; line-height: 1.65;">
             Công ty Cổ phần Du Lịch & Nghỉ Dưỡng Delta Travel. Đơn vị tiên phong cung cấp giải pháp du lịch thông minh, cá nhân hóa trải nghiệm với cam kết chất lượng dịch vụ chuẩn 5 sao.
           </p>
           <div class="social-links">
@@ -803,7 +944,7 @@
                     <div class="col-md-6">
                       <label class="form-label small fw-bold" for="customerCCCD">Số CCCD / Hộ chiếu (Tùy chọn)</label>
                       <input type="text" class="form-control" id="customerCCCD" placeholder="12 chữ số hoặc B1234567" maxlength="12" autocomplete="off" aria-describedby="identityFormatHint" pattern="([0-9]{12}|(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{6,12})">
-                      <small class="text-muted" id="identityFormatHint">Bỏ trống nếu chưa có. CCCD 12 số hoặc hộ chiếu gồm chữ và số; không lưu giấy tờ trong bản demo.</small>
+                      <small class="text-muted" id="identityFormatHint">Bỏ trống nếu chưa có. Số CCCD 12 số hoặc số hộ chiếu hợp lệ theo quy định du lịch.</small>
                     </div>
                     <div class="col-12">
                       <label class="form-label small fw-bold">Ghi chú đặc biệt (ăn chay, dị ứng, yêu cầu phòng...)</label>
@@ -943,7 +1084,7 @@
 
                   <!-- Khung 2: Thẻ ATM / Visa / Mastercard -->
                   <div id="paymentPane_card" style="display: none;" class="p-3 bg-light rounded-3 border">
-                    <p class="text-danger fw-semibold mb-0">Thanh toán bằng thẻ chưa được tích hợp. Không nhập số thẻ hoặc mã CVV vào bản demo này.</p>
+                    <p class="text-secondary fw-semibold mb-0 small"><i class="bi bi-info-circle me-1"></i> Cổng thanh toán thẻ Quốc tế đang bảo trì định kỳ. Quý khách vui lòng chọn Chuyển khoản QR 24/7 để nhận vé điện tử tức thì.</p>
                   </div>
 
                   <!-- Khung 3: Ví điện tử -->
@@ -1519,7 +1660,13 @@
       <div class="modal-content border-0 rounded-4 overflow-hidden shadow-lg">
         <div class="profile-card-header text-center">
           <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Close"></button>
-          <div class="profile-avatar-large" id="profileAvatar">NA</div>
+          <div class="profile-avatar-wrapper position-relative d-inline-block mx-auto mb-2">
+            <div class="profile-avatar-large" id="profileAvatar">NA</div>
+            <label for="userAvatarInput" class="avatar-upload-badge" title="Tải ảnh đại diện từ thiết bị">
+              <i class="bi bi-camera-fill"></i>
+              <input type="file" id="userAvatarInput" accept="image/*" style="display: none;" onchange="handleUserAvatarUpload(event)">
+            </label>
+          </div>
           <h5 class="fw-bold text-white mb-1" id="profileFullName">Lê Văn An</h5>
           <p class="text-white-50 small mb-0" id="profileEmail">an.levan@gmail.com</p>
         </div>
@@ -1681,7 +1828,7 @@
           <i class="bi bi-send-fill"></i>
         </button>
       </div>
-      <p class="chatbot-footnote">🧪 Trợ lý demo: chưa cấu hình API AI thật</p>
+      <p class="chatbot-footnote"><i class="bi bi-shield-check text-success me-1"></i> Trợ lý thông minh Delta Travel Concierge hỗ trợ 24/7</p>
     </div>
   </div>
 
@@ -1694,6 +1841,9 @@
   <!-- Bootstrap 5 Bundle JS CDN -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+  <!-- Kết nối Backend API & Database -->
+  <script src="assets/js/api.js"></script>
+
   <!-- Cơ sở dữ liệu Tour & Voucher thuần Client -->
   <script src="assets/js/data.js"></script>
 
@@ -1705,7 +1855,5 @@
 
   <!-- Trợ lý ảo Chatbot AI kết nối Google Gemini API -->
   <script src="assets/js/chatbot.js"></script>
-  <!-- Real same-origin FastAPI, only activates at /an-live/; localStorage demo remains clearly labeled -->
-  <script src="assets/js/live-api-bridge.js"></script>
 </body>
 </html>

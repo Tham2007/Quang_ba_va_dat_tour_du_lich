@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex,nofollow">
   <title>Portal Quản Trị Hệ Thống - Delta Travel</title>
-  <meta name="description" content="Bản demo giao diện quản trị Delta Travel: quản lý catalog tour, kho chỗ, đơn đặt, đối soát thanh toán và kiểm toán.">
+  <meta name="description" content="Portal điều hành & quản trị hệ thống du lịch Delta Travel: quản lý catalog tour, kho chỗ, đơn đặt chỗ, đối soát tài chính và kiểm toán.">
   <link rel="icon" type="image/png" href="favicon_logo_delta.png">
   <link rel="shortcut icon" href="favicon.ico">
   <link rel="apple-touch-icon" href="favicon_logo_delta.png">
@@ -25,15 +25,6 @@
   <link rel="stylesheet" href="assets/css/admin.css">
 </head>
 <body class="admin-body">
-  <aside class="delta-demo-notice" role="status" aria-label="Trạng thái quản trị demo" style="position:relative;z-index:1050;background:#fff3cd;color:#4d3a04;text-align:center;padding:9px 16px;font:600 13px/1.5 system-ui,sans-serif;border-bottom:1px solid #e9d48d">
-    🧪 Cổng quản trị DEMO: quyền, đơn, số liệu và thanh toán chỉ mô phỏng bằng localStorage. Không xử lý dữ liệu hoặc tiền thật.
-  </aside>
-  <div class="kthp-live-bridge" style="background:#101d34;color:#fff;text-align:center;padding:10px 15px;font:600 13px/1.6 system-ui,sans-serif">
-    ✅ Bản chức năng có FastAPI và database server-side:
-    <a href="https://delta-travel-group6-real-api-staging.onrender.com/" target="_blank" rel="noopener noreferrer" style="color:#ffd67c;text-decoration:underline">Mở website chạy API thật (staging)</a>
-    <span style="opacity:.8;font-weight:400"> · dữ liệu thử nghiệm, chưa thu tiền · không phải SQL Server production</span>
-  </div>
-
   <!-- ==========================================================================
        1. MÀN HÌNH KHÓA XÁC THỰC (AUTH LOCK SCREEN CHO KHÁCH / CHƯA ĐĂNG NHẬP)
        ========================================================================== -->
@@ -293,10 +284,10 @@
   </div>
 
   <!-- ==========================================================================
-       3. MODAL: THÊM / SỬA TOUR
+       3. MODAL: THÊM / SỬA TOUR (FULL ITINERARY & PRICING EDITOR)
        ========================================================================== -->
   <div class="modal fade" id="adminTourModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
       <div class="modal-content border-0 rounded-4 shadow-lg">
         <div class="modal-header border-bottom p-4">
           <h5 class="modal-title fw-bold" id="tourModalTitle">Thêm Tour Du Lịch Mới</h5>
@@ -304,102 +295,126 @@
         </div>
         <form id="tourForm" onsubmit="handleSaveTourSubmit(event)">
           <div class="modal-body p-4">
-            <div class="row g-3">
-              <div class="col-md-4">
-                <label class="form-label small fw-bold">Mã Tour (ID)</label>
-                <input type="text" class="form-control" id="formTourId" required readonly style="background-color: #f8fafc;">
-              </div>
-              <div class="col-md-8">
-                <label class="form-label small fw-bold">Tên Tour Du Lịch <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="formTourTitle" placeholder="VD: Tour Du Thuyền 5 Sao..." required>
-              </div>
+            <!-- Nav Tabs Điều Hướng Quản Trị Tour -->
+            <ul class="nav nav-pills mb-3 border-bottom pb-2" id="adminTourTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active fw-bold small" id="tour-basic-tab" data-bs-toggle="pill" data-bs-target="#adminTabTourBasic" type="button" role="tab">
+                  <i class="bi bi-info-circle-fill me-1"></i> 1. Thông Tin Cơ Bản & Giá Bán
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold small" id="tour-itinerary-tab" data-bs-toggle="pill" data-bs-target="#adminTabTourItinerary" type="button" role="tab">
+                  <i class="bi bi-calendar3-week me-1"></i> 2. Lịch Trình Chi Tiết Từng Ngày (<span id="adminItineraryDayCount">3 ngày</span>)
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold small" id="tour-policies-tab" data-bs-toggle="pill" data-bs-target="#adminTabTourPolicies" type="button" role="tab">
+                  <i class="bi bi-card-checklist me-1"></i> 3. Điểm Nổi Bật, Bao Gồm & Chính Sách
+                </button>
+              </li>
+            </ul>
 
-              <div class="col-md-6">
-                <label class="form-label small fw-bold">Slug URL (tùy chọn)</label>
-                <input type="text" class="form-control" id="formTourSlug" placeholder="ha-long-cruise-5-star">
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small fw-bold">Vùng Miền</label>
-                <select class="form-select" id="formTourRegion">
-                  <option value="north">Miền Bắc (Hạ Long, Sa Pa...)</option>
-                  <option value="central">Miền Trung (Đà Nẵng, Hội An, Đà Lạt...)</option>
-                  <option value="south">Miền Nam (Phú Quốc, Miền Tây...)</option>
-                </select>
-              </div>
+            <div class="tab-content pt-2" id="adminTourTabsContent">
+              <!-- TAB 1: THÔNG TIN CƠ BẢN -->
+              <div class="tab-pane fade show active" id="adminTabTourBasic" role="tabpanel">
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold">Mã Tour (ID)</label>
+                    <input type="text" class="form-control" id="formTourId" required readonly style="background-color: #f8fafc;">
+                  </div>
+                  <div class="col-md-8">
+                    <label class="form-label small fw-bold">Tên Tour Du Lịch <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="formTourTitle" placeholder="VD: Tour Du Thuyền 5 Sao..." required>
+                  </div>
 
-              <div class="col-md-4">
-                <label class="form-label small fw-bold">Thời Lượng Tour</label>
-                <input type="text" class="form-control" id="formTourDuration" value="3N2Đ" placeholder="3N2Đ">
-              </div>
-              <div class="col-md-4">
-                <label class="form-label small fw-bold">Giá Gốc Niêm Yết (đ)</label>
-                <input type="number" class="form-control" id="formTourOriginalPrice" placeholder="VD: 4890000">
-              </div>
-              <div class="col-md-4">
-                <label class="form-label small fw-bold">Giá Khuyến Mãi Bán (đ) <span class="text-danger">*</span></label>
-                <input type="number" class="form-control" id="formTourPrice" placeholder="VD: 3890000" required>
-              </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Slug URL (tùy chọn)</label>
+                    <input type="text" class="form-control" id="formTourSlug" placeholder="ha-long-cruise-5-star">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Vùng Miền</label>
+                    <select class="form-select" id="formTourRegion">
+                      <option value="north">Miền Bắc (Hạ Long, Sa Pa...)</option>
+                      <option value="central">Miền Trung (Đà Nẵng, Hội An, Đà Lạt...)</option>
+                      <option value="south">Miền Nam (Phú Quốc, Miền Tây...)</option>
+                    </select>
+                  </div>
 
-              <div class="col-md-6">
-                <label class="form-label small fw-bold">Điểm Đón Khách</label>
-                <input type="text" class="form-control" id="formTourDeparture" placeholder="Hà Nội / Sân bay..." value="Hà Nội (Xe Limousine đón)">
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small fw-bold">Phương Tiện Di Chuyển</label>
-                <input type="text" class="form-control" id="formTourTransport" placeholder="Du thuyền + Limousine VIP" value="Du thuyền 5* + Limousine VIP">
-              </div>
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold">Thời Lượng Tour</label>
+                    <input type="text" class="form-control" id="formTourDuration" value="3N2Đ" placeholder="3N2Đ">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold">Giá Gốc Niêm Yết (đ)</label>
+                    <input type="number" class="form-control" id="formTourOriginalPrice" placeholder="VD: 4890000">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold">Giá Khuyến Mãi Bán (đ) <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" id="formTourPrice" placeholder="VD: 3890000" required>
+                  </div>
 
-              <div class="col-md-4">
-                <label class="form-label small fw-bold">Số Chỗ Mở Bán (Kho)</label>
-                <input type="number" class="form-control" id="formTourSeats" value="25">
-              </div>
-              <div class="col-md-4">
-                <label class="form-label small fw-bold">Trạng Thái Mở Bán</label>
-                <select class="form-select" id="formTourStatus">
-                  <option value="ACTIVE">Đang mở bán (ACTIVE)</option>
-                  <option value="DRAFT">Bản nháp (DRAFT)</option>
-                  <option value="INACTIVE">Tạm ẩn (INACTIVE)</option>
-                </select>
-              </div>
-              <!-- Quản lý & Chỉnh sửa hình ảnh Tour -->
-              <div class="col-12">
-                <label class="form-label small fw-bold">Hình Ảnh Bìa Tour Du Lịch <span class="text-danger">*</span></label>
-                <div class="card border p-3 rounded-3 bg-light">
-                  <div class="row align-items-center g-3">
-                    <!-- Ảnh preview trực quan -->
-                    <div class="col-auto">
-                      <div class="tour-modal-img-preview-box position-relative" style="width: 150px; height: 105px; border-radius: 10px; overflow: hidden; background: #e2e8f0; border: 2px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;">
-                        <img id="formTourImagePreview" src="assets/images/halong.png" alt="Tour Preview" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='assets/images/halong.png';">
-                        <span class="badge bg-dark bg-opacity-75 position-absolute bottom-0 start-0 m-1" style="font-size: 10px;">Xem trước</span>
-                      </div>
-                    </div>
-                    <!-- Tùy chọn nguồn ảnh: Tải từ máy tính / Chọn ảnh có sẵn / Nhập URL -->
-                    <div class="col">
-                      <div class="d-flex flex-column gap-2">
-                        <!-- Tùy chọn 1: Tải ảnh từ máy tính -->
-                        <div>
-                          <label class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 mb-1 cursor-pointer">
-                            <i class="bi bi-cloud-arrow-up-fill"></i> Tải ảnh từ máy tính...
-                            <input type="file" id="formTourImageFileInput" accept="image/*" style="display: none;" onchange="handleTourImageFileSelect(event)">
-                          </label>
-                          <span class="text-muted small ms-2" id="formTourImageFileName">(JPG, PNG, WebP)</span>
-                        </div>
-                        <!-- Tùy chọn 2: Chọn nhanh ảnh thư viện chuẩn Delta Travel -->
-                        <div>
-                          <span class="small fw-semibold text-secondary d-block mb-1" style="font-size: 12px;">Hoặc chọn nhanh ảnh điểm đến chuẩn:</span>
-                          <div class="d-flex flex-wrap gap-1">
-                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/halong.png')">Hạ Long</button>
-                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/danang.png')">Đà Nẵng</button>
-                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/phuquoc.png')">Phú Quốc</button>
-                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/dalat.png')">Đà Lạt</button>
-                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/sapa.png')">Sa Pa</button>
-                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/mientay.png')">Miền Tây</button>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Điểm Đón Khách</label>
+                    <input type="text" class="form-control" id="formTourDeparture" placeholder="Hà Nội / Sân bay..." value="Hà Nội (Xe Limousine đón)">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold">Phương Tiện Di Chuyển</label>
+                    <input type="text" class="form-control" id="formTourTransport" placeholder="Du thuyền + Limousine VIP" value="Du thuyền 5* + Limousine VIP">
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold">Số Chỗ Mở Bán (Kho)</label>
+                    <input type="number" class="form-control" id="formTourSeats" value="25">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold">Trạng Thái Mở Bán</label>
+                    <select class="form-select" id="formTourStatus">
+                      <option value="ACTIVE">Đang mở bán (ACTIVE)</option>
+                      <option value="DRAFT">Bản nháp (DRAFT)</option>
+                      <option value="INACTIVE">Tạm ẩn (INACTIVE)</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold">Huy Hiệu (Badge)</label>
+                    <input type="text" class="form-control" id="formTourBadge" placeholder="VD: KỲ QUAN THẾ GIỚI, BÁN CHẠY">
+                  </div>
+
+                  <!-- Quản lý & Chỉnh sửa hình ảnh Tour -->
+                  <div class="col-12">
+                    <label class="form-label small fw-bold">Hình Ảnh Bìa Tour Du Lịch <span class="text-danger">*</span></label>
+                    <div class="card border p-3 rounded-3 bg-light">
+                      <div class="row align-items-center g-3">
+                        <div class="col-auto">
+                          <div class="tour-modal-img-preview-box position-relative" style="width: 150px; height: 105px; border-radius: 10px; overflow: hidden; background: #e2e8f0; border: 2px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;">
+                            <img id="formTourImagePreview" src="assets/images/halong.png" alt="Tour Preview" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='assets/images/halong.png';">
+                            <span class="badge bg-dark bg-opacity-75 position-absolute bottom-0 start-0 m-1" style="font-size: 10px;">Xem trước</span>
                           </div>
                         </div>
-                        <!-- Tùy chọn 3: Nhập URL hoặc đường dẫn ảnh trực tiếp -->
-                        <div class="input-group input-group-sm">
-                          <span class="input-group-text"><i class="bi bi-link-45deg"></i> Đường dẫn / URL ảnh:</span>
-                          <input type="text" class="form-control" id="formTourImage" placeholder="assets/images/halong.png hoặc link ảnh online" oninput="updateTourImagePreview(this.value)">
+                        <div class="col">
+                          <div class="d-flex flex-column gap-2">
+                            <div>
+                              <label class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 mb-1 cursor-pointer">
+                                <i class="bi bi-cloud-arrow-up-fill"></i> Tải ảnh từ máy tính...
+                                <input type="file" id="formTourImageFileInput" accept="image/*" style="display: none;" onchange="handleTourImageFileSelect(event)">
+                              </label>
+                              <span class="text-muted small ms-2" id="formTourImageFileName">(JPG, PNG, WebP)</span>
+                            </div>
+                            <div>
+                              <span class="small fw-semibold text-secondary d-block mb-1" style="font-size: 12px;">Hoặc chọn nhanh ảnh điểm đến chuẩn:</span>
+                              <div class="d-flex flex-wrap gap-1">
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/halong.png')">Hạ Long</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/danang.png')">Đà Nẵng</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/phuquoc.png')">Phú Quốc</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/dalat.png')">Đà Lạt</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/sapa.png')">Sa Pa</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size: 11.5px;" onclick="selectTourPresetImage('assets/images/mientay.png')">Miền Tây</button>
+                              </div>
+                            </div>
+                            <div class="input-group input-group-sm">
+                              <span class="input-group-text"><i class="bi bi-link-45deg"></i> Đường dẫn / URL ảnh:</span>
+                              <input type="text" class="form-control" id="formTourImage" placeholder="assets/images/halong.png hoặc link ảnh online" oninput="updateTourImagePreview(this.value)">
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -407,15 +422,49 @@
                 </div>
               </div>
 
-              <div class="col-12">
-                <label class="form-label small fw-bold">Điểm Nổi Bật (Mỗi dòng 1 gạch đầu dòng)</label>
-                <textarea class="form-control" id="formTourDesc" rows="3" placeholder="Trải nghiệm du thuyền 5 sao đẳng cấp quốc tế&#10;Chèo kayak qua hang động bí ẩn&#10;Tiệc buffet hải sản tươi sống"></textarea>
+              <!-- TAB 2: LỊCH TRÌNH CHI TIẾT TỪNG NGÀY (DAY-BY-DAY ITINERARY) -->
+              <div class="tab-pane fade" id="adminTabTourItinerary" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-light rounded-3 border">
+                  <div>
+                    <h6 class="fw-bold mb-1 text-dark"><i class="bi bi-map-fill text-primary me-1"></i> Quản Lý Lịch Trình Chi Tiết Các Ngày (Day-by-Day Timeline)</h6>
+                    <span class="text-muted small">Chỉnh sửa chi tiết các hoạt động Buổi Sáng, Buổi Chiều, Buổi Tối từng ngày. Nhấn "Thêm ngày mới" để tăng số ngày.</span>
+                  </div>
+                  <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm d-flex align-items-center gap-1" onclick="addAdminItineraryDay()">
+                    <i class="bi bi-plus-circle-fill"></i> Thêm Ngày Mới
+                  </button>
+                </div>
+
+                <div id="adminTourItineraryContainer" class="d-flex flex-column gap-3">
+                  <!-- Được sinh tự động bởi renderAdminItineraryDays() -->
+                </div>
+              </div>
+
+              <!-- TAB 3: ĐIỂM NỔI BẬT & BAO GỒM / LOẠI TRỪ / CHÍNH SÁCH -->
+              <div class="tab-pane fade" id="adminTabTourPolicies" role="tabpanel">
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label small fw-bold text-primary"><i class="bi bi-stars text-warning me-1"></i> Điểm Nổi Bật Của Tour (Mỗi dòng 1 gạch đầu dòng)</label>
+                    <textarea class="form-control" id="formTourDesc" rows="3" placeholder="Trải nghiệm du thuyền 5 sao đẳng cấp quốc tế&#10;Chèo kayak qua hang động bí ẩn&#10;Tiệc buffet hải sản tươi sống"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-success"><i class="bi bi-check-circle-fill me-1"></i> Dịch Vụ Bao Gồm Trong Giá (Mỗi dòng 1 mục)</label>
+                    <textarea class="form-control" id="formTourInclusions" rows="5" placeholder="Xe đưa đón Limousine khứ hồi cao cấp&#10;Khách sạn/Du thuyền tiêu chuẩn 5 sao&#10;Các bữa ăn chính hải sản theo lịch trình&#10;Vé tham quan tất cả các thắng cảnh&#10;Bảo hiểm du lịch trọn gói 100.000.000đ"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-danger"><i class="bi bi-x-circle-fill me-1"></i> Dịch Vụ Không Bao Gồm / Phụ Thu (Mỗi dòng 1 mục)</label>
+                    <textarea class="form-control" id="formTourExclusions" rows="5" placeholder="Thuế VAT 8% (nếu lấy hóa đơn đỏ)&#10;Chi phí phòng đơn riêng&#10;Đồ uống gọi thêm trong các bữa ăn&#10;Tiền tip cho tài xế và HDV"></textarea>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label small fw-bold text-secondary"><i class="bi bi-shield-check me-1"></i> Chính Sách Hoàn Hủy & Lưu Ý (Mỗi dòng 1 quy định)</label>
+                    <textarea class="form-control" id="formTourTerms" rows="4" placeholder="Hủy tour trước 15 ngày khởi hành: Miễn phí 100%&#10;Hủy tour từ 07 - 14 ngày: Phí 30% giá tour&#10;Hủy tour từ 03 - 06 ngày: Phí 50% giá tour&#10;Hủy trong vòng 48h trước giờ đi: Phí 100%"></textarea>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
           <div class="modal-footer border-top p-3">
             <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy bỏ</button>
-            <button type="submit" class="btn btn-admin-primary">Lưu Tour Du Lịch</button>
+            <button type="submit" class="btn btn-admin-primary px-4 fw-bold"><i class="bi bi-save2-fill me-1"></i> Lưu Tour & Lịch Trình</button>
           </div>
         </form>
       </div>
@@ -666,6 +715,9 @@
   <!-- Bootstrap Bundle JS CDN -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+  <!-- Kết nối Backend API & Database -->
+  <script src="assets/js/api.js"></script>
+
   <!-- Nạp dữ liệu hệ thống & Xác thực & Chatbot -->
   <script src="assets/js/data.js"></script>
   <script src="assets/js/auth.js"></script>
@@ -673,8 +725,6 @@
 
   <!-- Bộ điều khiển chuyên sâu Admin -->
   <script src="assets/js/admin.js"></script>
-  <!-- Real same-origin FastAPI, only activates at /an-live/; localStorage demo remains clearly labeled -->
-  <script src="assets/js/live-api-bridge.js"></script>
 </body>
 </html>
 

@@ -168,11 +168,15 @@ function renderAuthHeader() {
       ? (names[0][0] + names[names.length - 1][0]).toUpperCase()
       : names[0].substring(0, 2).toUpperCase();
 
+    const avatarHtml = user.avatar
+      ? `<img src="${user.avatar}" alt="${user.fullName}" class="user-avatar-gold-rim" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 2px solid #f59e0b;">`
+      : `<div class="user-avatar-gold-rim">${initials}</div>`;
+
     const htmlContent = `
       <div class="d-inline-flex align-items-center gap-1.5">
         <!-- Liquid Glass User Profile Pill -->
         <button type="button" class="liquid-user-glass" onclick="openUserProfileModal()" title="Hồ sơ tài khoản & Đơn đặt">
-          <div class="user-avatar-gold-rim">${initials}</div>
+          ${avatarHtml}
           <span class="liquid-user-name">${user.fullName}</span>
         </button>
 
@@ -553,7 +557,13 @@ function openUserProfileModal() {
   const createdEl = document.getElementById("profileCreatedAt");
   const totalBookingsEl = document.getElementById("profileTotalBookings");
 
-  if (avatarEl) avatarEl.textContent = initials;
+  if (avatarEl) {
+    if (user.avatar) {
+      avatarEl.innerHTML = `<img src="${user.avatar}" alt="${user.fullName}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+    } else {
+      avatarEl.innerHTML = initials;
+    }
+  }
   if (nameEl) nameEl.textContent = user.fullName;
   if (emailEl) emailEl.textContent = user.email;
   if (phoneEl) phoneEl.textContent = user.phone;
@@ -585,6 +595,77 @@ function openUserProfileModal() {
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     modal.show();
   }
+}
+
+/**
+ * Xử lý tải lên và đổi ảnh đại diện (Avatar) cho người dùng
+ */
+function handleUserAvatarUpload(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    alert("Vui lòng chọn một tệp hình ảnh (JPG, PNG, WebP) hợp lệ!");
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    const rawBase64 = evt.target.result;
+    
+    // Nén ảnh nhỏ gọn qua HTML Canvas (~250x250)
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement("canvas");
+      const MAX_SIZE = 250;
+      let width = img.width;
+      let height = img.height;
+      if (width > height) {
+        if (width > MAX_SIZE) {
+          height = Math.round(height * (MAX_SIZE / width));
+          width = MAX_SIZE;
+        }
+      } else {
+        if (height > MAX_SIZE) {
+          width = Math.round(width * (MAX_SIZE / height));
+          height = MAX_SIZE;
+        }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      const optimizedBase64 = canvas.toDataURL("image/jpeg", 0.85);
+
+      const user = getCurrentUser();
+      if (!user) return;
+      user.avatar = optimizedBase64;
+
+      // Lưu trữ phiên đăng nhập hiện tại
+      localStorage.setItem("delta_current_user_v2", JSON.stringify(user));
+
+      // Cập nhật trong danh sách toàn bộ users
+      const users = getAllUsers();
+      const idx = users.findIndex(u => u.id === user.id || u.email.toLowerCase() === user.email.toLowerCase());
+      if (idx !== -1) {
+        users[idx].avatar = optimizedBase64;
+        localStorage.setItem("delta_users_v2", JSON.stringify(users));
+      }
+
+      // Cập nhật giao diện modal và header
+      const avatarEl = document.getElementById("profileAvatar");
+      if (avatarEl) {
+        avatarEl.innerHTML = `<img src="${optimizedBase64}" alt="${user.fullName}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+      }
+      renderAuthHeader();
+
+      if (typeof showToast === "function") {
+        showToast("Cập nhật ảnh đại diện thành công!", "success");
+      }
+    };
+    img.src = rawBase64;
+  };
+  reader.readAsDataURL(file);
 }
 
 /**

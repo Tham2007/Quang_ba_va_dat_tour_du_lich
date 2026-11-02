@@ -67,6 +67,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 4. Render nội dung tab ban đầu
   renderCurrentTab();
+
+  // Tự động mở modal sửa tour nếu có yêu cầu (hỗ trợ điều hướng sâu)
+  const autoTour = sessionStorage.getItem("autoOpenTourId");
+  if (autoTour) {
+    sessionStorage.removeItem("autoOpenTourId");
+    setTimeout(() => {
+      openTourModal(autoTour);
+      const tabBtn = document.getElementById("tour-itinerary-tab");
+      if (tabBtn) {
+        try {
+          bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+        } catch (e) {}
+      }
+    }, 350);
+  }
 });
 
 // =============================================================================
@@ -1005,7 +1020,15 @@ function openTourModal(tourId = null) {
   const modalEl = document.getElementById("adminTourModal");
   if (!modalEl) return;
 
-  document.getElementById("tourModalTitle").textContent = tour ? "Chỉnh Sửa Thông Tin Tour" : "Thêm Tour Du Lịch Mới";
+  // Reset tab active về Tab 1
+  const firstTab = document.querySelector("#adminTourTabs button:first-child");
+  if (firstTab) {
+    try {
+      bootstrap.Tab.getOrCreateInstance(firstTab).show();
+    } catch (e) {}
+  }
+
+  document.getElementById("tourModalTitle").textContent = tour ? `Chỉnh Sửa Toàn Bộ Tour: ${tour.id}` : "Thêm Tour Du Lịch Mới";
   document.getElementById("formTourId").value = tour ? tour.id : ("DL-" + Date.now().toString().slice(-4));
   document.getElementById("formTourTitle").value = tour ? tour.title : "";
   document.getElementById("formTourSlug").value = tour ? tour.slug : "";
@@ -1018,6 +1041,9 @@ function openTourModal(tourId = null) {
   document.getElementById("formTourSeats").value = tour ? (tour.availableSeats || 20) : 25;
   document.getElementById("formTourStatus").value = tour ? (tour.status || "ACTIVE") : "ACTIVE";
   
+  const badgeInput = document.getElementById("formTourBadge");
+  if (badgeInput) badgeInput.value = tour ? (tour.badge || "") : "";
+
   // Thiết lập đường dẫn ảnh & Xem trước (Preview)
   const imgPath = tour ? (tour.image || "assets/images/halong.png") : "assets/images/halong.png";
   const imgInput = document.getElementById("formTourImage");
@@ -1030,10 +1056,202 @@ function openTourModal(tourId = null) {
   if (imgFileInput) imgFileInput.value = "";
   if (imgFileName) imgFileName.textContent = tour ? "(Ảnh hiện tại)" : "(JPG, PNG, WebP)";
 
-  document.getElementById("formTourDesc").value = tour ? (tour.highlights ? tour.highlights.join("\n") : "") : "";
+  // Tab 3: Điểm nổi bật
+  const descEl = document.getElementById("formTourDesc");
+  if (descEl) {
+    descEl.value = tour ? (Array.isArray(tour.highlights) ? tour.highlights.join("\n") : (tour.highlights || "")) : "";
+  }
+
+  // Tab 3: Dịch vụ bao gồm & Không bao gồm & Chính sách
+  const inclusionsEl = document.getElementById("formTourInclusions");
+  if (inclusionsEl) {
+    inclusionsEl.value = tour && Array.isArray(tour.inclusions) ? tour.inclusions.join("\n") : (tour?.inclusions || "Xe đưa đón du lịch đời mới suốt tuyến\nKhách sạn / Du thuyền tiêu chuẩn sang trọng\nCác bữa ăn chính đặc sản theo lịch trình\nVé tham quan tất cả các thắng cảnh trong tour\nHướng dẫn viên giàu kinh nghiệm đồng hành\nBảo hiểm du lịch trọn gói 100.000.000đ");
+  }
+
+  const exclusionsEl = document.getElementById("formTourExclusions");
+  if (exclusionsEl) {
+    exclusionsEl.value = tour && Array.isArray(tour.exclusions) ? tour.exclusions.join("\n") : (tour?.exclusions || "Thuế VAT 8% (nếu xuất hóa đơn đỏ)\nChi phí phòng đơn nếu đi 1 mình\nĐồ uống ngoài thực đơn và chi phí cá nhân\nTiền tip cho tài xế và hướng dẫn viên");
+  }
+
+  const termsEl = document.getElementById("formTourTerms");
+  if (termsEl) {
+    termsEl.value = tour && Array.isArray(tour.terms) ? tour.terms.join("\n") : (tour?.terms || "Hủy tour trước 15 ngày khởi hành: Miễn phí 100%\nHủy tour từ 07 - 14 ngày: Phí 30% giá tour\nHủy tour từ 03 - 06 ngày: Phí 50% giá tour\nHủy trong vòng 48h trước giờ đi: Phí 100%\nTrường hợp bão lũ thiên tai: Hỗ trợ bảo lưu dời ngày miễn phí");
+  }
+
+  // Tab 2: Render lịch trình Day-by-Day
+  renderAdminItineraryDays(tour ? tour.itinerary : null);
 
   const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
   modal.show();
+}
+
+/**
+ * Render danh sách ngày trong lịch trình ở Modal Tour
+ */
+function renderAdminItineraryDays(itinerary) {
+  const container = document.getElementById("adminTourItineraryContainer");
+  const countBadge = document.getElementById("adminItineraryDayCount");
+  if (!container) return;
+
+  // Xử lý an toàn nếu itinerary là chuỗi JSON từ backend
+  let days = [];
+  if (Array.isArray(itinerary)) {
+    days = itinerary;
+  } else if (typeof itinerary === "string") {
+    try {
+      days = JSON.parse(itinerary);
+    } catch (e) {
+      days = [];
+    }
+  }
+
+  if (!days || days.length === 0) {
+    days = [
+      {
+        day: 1,
+        title: "Khởi hành - Đến điểm đến nghỉ dưỡng",
+        morning: "08:00 Xe Limousine đón khách, xuất phát di chuyển theo lịch trình.",
+        afternoon: "12:00 Làm thủ tục nhận phòng / lên du thuyền, dùng bữa trưa đặc sản.",
+        evening: "18:30 Thưởng thức bữa tối, tự do dạo chơi hoặc tham gia hoạt động buổi tối."
+      }
+    ];
+  }
+
+  if (countBadge) countBadge.textContent = `${days.length} ngày`;
+
+  container.innerHTML = days.map((item, idx) => {
+    const dayNum = idx + 1;
+    return `
+      <div class="admin-itinerary-day-card card border p-3 rounded-3 shadow-sm bg-white" data-day-index="${dayNum}">
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+          <div class="d-flex align-items-center gap-2 flex-grow-1 me-2">
+            <span class="badge bg-primary px-3 py-1.5 fs-6 fw-bold">Ngày ${dayNum}</span>
+            <input type="text" class="form-control form-control-sm fw-bold admin-itinerary-title" value="${escapeAdminHtml(item.title || '')}" placeholder="Tiêu đề ngày (VD: Hà Nội - Vịnh Hạ Long - Du Thuyền 5 Sao)" required>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1" onclick="removeAdminItineraryDay(this)" title="Xóa ngày này">
+            <i class="bi bi-trash3-fill"></i> Xóa ngày
+          </button>
+        </div>
+
+        <div class="row g-2">
+          <div class="col-md-4">
+            <label class="form-label small fw-bold text-warning-emphasis d-flex align-items-center gap-1 mb-1">
+              <i class="bi bi-brightness-alt-high-fill text-warning"></i> Buổi Sáng:
+            </label>
+            <textarea class="form-control form-control-sm admin-itinerary-morning" rows="3" placeholder="Chi tiết hoạt động buổi sáng...">${escapeAdminHtml(item.morning || '')}</textarea>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-bold text-primary-emphasis d-flex align-items-center gap-1 mb-1">
+              <i class="bi bi-sun-fill text-primary"></i> Buổi Chiều:
+            </label>
+            <textarea class="form-control form-control-sm admin-itinerary-afternoon" rows="3" placeholder="Chi tiết hoạt động buổi chiều...">${escapeAdminHtml(item.afternoon || '')}</textarea>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-bold text-info-emphasis d-flex align-items-center gap-1 mb-1">
+              <i class="bi bi-moon-stars-fill text-info"></i> Buổi Tối:
+            </label>
+            <textarea class="form-control form-control-sm admin-itinerary-evening" rows="3" placeholder="Chi tiết hoạt động buổi tối...">${escapeAdminHtml(item.evening || '')}</textarea>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function escapeAdminHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function addAdminItineraryDay() {
+  const container = document.getElementById("adminTourItineraryContainer");
+  if (!container) return;
+  const currentCards = container.querySelectorAll(".admin-itinerary-day-card");
+  const nextDay = currentCards.length + 1;
+
+  const newDayHtml = `
+    <div class="admin-itinerary-day-card card border p-3 rounded-3 shadow-sm bg-white" data-day-index="${nextDay}">
+      <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+        <div class="d-flex align-items-center gap-2 flex-grow-1 me-2">
+          <span class="badge bg-primary px-3 py-1.5 fs-6 fw-bold">Ngày ${nextDay}</span>
+          <input type="text" class="form-control form-control-sm fw-bold admin-itinerary-title" value="" placeholder="Tiêu đề ngày (VD: Khám phá thắng cảnh - Trải nghiệm văn hóa)" required>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1" onclick="removeAdminItineraryDay(this)" title="Xóa ngày này">
+          <i class="bi bi-trash3-fill"></i> Xóa ngày
+        </button>
+      </div>
+
+      <div class="row g-2">
+        <div class="col-md-4">
+          <label class="form-label small fw-bold text-warning-emphasis d-flex align-items-center gap-1 mb-1">
+            <i class="bi bi-brightness-alt-high-fill text-warning"></i> Buổi Sáng:
+          </label>
+          <textarea class="form-control form-control-sm admin-itinerary-morning" rows="3" placeholder="Chi tiết hoạt động buổi sáng..."></textarea>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-bold text-primary-emphasis d-flex align-items-center gap-1 mb-1">
+            <i class="bi bi-sun-fill text-primary"></i> Buổi Chiều:
+          </label>
+          <textarea class="form-control form-control-sm admin-itinerary-afternoon" rows="3" placeholder="Chi tiết hoạt động buổi chiều..."></textarea>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-bold text-info-emphasis d-flex align-items-center gap-1 mb-1">
+            <i class="bi bi-moon-stars-fill text-info"></i> Buổi Tối:
+          </label>
+          <textarea class="form-control form-control-sm admin-itinerary-evening" rows="3" placeholder="Chi tiết hoạt động buổi tối..."></textarea>
+        </div>
+      </div>
+    </div>
+  `;
+
+  container.insertAdjacentHTML("beforeend", newDayHtml);
+  updateAdminItineraryDayCount();
+}
+
+function removeAdminItineraryDay(btn) {
+  const card = btn.closest(".admin-itinerary-day-card");
+  if (!card) return;
+  const container = document.getElementById("adminTourItineraryContainer");
+  const allCards = container.querySelectorAll(".admin-itinerary-day-card");
+  if (allCards.length <= 1) {
+    alert("Lịch trình tour cần tối thiểu ít nhất 1 ngày!");
+    return;
+  }
+  card.remove();
+  reindexAdminItineraryDays();
+}
+
+function reindexAdminItineraryDays() {
+  const container = document.getElementById("adminTourItineraryContainer");
+  if (!container) return;
+  const cards = container.querySelectorAll(".admin-itinerary-day-card");
+  cards.forEach((card, idx) => {
+    const dayNum = idx + 1;
+    card.setAttribute("data-day-index", dayNum);
+    const badge = card.querySelector(".badge");
+    if (badge) badge.textContent = `Ngày ${dayNum}`;
+  });
+  updateAdminItineraryDayCount();
+}
+
+function updateAdminItineraryDayCount() {
+  const container = document.getElementById("adminTourItineraryContainer");
+  if (!container) return;
+  const count = container.querySelectorAll(".admin-itinerary-day-card").length;
+  const countBadge = document.getElementById("adminItineraryDayCount");
+  if (countBadge) countBadge.textContent = `${count} ngày`;
+
+  // Tự động cập nhật gợi ý thời lượng tour (VD: 3N2Đ)
+  const durationInput = document.getElementById("formTourDuration");
+  if (durationInput) {
+    const nights = Math.max(0, count - 1);
+    durationInput.value = `${count}N${nights}Đ`;
+  }
 }
 
 function handleSaveTourSubmit(e) {
@@ -1049,9 +1267,38 @@ function handleSaveTourSubmit(e) {
   const transport = document.getElementById("formTourTransport").value.trim();
   const availableSeats = Number(document.getElementById("formTourSeats").value) || 20;
   const status = document.getElementById("formTourStatus").value;
+  const badge = document.getElementById("formTourBadge")?.value.trim() || "";
   const image = document.getElementById("formTourImage").value.trim() || "assets/images/halong.png";
-  const descRaw = document.getElementById("formTourDesc").value.trim();
-  const highlights = descRaw ? descRaw.split("\n").filter(h => h.trim().length > 0) : ["Trải nghiệm tour chất lượng cao của Delta Travel"];
+
+  const descRaw = document.getElementById("formTourDesc")?.value.trim() || "";
+  const highlights = descRaw ? descRaw.split("\n").map(s => s.trim()).filter(Boolean) : ["Trải nghiệm tour chất lượng cao của Delta Travel"];
+
+  const incRaw = document.getElementById("formTourInclusions")?.value.trim() || "";
+  const inclusions = incRaw ? incRaw.split("\n").map(s => s.trim()).filter(Boolean) : ["Xe đưa đón", "Khách sạn tiêu chuẩn", "Bữa ăn theo lịch trình", "Bảo hiểm"];
+
+  const excRaw = document.getElementById("formTourExclusions")?.value.trim() || "";
+  const exclusions = excRaw ? excRaw.split("\n").map(s => s.trim()).filter(Boolean) : ["Chi phí cá nhân", "Thuế VAT"];
+
+  const termsRaw = document.getElementById("formTourTerms")?.value.trim() || "";
+  const terms = termsRaw ? termsRaw.split("\n").map(s => s.trim()).filter(Boolean) : ["Chính sách hoàn hủy chuẩn Delta Travel"];
+
+  // Thu thập lịch trình từng ngày từ Container
+  const dayCards = document.querySelectorAll("#adminTourItineraryContainer .admin-itinerary-day-card");
+  const itinerary = [];
+  dayCards.forEach((card, idx) => {
+    const dayNum = idx + 1;
+    const dayTitle = card.querySelector(".admin-itinerary-title")?.value.trim() || `Ngày ${dayNum}: Lịch trình khám phá`;
+    const morning = card.querySelector(".admin-itinerary-morning")?.value.trim() || "Hoạt động buổi sáng theo lịch trình.";
+    const afternoon = card.querySelector(".admin-itinerary-afternoon")?.value.trim() || "Hoạt động buổi chiều theo lịch trình.";
+    const evening = card.querySelector(".admin-itinerary-evening")?.value.trim() || "Hoạt động buổi tối, nghỉ ngơi.";
+    itinerary.push({
+      day: dayNum,
+      title: dayTitle,
+      morning,
+      afternoon,
+      evening
+    });
+  });
 
   if (!title || price <= 0) {
     alert("Vui lòng nhập đầy đủ tên tour và giá bán hợp lệ!");
@@ -1072,7 +1319,7 @@ function handleSaveTourSubmit(e) {
     regionName,
     image,
     duration,
-    daysCount: parseInt(duration) || 3,
+    daysCount: itinerary.length || parseInt(duration) || 3,
     departure,
     transport,
     originalPrice: originalPrice > price ? originalPrice : Math.round(price * 1.25),
@@ -1080,27 +1327,54 @@ function handleSaveTourSubmit(e) {
     childPrice: Math.round(price * 0.65),
     rating: existingIdx !== -1 ? tours[existingIdx].rating : 5.0,
     reviewsCount: existingIdx !== -1 ? tours[existingIdx].reviewsCount : 1,
-    badge: (originalPrice > price) ? "Ưu đãi Delta" : "",
+    badge: badge || (originalPrice > price ? "Ưu đãi Delta" : ""),
     isFlashSale: false,
     availableSeats,
     status,
     countryCode: "VN",
     highlights,
-    itinerary: existingIdx !== -1 ? tours[existingIdx].itinerary : [
-      { day: 1, title: "Khởi hành - Khám phá điểm đến", morning: "Đón khách và xuất phát", afternoon: "Nhận phòng khách sạn và nghỉ ngơi", evening: "Thưởng thức ẩm thực địa phương" }
-    ],
-    inclusions: existingIdx !== -1 ? tours[existingIdx].inclusions : ["Xe đưa đón", "Khách sạn tiêu chuẩn", "Bữa ăn theo lịch trình", "Bảo hiểm"],
-    exclusions: existingIdx !== -1 ? tours[existingIdx].exclusions : ["Chi phí cá nhân", "Thuế VAT"]
+    itinerary,
+    inclusions,
+    exclusions,
+    terms
   };
 
   if (existingIdx !== -1) {
     tours[existingIdx] = tourData;
-    addAuditLog("UPDATE_TOUR", "Tour", id, `Cập nhật thông tin tour "${title}" (Giá: ${price.toLocaleString("vi-VN")} đ)`);
-    showAdminToast(`Cập nhật tour ${id} thành công!`, "success");
+    addAuditLog("UPDATE_TOUR", "Tour", id, `Cập nhật toàn bộ thông tin & ${itinerary.length} ngày lịch trình tour "${title}" (Giá: ${price.toLocaleString("vi-VN")} đ)`);
+    showAdminToast(`Cập nhật toàn bộ tour và ${itinerary.length} ngày lịch trình ${id} thành công!`, "success");
+    // Đồng bộ Backend API nếu có
+    if (typeof DeltaAPI !== "undefined" && DeltaAPI.adminPatchTour) {
+      DeltaAPI.adminPatchTour(id, {
+        title: tourData.title,
+        price: tourData.price,
+        original_price: tourData.originalPrice,
+        itinerary_json: JSON.stringify(tourData.itinerary),
+        image: tourData.image,
+        description: tourData.highlights.join("\n")
+      }).catch(err => console.log("API backend sync notice:", err));
+    }
   } else {
     tours.unshift(tourData);
-    addAuditLog("CREATE_TOUR", "Tour", id, `Tạo mới tour "${title}" với giá bán ${price.toLocaleString("vi-VN")} đ`);
-    showAdminToast(`Tạo mới tour ${id} thành công!`, "success");
+    addAuditLog("CREATE_TOUR", "Tour", id, `Tạo mới tour "${title}" với ${itinerary.length} ngày lịch trình, giá bán ${price.toLocaleString("vi-VN")} đ`);
+    showAdminToast(`Tạo mới tour ${id} cùng ${itinerary.length} ngày lịch trình thành công!`, "success");
+    // Đồng bộ Backend API nếu có
+    if (typeof DeltaAPI !== "undefined" && DeltaAPI.adminCreateTour) {
+      DeltaAPI.adminCreateTour({
+        id: tourData.id,
+        title: tourData.title,
+        slug: tourData.slug,
+        region: tourData.region,
+        duration: tourData.duration,
+        departure: tourData.departure,
+        transport: tourData.transport,
+        price: tourData.price,
+        original_price: tourData.originalPrice,
+        image: tourData.image,
+        itinerary_json: JSON.stringify(tourData.itinerary),
+        description: tourData.highlights.join("\n")
+      }).catch(err => console.log("API backend sync notice:", err));
+    }
   }
 
   saveToursData(tours);
