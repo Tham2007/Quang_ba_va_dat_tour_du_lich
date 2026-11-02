@@ -1,0 +1,31 @@
+name: Render real HTTPS booking smoke (synthetic)
+
+on:
+  push:
+    paths:
+      - 'API/scripts/smoke_render_staging.py'
+      - '.github/workflows/ci-render-live-http.yml'
+  pull_request:
+    paths:
+      - 'API/scripts/smoke_render_staging.py'
+      - '.github/workflows/ci-render-live-http.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-to-api-to-demo-db:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DELTA_STAGING_SMOKE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install HTTP client (no credentials)
+        run: python -m pip install httpx==0.28.1
+      - name: Exercise real HTTPS FastAPI with synthetic account and booking
+        run: python API/scripts/smoke_render_staging.py
