@@ -340,6 +340,20 @@ def test_q_payment_reference_unique_across_bookings_and_reject_invalid_proof():
         with SessionLocal.begin() as db:
             db.scalar(select(User).where(User.email == account["email"])).role = "ADMIN"
         body = booking_body(c)
+        departure = (datetime.now(timezone.utc) + timedelta(days=150)).replace(
+            microsecond=0
+        )
+        schedule = c.post(
+            "/api/v1/admin/schedules",
+            headers=csrf(c),
+            json={
+                "tour_id": "DL-HL01",
+                "departure_at": departure.isoformat(),
+                "total_seats": 10,
+            },
+        )
+        assert schedule.status_code == 201, schedule.text
+        body["schedule_id"] = schedule.json()["id"]
         first = post_booking(c, body)
         second = post_booking(c, body)
         assert first.status_code == 201 and second.status_code == 201
