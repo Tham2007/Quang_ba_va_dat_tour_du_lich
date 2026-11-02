@@ -29,6 +29,22 @@ async def lifespan(app):
             raise RuntimeError("DEMO_SEED must never run in production.")
         if os.getenv("AUTO_CREATE_SCHEMA") == "1":
             raise RuntimeError("Production requires reviewed schema migrations.")
+    elif ENV == "staging" and engine.dialect.name == "postgresql":
+        # The staging DB is disposable and must be explicitly opted in.
+        # Production migrations remain an audited manual release step.
+        if os.getenv("STAGING_AUTO_MIGRATE") != "1":
+            raise RuntimeError("PostgreSQL staging requires STAGING_AUTO_MIGRATE=1")
+        from alembic import command
+        from alembic.config import Config
+
+        migration_file = Path(__file__).resolve().parents[2]
+        migration_file /= "database"
+        migration_file /= "database"
+        migration_file /= "alembic.ini"
+        cfg = Config(str(migration_file))
+        command.upgrade(cfg, "head")
+        if os.getenv("DEMO_SEED") == "1":
+            seed_demo()
     elif os.getenv("AUTO_CREATE_SCHEMA", "1") == "1":
         Base.metadata.create_all(engine)
         if os.getenv("DEMO_SEED", "1") == "1":

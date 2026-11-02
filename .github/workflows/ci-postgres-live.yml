@@ -1,0 +1,50 @@
+name: Real PostgreSQL 16 Alembic + booking integration
+
+on:
+  push:
+    paths:
+      - 'API/**'
+      - 'database/database/migrations/**'
+      - '.github/workflows/ci-postgres-live.yml'
+  pull_request:
+    paths:
+      - 'API/**'
+      - 'database/database/migrations/**'
+      - '.github/workflows/ci-postgres-live.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: delta_ci
+          POSTGRES_PASSWORD: DeltaCi_Only_2026
+          POSTGRES_DB: delta_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U delta_ci -d delta_ci"
+          --health-interval 3s --health-timeout 3s --health-retries 15
+    env:
+      DELTA_ENV: staging
+      STAGING_AUTO_MIGRATE: "1"
+      DEMO_SEED: "1"
+      AUTO_CREATE_SCHEMA: "0"
+      DATABASE_URL: postgresql+psycopg://delta_ci:DeltaCi_Only_2026@127.0.0.1:5432/delta_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install backend and migration dependencies
+        run: python -m pip install -r API/requirements.txt pytest httpx
+      - name: Run real PostgreSQL migrations and booking workflow
+        working-directory: API
+        run: python -m scripts.ci_postgres_live
