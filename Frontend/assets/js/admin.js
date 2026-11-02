@@ -177,6 +177,46 @@ function refreshAdminData() {
   AdminState.bookings = (typeof getBookingsData === "function") ? getBookingsData() : [];
   AdminState.payments = (typeof getPaymentsData === "function") ? getPaymentsData() : [];
   AdminState.auditLogs = (typeof getAuditLogsData === "function") ? getAuditLogsData() : [];
+
+  // Đồng bộ hai chiều với Backend API nếu máy chủ đang trực tuyến
+  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.adminGetTours === "function") {
+    DeltaAPI.adminGetTours().then(res => {
+      if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+        const serverTours = res.data.map(st => {
+          let itinerary = [];
+          try { itinerary = JSON.parse(st.itinerary_json || '[]'); } catch (e) {}
+          return {
+            id: st.id,
+            title: st.title,
+            slug: st.slug,
+            region: st.region,
+            regionName: st.region === 'north' ? 'Miền Bắc' : (st.region === 'central' ? 'Miền Trung' : 'Miền Nam'),
+            image: st.image || 'assets/images/halong.png',
+            duration: st.duration,
+            departure: st.departure,
+            transport: st.transport,
+            price: st.price,
+            originalPrice: st.original_price,
+            rating: 5.0,
+            reviewsCount: 100,
+            badge: st.flash_sale ? 'Ưu đãi' : '',
+            availableSeats: 20,
+            status: st.active ? 'ACTIVE' : 'INACTIVE',
+            itinerary: itinerary.length > 0 ? itinerary : [
+              { day: 1, title: 'Khám phá điểm đến', morning: 'Khởi hành', afternoon: 'Tham quan', evening: 'Nghỉ ngơi' }
+            ],
+            inclusions: ['Xe đưa đón', 'Khách sạn/du thuyền', 'Bữa ăn', 'Bảo hiểm'],
+            exclusions: ['Chi phí cá nhân', 'Thuế VAT']
+          };
+        });
+        const existingIds = new Set(serverTours.map(t => t.id));
+        AdminState.tours = [...serverTours, ...AdminState.tours.filter(t => !existingIds.has(t.id))];
+        if (AdminState.currentTab === "tours" || AdminState.currentTab === "dashboard") {
+          renderCurrentTab();
+        }
+      }
+    }).catch(() => {});
+  }
 }
 
 function initRealtimeStorageEvents() {

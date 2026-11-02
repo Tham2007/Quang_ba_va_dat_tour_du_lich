@@ -410,6 +410,14 @@ function handleRegisterSubmit(e) {
 
   // Tự động đăng nhập
   setCurrentUser(newUser);
+  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.register === "function") {
+    DeltaAPI.register({
+      full_name: name,
+      email: email,
+      phone: phone,
+      password: password
+    }).catch(() => {});
+  }
 
   // Đóng modal
   bootstrap.Modal.getInstance(document.getElementById("authModal"))?.hide();
@@ -453,6 +461,9 @@ function handleLoginSubmit(e) {
 
   // Đăng nhập thành công
   setCurrentUser(user);
+  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.login === "function") {
+    DeltaAPI.login(account, password).catch(() => {});
+  }
 
   // Đóng modal
   bootstrap.Modal.getInstance(document.getElementById("authModal"))?.hide();
@@ -527,6 +538,9 @@ function handleForgotSubmit(e) {
  */
 function handleUserLogout() {
   if (confirm("Bạn có chắc chắn muốn đăng xuất tài khoản?")) {
+    if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.logout === "function") {
+      DeltaAPI.logout().catch(() => {});
+    }
     setCurrentUser(null);
     if (typeof showToast === "function") {
       showToast("Bạn đã đăng xuất tài khoản thành công.", "info");

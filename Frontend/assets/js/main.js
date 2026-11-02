@@ -41,6 +41,47 @@ document.addEventListener("DOMContentLoaded", () => {
   updateWishlistCounter();
   initFloatingButtons();
   setMinimumDepartureDate();
+
+  // Kiểm tra sức khỏe Backend API & Đồng bộ tour từ Database server nếu trực tuyến
+  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.checkHealth === "function") {
+    DeltaAPI.checkHealth().then(status => {
+      if (status && status.online && typeof DeltaAPI.fetchTours === "function") {
+        DeltaAPI.fetchTours().then(res => {
+          if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+            const serverTours = res.data.map(st => {
+              let itinerary = [];
+              try { itinerary = JSON.parse(st.itinerary_json || '[]'); } catch (e) {}
+              return {
+                id: st.id,
+                title: st.title,
+                slug: st.slug,
+                region: st.region,
+                regionName: st.region === 'north' ? 'Miền Bắc' : (st.region === 'central' ? 'Miền Trung' : 'Miền Nam'),
+                image: st.image || 'assets/images/halong.png',
+                duration: st.duration,
+                departure: st.departure,
+                transport: st.transport,
+                price: st.price,
+                originalPrice: st.original_price,
+                rating: 5.0,
+                reviewsCount: 120,
+                badge: st.flash_sale ? 'FLASH SALE' : 'TOUR NỔI BẬT',
+                availableSeats: 20,
+                itinerary: itinerary.length > 0 ? itinerary : [
+                  { day: 1, title: 'Hành trình khởi hành', morning: 'Khởi hành theo lịch trình', afternoon: 'Nhận phòng và tham quan', evening: 'Dùng bữa tối và tự do' }
+                ],
+                inclusions: ['Xe đưa đón', 'Khách sạn/du thuyền', 'Bữa ăn theo lịch trình', 'Bảo hiểm du lịch'],
+                exclusions: ['Chi phí cá nhân', 'Thuế VAT']
+              };
+            });
+            const existingIds = new Set(serverTours.map(t => t.id));
+            TOURS_DATA = [...serverTours, ...TOURS_DATA.filter(t => !existingIds.has(t.id))];
+            renderTourCards();
+          }
+        }).catch(() => {});
+      }
+    }).catch(() => {});
+  }
 });
 
 // =============================================================================
@@ -1191,8 +1232,8 @@ function handleBookingSubmission(e) {
   const pricing = calculateOrderPricing();
 
   const isPaid = false;
-  const statusText = "CHỜ THANH TOÁN (PENDING)";
-  const statusCode = "PENDING_PAYMENT";
+  const statusText = "CHỜ THANH TOÁN (DEMO)";
+  const statusCode = "PENDING_DEMO";
 
   // 5. Tạo đối tượng đơn hàng đầy đủ
   const currentUser = (typeof getCurrentUser === "function") ? getCurrentUser() : null;
@@ -1207,7 +1248,7 @@ function handleBookingSubmission(e) {
       fullName,
       phone,
       email,
-      cccd: cccd || "",
+      cccd: "Không thu thập (bản demo)",
       notes: notes || "Không có yêu cầu đặc biệt"
     },
     passengers: {
@@ -1866,6 +1907,11 @@ function handleCustomerConfirmCancel(e) {
     saveBookingsData(bookings);
   } else {
     localStorage.setItem("delta_bookings_v2", JSON.stringify(bookings));
+  }
+
+  // Đồng bộ hủy đơn với Backend API nếu có
+  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.cancelBooking === "function") {
+    DeltaAPI.cancelBooking(bookingId, reason).catch(() => {});
   }
 
   // Đơn demo không giữ chỗ ở database nên không được cộng tồn kho lúc hủy.
