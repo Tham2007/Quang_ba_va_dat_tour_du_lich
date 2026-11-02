@@ -1,0 +1,51 @@
+name: SQL Server 12-table live integration (ephemeral CI)
+
+on:
+  pull_request:
+    paths:
+      - 'database/database/**'
+      - 'API/api/tham_sqlserver_app.py'
+      - 'API/scripts/check_tham_sqlserver.py'
+      - 'API/scripts/ci_sqlserver_e2e.py'
+      - '.github/workflows/ci-sqlserver-live.yml'
+  push:
+    paths:
+      - 'database/database/**'
+      - 'API/api/tham_sqlserver_app.py'
+      - 'API/scripts/check_tham_sqlserver.py'
+      - 'API/scripts/ci_sqlserver_e2e.py'
+      - '.github/workflows/ci-sqlserver-live.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-sqlserver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: "D3lta_Trav3l_CI_Only_2026!"
+          MSSQL_PID: "Developer"
+        ports:
+          - 1433:1433
+    env:
+      DELTA_SQLSERVER_EPHEMERAL: "1"
+      CI_SQLSERVER_HOST: "127.0.0.1"
+      CI_SQLSERVER_SA_PASSWORD: "D3lta_Trav3l_CI_Only_2026!"
+      DELTA_ENV: "test"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Python and SQL Server TDS driver
+        run: |
+          python -m pip install -r API/requirements.txt pytest httpx pymssql
+      - name: Create temporary database, load Tham schema and query real FastAPI
+        working-directory: API
+        run: python -m scripts.ci_sqlserver_e2e
