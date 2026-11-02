@@ -331,3 +331,36 @@ def test_p_admin_tour_crud_soft_delete_preserves_references_and_permissions():
         assert admin_client.delete(
             "/api/v1/admin/tours/DL-DOESNOTEXIST", headers=csrf(admin_client)
         ).status_code == 404
+
+
+def test_q_payment_reference_unique_across_bookings_and_reject_invalid_proof():
+    """A bank transfer reference cannot approve two independent orders."""
+    with TestClient(app) as c:
+        account = reg(c, 701)
+        with SessionLocal.begin() as db:
+            db.scalar(select(User).where(User.email == account["email"])).role = "ADMIN"
+        body = booking_body(c)
+        first = post_booking(c, body)
+        second = post_booking(c, body)
+        assert first.status_code == 201 and second.status_code == 201
+        assert first.json()["id"] != second.json()["id"]
+
+        url1 = "/api/v1/admin/bookings/" + first.json()["id"] + "/confirm-payment"
+        url2 = "/api/v1/admin/bookings/" + second.json()["id"] + "/confirm-payment"
+        ref = "BANK-KTHP-00001"
+        ok = c.post(url1, json={"reference": "  " + ref + "  "}, headers=csrf(c))
+        assert ok.status_code == 200, ok.text
+        assert ok.json()["paid"] is True
+
+        same = c.post(url1, json={"reference": ref}, headers=csrf(c))
+        assert same.status_code == 200, same.text
+
+        duplicate = c.post(url2, json={"reference": ref}, headers=csrf(c))
+        assert duplicate.status_code == 409, duplicate.text
+        assert c.get("/api/v1/bookings/" + second.json()["id"]).json()["paid"] is False
+
+        assert c.post(url2, json={"reference": "         "}, headers=csrf(c)).status_code == 422
+        assert c.post(url2, json={"reference": "BANK-NEW-00002", "paid": True}, headers=csrf(c)).status_code == 422
+        independent = c.post(url2, json={"reference": "BANK-NEW-00002"}, headers=csrf(c))
+        assert independent.status_code == 200, independent.text
+        assert independent.json()["paid"] is True
