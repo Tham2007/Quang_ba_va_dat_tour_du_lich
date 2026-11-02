@@ -110,5 +110,16 @@ def favicon_compat():
     return RedirectResponse("/favicon.svg", status_code=307)
 
 
+# Original An team UI is served on the SAME ORIGIN as /api/v1.
+# /an-live/ keeps its original static demo elements, and adds a separate,
+# explicitly labeled server-backed booking panel (live-api-bridge.js).
+AN_FRONTEND = Path(__file__).resolve().parents[2] / "Frontend"
+if AN_FRONTEND.is_dir():
+    app.mount(
+        "/an-live",
+        StaticFiles(directory=str(AN_FRONTEND), html=True),
+        name="an-original-frontend",
+    )
+
 FRONTEND = Path(__file__).resolve().parents[1] / "frontend"
 app.mount("/", StaticFiles(directory=str(FRONTEND), html=True), name="frontend")
