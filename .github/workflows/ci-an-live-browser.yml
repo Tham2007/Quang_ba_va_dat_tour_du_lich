@@ -1,0 +1,63 @@
+name: An UI + real FastAPI Chromium browser E2E (staging demo DB)
+
+on:
+  pull_request:
+    paths:
+      - 'Frontend/**'
+      - 'API/api/**'
+      - 'API/tests/**'
+      - 'Frontend/tests/an-live-browser.cjs'
+      - '.github/workflows/ci-an-live-browser.yml'
+  push:
+    paths:
+      - 'Frontend/**'
+      - 'API/api/**'
+      - 'API/tests/**'
+      - 'Frontend/tests/an-live-browser.cjs'
+      - '.github/workflows/ci-an-live-browser.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chromium-real-http:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      DELTA_ENV: development
+      DATABASE_URL: sqlite:////tmp/kthp_an_live_browser_ci.db
+      AUTO_CREATE_SCHEMA: '1'
+      DEMO_SEED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install FastAPI and E2E dependencies
+        run: |
+          python -m pip install -r API/requirements.txt httpx
+          npm install --no-save playwright-core@1.56.1
+      - name: Launch real FastAPI HTTP server with a disposable SQLite DB
+        run: |
+          cd API
+          python -m uvicorn api.app:app --host 127.0.0.1 --port 8999 > /tmp/kthp-an-api.log 2>&1 &
+          echo $! > /tmp/kthp-an-api.pid
+          for i in $(seq 1 100); do
+            if curl --silent --fail http://127.0.0.1:8999/api/v1/health/ready >/dev/null; then
+              echo "FastAPI ready"
+              exit 0
+            fi
+            sleep 0.3
+          done
+          cat /tmp/kthp-an-api.log
+          exit 1
+      - name: Check JavaScript syntax
+        run: node --check Frontend/assets/js/live-api-bridge.js
+      - name: Drive An's UI as a real customer in Chromium
+        run: |
+          export CHROME_PATH="$(command -v google-chrome || command -v chromium)"
+          node Frontend/tests/an-live-browser.cjs
