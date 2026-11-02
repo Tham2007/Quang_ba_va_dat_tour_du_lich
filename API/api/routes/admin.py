@@ -160,6 +160,14 @@ def confirm_payment(
                 409,
                 "Đơn không còn chờ thanh toán. Cần xử lý hoàn tiền ngoài hệ thống nếu đã chuyển.",
             )
+        duplicate = db.scalar(
+            select(Booking.id).where(
+                Booking.payment_evidence == body.reference,
+                Booking.id != b.id,
+            ).limit(1)
+        )
+        if duplicate:
+            fail(409, "Mã giao dịch đã được sử dụng cho đơn khác.")
         b.status = "PAID"
         b.payment_evidence = body.reference
         b.payment_confirmed_at = now()
