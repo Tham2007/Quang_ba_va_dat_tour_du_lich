@@ -129,6 +129,11 @@ def make_engine(url=None):
             'Legacy ORM cannot use Tham SQL Server. '
             'Run api.tham_sqlserver_app with THAM_SQLSERVER_URL.'
         )
+    # Render provides postgresql:// URLs; use psycopg v3 consistently.
+    if url.startswith('postgres://'):
+        url = 'postgresql+psycopg://' + url[len('postgres://'):]
+    elif url.startswith('postgresql://'):
+        url = 'postgresql+psycopg://' + url[len('postgresql://'):]
     is_sqlite = url.startswith('sqlite')
     eng = create_engine(url, connect_args={'check_same_thread': False, 'timeout': 30} if is_sqlite else {},
                         pool_pre_ping=True)
