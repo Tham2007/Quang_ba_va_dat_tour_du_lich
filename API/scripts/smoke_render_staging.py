@@ -33,6 +33,21 @@ def main():
         check("Staging:" in page, "Staging banner not deployed")
         print("PASS frontend HTML + JS + CSS from FastAPI")
 
+        # An's original design is now served by the SAME HTTPS origin as
+        # the real backend; a dedicated panel, not the legacy localStorage
+        # buttons, invokes server-authenticated API endpoints.
+        for route in [
+            "/an-live/", "/an-live/admin.html",
+            "/an-live/assets/js/live-api-bridge.js",
+        ]:
+            response = c.get(route)
+            check(response.status_code == 200, f"{route} HTTP {response.status_code}")
+        an_html = c.get("/an-live/").text
+        check("live-api-bridge.js" in an_html, "An frontend lacks the real API integration")
+        check("credentials:" in c.get("/an-live/assets/js/live-api-bridge.js").text,
+              "Expected same-origin credential-aware HTTP client")
+        print("PASS live Render serves An UI, Admin HTML and authenticated API bridge on one origin")
+
         r = c.get("/api/v1/tours")
         check(r.status_code == 200, f"tour list HTTP {r.status_code}")
         tours = r.json()
