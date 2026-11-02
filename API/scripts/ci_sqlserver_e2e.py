@@ -97,8 +97,60 @@ def main():
             # Seed script disables and re-enables booking trigger, so it must exist.
             scripts / "04_programmability/01_triggers_booking_inventory.sql",
             scripts / "05_seed_data/01_sample_data_realistic.sql",
+            scripts / "04_programmability/02_stored_procedures_booking.sql",
         ):
             execute_script(conn, path)
+
+        # Execute a real booking through Tham's stored procedure and verify
+        # that its INSERT trigger holds seats once, then cancellation returns once.
+        with conn.cursor() as cur:
+            cur.execute("SELECT SoChoDaDat FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=5")
+            seats_before = cur.fetchone()[0]
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                DECLARE @new_id INT;
+                EXEC dbo.sp_TaoDonDatTour
+                    @MaKhachHang=%s,
+                    @MaChuyen=%s,
+                    @SoLuongKhach=%s,
+                    @HoTenTruongDoan=%s,
+                    @SoDienThoai=%s,
+                    @MaDatTourMoi=@new_id OUTPUT;
+                SELECT @new_id AS CreatedBookingId;
+                """,
+                (4, 5, 2, "CI Test Customer", "0912345678"),
+            )
+            created_id = None
+            while True:
+                if cur.description:
+                    for row in cur.fetchall():
+                        if len(row) == 1 and isinstance(row[0], int):
+                            created_id = row[0]
+                if not cur.nextset():
+                    break
+            if not created_id:
+                raise AssertionError("Booking stored procedure returned no generated ID")
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT SoChoDaDat FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=5"
+            )
+            after_booking = cur.fetchone()[0]
+            if after_booking != seats_before + 2:
+                raise AssertionError("Booking trigger must hold exactly two seats")
+            cur.execute(
+                "EXEC dbo.sp_HuyDonDatTour @MaDatTour=%s, @MaNguoiYeuCau=%s, @LyDoHuy=%s",
+                (created_id, 4, "CI test cancellation"),
+            )
+            while cur.nextset():
+                pass
+            cur.execute(
+                "SELECT SoChoDaDat FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=5"
+            )
+            after_cancel = cur.fetchone()[0]
+            if after_cancel != seats_before:
+                raise AssertionError("Cancel trigger must restore exactly two seats")
+        print("PASS: SQL Server stored procedures BOOK and CANCEL, inventory holds/restores exactly once")
 
         engine = create_engine(
             f"mssql+pymssql://sa:{quote_plus(password)}@{host}:1433/{DB_NAME}",
