@@ -1,4 +1,5 @@
 """Database session, authentication, CSRF and audit helpers."""
+
 import json
 import uuid
 from datetime import datetime, timedelta, timezone

@@ -1,4 +1,5 @@
 """Booking pricing, expiry and response mapping."""
+
 from sqlalchemy import select
 from api.models import Booking, Schedule, now
 from api.core import iso, fail
@@ -20,6 +21,7 @@ def sweep(db):
         b.status = "EXPIRED"
     return len(expired)
 
+
 def totals(price, adults, children, infants):
     return (
         price * adults
@@ -27,11 +29,13 @@ def totals(price, adults, children, infants):
         + ((price * 10 + 50) // 100) * infants
     )
 
+
 def check_people(adults, children, infants):
     seats = adults + children + infants
     if seats > 20:
         fail(422, "Tối đa 20 hành khách mỗi đơn.")
     return seats
+
 
 def booking_dict(b):
     return {

@@ -1,4 +1,5 @@
 """Password verification remains server-side."""
+
 from api.core.security import verify_password
 
 

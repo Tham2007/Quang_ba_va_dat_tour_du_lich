@@ -17,7 +17,12 @@ def tours(
     max_price: int | None = None,
     db: Session = Depends(db_session),
 ):
-    return [public_tour(t) for t in list_public_tours(db, q=q, region=region, flash=flash, max_price=max_price)]
+    return [
+        public_tour(t)
+        for t in list_public_tours(
+            db, q=q, region=region, flash=flash, max_price=max_price
+        )
+    ]
 
 
 def tour_one(tour_id: str, db: Session = Depends(db_session)):

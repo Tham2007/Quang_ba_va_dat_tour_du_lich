@@ -1,7 +1,9 @@
 """Domain-scoped Pydantic contracts."""
+
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from ._validators import email_ok
+
 
 class Signup(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
@@ -22,6 +24,7 @@ class Signup(BaseModel):
             raise ValueError("Họ tên phải có ít nhất 2 ký tự.")
         return v
 
+
 class Login(BaseModel):
     email: str
     password: str
@@ -31,10 +34,12 @@ class Login(BaseModel):
     def valid_email(cls, v):
         return email_ok(v)
 
+
 class ProfilePatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
     full_name: str | None = Field(default=None, min_length=2, max_length=120)
     phone: str | None = Field(default=None, pattern=r"^0[35789][0-9]{8}$")
+
 
 class ChangePassword(BaseModel):
     old_password: str

@@ -1,4 +1,5 @@
 """Environment and session settings."""
+
 import os
 
 ENV = os.getenv("DELTA_ENV", "development")

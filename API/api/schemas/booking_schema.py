@@ -1,7 +1,9 @@
 """Domain-scoped Pydantic contracts."""
+
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from ._validators import email_ok
+
 
 class BookingInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -31,12 +33,14 @@ class BookingInput(BaseModel):
     def non_neg(cls, v):
         return v
 
+
 class QuoteInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     schedule_id: str
     adults: int = Field(ge=1, le=20)
     children: int = Field(ge=0, le=20)
     infants: int = Field(ge=0, le=20)
+
 
 class PaymentEvidence(BaseModel):
     model_config = ConfigDict(extra="forbid")

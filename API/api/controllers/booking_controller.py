@@ -8,7 +8,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from api.core import HOLD_MINUTES, db_session, fail, me, new_id, utc
 from api.services.booking_service import totals, check_people, sweep, booking_dict
-from api.repositories.booking_repository import find_by_idempotency, lock_booking_for_owner
+from api.repositories.booking_repository import (
+    find_by_idempotency,
+    lock_booking_for_owner,
+)
 from api.repositories.schedule_repository import lock_schedule
 from api.models import Booking, Schedule, Tour, lock_writes, now
 from api.schemas import QuoteInput, BookingInput

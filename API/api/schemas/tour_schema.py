@@ -1,6 +1,8 @@
 """Domain-scoped Pydantic contracts."""
+
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator, ConfigDict
+
 
 class TourPatch(BaseModel):
     title: str | None = Field(default=None, min_length=3, max_length=255)
@@ -9,6 +11,7 @@ class TourPatch(BaseModel):
     description: str | None = Field(default=None, max_length=6000)
     active: bool | None = None
     flash_sale: bool | None = None
+
 
 class TourCreate(TourPatch):
     id: str = Field(pattern=r"^DL-[A-Z0-9]{2,20}$")
@@ -22,6 +25,7 @@ class TourCreate(TourPatch):
     transport: str = Field(min_length=2, max_length=255)
     image: str = Field(default="", max_length=1200)
 
+
 class ScheduleCreate(BaseModel):
     tour_id: str
     departure_at: datetime
@@ -33,6 +37,7 @@ class ScheduleCreate(BaseModel):
         if v.tzinfo is None:
             raise ValueError("departure_at must have UTC offset")
         return v
+
 
 class SchedulePatch(BaseModel):
     total_seats: int | None = Field(default=None, ge=1, le=10000)

@@ -1,4 +1,5 @@
 """Tour and schedule serializers."""
+
 from api.core import iso
 
 
@@ -18,6 +19,7 @@ def public_tour(t):
         "isFlashSale": t.flash_sale,
         "updatedAt": iso(t.updated_at),
     }
+
 
 def availability(s):
     return {

@@ -1,5 +1,7 @@
 """Shared input validators."""
+
 import re
+
 
 def email_ok(v):
     v = v.strip().lower()
