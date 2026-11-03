@@ -1,32 +1,37 @@
 # Kiến trúc và sơ đồ mã nguồn Delta Travel
 
-Cập nhật 28/10/2026. Tài liệu này mô tả **mã có thật trong repo** và trách nhiệm từng thư mục; không coi phần tích hợp chưa được xác minh là đã xong.
+Cập nhật 03/11/2026. Tài liệu này mô tả **mã có thật trong repo** và trách nhiệm từng thư mục; không coi phần tích hợp chưa được xác minh là đã xong.
 
 ## 1. Ba thành phần độc lập cần phân biệt
 
-### A. Demo FastAPI có xác thực — `API/api/app.py`
+### A. FastAPI demo theo kiến trúc MVC mở rộng (`API/api/app.py`)
 
 ```text
-Browser → API/frontend/ → app.py
-                            ├─ routes/auth.py      → core.py     → models.py (SQLite demo)
-                            ├─ routes/tours.py     → logic.py    → models.py (SQLite demo)
-                            ├─ routes/bookings.py  → logic.py    → models.py (SQLite demo)
-                            ├─ routes/admin.py     → core.py     → models.py (SQLite demo)
-                            └─ routes/assistant.py              → models.py (SQLite demo)
+Browser → app.py → routes/ → controllers/ → services/ → repositories/
+                                    ↓            ↓                ↓
+                                   schemas/     core/           models/
+                                                        SQLite/PostgreSQL schema demo
 ```
 
-Trong `API/api/`:
-- **`app.py`** chỉ làm composition root: lifespan, security headers, error handler, routes, static mount. Không đặt nghiệp vụ mới vào đây.
-- **`routes/`** là lớp HTTP; giữ request/response, DB transaction và authorization. Một endpoint thuộc đúng một router. Tạo route mới theo module liên quan.
-- **`schemas.py`** chỉ mô tả input/validation Pydantic; không mở kết nối DB.
-- **`core.py`** giữ session, CSRF, admin dependency, định dạng thời gian, audit, config demo.
-- **`logic.py`** giữ phép tính giá, tồn chỗ, expire và serializer dùng chung; tránh tạo lại code này trong từng router.
-- **`models.py`** là SQLAlchemy ORM demo với bảng tên `users,tours,schedules,bookings,...`. Không dùng nó để migrate SQL Server 12 bảng.
-- **`security.py`** mật khẩu/token/rate limits; `seed.py` dữ liệu giả local.
+**Phân lớp đã triển khai trong repo:**
 
-Startup demo từ `API/`:
+- `api/app.py`: ghép FastAPI, lifespan, middleware, static mount. Không đặt nghiệp vụ vào đây.
+- `api/routes/`: chỉ đăng ký URL, HTTP method, status code; không chứa handler nghiệp vụ.
+- `api/controllers/`: handler FastAPI, validation/dependency injection, ủy quyền thao tác, sở hữu transaction cần thiết.
+- `api/services/`: quy tắc giá, hết hạn giữ chỗ, chuyển đổi DTO và kiểm tra mã thanh toán.
+- `api/repositories/`: các truy vấn ORM dùng SQLAlchemy Session truyền vào.
+- `api/models/`: 7 ORM entity với một `Base.metadata`; tương ứng schema SQLite/PostgreSQL hiện hành.
+- `api/schemas/`: Pydantic DTO/validation theo miền nghiệp vụ.
+- `api/core/`: auth cookie, session, CSRF, cấu hình, mật khẩu và rate limit.
+- `api/logic.py` và `api/security.py`: module tương thích cho mã cũ; logic thật nằm trong services/core.
+
+Đây là **MVC mở rộng bằng Service/Repository**, không thay DBMS. Không cần rename tên bảng hay chạy migration chỉ vì chuyển vị trí lớp. `api.app:app`, cookie, URL `/api/v1` và contract vẫn giữ nguyên.
+
+Từ `API/`:
+
 ```powershell
 py -3 -m uvicorn api.app:app --host 127.0.0.1 --port 8000
+py -3 -m pytest -q tests/test_api.py tests/test_architecture.py tests/test_mvc_structure.py
 ```
 
 ### B. Adapter đọc SQL Server Thắm — `API/api/tham_sqlserver_app.py`
@@ -46,7 +51,7 @@ Phải có `THAM_SQLSERVER_URL` tới DB test và tài khoản chỉ SELECT; xem
 
 ### C. Frontend chính thức của An — `Frontend/`
 
-Đã đồng bộ frontend do An cung cấp từ `Anniehatani/deltatrdelt2.0` vào `Frontend/` (HTML/CSS/JS, `index.html`, `admin.html`, ảnh tour). **Đây vẫn là DEMO localStorage**, chưa được tích hợp thực tế với FastAPI hoặc SQL Server. Giao diện thử nghiệm riêng của backend vẫn nằm trong `API/frontend/`. Chi tiết chạy và cảnh báo: `Frontend/README.md`.
+Frontend của An được nhóm tổ chức lại thành `assets/js/controllers/`, `assets/js/models/`, `assets/js/services/`. Các nút giao diện cũ vẫn là **DEMO localStorage**; bảng API tách biệt ở `/an-live/` có luồng đặt/hủy qua FastAPI với database demo SQLite. Chưa kết nối chức năng ghi đơn vào SQL Server 12 bảng của Thắm. Giao diện thử nghiệm riêng của backend vẫn nằm trong `API/frontend/`. Chi tiết chạy và cảnh báo: `Frontend/README.md`.
 
 Frontend không được tin dữ liệu `PAID`, giá hoặc tồn chỗ tự tính từ localStorage. Cần API backend đã kết nối DB thật, cookie/CSRF/origin thống nhất, thông báo lỗi rõ ràng và sanitize HTML không tin cậy.
 

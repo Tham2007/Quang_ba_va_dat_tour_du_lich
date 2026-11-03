@@ -2,6 +2,10 @@
 
 **Status:** runnable academic demo, **NOT** production-certified online tour sales. Companion code for `https://github.com/Anniehatani/deltatrdelt2.0`, which is currently a static HTML/CSS/JS app. This ZIP is a separate delivery since the connected GitHub user has read-only access to An's repository.
 
+## MVC extended layout (refactored 03/11/2026)
+
+FastAPI still runs as `api.app:app`; HTTP registration is in `api/routes/`, controllers in `api/controllers/`, domain services in `api/services/`, SQLAlchemy queries in `api/repositories/`, entity classes in `api/models/`, request DTOs in `api/schemas/`, and session/security configuration in `api/core/`. Existing APIs, DB tables, cookies and transaction behavior are preserved. This is not SQL Server booking integration. See `docs/MVC_REFACTOR_20261103.md`.
+
 ## Setup (Windows PowerShell / Linux / macOS)
 
 Install Python 3.11 or later. Extract ZIP, enter project directory and run:

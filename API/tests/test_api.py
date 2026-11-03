@@ -385,7 +385,7 @@ def test_r_an_original_frontend_served_on_same_origin_as_fastapi():
     with TestClient(app) as c:
         html = c.get("/an-live/")
         assert html.status_code == 200
-        assert "assets/js/live-api-bridge.js" in html.text
+        assert "assets/js/services/live-api-bridge.js" in html.text
         admin = c.get("/an-live/admin.html")
         assert admin.status_code == 200
         assert "assets/js/live-api-bridge.js" in admin.text
