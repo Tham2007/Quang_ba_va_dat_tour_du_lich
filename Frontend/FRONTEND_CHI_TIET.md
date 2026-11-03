@@ -135,7 +135,7 @@ Frontend/
 
 ## 4. TẦNG KẾT NỐI API & DATABASE (API CLIENT LAYER)
 
-Tệp `assets/js/api.js` cung cấp đối tượng toàn cục `DeltaAPI` với cơ chế **Hybrid Two-Way Fallback**:
+Tệp `assets/js/services/api.js` cung cấp đối tượng toàn cục `DeltaAPI` với cơ chế **Hybrid Two-Way Fallback**:
 - Khi FastAPI Backend đang chạy tại `http://localhost:8000/api/v1` (hoặc cùng máy chủ production), Frontend tự động gửi và nhận dữ liệu trực tiếp tới Database (PostgreSQL / SQLite).
 - Khi Backend chưa được khởi động, Frontend chuyển tiếp mượt mà sang tầng Persistent LocalStorage mà không gây lỗi hoặc gián đoạn trải nghiệm người dùng.
 
@@ -198,7 +198,7 @@ const booking = await DeltaAPI.createBooking(bookingPayload);
 3. **Dữ liệu mầm (Seed Data)**:
    - **Hiện tại**: Tệp `API/api/seed.py` mới chỉ tạo 6 tour cơ bản.
    - **Frontend**: Đã có 16 tour đầy đủ thông tin chuẩn thương mại bao gồm miền Bắc (Hạ Long, Sa Pa, Ninh Bình, Hà Giang, Cao Bằng, Mộc Châu), miền Trung (Đà Nẵng, Huế, Nha Trang, Quy Nhơn, Phú Yên, Đà Lạt), và miền Nam/Đảo (Phú Quốc, Miền Tây, Tây Ninh, Côn Đảo).
-   - **Khuyến nghị**: Backend chạy cập nhật seed từ danh sách `DEFAULT_TOURS` trong `Frontend/assets/js/data.js` để dữ liệu hai bên khớp nhau 100%.
+   - **Khuyến nghị**: Backend chạy cập nhật seed từ danh sách `DEFAULT_TOURS` trong `Frontend/assets/js/models/data.js` để dữ liệu hai bên khớp nhau 100%.
 
 4. **API Mã Khuyến Mãi (Vouchers)**:
    - **Hiện tại**: Backend chưa có bảng `vouchers` và endpoint `/api/v1/vouchers`. Việc giảm giá đang được tính toán theo payload gửi lên của quote.
@@ -223,9 +223,8 @@ const booking = await DeltaAPI.createBooking(bookingPayload);
    cd API
    python -m uvicorn api.app:app --reload --port 8000
    ```
-2. Mở trình duyệt truy cập `Frontend/index.html`. File `assets/js/api.js` sẽ tự động phát hiện backend đang hoạt động tại cổng 8000 và chuyển sang kết nối trực tiếp với Database.
+2. Mở trình duyệt truy cập `Frontend/index.html`. File `assets/js/services/api.js` sẽ tự động phát hiện backend đang hoạt động tại cổng 8000 và chuyển sang kết nối trực tiếp với Database.
 
 ---
 
 *Tài liệu được lập và xác thực toàn diện bởi Nhóm Phát Triển Delta Travel.*
-

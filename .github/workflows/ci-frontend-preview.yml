@@ -31,7 +31,7 @@ jobs:
       - name: Validate all JavaScript syntax
         run: |
           set -euo pipefail
-          for file in Frontend/assets/js/*.js; do node --check "$file"; done
+          find Frontend/assets/js -type f -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Validate HTML/CSS asset references
         run: python API/scripts/check_static_assets.py Frontend
       - name: No fake paid or card/CVV capture in static prototype
@@ -46,7 +46,7 @@ jobs:
             if curl --silent --fail http://127.0.0.1:8765/ >/dev/null; then break; fi
             sleep 0.2
           done
-          for path in / /index.html /admin.html /assets/js/main.js /assets/js/admin.js /assets/css/admin.css /assets/images/hero-bg.png /favicon_logo_delta.png; do
+          for path in / /index.html /admin.html /assets/js/controllers/main.js /assets/js/controllers/admin.js /assets/css/admin.css /assets/images/hero-bg.png /favicon_logo_delta.png; do
             curl --silent --show-error --fail --output /dev/null "http://127.0.0.1:8765$path"
             echo "OK $path"
           done

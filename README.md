@@ -9,41 +9,49 @@ Hệ thống giới thiệu tour trong nước, lịch khởi hành, quản lý 
 
 | Thành phần | Đường dẫn | Hiện trạng |
 |---|---|---|
-| FastAPI demo của Mạnh | [`API/api/`](API/api/) | Backend chạy với SQLite demo; đã tách thành các module auth/tours/bookings/admin/assistant |
+| FastAPI demo của Mạnh | [`API/api/`](API/api/) | Backend SQLite/PostgreSQL demo, refactor MVC mở rộng với routes/controllers/services/repositories |
 | Giao diện demo đi kèm backend | [`API/frontend/`](API/frontend/) | Giao diện thử API, **không phải** frontend An bàn giao |
 | API đọc SQL Server 12 bảng | [`API/api/tham_sqlserver_app.py`](API/api/tham_sqlserver_app.py) | **Đã thử với SQL Server 2022 thật trong CI ephemeral**; đọc dữ liệu OK, ghi qua HTTP API cố ý 503, chưa có SQL Server host bền vững |
-| Frontend của An | [`Frontend/`](Frontend/) | Giao diện gốc có **bảng API thật** ở `/an-live/` (đăng ký/đặt/hủy server-side); các nút giao diện cũ vẫn localStorage demo. Chromium E2E đạt |
+| Frontend của An | [`Frontend/`](Frontend/) | Giao diện Vanilla JS chia controllers/models/services, có **bảng API thật** ở `/an-live/` (đăng ký/đặt/hủy server-side); các nút giao diện cũ vẫn localStorage demo. Chromium E2E đạt |
 | Thiết kế database của Thắm | [`database/`](database/) | **12 bảng T-SQL chạy đạt trên SQL Server 2022 thật CI**; SP đặt/hủy, 20 người tranh 1 chỗ chỉ 1 thành công. Chưa host SQL Server lâu dài |
 | Yêu cầu và quyết định | [`docs/`](docs/) | SRS, 20 use cases, API contract, ADR đang chờ thống nhất |
 
-### Cấu trúc dự án
+### Cấu trúc dự án theo MVC mở rộng
 
 ```text
 .
-├── .github/workflows/              # CI: SQLite, SQL Server 2022, PostgreSQL 16, Chromium, real HTTPS
+├── .github/workflows/             # CI: SQLite, SQL Server, PostgreSQL, Chromium
 ├── API/
 │   ├── api/
-│   │   ├── app.py                  # Lắp ráp ứng dụng demo và mount UI
-│   │   ├── core.py                 # Session, CSRF, phân quyền, shared utilities
-│   │   ├── schemas.py              # Pydantic request validation
-│   │   ├── logic.py                # Quy tắc tính giá/tồn chỗ và response mapping
-│   │   ├── models.py               # ORM demo (KHÔNG dùng cho SQL Server của Thắm)
-│   │   ├── security.py             # Mật khẩu, token, rate limiting
-│   │   ├── routes/
-│   │   │   ├── auth.py             # Đăng nhập, hồ sơ, yêu thích
-│   │   │   ├── tours.py            # Tour và lịch khởi hành
-│   │   │   ├── bookings.py         # Báo giá, tạo/xem/hủy đơn
-│   │   │   ├── admin.py            # Các API quản trị
-│   │   │   └── assistant.py        # Hỏi đáp tour theo quy tắc
-│   │   └── tham_sqlserver_app.py   # Adapter SQL Server đọc-only, tách biệt
-│   ├── frontend/                   # UI thử nghiệm do backend phục vụ
-│   ├── scripts/                    # Check schema và static assets
-│   ├── tests/                      # Backend regression/mock contracts
-│   └── docs/                       # Hướng dẫn API, test, release gates
-├── Frontend/                       # Giao diện demo An: index.html + admin.html + CSS/JS/assets
-├── database/                       # Thắm: thiết kế và script database
-└── docs/                           # SRS, ADR, phân công và truy vết
+│   │   ├── app.py                 # Composition root, giữ nguyên uvicorn api.app:app
+│   │   ├── routes/                # Khai báo URL và HTTP methods
+│   │   ├── controllers/           # auth, tour, booking, admin, assistant
+│   │   ├── services/              # Nghiệp vụ, giá, tồn chỗ, payment evidence
+│   │   ├── repositories/          # Truy vấn ORM với SQLAlchemy Session
+│   │   ├── models/                # 7 ORM entities, Base chung
+│   │   ├── schemas/               # Pydantic input contracts
+│   │   ├── core/                  # security, session, config
+│   │   ├── logic.py               # Compatibility import cho code cũ
+│   │   ├── security.py            # Compatibility import cho code cũ
+│   │   └── tham_sqlserver_app.py  # SQL Server 12 bảng, adapter chỉ đọc
+│   ├── frontend/                  # UI API demo riêng
+│   ├── tests/                     # Regression và MVC architecture tests
+│   └── scripts/
+├── Frontend/
+│   ├── index.html
+│   ├── admin.html
+│   └── assets/
+│       ├── css/
+│       ├── images/
+│       └── js/
+│           ├── controllers/       # main, admin, auth, chatbot
+│           ├── models/            # data
+│           └── services/          # api, live-api-bridge
+├── database/database/            # T-SQL 12 bảng + PostgreSQL Alembic demo
+└── docs/                         # SRS, ADR, giải thích kiến trúc
 ```
+
+**Lưu ý:** MVC ở đây là cách tổ chức mã, không đồng nghĩa mọi thành phần đã dùng chung SQL Server. `api.app` vẫn chạy DB SQLite/PostgreSQL theo schema demo. Adapter SQL Server riêng hiện chỉ đọc, API ghi booking trả 503. Xem [giải thích các tầng MVC](API/docs/MVC_REFACTOR_20261103.md).
 
 ## Chạy nhanh backend demo
 

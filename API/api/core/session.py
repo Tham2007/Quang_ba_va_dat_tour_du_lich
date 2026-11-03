@@ -1,19 +1,13 @@
-"""Authentication dependencies, security helpers and shared session settings."""
+"""Database session, authentication, CSRF and audit helpers."""
 
 import json
-import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from api.models import SessionLocal, User, SessionToken, Audit, now
-from api.security import random_token, token_hash
-
-ENV = os.getenv("DELTA_ENV", "development")
-SECURE_COOKIE = ENV in ("staging", "production")
-SESSION_NAME = "delta_session"
-CSRF_NAME = "delta_csrf"
-HOLD_MINUTES = 15
+from .config import SECURE_COOKIE, SESSION_NAME, CSRF_NAME
+from .security import random_token, token_hash
 
 
 def utc(dt):

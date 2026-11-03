@@ -36,15 +36,20 @@ def main():
         # An's original design is now served by the SAME HTTPS origin as
         # the real backend; a dedicated panel, not the legacy localStorage
         # buttons, invokes server-authenticated API endpoints.
-        for route in [
-            "/an-live/", "/an-live/admin.html",
-            "/an-live/assets/js/live-api-bridge.js",
-        ]:
+        for route in ["/an-live/", "/an-live/admin.html"]:
             response = c.get(route)
             check(response.status_code == 200, f"{route} HTTP {response.status_code}")
         an_html = c.get("/an-live/").text
         check("live-api-bridge.js" in an_html, "An frontend lacks the real API integration")
-        check("credentials:" in c.get("/an-live/assets/js/live-api-bridge.js").text,
+        # Keep the live HTTPS smoke compatible with both pre-MVC and post-MVC Render.
+        bridge_path = (
+            "/an-live/assets/js/services/live-api-bridge.js"
+            if 'src="assets/js/services/live-api-bridge.js"' in an_html
+            else "/an-live/assets/js/live-api-bridge.js"
+        )
+        bridge = c.get(bridge_path)
+        check(bridge.status_code == 200, f"{bridge_path} HTTP {bridge.status_code}")
+        check("credentials:" in bridge.text,
               "Expected same-origin credential-aware HTTP client")
         print("PASS live Render serves An UI, Admin HTML and authenticated API bridge on one origin")
 
