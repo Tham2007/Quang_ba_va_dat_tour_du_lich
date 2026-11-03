@@ -56,7 +56,7 @@ jobs:
           cat /tmp/kthp-an-api.log
           exit 1
       - name: Check JavaScript syntax
-        run: node --check Frontend/assets/js/live-api-bridge.js
+        run: node --check Frontend/assets/js/services/live-api-bridge.js
       - name: Drive An's UI as a real customer in Chromium
         run: |
           export CHROME_PATH="$(command -v google-chrome || command -v chromium)"

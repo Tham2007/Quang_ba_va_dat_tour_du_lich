@@ -11,8 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 def main() -> int:
     index = (ROOT / "index.html").read_text(encoding="utf-8")
     admin = (ROOT / "admin.html").read_text(encoding="utf-8")
-    js = (ROOT / "assets/js/main.js").read_text(encoding="utf-8")
-    auth = (ROOT / "assets/js/auth.js").read_text(encoding="utf-8")
+    js = (ROOT / "assets/js/controllers/main.js").read_text(encoding="utf-8")
+    auth = (ROOT / "assets/js/controllers/auth.js").read_text(encoding="utf-8")
     errors = []
 
     for name, source in (("index", index), ("admin", admin)):
