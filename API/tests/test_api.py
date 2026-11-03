@@ -388,8 +388,8 @@ def test_r_an_original_frontend_served_on_same_origin_as_fastapi():
         assert "assets/js/services/live-api-bridge.js" in html.text
         admin = c.get("/an-live/admin.html")
         assert admin.status_code == 200
-        assert "assets/js/live-api-bridge.js" in admin.text
-        bridge = c.get("/an-live/assets/js/live-api-bridge.js")
+        assert "assets/js/services/live-api-bridge.js" in admin.text
+        bridge = c.get("/an-live/assets/js/services/live-api-bridge.js")
         assert bridge.status_code == 200
         assert "javascript" in bridge.headers.get("content-type", "").lower()
         assert '"/api/v1"' in bridge.text
