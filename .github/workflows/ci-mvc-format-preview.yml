@@ -1,0 +1,35 @@
+name: MVC format preview for refactor branch
+on:
+  push:
+    branches:
+      - refactor/mvc-fastapi-frontend-20261103
+    paths:
+      - '.github/workflows/ci-mvc-format-preview.yml'
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install ruff==0.14.0
+      - name: Generate canonical formatting as log-only review output
+        run: |
+          python -m ruff format API/api/logic.py API/api/core/ API/api/schemas/ API/api/routes/ API/api/controllers/ API/api/services/ API/api/repositories/ API/api/models/ API/api/security.py
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          targets = ("core", "schemas", "routes", "controllers", "services", "repositories", "models")
+          paths = [Path("API/api/logic.py"), Path("API/api/security.py")]
+          for name in targets:
+              paths.extend(sorted((Path("API/api") / name).glob("*.py")))
+          for path in paths:
+              value = path.read_text(encoding="utf-8")
+              for n in range(0, len(value), 600):
+                  print("MVCFMT " + path.as_posix() + " " + str(n//600) + " " + json.dumps(value[n:n+600], ensure_ascii=True))
+              print("MVCFMT_END " + path.as_posix() + " " + str((len(value)+599)//600))
+          PY
