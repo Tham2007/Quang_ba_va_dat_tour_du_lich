@@ -15,6 +15,9 @@ import re
 import secrets
 import uuid
 from datetime import datetime
+from collections import defaultdict, deque
+from threading import Lock
+from time import monotonic
 from decimal import Decimal
 from typing import Annotated
 
@@ -27,6 +30,25 @@ router = APIRouter()
 _SESSION = "delta_session"
 _CSRF = "delta_csrf"
 _SECURE = os.getenv("DELTA_ENV") in ("staging", "production")
+
+_RATE = defaultdict(deque)
+_RATE_LOCK = Lock()
+
+
+def _throttle(request: Request, scope: str, limit: int, window: int = 60):
+    # Basic staging safeguard. A distributed rate limiter is required for
+    # multiple Render instances and any publicly accessible production API.
+    ip = request.client.host if request.client else "unknown"
+    key = (scope, ip)
+    timestamp = monotonic()
+    with _RATE_LOCK:
+        dq = _RATE[key]
+        while dq and dq[0] <= timestamp - window:
+            dq.popleft()
+        if len(dq) >= limit:
+            _fail(429, "Quá nhiều yêu cầu. Vui lòng thử lại sau.")
+        dq.append(timestamp)
+
 
 
 def _engine():
@@ -171,7 +193,7 @@ def _booking_record(row) -> dict:
     if amount != amount.to_integral_value():
         _fail(503, "Số tiền VND trong database không hợp lệ.")
     seats = int(row["SoLuongKhach"])
-    paid = row["TrangThaiThanhToan"] != "Chưa thanh toán"
+    paid = row["TrangThaiThanhToan"] in ("Đã cọc", "Đã thanh toán")
     states = {"Chờ xác nhận": "PENDING_PAYMENT", "Đã xác nhận": "CONFIRMED",
               "Đã hoàn thành": "COMPLETED", "Đã hủy": "CANCELLED"}
     return {
@@ -185,22 +207,25 @@ def _booking_record(row) -> dict:
         "paid": paid,
         "createdAt": row["NgayDat"].isoformat(timespec="seconds"),
         "storage": "sqlserver",
+        "tourTitle": row["TenTour"],
     }
 
 
 _BOOKING_SELECT = """
     SELECT d.MaDatTour, d.MaKhachHang, d.MaChuyen, d.NgayDat, d.SoLuongKhach,
            d.TongTien, d.TrangThaiDat, d.TrangThaiThanhToan,
-           c.NgayKhoiHanh,
+           c.NgayKhoiHanh, t.TenTour,
            CASE WHEN c.NgayKhoiHanh > DATEADD(hour,72,GETDATE()) THEN 1 ELSE 0 END AS ConHon72h
     FROM dbo.DATTOUR d
     JOIN dbo.CHUYENKHOIHANH c ON d.MaChuyen = c.MaChuyen
+    JOIN dbo.TOUR t ON c.MaTour = t.MaTour
 """
 
 
 @router.post("/api/v1/auth/register", status_code=201)
 def register(body: Register, request: Request, response: Response):
     # Registration is for synthetic staging accounts only.
+    _throttle(request, "register", 5)
     try:
         with _engine().begin() as conn:
             row = conn.execute(text("""
@@ -219,6 +244,7 @@ def register(body: Register, request: Request, response: Response):
 
 @router.post("/api/v1/auth/login")
 def login(body: Login, request: Request, response: Response):
+    _throttle(request, "login", 10)
     try:
         with _engine().begin() as conn:
             row = conn.execute(text("""

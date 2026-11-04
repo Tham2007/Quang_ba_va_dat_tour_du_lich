@@ -284,3 +284,18 @@ else:
     def blocked_writes():
         raise HTTPException(503, "Chức năng ghi đơn/thanh toán chưa được duyệt và tích hợp an toàn.")
 
+
+# Optional SQL Server same-origin An UI preview. Without opt-in this remains
+# the existing read-only catalog API, with no change to static routing.
+if os.environ.get("THAM_SERVE_AN_UI") == "1":
+    from pathlib import Path
+    from fastapi.staticfiles import StaticFiles
+    source = Path(__file__).resolve()
+    for parent in (source.parents[2], source.parents[1]):
+        frontend = parent / "Frontend"
+        if frontend.is_dir():
+            app.mount("/an-live", StaticFiles(directory=str(frontend), html=True),
+                      name="an-sqlserver-ui")
+            break
+    else:
+        raise RuntimeError("THAM_SERVE_AN_UI=1 requires the Frontend/ directory in the image")

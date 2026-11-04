@@ -1,6 +1,6 @@
 # Delta Travel SQL Server writes: isolated staging handoff
 
-**Status: FEATURE BRANCH, needs DB migration and CI verification.** This is not a claim that live Render has write access. Do not use actual identities, transactions or bank data.
+**Status: FEATURE BRANCH, SQL Server 2022 ephemeral CI verified. Live migration and deployment not yet verified.** This is not a claim that live Render has write access. Do not use actual identities, transactions or bank data.
 
 ## Prerequisites
 
@@ -27,6 +27,12 @@ Apply only after DBA verifies Azure/SmarterASP capabilities. Avoid `sa` / dbo / 
 
 ## Verification
 
-SQL Server 2022 ephemeral CI should create a disposable database and apply the migration after original scripts, then run register/auth -> create -> duplicate replay -> cancel -> restore -> IDOR/CSRF and concurrent inventory tests. No such CI proves live SmarterASP.net writes without a separate staging run.
+SQL Server 2022 ephemeral CI creates a disposable database and applies the migration after original scripts, then exercises register/auth -> create -> duplicate replay -> cancel -> restore -> ownership/CSRF and inventory tests. Test results are per-commit; see GitHub Actions for the current head. No such CI proves live SmarterASP.net writes without a separate staging run.
 
 **Security concerns to resolve before public access:** Rate limiting for register/login must be backed by shared storage/reverse proxy; monitor TLS, limit network egress, implement session cleanup, password-reset flows, and audited admin role boundaries. Do not expose write-enabled staging publicly until these controls are reviewed.
+
+## Optional same-origin UI preview
+
+Set `THAM_SERVE_AN_UI=1` only after deploying the updated `Dockerfile.sqlserver-readonly`, which now includes `Frontend/`. Browse `/an-live/` on the same Render SQL Server service domain. The original UI is a **static demo**, but its separately labeled API panel can use this service's SQL Server endpoints. Keep clear demo labels. Note the SQL Server booking API supports adult-only, no notes, no automatic payment/hold expiry. Never imply full production checkout.
+
+The SQL service `/api/v1/bookings` remains disabled unless `THAM_BOOKING_WRITES_ENABLED=1`; the UI preview flag alone does not enable writes.
