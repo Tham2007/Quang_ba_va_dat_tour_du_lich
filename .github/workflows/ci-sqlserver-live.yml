@@ -5,15 +5,19 @@ on:
     paths:
       - 'database/database/**'
       - 'API/api/tham_sqlserver_app.py'
+      - 'API/api/sqlserver_writes.py'
       - 'API/scripts/check_tham_sqlserver.py'
       - 'API/scripts/ci_sqlserver_e2e.py'
+      - 'API/scripts/ci_sqlserver_writes.py'
       - '.github/workflows/ci-sqlserver-live.yml'
   push:
     paths:
       - 'database/database/**'
       - 'API/api/tham_sqlserver_app.py'
+      - 'API/api/sqlserver_writes.py'
       - 'API/scripts/check_tham_sqlserver.py'
       - 'API/scripts/ci_sqlserver_e2e.py'
+      - 'API/scripts/ci_sqlserver_writes.py'
       - '.github/workflows/ci-sqlserver-live.yml'
   workflow_dispatch:
 

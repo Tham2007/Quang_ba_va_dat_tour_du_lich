@@ -24,8 +24,8 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError, SQLAlchemyError
 
 router = APIRouter()
-_SESSION = "delta_sql_session"
-_CSRF = "delta_sql_csrf"
+_SESSION = "delta_session"
+_CSRF = "delta_csrf"
 _SECURE = os.getenv("DELTA_ENV") in ("staging", "production")
 
 
@@ -121,7 +121,7 @@ class Register(BaseModel):
     @classmethod
     def normalize_email(cls, value: str) -> str:
         value = value.strip().lower()
-        if not re.fullmatch(r"[^\\s@]+@[^\\s@]+\\.[^\\s@]+", value):
+        if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", value):
             raise ValueError("Email không hợp lệ.")
         return value
 

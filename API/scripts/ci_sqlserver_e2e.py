@@ -255,6 +255,9 @@ def main():
                     f"categories={len(categories)}, tours={len(tours)}, "
                     f"schedules={len(schedules)}, booking writes deliberately blocked"
                 )
+            # Newly added opt-in write path, against this same disposable DB only.
+            from scripts.ci_sqlserver_writes import run_sqlserver_write_tests
+            run_sqlserver_write_tests(host, password, engine)
         finally:
             engine.dispose()
 
