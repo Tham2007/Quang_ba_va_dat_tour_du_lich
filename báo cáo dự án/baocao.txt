@@ -1,0 +1,17 @@
+a phát biểu bài toán 
+b phân tích và thiết kế 
+b1. thiết kế cơ sở dữ liệu
++ xác định thực thể
++ xác định mối quan hệ
++ chuẩn hóa 3NF 
++ ERD -> database diagram -> table 
+b2. thiết kế hệ thống
+3. triển khai 
+3.1 FE 
+3.2 BE
+3.3 Test 
+4. Kết quả và hướng phát triển
+4.1 kết quả
+4.2 kết luận
+4.3 hướng phát triển 
+5 tài liệu tham khảo

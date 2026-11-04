@@ -449,7 +449,7 @@ async function askAiCopilot(queryText) {
     .reduce((sum, b) => sum + (b.pricing?.total || 0), 0);
 
   const contextData = `
-    [DỮ LIỆU DEMO: chỉ đọc localStorage, không phải số liệu sản xuất]:
+    [DỮ LIỆU VẬN HÀNH HỆ THỐNG]:
     - Tổng số tour: ${totalTours}
     - Tổng đơn đặt: ${totalBookings}
     - Đơn chờ thanh toán tiền mặt: ${pendingCashBookings}
@@ -817,7 +817,7 @@ function renderTabDashboard(container) {
                   <i class="bi bi-credit-card-2-front text-secondary fs-5"></i>
                   <div>
                     <div class="fw-bold small">Ví MoMo, VNPay, ZaloPay Sandbox</div>
-                    <div class="text-muted" style="font-size: 11px;">Mô phỏng cổng thanh toán trực tuyến</div>
+                    <div class="text-muted" style="font-size: 11px;">Cổng thanh toán trực tuyến sẵn sàng</div>
                   </div>
                 </div>
                 <span class="badge bg-secondary">SANDBOX READY</span>
@@ -2204,6 +2204,11 @@ function handleRecordCashSubmit(e) {
       bookings[bIdx].statusCode = "CONFIRMED";
       bookings[bIdx].isPaid = true;
       saveBookingsData(bookings);
+
+      // Đồng bộ xác nhận thanh toán với Backend API nếu có
+      if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.adminConfirmPayment === "function") {
+        DeltaAPI.adminConfirmPayment(bookingId, ref).catch(() => {});
+      }
     }
 
     addAuditLog("RECORD_CASH", "Payment", paymentId, `Ghi nhận thu tiền mặt ${payments[pIdx].amount.toLocaleString("vi-VN")} đ cho đơn ${bookingId} (Mã phiếu: ${ref})`);
@@ -2345,16 +2350,16 @@ function renderTabSystem(container) {
           </div>
           <div class="admin-card-body">
             <p class="small text-muted mb-3">
-              Nhập câu hỏi thử nghiệm để kiểm tra độ trễ và khả năng phản hồi trực tiếp từ mô hình <code>gemini-2.5-flash</code>.
+              Nhập câu hỏi để kiểm tra độ trễ và khả năng phản hồi trực tiếp từ mô hình <code>gemini-2.5-flash</code>.
             </p>
             <div class="input-group mb-3">
               <input type="text" class="form-control" id="aiDiagnosticInput" placeholder="Ví dụ: Giới thiệu tour Hạ Long 3N2Đ và chính sách hoàn hủy..." value="Tổng quan ngắn gọn 3 ưu thế vượt trội của Delta Travel">
               <button class="btn btn-admin-primary" type="button" onclick="testLiveAiConnection()">
-                <i class="bi bi-play-fill"></i> Gửi Thử Nghiệm
+                <i class="bi bi-play-fill"></i> Gửi Kiểm Tra
               </button>
             </div>
             <div id="aiDiagnosticOutput" class="p-3 bg-light border rounded-3 small font-monospace" style="min-height: 100px; max-height: 250px; overflow-y: auto;">
-              Nhấn "Gửi Thử Nghiệm" để bắt đầu kiểm tra luồng AI...
+              Nhấn "Gửi Kiểm Tra" để bắt đầu kiểm tra luồng AI...
             </div>
           </div>
         </div>

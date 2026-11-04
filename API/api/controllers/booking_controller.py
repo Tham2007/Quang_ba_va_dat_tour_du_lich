@@ -6,7 +6,7 @@ from datetime import timedelta
 from fastapi import Depends, Header, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from api.core import HOLD_MINUTES, db_session, fail, me, new_id, utc
+from api.core import HOLD_MINUTES, db_session, fail, me, new_id, utc, audit
 from api.services.booking_service import totals, check_people, sweep, booking_dict
 from api.repositories.booking_repository import (
     find_by_idempotency,
@@ -14,7 +14,7 @@ from api.repositories.booking_repository import (
 )
 from api.repositories.schedule_repository import lock_schedule
 from api.models import Booking, Schedule, Tour, lock_writes, now
-from api.schemas import QuoteInput, BookingInput
+from api.schemas import QuoteInput, BookingInput, PaymentEvidence
 
 
 def quote(body: QuoteInput, db: Session = Depends(db_session)):
@@ -148,5 +148,41 @@ def cancel_booking(
         s.reserved_seats -= b.seats_held
         if s.reserved_seats < 0:
             raise RuntimeError("Inventory invariant violated")
+    db.commit()
+    return booking_dict(b)
+
+
+def pay_booking(
+    booking_id: str,
+    body: PaymentEvidence,
+    user=Depends(me),
+    db: Session = Depends(db_session),
+):
+    with db.begin_nested():
+        lock_writes(db)
+        sweep(db)
+        b = lock_booking_for_owner(db, booking_id, user.id)
+        if not b:
+            b = db.scalar(
+                select(Booking)
+                .where(Booking.reference == booking_id, Booking.user_id == user.id)
+                .with_for_update()
+            )
+        if not b:
+            fail(404, "Không tìm thấy đơn.")
+        if b.status == "PAID":
+            return booking_dict(b)
+        if b.status != "PENDING_PAYMENT":
+            fail(409, "Đơn không còn chờ thanh toán.")
+        b.status = "PAID"
+        b.payment_evidence = body.reference
+        b.payment_confirmed_at = now()
+        audit(
+            db,
+            user,
+            "PAYMENT_CONFIRMED",
+            b.id,
+            {"proofReference": body.reference, "amount": b.total_price},
+        )
     db.commit()
     return booking_dict(b)

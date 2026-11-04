@@ -16,3 +16,6 @@ router.add_api_route(
 router.add_api_route(
     "/api/v1/bookings/{booking_id}/cancel", controller.cancel_booking, methods=["POST"]
 )
+router.add_api_route(
+    "/api/v1/bookings/{booking_id}/pay", controller.pay_booking, methods=["POST"]
+)

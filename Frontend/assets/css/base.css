@@ -320,3 +320,27 @@ img {
     box-shadow: 0 0 0 0 rgba(255, 107, 53, 0);
   }
 }
+
+/* Đảm bảo cuộn mượt cho tất cả modal */
+.modal-dialog-scrollable {
+  max-height: calc(100vh - 2rem) !important;
+}
+
+.modal-dialog-scrollable .modal-content {
+  max-height: calc(100vh - 2rem) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.modal-dialog-scrollable .modal-body {
+  overflow-y: auto !important;
+  max-height: calc(100vh - 190px) !important;
+  flex: 1 1 auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal-dialog-scrollable .modal-footer {
+  flex-shrink: 0 !important;
+}
+

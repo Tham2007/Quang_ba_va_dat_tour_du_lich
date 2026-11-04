@@ -9,7 +9,8 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
@@ -61,18 +62,30 @@ app = FastAPI(
 )
 
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 @app.middleware("http")
 async def safe_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     if request.url.path not in ("/docs", "/redoc"):
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; "
-            "font-src 'self' https://fonts.gstatic.com; img-src 'self' https://raw.githubusercontent.com data:; "
-            "connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"
+            "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+            "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:; "
+            "img-src 'self' https: data: blob: http:; "
+            "connect-src 'self' https: http:; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
         )
     return response
 
@@ -104,22 +117,22 @@ def unknown_api(unknown_path: str):
     fail(404, "API endpoint không tồn tại.")
 
 
+# Serve the official frontend from the repository Frontend directory
+FRONTEND_DIR = Path(__file__).resolve().parents[2] / "Frontend"
+
+
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon_compat():
-    # Browsers may request the classic ICO URL even when the page uses SVG.
     return RedirectResponse("/favicon.svg", status_code=307)
 
 
-# Original An team UI is served on the SAME ORIGIN as /api/v1.
-# /an-live/ keeps its original static demo elements, and adds a separate,
-# explicitly labeled server-backed booking panel (live-api-bridge.js).
-AN_FRONTEND = Path(__file__).resolve().parents[2] / "Frontend"
-if AN_FRONTEND.is_dir():
-    app.mount(
-        "/an-live",
-        StaticFiles(directory=str(AN_FRONTEND), html=True),
-        name="an-original-frontend",
-    )
+@app.get("/admin", include_in_schema=False)
+def admin_redirect():
+    return RedirectResponse("/admin.html", status_code=307)
 
-FRONTEND = Path(__file__).resolve().parents[1] / "frontend"
-app.mount("/", StaticFiles(directory=str(FRONTEND), html=True), name="frontend")
+
+if not FRONTEND_DIR.is_dir():
+    raise RuntimeError(f"Frontend directory not found at {FRONTEND_DIR}")
+
+app.mount("/an-live", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="an-frontend")
+app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

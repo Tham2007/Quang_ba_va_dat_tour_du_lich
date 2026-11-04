@@ -289,9 +289,25 @@ async function handleSendMessage() {
     hideTypingIndicator();
 
     if (err.message === "KEY_NOT_CONFIGURED") {
-      // Thông báo chưa cấu hình API Key theo đúng yêu cầu
+      // Fallback: Gọi trợ lý thông minh từ Backend API FastAPI
+      try {
+        const resp = await fetch("/api/v1/assistant/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: messageText })
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data && data.answer) {
+            appendChatMessage("bot", data.answer);
+            return;
+          }
+        }
+      } catch (backendErr) {}
+
+      // Thông báo chưa cấu hình API Key nếu backend cũng chưa sẵn sàng
       appendChatWarning(
-        "Chưa cấu hình API Key. Vui lòng thêm khóa vào biến AI_API_KEY trong file assets/js/chatbot.js để bắt đầu trò chuyện."
+        "Chưa cấu hình API Key. Vui lòng thêm khóa vào biến AI_API_KEY trong file assets/js/controllers/chatbot.js để bắt đầu trò chuyện cùng AI."
       );
     } else {
       // Thông báo lỗi mạng hoặc mã lỗi từ API

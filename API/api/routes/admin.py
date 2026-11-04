@@ -41,4 +41,5 @@ router.add_api_route(
     "/api/v1/admin/schedules", controller.admin_all_schedules, methods=["GET"]
 )
 router.add_api_route("/api/v1/admin/metrics", controller.metrics, methods=["GET"])
+router.add_api_route("/api/v1/admin/dashboard", controller.metrics, methods=["GET"])
 router.add_api_route("/api/v1/admin/audit", controller.audit_list, methods=["GET"])

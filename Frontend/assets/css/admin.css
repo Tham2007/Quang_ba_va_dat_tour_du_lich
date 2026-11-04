@@ -874,3 +874,66 @@ body.admin-body {
   }
 }
 
+/* =============================================================================
+   IX. KHẮC PHỤC TRIỆT ĐỂ LỖI CUỘN CHO TẤT CẢ MODAL TRONG ADMIN
+   Đảm bảo cuộn mượt mà 100%, không bị tràn/cắt chân modal và luôn hiện nút Lưu
+   ============================================================================= */
+.modal-dialog-scrollable {
+  max-height: calc(100vh - 2rem) !important;
+}
+
+.modal-dialog-scrollable .modal-content {
+  max-height: calc(100vh - 2rem) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.modal-dialog-scrollable .modal-header {
+  flex-shrink: 0 !important;
+}
+
+.modal-dialog-scrollable .modal-body {
+  overflow-y: auto !important;
+  max-height: calc(100vh - 200px) !important;
+  flex: 1 1 auto !important;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 12px;
+}
+
+.modal-dialog-scrollable .modal-footer {
+  flex-shrink: 0 !important;
+  background: #ffffff;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Cho phép scrollbar mượt mà trên Chromium và Firefox */
+.modal-dialog-scrollable .modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+.modal-dialog-scrollable .modal-body::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.modal-dialog-scrollable .modal-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.modal-dialog-scrollable .modal-body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Đảm bảo khối Day-by-Day và các Tab không bị giới hạn chiều cao nội dung */
+#adminTourItineraryContainer {
+  overflow-y: visible !important;
+  width: 100%;
+}
+
+.tab-content > .tab-pane {
+  min-height: 0;
+}
+
+

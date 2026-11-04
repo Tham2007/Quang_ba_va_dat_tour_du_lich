@@ -52,6 +52,8 @@ def booking_dict(b):
         "totalPrice": b.total_price,
         "status": b.status,
         "paid": b.status in ("PAID", "CONFIRMED", "COMPLETED"),
+        "paymentEvidence": b.payment_evidence,
+        "paymentConfirmedAt": iso(b.payment_confirmed_at),
         "expiresAt": iso(b.expires_at),
         "createdAt": iso(b.created_at),
     }

@@ -1,0 +1,373 @@
+================================================================================
+          TÀI LIỆU PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG PHẦN MỀM (12 BẢNG 3NF)
+          ĐỀ TÀI: WEBSITE QUẢNG BÁ VÀ ĐẶT TOUR DU LỊCH TRỰC TUYẾN
+================================================================================
+
+--------------------------------------------------------------------------------
+1. BỐI CẢNH & MỤC TIÊU
+--------------------------------------------------------------------------------
+
+1.1. Bối cảnh và vấn đề cần giải quyết
+- Bối cảnh:
+  Hiện nay, nhu cầu du lịch ngày càng gia tăng và đa dạng. Khách hàng có xu hướng
+  tìm kiếm thông tin tour qua website, mạng xã hội hoặc kênh tư vấn trực tiếp.
+  Tuy nhiên, việc đăng tải thông tin phân tán trên nhiều nền tảng khiến người
+  dùng khó so sánh, đánh giá và đặt tour trực tuyến một cách nhanh chóng.
+- Vấn đề phía doanh nghiệp:
+  Doanh nghiệp du lịch gặp khó khăn trong việc đồng bộ thông tin tour, quản lý
+  lịch khởi hành, theo dõi số chỗ còn lại, tiếp nhận đơn đặt và xác nhận thanh
+  toán. Việc quản lý thủ công dễ dẫn đến sai sót (như overbooking - đặt vượt quá
+  số chỗ), cập nhật thông tin chậm và tốn thời gian tổng hợp báo cáo kinh doanh.
+- Giải pháp:
+  Xây dựng hệ thống website quảng bá và đặt tour du lịch tập trung, kết nối
+  khách hàng và doanh nghiệp trên một nền tảng thống nhất, tự động hóa quy
+  trình đặt tour, quản lý số chỗ và theo dõi tình trạng đơn đặt.
+
+1.2. Mục tiêu của hệ thống
+- Đối với khách hàng:
+  + Cung cấp thông tin tour du lịch minh bạch, đầy đủ, cập nhật chính xác.
+  + Hỗ trợ tìm kiếm, lọc, so sánh, xem lịch trình chi tiết từng ngày, xem bộ sưu tập
+    ảnh gallery thực tế, đặt tour trực tuyến và theo dõi đơn đặt.
+- Đối với hoạt động quảng bá:
+  + Quản lý bài viết giới thiệu điểm đến, bộ sưu tập hình ảnh tour, banner quảng cáo.
+  + Nâng cao hiệu quả tiếp cận khách hàng tiềm năng qua kênh trực tuyến.
+- Đối với doanh nghiệp & quản trị:
+  + Quản lý tập trung thông tin tour, bộ sưu tập ảnh, lịch trình chi tiết từng ngày, 
+    lịch khởi hành, danh sách khách hàng và đơn đặt.
+  + Phân định quyền hạn rõ ràng giữa các bộ phận (Admin quản trị hệ thống, Nhân viên 
+    điều hành/kế toán, Khách hàng thành viên và Khách viếng thăm).
+- Đối với hệ thống:
+  + Bảo đảm dữ liệu nhất quán chuẩn 3NF, ngăn chặn tình trạng đặt vượt quá số chỗ (Overbooking).
+  + Bảo vệ an toàn thông tin cá nhân và kiểm soát quyền truy cập chặt chẽ.
+
+1.3. Phạm vi hệ thống (Phiên bản V1 - 12 Bảng Cơ sở dữ liệu)
+- Tập trung vào các nghiệp vụ cốt lõi:
+  1. Quản lý người dùng & phân quyền tài khoản (Admin, NhanVien, KhachHang).
+  2. Quản lý danh mục du lịch, thông tin tour, bộ sưu tập ảnh (HINHANH_TOUR) và 
+     lịch trình chi tiết từng ngày (LICH_TRINH_DETAIL) theo mẫu Travel.com.vn.
+  3. Tìm kiếm, lọc và xem chi tiết tour du lịch.
+  4. Đặt tour trực tuyến & giữ chỗ.
+  5. Quản lý đơn đặt tour, danh sách hành khách đi cùng, lịch khởi hành và theo dõi thanh toán.
+  6. Tiếp nhận yêu cầu tư vấn & quản lý đánh giá tour từ khách hàng.
+  7. Báo cáo thống kê cơ bản & quản lý nhật ký hệ thống (AUDITLOG).
+- Các tính năng phức tạp như tích hợp cổng thanh toán tự động, quản lý đại lý
+  nhiều cấp, theo dõi hướng dẫn viên theo thời gian thực sẽ phát triển ở V2.
+
+--------------------------------------------------------------------------------
+2. QUY TRÌNH & USE CASE
+--------------------------------------------------------------------------------
+
+2.1. Các luồng quy trình nghiệp vụ chính
+
+[Luồng 1: Tìm kiếm & Đặt tour trực tuyến]
+  Khách viếng thăm/Khách hàng -> Tìm kiếm & Lọc tour -> Xem chi tiết tour (mô tả, 
+  slide ảnh gallery, lịch trình chi tiết từng ngày, giá bán) -> Chọn Ngày khởi hành 
+  & Số lượng khách -> Kiểm tra chỗ trống còn lại -> (Nếu chưa đăng nhập: Hệ thống 
+  yêu cầu Đăng ký/Đăng nhập) -> Nhập thông tin người đặt & danh sách hành khách đi cùng 
+  -> Xác nhận đặt tour -> Hệ thống giữ chỗ & Tạo đơn đặt (Trạng thái: "Chờ xác nhận").
+
+[Luồng 2: Xử lý Đơn đặt tour & Thanh toán]
+  Khách hàng thực hiện thanh toán theo hướng dẫn -> Nhân viên Kế toán/Điều hành 
+  kiểm tra thông tin -> Cập nhật trạng thái "Đã thanh toán" -> Hệ thống chính 
+  thức trừ số chỗ trống của chuyến đi -> Gửi thông báo xác nhận cho Khách hàng.
+
+[Luồng 3: Quản lý Tour, Lịch trình & Lịch khởi hành]
+  Admin/Nhân viên -> Tạo mới/Sửa thông tin Tour -> Thêm/sửa bộ sưu tập hình ảnh 
+  gallery -> Thiết lập Lịch trình chi tiết theo từng ngày (Ngày 1, Ngày 2, Bữa ăn...) 
+  -> Thiết lập Lịch khởi hành (Ngày đi, Ngày về, Số chỗ tối đa, Giá thực tế) 
+  -> Kiểm duyệt nội dung -> Công khai lên Website.
+
+2.2. Danh sách Use Case theo Vai trò
+
+A. Khách viếng thăm (Guest - Chưa đăng nhập):
+   - UC-01: Xem danh sách & Tìm kiếm/Lọc tour du lịch.
+   - UC-02: Xem chi tiết tour, slide ảnh gallery & Lịch trình từng ngày.
+   - UC-03: Xem bài viết quảng bá điểm đến & Banner.
+   - UC-04: Gửi yêu cầu tư vấn / Liên hệ.
+   - UC-05: Đăng ký tài khoản mới / Đăng nhập.
+
+B. Khách hàng có tài khoản (Registered Customer):
+   - UC-06: Đăng nhập / Đăng xuất / Quản lý thông tin cá nhân.
+   - UC-07: Lưu & Xem danh sách Tour yêu thích.
+   - UC-08: Thực hiện Đặt tour trực tuyến & nhập danh sách hành khách đi cùng.
+   - UC-09: Xem lịch sử đơn đặt tour & Theo dõi trạng thái đơn.
+   - UC-10: Gửi yêu cầu Đổi lịch / Hủy tour / Hoàn tiền.
+   - UC-11: Gửi Đánh giá & Nhận xét tour (Sau khi hoàn thành chuyến đi).
+
+C. Quản trị viên (Admin) / Nhân viên:
+   - UC-12: Quản lý tài khoản & Phân quyền người dùng (Admin, NhanVien, KhachHang).
+   - UC-13: Quản lý Danh mục du lịch, Thông tin Tour, Bộ ảnh Gallery & Lịch trình từng ngày.
+   - UC-14: Quản lý Lịch khởi hành & Số chỗ tối đa.
+   - UC-15: Quản lý Bài viết quảng bá, Banner & Trang thông tin tĩnh.
+   - UC-16: Giám sát & Cập nhật trạng thái Đơn đặt tour.
+   - UC-17: Xác nhận & Cập nhật trạng thái Thanh toán.
+   - UC-18: Duyệt/Ẩn Đánh giá tour của khách hàng và phản hồi đánh giá.
+   - UC-19: Xem Báo cáo & Thống kê kinh doanh cơ bản.
+   - UC-20: Tra cứu Nhật ký hệ thống (Audit Log).
+
+--------------------------------------------------------------------------------
+3. YÊU CẦU CHỨC NĂNG & PHI CHỨC NĂNG
+--------------------------------------------------------------------------------
+
+3.1. Yêu cầu Chức năng (Functional Requirements)
+
+- Phân hệ 1: Quản lý Tài khoản & Phân quyền (NGUOIDUNG)
+  + Đăng ký, đăng nhập, khôi phục mật khẩu.
+  + Cập nhật thông tin cá nhân và đổi mật khẩu.
+  + Quản lý danh sách tài khoản, khóa/mở khóa, gán vai trò người dùng (Admin, NhanVien, KhachHang).
+
+- Phân hệ 2: Quản lý Tour, Danh mục, Hình ảnh, Lịch trình & Quảng bá
+  + Quản lý danh mục điểm đến, loại hình du lịch (DANHMUC).
+  + Quản lý bài đăng tour (tên, mô tả, giá khuyến nghị, trạng thái) (TOUR).
+  + Quản lý bộ sưu tập hình ảnh gallery cho từng tour (HINHANH_TOUR).
+  + Quản lý lịch trình chi tiết từng ngày (Ngày 1, Ngày 2, Tiêu đề ngày, Nội dung, Bữa ăn) (LICH_TRINH_DETAIL).
+  + Quản lý chuyến khởi hành (ngày đi, ngày về, số chỗ tối đa, giá thực tế) (CHUYENKHOIHANH).
+  + Quản lý bài viết giới thiệu điểm đến, tin tức truyền thông (BAIVIET_QUANGBA).
+
+- Phân hệ 3: Tìm kiếm, Lọc & Xem Chi tiết
+  + Tìm kiếm theo từ khóa, điểm đến, thời gian, loại hình.
+  + Bộ lọc giá, thời lượng, tiêu chuẩn. Sắp xếp tăng/giảm giá.
+  + Hiển thị chi tiết tour, số chỗ trống thực tế, gallery ảnh và tabs lịch trình từng ngày.
+  + Lưu tour yêu thích (Khách hàng có tài khoản).
+
+- Phân hệ 4: Đặt Tour Trực tuyến & Quản lý Hành khách
+  + Chọn chuyến đi, số lượng khách.
+  + Nhập thông tin người đặt và danh sách hành khách đi cùng (CHITIET_HANHKHACH).
+  + Tự động tính tổng tiền. Khóa chỗ tạm thời trong quá trình đặt.
+  + Tạo đơn đặt tour (DATTOUR) với trạng thái ban đầu "Chờ xác nhận".
+
+- Phân hệ 5: Quản lý Đơn đặt & Thanh toán
+  + Khách hàng xem lịch sử đơn, trạng thái thanh toán và thông tin chuyến đi.
+  + Khách hàng gửi yêu cầu đổi/hủy/hoàn tiền.
+  + Admin/Nhân viên duyệt đơn, cập nhật trạng thái thanh toán (THANHTOAN), xác nhận hủy.
+
+- Phân hệ 6: Đánh giá & Hỗ trợ
+  + Gửi form tư vấn cho khách viếng thăm.
+  + Khách hàng đánh giá (1-5 sao), viết nhận xét và gửi ảnh thực tế cho đơn tour đã hoàn thành (DANHGIA).
+  + Admin kiểm duyệt, ẩn bình luận vi phạm và phản hồi đánh giá.
+
+- Phân hệ 7: Báo cáo & Nhật ký hệ thống
+  + Thống kê số lượng đơn đặt, doanh thu dự kiến/thực tế theo khoảng thời gian.
+  + Thống kê số lượt đăng ký người dùng mới.
+  + Ghi log tự động mọi thao tác quan trọng (AUDITLOG).
+
+3.2. Yêu cầu Phi chức năng (Non-Functional Requirements)
+- Hiệu năng (Performance): Thời gian phản hồi trang xem/tìm kiếm tour < 2 giây; thao tác tạo đơn đặt tour < 3 giây.
+- Khả năng xử lý đồng thời (Concurrency): Sử dụng Transaction Lock trong CSDL để xử lý đúng số chỗ trống khi nhiều người cùng bấm đặt một lúc.
+- An toàn & Bảo mật (Security): Mã hóa mật khẩu bằng thuật toán Bcrypt/Argon2; áp dụng kết nối HTTPS; chống SQL Injection, XSS, CSRF.
+- Tính toàn vẹn dữ liệu (Integrity): CSDL thiết kế chuẩn 3NF, ràng buộc đầy đủ Khóa chính, Khóa ngoại, Unique, Not Null, Check Constraint.
+- Giao diện (UI/UX): Responsive tốt trên Desktop, Tablet và Mobile.
+- Khả năng mở rộng (Scalability): Cấu trúc mô-đun hóa 12 bảng, sẵn sàng mở rộng tích hợp cổng thanh toán tự động ở V2.
+
+3.3. Ràng buộc Nghiệp vụ (Business Rules)
+- Ràng buộc 1: SoChoConLai = SoChoToiDa - SoChoDaDat. Không cho phép đặt vượt số chỗ còn lại.
+- Ràng buộc 2: NgayKhoiHanh >= NgayHienTai. Tour đã qua ngày đi tự động ẩn/chuyển trạng thái ngừng nhận đặt.
+- Ràng buộc 3: Khách hàng chỉ được gửi đánh giá khi đơn đặt tour tương ứng ở trạng thái "Đã hoàn thành". Mỗi đơn đặt tour chỉ được đánh giá 01 lần.
+- Ràng buộc 4: Admin không tự ý xác nhận thanh toán/hoàn tiền nếu chưa qua kiểm tra tài chính.
+- Ràng buộc 5: Mọi thay đổi dữ liệu quan trọng phải được lưu vào Audit Log.
+
+--------------------------------------------------------------------------------
+4. CẤU TRÚC DỮ LIỆU & WIREFRAME
+--------------------------------------------------------------------------------
+
+4.1. Cấu trúc Cơ sở dữ liệu (Database Schema - 12 Bảng Chuẩn 3NF)
+
+1. Bảng NGUOIDUNG (Thông tin tài khoản & Phân quyền người dùng)
+   - MaNguoiDung (INT, PK, Identity)
+   - HoTen (NVARCHAR(100), NOT NULL)
+   - Email (VARCHAR(100), UNIQUE, NOT NULL)
+   - SoDienThoai (VARCHAR(15), NOT NULL)
+   - MatKhau (VARCHAR(255), NOT NULL)
+   - DiaChi (NVARCHAR(200), NULL)
+   - TrangThai (BIT, DEFAULT 1) -- 1: Hoạt động, 0: Khóa
+   - NgayTao (DATETIME, DEFAULT GETDATE())
+
+2. Bảng DANHMUC (Danh mục du lịch / Điểm đến)
+   - MaDanhMuc (INT, PK, Identity)
+   - TenDanhMuc (NVARCHAR(100), NOT NULL)
+   - MoTa (NVARCHAR(MAX), NULL)
+
+3. Bảng TOUR (Thông tin tổng quan tour du lịch)
+   - MaTour (INT, PK, Identity)
+   - MaDanhMuc (INT, FK -> DANHMUC.MaDanhMuc)
+   - TenTour (NVARCHAR(200), NOT NULL)
+   - MoTaChiTiet (NVARCHAR(MAX), NULL)
+   - LichTrinhTongQuan (NVARCHAR(500), NULL)
+   - GiaKhuyenNghi (DECIMAL(18,2), NOT NULL)
+   - HinhAnhDaiDien (VARCHAR(255), NULL)
+   - TrangThai (BIT, DEFAULT 1)
+
+4. Bảng HINHANH_TOUR (Bộ sưu tập hình ảnh Slide Gallery của Tour - Bảng mở rộng)
+   - MaHinhAnh (INT, PK, Identity)
+   - MaTour (INT, FK -> TOUR.MaTour)
+   - DuongDanAnh (VARCHAR(255), NOT NULL)
+   - GhiChu (NVARCHAR(200), NULL)
+
+5. Bảng LICH_TRINH_DETAIL (Lịch trình chi tiết từng ngày của Tour - Bảng mở rộng)
+   - MaLichTrinh (INT, PK, Identity)
+   - MaTour (INT, FK -> TOUR.MaTour)
+   - NgayThu (INT, NOT NULL) -- Ngày 1, Ngày 2...
+   - TieuDeNgay (NVARCHAR(200), NOT NULL)
+   - NoiDungChiTiet (NVARCHAR(MAX), NOT NULL)
+   - BuaAn (NVARCHAR(100), NULL) -- Sáng, Trưa, Tối
+
+6. Bảng CHUYENKHOIHANH (Lịch khởi hành cụ thể của từng Tour)
+   - MaChuyen (INT, PK, Identity)
+   - MaTour (INT, FK -> TOUR.MaTour)
+   - NgayKhoiHanh (DATETIME, NOT NULL)
+   - NgayKetThuc (DATETIME, NOT NULL)
+   - GiaThucTe (DECIMAL(18,2), NOT NULL)
+   - SoChoToiDa (INT, NOT NULL)
+   - SoChoDaDat (INT, DEFAULT 0)
+   - TrangThaiChuyen (NVARCHAR(50), DEFAULT N'Mở bán')
+
+7. Bảng DATTOUR (Đơn đặt tour du lịch)
+   - MaDatTour (INT, PK, Identity)
+   - MaKhachHang (INT, FK -> NGUOIDUNG.MaNguoiDung)
+   - MaChuyen (INT, FK -> CHUYENKHOIHANH.MaChuyen)
+   - NgayDat (DATETIME, DEFAULT GETDATE())
+   - SoLuongKhach (INT, NOT NULL)
+   - TongTien (DECIMAL(18,2), NOT NULL)
+   - TrangThaiDat (NVARCHAR(50), DEFAULT N'Chờ xác nhận') 
+     -- 'Chờ xác nhận', 'Đã xác nhận', 'Đã hoàn thành', 'Đã hủy'
+   - TrangThaiThanhToan (NVARCHAR(50), DEFAULT N'Chưa thanh toán') 
+     -- 'Chưa thanh toán', 'Đã cọc', 'Đã thanh toán', 'Đã hoàn tiền'
+
+8. Bảng CHITIET_HANHKHACH (Danh sách hành khách đi cùng trong đơn đặt)
+   - MaHanhKhach (INT, PK, Identity)
+   - MaDatTour (INT, FK -> DATTOUR.MaDatTour)
+   - HoTen (NVARCHAR(100), NOT NULL)
+   - NgaySinh (DATE, NULL)
+   - GioiTinh (NVARCHAR(10), NULL)
+   - SoDienThoai (VARCHAR(15), NULL)
+
+9. Bảng THANHTOAN (Lịch sử giao dịch thanh toán)
+   - MaThanhToan (INT, PK, Identity)
+   - MaDatTour (INT, FK -> DATTOUR.MaDatTour)
+   - PhuongThuc (NVARCHAR(50), NOT NULL) -- 'Chuyển khoản QR', 'Tiền mặt', 'Thẻ tín dụng'
+   - SoTien (DECIMAL(18,2), NOT NULL)
+   - NgayThanhToan (DATETIME, DEFAULT GETDATE())
+   - MaGiaoDich (VARCHAR(100), NULL)
+   - TrangThai (NVARCHAR(50), DEFAULT N'Thành công')
+
+10. Bảng DANHGIA (Đánh giá & Nhận xét của đơn tour)
+    - MaDanhGia (INT, PK, Identity)
+    - MaDatTour (INT, FK -> DATTOUR.MaDatTour, UNIQUE) -- Mỗi đơn hoàn thành chỉ đánh giá 1 lần
+    - SoSao (TINYINT, CHECK(SoSao BETWEEN 1 AND 5))
+    - NoiDung (NVARCHAR(1000), NULL)
+    - HinhAnh (NVARCHAR(500), NULL)
+    - NgayDanhGia (DATETIME, DEFAULT GETDATE())
+    - TrangThaiHienThi (BIT, DEFAULT 1)
+    - PhanHoiAdmin (NVARCHAR(1000), NULL)
+
+11. Bảng BAIVIET_QUANGBA (Bài viết & Nội dung truyền thông du lịch)
+    - MaBaiViet (INT, PK, Identity)
+    - TieuDe (NVARCHAR(255), NOT NULL)
+    - Slug (VARCHAR(255), NULL)
+    - TomTat (NVARCHAR(500), NULL)
+    - NoiDung (NVARCHAR(MAX), NOT NULL)
+    - HinhAnhDaiDien (VARCHAR(255), NULL)
+    - LuotXem (INT, DEFAULT 0)
+    - NgayTao (DATETIME, DEFAULT GETDATE())
+    - TrangThai (BIT, DEFAULT 1)
+    - MaNguoiDang (INT, FK -> NGUOIDUNG.MaNguoiDung)
+
+12. Bảng AUDITLOG (Nhật ký thao tác hệ thống & Bảo mật)
+    - MaLog (INT, PK, Identity)
+    - MaNguoiThucHien (INT, FK -> NGUOIDUNG.MaNguoiDung, NULL)
+    - HanhDong (NVARCHAR(100), NOT NULL)
+    - DuLieuCu (NVARCHAR(MAX), NULL)
+    - DuLieuMoi (NVARCHAR(MAX), NULL)
+    - ThoiGian (DATETIME, DEFAULT GETDATE())
+
+4.2. Quan hệ dữ liệu chính (Mô tả chi tiết Mối liên kết, Ràng buộc lực lượng & Ràng buộc tham gia)
+- Mối quan hệ giữa DanhMuc và Tour: Lực lượng 1:N. Một danh mục có thể chưa có tour nào hoặc có nhiều tour. Mỗi tour bắt buộc thuộc về đúng một danh mục. DanhMuc tham gia bộ phận, Tour tham gia toàn phần.
+- Mối quan hệ giữa Tour và HinhAnh_Tour: Lực lượng 1:N. Một tour có thể chưa có hình ảnh nào hoặc có nhiều hình ảnh gallery. Mỗi hình ảnh bắt buộc gắn liền với đúng một tour. Tour tham gia bộ phận, HinhAnh_Tour tham gia toàn phần.
+- Mối quan hệ giữa Tour và LichTrinh_Detail: Lực lượng 1:N. Một tour có thể chưa có lịch trình hoặc có nhiều ngày lịch trình chi tiết. Mỗi bản ghi lịch trình ngày bắt buộc thuộc về đúng một tour. Tour tham gia bộ phận, LichTrinh_Detail tham gia toàn phần.
+- Mối quan hệ giữa Tour và ChuyenKhoiHanh: Lực lượng 1:N. Một tour có thể chưa có chuyến khởi hành nào hoặc có nhiều chuyến khởi hành. Mỗi chuyến khởi hành bắt buộc thuộc về đúng một tour. Tour tham gia bộ phận, ChuyenKhoiHanh tham gia toàn phần.
+- Mối quan hệ giữa ChuyenKhoiHanh và DatTour: Lực lượng 1:N. Một chuyến khởi hành có thể chưa có đơn đặt tour nào hoặc có nhiều đơn đặt tour. Mỗi đơn đặt tour bắt buộc gắn với đúng một chuyến khởi hành. ChuyenKhoiHanh tham gia bộ phận, DatTour tham gia toàn phần.
+- Mối quan hệ giữa NguoiDung và DatTour: Lực lượng 1:N. Một khách hàng có thể chưa đặt tour nào hoặc đặt nhiều tour. Mỗi đơn đặt tour bắt buộc thuộc về đúng một tài khoản khách hàng. NguoiDung tham gia bộ phận, DatTour tham gia toàn phần.
+- Mối quan hệ giữa DatTour và ChiTiet_HanhKhach: Lực lượng 1:N. Một đơn đặt tour phải có ít nhất một hành khách và có thể có nhiều hành khách đi cùng. Mỗi bản ghi ChiTiet_HanhKhach bắt buộc thuộc về đúng một đơn đặt tour. Cả DatTour và ChiTiet_HanhKhach đều tham gia toàn phần theo quy tắc nghiệp vụ này.
+- Mối quan hệ giữa DatTour và ThanhToan: Lực lượng 1:N. Một đơn đặt tour có thể chưa phát sinh giao dịch thanh toán nào hoặc có nhiều giao dịch. Mỗi giao dịch thanh toán bắt buộc thuộc về đúng một đơn đặt tour. DatTour tham gia bộ phận, ThanhToan tham gia toàn phần.
+- Mối quan hệ giữa DatTour và DanhGia: Lực lượng 1:1. Mỗi đơn đặt tour hoàn thành chỉ được tạo tối đa một bài đánh giá. Mỗi bài đánh giá bắt buộc gắn liền với đúng một đơn đặt tour thực tế đã trải nghiệm. DatTour tham gia bộ phận, DanhGia tham gia toàn phần.
+- Mối quan hệ giữa NguoiDung và BaiVietQuangBa: Lực lượng 1:N. Một người dùng (Admin/Nhân viên) có thể chưa đăng bài viết nào hoặc đăng nhiều bài viết. Mỗi bài viết phải có đúng một người đăng. NguoiDung tham gia bộ phận, BaiVietQuangBa tham gia toàn phần.
+- Mối quan hệ giữa NguoiDung và AuditLog: Lực lượng tối đa 1:N. Một người dùng có thể chưa có bản ghi nhật ký nào hoặc có nhiều bản ghi. Mỗi bản ghi AuditLog có thể không gắn với người dùng nào hoặc gắn với tối đa một người dùng, tùy thuộc vào việc trường MaNguoiThucHien có được phép NULL hay không. NguoiDung và AuditLog đều tham gia bộ phận nếu hệ thống cho phép bản ghi nhật ký không gắn với người dùng.
+
+4.3. Thiết kế Bố cục Giao diện (Wireframe Layouts)
+
+- [Trang Chủ - Homepage]:
+  + Header: Logo, Thanh tìm kiếm nhanh, Menu (Trang chủ, Danh sách Tour, Bài viết, Liên hệ), Nút Đăng nhập/Đăng ký.
+  + Banner Slideshow: Hình ảnh điểm đến nổi bật & slogan quảng bá.
+  + Lưới Tour Nổi Bật: Các card tour chứa Hình ảnh đại diện, Tên tour, Thời lượng, Giá tiền, Số chỗ còn trống, Nút "Xem chi tiết".
+  + Khối Bài viết Du lịch & Đánh giá từ khách hàng.
+  + Footer: Thông tin doanh nghiệp, chính sách, liên hệ, mạng xã hội.
+
+- [Trang Danh sách & Lọc Tour]:
+  + Cột trái (Filter Sidebar): Khoảng giá, Ngày đi, Thời lượng, Loại hình du lịch.
+  + Khu vực chính: Thanh sắp xếp (Giá tăng/giảm, Mới nhất) & Lưới danh sách tour.
+
+- [Trang Chi tiết Tour]:
+  + Tiêu đề tour, Bộ sưu tập ảnh Gallery (HINHANH_TOUR).
+  + Bảng chọn Lịch khởi hành: Danh sách ngày khởi hành, số chỗ còn lại, giá tương ứng.
+  + Tabs nội dung: Lịch trình chi tiết từng ngày (LICH_TRINH_DETAIL), Dịch vụ bao gồm/không bao gồm, Điều kiện hủy tour, Đánh giá từ khách hàng.
+  + Khối hành động: Chọn số lượng khách -> Bấm "Đặt Tour Trực Tuyến".
+
+- [Trang Đặt Tour & Xác nhận]:
+  + Bước 1: Xem tóm tắt thông tin chuyến đi & Bảng tính tổng tiền.
+  + Bước 2: Form nhập thông tin liên hệ & Danh sách hành khách đi cùng.
+  + Bước 3: Chọn phương thức thanh toán & Bấm "Xác nhận Đặt tour".
+
+- [Dashboard Quản trị Admin]:
+  + Sidebar trái: Quản lý Tour, Quản lý Gallery Ảnh, Quản lý Lịch trình từng ngày, Quản lý Chuyến khởi hành, Quản lý Đơn đặt, Quản lý Bài viết, Quản lý Người dùng, Báo cáo thống kê.
+  + Khu vực chính: Các bảng dữ liệu (DataTables) có tìm kiếm, phân trang, bộ lọc trạng thái và các nút hành động (Thêm, Sửa, Khóa, Duyệt).
+
+--------------------------------------------------------------------------------
+5. TIÊU CHÍ NGHIỆM THU (ACCEPTANCE CRITERIA - AC)
+--------------------------------------------------------------------------------
+
+5.1. AC1: Tìm kiếm và Lọc Tour du lịch
+- Scenario: Khách hàng tìm kiếm tour theo tiêu chí mong muốn.
+  + GIVEN: Khách hàng đang ở trang danh sách tour.
+  + WHEN: Chọn địa điểm "Đà Nẵng", khoảng giá "từ 3,000,000 đến 5,000,000 VNĐ" và nhấn "Lọc".
+  + THEN: Hệ thống chỉ hiển thị các tour có điểm đến là Đà Nẵng và mức giá nằm trong khoảng từ 3 đến 5 triệu VNĐ.
+  + AND: Nếu không có kết quả phù hợp, hệ thống hiển thị thông báo "Không tìm thấy tour phù hợp với tiêu chí tìm kiếm".
+
+5.2. AC2: Đăng ký & Đăng nhập tài khoản
+- Scenario: Khách hàng chưa có tài khoản đăng ký mới.
+  + GIVEN: Người dùng ở màn hình Đăng ký.
+  + WHEN: Nhập đầy đủ Họ tên, Số điện thoại, Email hợp lệ và Mật khẩu đủ độ dài (>6 ký tự), sau đó nhấn "Đăng ký".
+  + THEN: Hệ thống lưu tài khoản mới vào bảng `NGUOIDUNG` với vai trò `KhachHang`, mã hóa mật khẩu, hiển thị thông báo "Đăng ký thành công" và chuyển hướng sang trang Đăng nhập.
+- Scenario: Đăng ký với Email đã tồn tại.
+  + GIVEN: Người dùng nhập Email đã có trong hệ thống.
+  + WHEN: Bấm "Đăng ký".
+  + THEN: Hệ thống báo lỗi "Email này đã được sử dụng" và giữ nguyên thông tin form.
+
+5.3. AC3: Đặt Tour trực tuyến & Kiểm soát số chỗ trống
+- Scenario: Khách hàng chọn đặt tour còn đủ chỗ trống.
+  + GIVEN: Chuyến đi ngày 15/11 còn trống 5 chỗ. Khách hàng đã đăng nhập.
+  + WHEN: Khách hàng chọn số lượng 3 người, nhập tên 3 hành khách và bấm "Xác nhận Đặt tour".
+  + THEN: Hệ thống tạo đơn đặt tour thành công với trạng thái "Chờ xác nhận", tạm tính tổng tiền chính xác.
+  + AND: Cập nhật biến động giữ chỗ trong hệ thống, đảm bảo người khác không thể đặt đè vượt quá 2 chỗ còn lại.
+- Scenario: Đặt quá số chỗ còn trống.
+  + GIVEN: Chuyến đi chỉ còn trống 2 chỗ.
+  + WHEN: Khách chọn đặt 3 chỗ.
+  + THEN: Hệ thống báo lỗi "Số chỗ còn lại không đủ đáp ứng yêu cầu của bạn (chỉ còn 2 chỗ)" và ngăn tạo đơn.
+
+5.4. AC4: Quản lý & Xác nhận đơn đặt tour phía Admin
+- Scenario: Nhân viên/Admin xác nhận đơn thanh toán của khách hàng.
+  + GIVEN: Đơn đặt tour T1001 ở trạng thái "Chờ xác nhận" và "Chưa thanh toán".
+  + WHEN: Admin kiểm tra thông tin tiền về tài khoản và bấm "Xác nhận đã thanh toán".
+  + THEN: Trạng thái đơn đặt tour T1001 đổi thành "Đã xác nhận" và "Đã thanh toán".
+  + AND: Số chỗ đã đặt (`SoChoDaDat`) của chuyến đi tăng thêm tương ứng số lượng khách.
+  + AND: Hành động cập nhật được lưu trữ lại trong bảng `AUDITLOG`.
+
+5.5. AC5: Đánh giá dịch vụ Tour
+- Scenario: Khách hàng gửi đánh giá sau khi chuyến đi kết thúc.
+  + GIVEN: Khách hàng có đơn đặt tour T1001 đã chuyển trạng thái "Đã hoàn thành".
+  + WHEN: Khách hàng vào chi tiết đơn đặt, chọn 5 sao và viết nhận xét "Tour rất tuyệt vời", sau đó bấm "Gửi đánh giá".
+  + THEN: Hệ thống lưu nhận xét vào bảng `DANHGIA` thành công, hiển thị thông báo "Cảm ơn bạn đã đánh giá" và hiển thị đánh giá này trên trang chi tiết tour.
+- Scenario: Khách hàng chưa đi tour hoặc tour chưa hoàn thành cố gắng đánh giá.
+  + GIVEN: Đơn đặt tour ở trạng thái "Chờ xác nhận" hoặc "Đã xác nhận".
+  + WHEN: Khách truy cập form đánh giá.
+  + THEN: Hệ thống chặn gửi và thông báo "Bạn chỉ có thể đánh giá tour sau khi chuyến đi đã hoàn thành".
+================================================================================

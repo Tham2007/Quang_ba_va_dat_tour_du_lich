@@ -199,8 +199,28 @@ const DeltaAPI = (() => {
   async function login(emailOrPhone, password) {
     return await request("/auth/login", {
       method: "POST",
-      body: { username: emailOrPhone, password }
+      body: { email: emailOrPhone, username: emailOrPhone, password }
     });
+  }
+
+  async function payBooking(bookingId, reference) {
+    const ref = (reference && reference.trim()) ? reference.trim() : ("VQR-" + Date.now().toString().slice(-8));
+    return await request(`/bookings/${encodeURIComponent(bookingId)}/pay`, {
+      method: "POST",
+      body: { reference: ref }
+    });
+  }
+
+  async function adminConfirmPayment(bookingId, reference) {
+    const ref = (reference && reference.trim()) ? reference.trim() : ("VQR-" + Date.now().toString().slice(-8));
+    return await request(`/admin/bookings/${encodeURIComponent(bookingId)}/confirm-payment`, {
+      method: "POST",
+      body: { reference: ref }
+    });
+  }
+
+  async function adminFetchMetrics() {
+    return await request("/admin/metrics");
   }
 
   async function register(userData) {
@@ -270,6 +290,62 @@ const DeltaAPI = (() => {
     return await request("/admin/audit");
   }
 
+  async function adminFetchSchedules(tourId) {
+    const q = tourId ? `?tour_id=${encodeURIComponent(tourId)}` : "";
+    return await request(`/admin/schedules${q}`);
+  }
+
+  async function adminCreateSchedule(payload) {
+    return await request("/admin/schedules", {
+      method: "POST",
+      body: payload
+    });
+  }
+
+  async function adminPatchSchedule(scheduleId, patchData) {
+    return await request(`/admin/schedules/${encodeURIComponent(scheduleId)}`, {
+      method: "PATCH",
+      body: patchData
+    });
+  }
+
+  async function changePassword(oldPassword, newPassword) {
+    return await request("/auth/change-password", {
+      method: "POST",
+      body: { old_password: oldPassword, new_password: newPassword }
+    });
+  }
+
+  async function updateProfile(fullName, phone) {
+    return await request("/auth/profile", {
+      method: "PATCH",
+      body: { full_name: fullName, phone }
+    });
+  }
+
+  async function fetchFavorites() {
+    return await request("/favorites");
+  }
+
+  async function addFavorite(tourId) {
+    return await request(`/favorites/${encodeURIComponent(tourId)}`, {
+      method: "POST"
+    });
+  }
+
+  async function removeFavorite(tourId) {
+    return await request(`/favorites/${encodeURIComponent(tourId)}`, {
+      method: "DELETE"
+    });
+  }
+
+  async function assistantChat(message) {
+    return await request("/assistant/chat", {
+      method: "POST",
+      body: { message }
+    });
+  }
+
   // Tự động kiểm tra sức khỏe server khi script tải
   document.addEventListener("DOMContentLoaded", () => {
     setTimeout(checkHealth, 500);
@@ -287,18 +363,35 @@ const DeltaAPI = (() => {
     createBooking,
     fetchMyBookings,
     cancelBooking,
+    payBooking,
     login,
     register,
     getMe,
     logout,
     adminFetchDashboard,
     adminFetchTours,
+    adminGetTours: adminFetchTours,
     adminCreateTour,
     adminPatchTour,
     adminDeleteTour,
     adminFetchBookings,
+    adminGetBookings: adminFetchBookings,
     adminPatchBooking,
-    adminFetchAudit
+    adminConfirmPayment,
+    adminFetchAudit,
+    adminGetAudit: adminFetchAudit,
+    adminFetchMetrics,
+    adminGetMetrics: adminFetchMetrics,
+    adminFetchSchedules,
+    adminGetSchedules: adminFetchSchedules,
+    adminCreateSchedule,
+    adminPatchSchedule,
+    changePassword,
+    updateProfile,
+    fetchFavorites,
+    addFavorite,
+    removeFavorite,
+    assistantChat
   };
 })();
 

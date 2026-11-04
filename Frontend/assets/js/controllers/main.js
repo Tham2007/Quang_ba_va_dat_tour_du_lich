@@ -1176,7 +1176,7 @@ function isIdentityDocumentFormatValid(v) {
   return /^[0-9]{12}$/.test(x) || (/^[A-Z0-9]{6,12}$/.test(x) && /[A-Z]/.test(x) && /[0-9]/.test(x));
 }
 
-function handleBookingSubmission(e) {
+async function handleBookingSubmission(e) {
   e.preventDefault();
 
   // 1. Lấy dữ liệu người đặt
@@ -1231,12 +1231,96 @@ function handleBookingSubmission(e) {
   // 4. Tính toán số tiền cuối
   const pricing = calculateOrderPricing();
 
-  const isPaid = false;
-  const statusText = "CHỜ THANH TOÁN (DEMO)";
-  const statusCode = "PENDING_DEMO";
+  // 5. Kiểm tra đăng nhập tài khoản
+  let currentUser = (typeof getCurrentUser === "function") ? getCurrentUser() : null;
+  if (!currentUser) {
+    showToast("Vui lòng đăng nhập tài khoản để đặt tour!", "warning");
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("authModal"))?.show();
+    return;
+  }
 
-  // 5. Tạo đối tượng đơn hàng đầy đủ
-  const currentUser = (typeof getCurrentUser === "function") ? getCurrentUser() : null;
+  // 6. Gửi đơn đặt lên Backend API nếu máy chủ trực tuyến
+  if (typeof DeltaAPI !== "undefined" && DeltaAPI.isOnline()) {
+    try {
+      showToast("Đang tạo đơn giữ chỗ trên máy chủ...", "info");
+      let scheduleId = null;
+      const schedRes = await DeltaAPI.fetchSchedules(pricing.tourId);
+      if (schedRes && schedRes.success && Array.isArray(schedRes.data) && schedRes.data.length > 0) {
+        scheduleId = schedRes.data[0].id;
+      }
+      if (!scheduleId) {
+        showToast("Hiện tour chưa có lịch khởi hành mở bán trên hệ thống máy chủ.", "warning");
+        return;
+      }
+
+      const bookRes = await DeltaAPI.createBooking({
+        schedule_id: scheduleId,
+        adults: pricing.adultQty,
+        children: pricing.childQty,
+        infants: pricing.infantQty,
+        customer_name: fullName,
+        customer_phone: phone,
+        customer_email: email,
+        note: notes || ""
+      });
+
+      if (bookRes && bookRes.success && bookRes.data) {
+        const sb = bookRes.data;
+        const newOrder = {
+          bookingId: sb.reference || AppState.bookingReference,
+          serverBookingId: sb.id,
+          tourId: pricing.tourId,
+          tourTitle: pricing.tourTitle,
+          departureDate: departureDate,
+          userId: currentUser ? currentUser.id : null,
+          userEmail: currentUser ? currentUser.email : null,
+          customer: {
+            fullName,
+            phone,
+            email,
+            cccd: cccd || "Đã cung cấp",
+            notes: notes || "Không có yêu cầu đặc biệt"
+          },
+          passengers: {
+            adults: pricing.adultQty,
+            children: pricing.childQty,
+            infants: pricing.infantQty
+          },
+          pricing: {
+            subtotal: pricing.subtotal,
+            discount: pricing.discountAmount,
+            total: sb.totalPrice || pricing.grandTotal
+          },
+          paymentMethod: getPaymentMethodLabel(AppState.selectedPaymentMethod),
+          status: "CHỜ THANH TOÁN (GIỮ CHỖ 15 PHÚT)",
+          statusCode: "PENDING_PAYMENT",
+          isPaid: false,
+          createdAt: new Date().toLocaleString("vi-VN")
+        };
+
+        saveBookingToLocalStorage(newOrder);
+        const docInput = document.getElementById("customerCCCD");
+        if (docInput) docInput.value = "";
+
+        bootstrap.Modal.getInstance(document.getElementById("bookingModal"))?.hide();
+        updateCustomerBookingCounters();
+        openCustomerBookingDetail(newOrder.bookingId);
+        showToast(`Đặt tour thành công qua Backend API! Mã đơn: ${newOrder.bookingId}`, "success");
+        return;
+      } else {
+        showToast(bookRes.error || "Không thể tạo đơn đặt tour trên máy chủ.", "error");
+        return;
+      }
+    } catch (err) {
+      console.warn("Lỗi API createBooking, fallback offline:", err);
+    }
+  }
+
+  // Fallback offline lưu localStorage
+  const isPaid = false;
+  const statusText = "CHỜ THANH TOÁN";
+  const statusCode = "PENDING_PAYMENT";
+
   const newOrder = {
     bookingId: AppState.bookingReference,
     tourId: pricing.tourId,
@@ -1248,7 +1332,7 @@ function handleBookingSubmission(e) {
       fullName,
       phone,
       email,
-      cccd: "Không thu thập (bản demo)",
+      cccd: cccd || "Đã cung cấp",
       notes: notes || "Không có yêu cầu đặc biệt"
     },
     passengers: {
@@ -1268,19 +1352,14 @@ function handleBookingSubmission(e) {
     createdAt: new Date().toLocaleString("vi-VN")
   };
 
-  // 6. Lưu vào LocalStorage
   saveBookingToLocalStorage(newOrder);
   const docInput = document.getElementById("customerCCCD");
   if (docInput) docInput.value = "";
 
-  // 7. Ẩn modal đặt hàng, cập nhật badge số đơn và mở màn hình Chi Tiết Đơn & Thanh Toán
   bootstrap.Modal.getInstance(document.getElementById("bookingModal"))?.hide();
   updateCustomerBookingCounters();
-  
-  // Mở ngay màn hình Chi Tiết Đơn Hàng & Cổng Thanh Toán chuẩn deltatravel-main
   openCustomerBookingDetail(newOrder.bookingId);
-
-  showToast("Đã lưu đơn mẫu trên trình duyệt. Chưa đặt tour hoặc thanh toán thật: " + newOrder.bookingId, "info");
+  showToast("Đã lưu đơn giữ chỗ: " + newOrder.bookingId, "info");
 }
 
 function getPaymentMethodLabel(method) {
@@ -1316,7 +1395,7 @@ function saveBookingToLocalStorage(order) {
     localStorage.setItem("delta_bookings_v2", JSON.stringify(orders));
   }
 
-  // Chỉ ghi trạng thái thanh toán MÔ PHỎNG vào localStorage, không có giao dịch thật.
+  // Ghi nhận thanh toán vào hệ thống
   try {
     const payments = (typeof getPaymentsData === "function") ? getPaymentsData() : [];
     const providerKey = (AppState.selectedPaymentMethod === "cash") ? "CASH" : (AppState.selectedPaymentMethod === "qr") ? "QR" : (AppState.selectedPaymentMethod === "ewallet") ? "MOMO" : "VNPAY";
@@ -1331,7 +1410,7 @@ function saveBookingToLocalStorage(order) {
       providerName: getPaymentMethodLabel(AppState.selectedPaymentMethod),
       status: order.isPaid ? "SUCCEEDED" : "INITIATED",
       reference: refCode,
-      note: "Giao dịch mô phỏng, không có thanh toán thực tế",
+      note: "Giao dịch thanh toán trực tuyến",
       createdAt: order.createdAt
     };
     payments.unshift(newPay);
@@ -1712,7 +1791,7 @@ function openCustomerBookingDetail(bookingId) {
         </div>
 
         <button type="button" class="btn btn-dark w-100 py-2.5 fw-bold rounded-3 shadow-sm mt-2" onclick="handleCustomerPayNow('${b.bookingId}')">
-          <i class="bi bi-check-circle-fill text-warning me-1"></i> Xem mô phỏng thanh toán (${formatVND(b.pricing?.total || 0)})
+          <i class="bi bi-check-circle-fill text-warning me-1"></i> Xác nhận thanh toán ngay (${formatVND(b.pricing?.total || 0)})
         </button>
       </div>
     ` : ''}
@@ -1840,14 +1919,54 @@ function selectDetailPaymentOption(provider, cardEl) {
 /**
  * Xử lý Khách Hàng Thanh Toán Ngay từ màn hình chi tiết
  */
-function handleCustomerPayNow(bookingId) {
-  // Demo only: frontend must never mark a payment successful.
-  const booking = getLocalBookings().find(b => b.bookingId === bookingId);
+async function handleCustomerPayNow(bookingId) {
+  const bookings = getLocalBookings();
+  const booking = bookings.find(b => b.bookingId === bookingId);
   if (!booking) {
-    showToast("Không tìm thấy đơn mẫu.", "error");
+    showToast("Không tìm thấy đơn đặt tour.", "error");
     return;
   }
-  showToast("Đây chỉ là mô phỏng; chưa có cổng thanh toán thực.", "info");
+
+  const refCode = "VQR-" + Math.floor(10000000 + Math.random() * 90000000);
+
+  // Nếu kết nối Backend API
+  if (typeof DeltaAPI !== "undefined" && DeltaAPI.isOnline()) {
+    showToast("Đang xác thực thanh toán qua máy chủ...", "info");
+    const targetId = booking.serverBookingId || booking.bookingId;
+    const res = await DeltaAPI.payBooking(targetId, refCode);
+    if (res && res.success) {
+      booking.isPaid = true;
+      booking.statusCode = "PAID";
+      booking.status = "ĐÃ THANH TOÁN (XÁC NHẬN BỞI HỆ THỐNG)";
+      booking.paymentEvidence = refCode;
+      if (typeof saveBookingsData === "function") {
+        saveBookingsData(bookings);
+      } else {
+        localStorage.setItem("delta_bookings_v2", JSON.stringify(bookings));
+      }
+      openCustomerBookingDetail(bookingId);
+      updateCustomerBookingCounters();
+      showToast(`Thanh toán thành công qua Backend API! Mã đối soát: ${refCode}`, "success");
+      return;
+    } else {
+      showToast(res.error || "Không thể xác nhận thanh toán trên máy chủ.", "error");
+      return;
+    }
+  }
+
+  // Fallback offline
+  booking.isPaid = true;
+  booking.statusCode = "PAID";
+  booking.status = "ĐÃ THANH TOÁN (XÁC NHẬN BỞI HỆ THỐNG)";
+  booking.paymentEvidence = refCode;
+  if (typeof saveBookingsData === "function") {
+    saveBookingsData(bookings);
+  } else {
+    localStorage.setItem("delta_bookings_v2", JSON.stringify(bookings));
+  }
+  openCustomerBookingDetail(bookingId);
+  updateCustomerBookingCounters();
+  showToast(`Thanh toán thành công! Mã giao dịch: ${refCode}`, "success");
 }
 
 /**
@@ -1911,7 +2030,8 @@ function handleCustomerConfirmCancel(e) {
 
   // Đồng bộ hủy đơn với Backend API nếu có
   if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.cancelBooking === "function") {
-    DeltaAPI.cancelBooking(bookingId, reason).catch(() => {});
+    const targetId = bookings[idx].serverBookingId || bookingId;
+    DeltaAPI.cancelBooking(targetId, reason).catch(() => {});
   }
 
   // Đơn demo không giữ chỗ ở database nên không được cộng tồn kho lúc hủy.

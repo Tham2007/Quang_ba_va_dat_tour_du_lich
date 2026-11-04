@@ -391,9 +391,46 @@ function handleRegisterSubmit(e) {
     return;
   }
 
-  // CHỈ DEMO: tài khoản/mật khẩu lưu localStorage, không phải đăng ký thật.
-  // Không dùng mật khẩu cá nhân hoặc dữ liệu nhạy cảm trong bản trình diễn.
-  // 8. Tạo tài khoản mới
+  // 8. Đăng ký với Backend API nếu có
+  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.register === "function") {
+    DeltaAPI.register({
+      full_name: name,
+      email: email,
+      phone: phone,
+      password: password
+    }).then(res => {
+      if (!res.success && !res.isOffline) {
+        showAuthError("registerEmailError", res.error || "Đăng ký qua máy chủ thất bại.");
+        return;
+      }
+      // Đăng nhập máy chủ để nhận session cookie
+      DeltaAPI.login(email, password).then(loginRes => {
+        const u = (loginRes && loginRes.success && loginRes.data) ? loginRes.data : null;
+        const newUser = {
+          id: u ? u.id : ("USR-" + Date.now()),
+          fullName: u ? u.fullName : name,
+          email: u ? u.email : email,
+          phone: u ? u.phone : phone,
+          password: password,
+          role: u ? u.role : "CUSTOMER",
+          title: (u && u.role === "ADMIN") ? "Ban Quản Trị" : "Thành viên mới",
+          createdAt: new Date().toLocaleDateString("vi-VN")
+        };
+        users.push(newUser);
+        saveUsers(users);
+        setCurrentUser(newUser);
+        bootstrap.Modal.getInstance(document.getElementById("authModal"))?.hide();
+        document.getElementById("registerForm")?.reset();
+        if (typeof showToast === "function") {
+          showToast(`Đăng ký thành công! Chào mừng ${newUser.fullName} gia nhập Delta Travel.`, "success");
+        }
+      });
+    }).catch(err => {
+      showAuthError("registerEmailError", err.message || "Lỗi đăng ký");
+    });
+    return;
+  }
+
   const newUser = {
     id: "USR-" + Date.now(),
     fullName: name,
@@ -407,25 +444,9 @@ function handleRegisterSubmit(e) {
 
   users.push(newUser);
   saveUsers(users);
-
-  // Tự động đăng nhập
   setCurrentUser(newUser);
-  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.register === "function") {
-    DeltaAPI.register({
-      full_name: name,
-      email: email,
-      phone: phone,
-      password: password
-    }).catch(() => {});
-  }
-
-  // Đóng modal
   bootstrap.Modal.getInstance(document.getElementById("authModal"))?.hide();
-
-  // Reset form
   document.getElementById("registerForm")?.reset();
-
-  // Hiển thị thông báo thành công
   if (typeof showToast === "function") {
     showToast(`Đăng ký thành công! Chào mừng ${name} gia nhập Delta Travel.`, "success");
   }
@@ -434,7 +455,7 @@ function handleRegisterSubmit(e) {
 /**
  * Xử lý Đăng nhập tài khoản
  */
-function handleLoginSubmit(e) {
+async function handleLoginSubmit(e) {
   e.preventDefault();
   clearAuthErrors();
 
@@ -451,6 +472,41 @@ function handleLoginSubmit(e) {
     return;
   }
 
+  // Thử đăng nhập qua Backend API trước nếu trực tuyến
+  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.login === "function") {
+    const res = await DeltaAPI.login(account, password);
+    if (res && res.success && res.data) {
+      const u = res.data;
+      const user = {
+        id: u.id,
+        fullName: u.fullName,
+        email: u.email,
+        phone: u.phone,
+        password: password,
+        role: u.role || "CUSTOMER",
+        title: u.role === "ADMIN" ? "Ban Quản Trị" : "Thành viên",
+        createdAt: new Date().toLocaleDateString("vi-VN")
+      };
+      const allUsers = getAllUsers();
+      const existingIdx = allUsers.findIndex(item => item.id === user.id || item.email === user.email);
+      if (existingIdx >= 0) allUsers[existingIdx] = user;
+      else allUsers.push(user);
+      saveUsers(allUsers);
+      setCurrentUser(user);
+
+      bootstrap.Modal.getInstance(document.getElementById("authModal"))?.hide();
+      document.getElementById("loginForm")?.reset();
+      if (typeof showToast === "function") {
+        showToast(`Đăng nhập thành công! Rất vui được gặp lại bạn, ${user.fullName}.`, "success");
+      }
+      return;
+    } else if (res && !res.success && !res.isOffline) {
+      showAuthError("loginGeneralError", res.error || "Tài khoản hoặc mật khẩu không chính xác.");
+      return;
+    }
+  }
+
+  // Fallback offline: Kiểm tra trong localStorage
   const users = getAllUsers();
   const user = users.find(u => u.email === account || u.phone === account);
 
@@ -461,14 +517,7 @@ function handleLoginSubmit(e) {
 
   // Đăng nhập thành công
   setCurrentUser(user);
-  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.login === "function") {
-    DeltaAPI.login(account, password).catch(() => {});
-  }
-
-  // Đóng modal
   bootstrap.Modal.getInstance(document.getElementById("authModal"))?.hide();
-
-  // Reset form
   document.getElementById("loginForm")?.reset();
 
   if (typeof showToast === "function") {

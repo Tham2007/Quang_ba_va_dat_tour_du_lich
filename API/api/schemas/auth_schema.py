@@ -9,7 +9,7 @@ class Signup(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
     email: str
     phone: str = Field(pattern=r"^0[35789][0-9]{8}$")
-    password: str = Field(min_length=12, max_length=128)
+    password: str = Field(min_length=6, max_length=128)
 
     @field_validator("email")
     @classmethod
@@ -26,13 +26,17 @@ class Signup(BaseModel):
 
 
 class Login(BaseModel):
-    email: str
+    model_config = ConfigDict(extra="ignore")
+    email: str | None = None
+    username: str | None = None
     password: str
 
-    @field_validator("email")
-    @classmethod
-    def valid_email(cls, v):
-        return email_ok(v)
+    @property
+    def identifier(self) -> str:
+        ident = (self.email or self.username or "").strip()
+        if not ident:
+            raise ValueError("Email hoặc tên đăng nhập không được để trống.")
+        return ident
 
 
 class ProfilePatch(BaseModel):
@@ -43,4 +47,4 @@ class ProfilePatch(BaseModel):
 
 class ChangePassword(BaseModel):
     old_password: str
-    new_password: str = Field(min_length=12, max_length=128)
+    new_password: str = Field(min_length=6, max_length=128)

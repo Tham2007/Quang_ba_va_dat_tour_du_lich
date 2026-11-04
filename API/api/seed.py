@@ -23,7 +23,7 @@ def seed_demo():
                 continue
             db.add(Tour(id=id,slug=slug,title=title,region=region,duration=duration,price=price,
                         original_price=old_price,image=REMOTE+image,departure=departure,transport=transport,
-                        flash_sale=bool(flash),description='Dữ liệu minh họa. Chưa mở bán thương mại.'))
+                        flash_sale=bool(flash),description='Tour du lịch chất lượng cao, trọn gói dịch vụ tiêu chuẩn Delta Travel.'))
             db.flush()
             for days in (14+i, 30+i, 45+i):
                 day=datetime.now(timezone.utc).date()+timedelta(days=days)

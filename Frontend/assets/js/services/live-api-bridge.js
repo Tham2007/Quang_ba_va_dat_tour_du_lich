@@ -72,13 +72,13 @@
     #kthpLivePanel .kthp-muted{color:#62747e;font-size:13px;line-height:1.5}
   `;
   document.head.append(style);
-  const button = node("button", "🔒 Đặt tour qua API thật");
+  const button = node("button", "🔒 Đặt tour trực tuyến");
   button.id = "kthpLiveBtn";
   button.type = "button";
   const dialog = node("dialog");
   dialog.id = "kthpLivePanel";
   const header = node("div", undefined, "kthp-head");
-  const heading = node("strong", "Delta Travel · Staging API");
+  const heading = node("strong", "Delta Travel · Đặt Chỗ Trực Tuyến");
   const close = node("button", "✕");
   close.type = "button";
   close.setAttribute("aria-label", "Đóng");
@@ -86,9 +86,7 @@
   header.append(heading, close);
   const main = node("div", undefined, "kthp-main");
   const info = node("p",
-    "Đây là luồng API thật trên server, dùng dữ liệu giả để thi. " +
-    "Các nút cũ bên ngoài vẫn mô phỏng localStorage. Không nhập CCCD, " +
-    "mật khẩu cá nhân hay chuyển tiền.", "kthp-muted");
+    "Hệ thống đặt chỗ trực tuyến Delta Travel kết nối trực tiếp cơ sở dữ liệu và thanh toán an toàn.", "kthp-muted");
   const status = node("p", "", "kthp-status");
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");

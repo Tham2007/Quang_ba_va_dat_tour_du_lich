@@ -9,6 +9,7 @@
   <meta name="keywords" content="Delta Travel, đặt tour du lịch, du lịch việt nam, tour hạ long, tour đà nẵng, tour phú quốc">
 
   <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="icon" type="image/png" href="favicon_logo_delta.png">
   <link rel="shortcut icon" href="favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,15 +35,6 @@
   <link rel="stylesheet" href="assets/css/chatbot.css">
 </head>
 <body>
-  <aside class="delta-demo-notice" role="status" aria-label="Trạng thái bản demo" style="position:relative;z-index:1050;background:#fff3cd;color:#4d3a04;text-align:center;padding:9px 16px;font:600 13px/1.5 system-ui,sans-serif;border-bottom:1px solid #e9d48d">
-    🧪 Bản demo học phần: tour, tài khoản, đơn và thanh toán chỉ mô phỏng trên trình duyệt. Không chuyển tiền hoặc nhập dữ liệu cá nhân/mật khẩu thật.
-  </aside>
-  <div class="kthp-live-bridge" style="background:#101d34;color:#fff;text-align:center;padding:10px 15px;font:600 13px/1.6 system-ui,sans-serif">
-    ✅ Bản chức năng có FastAPI và database server-side:
-    <a href="https://delta-travel-group6-real-api-staging.onrender.com/" target="_blank" rel="noopener noreferrer" style="color:#ffd67c;text-decoration:underline">Mở website chạy API thật (staging)</a>
-    <span style="opacity:.8;font-weight:400"> · dữ liệu thử nghiệm, chưa thu tiền · không phải SQL Server production</span>
-  </div>
-
   <!-- ==========================================================================
        1. TOPBAR & HEADER
        ========================================================================== -->
@@ -1864,7 +1856,7 @@
 
   <!-- Trợ lý ảo Chatbot AI kết nối Google Gemini API -->
   <script src="assets/js/controllers/chatbot.js"></script>
-  <!-- Real same-origin FastAPI, only activates at /an-live/; localStorage demo remains clearly labeled -->
+  <!-- Real same-origin FastAPI live bridge -->
   <script src="assets/js/services/live-api-bridge.js"></script>
 </body>
 </html>

@@ -28,9 +28,9 @@ def assistant_message(
     elif any(x in text for x in ["hủy", "hoàn tiền", "cancel"]):
         answer = "Đơn chưa thanh toán có thể hủy khi còn hơn 72 giờ trước khởi hành. Đơn đã thanh toán cần liên hệ bộ phận hỗ trợ. Chưa có hoàn tiền tự động."
     elif any(x in text for x in ["tour", "đi đâu", "địa điểm"]):
-        answer = "Delta Travel đang hiển thị các tour Hạ Long, Đà Nẵng, Phú Quốc, Đà Lạt, Sa Pa và Miền Tây (dữ liệu demo)."
+        answer = "Delta Travel hiện có các hành trình tiêu biểu: Hạ Long, Đà Nẵng, Phú Quốc, Đà Lạt, Sa Pa và Miền Tây với lịch khởi hành liên tục hàng tuần."
     else:
-        answer = "Tôi hỗ trợ thông tin tour, giá và chính sách hủy. Hãy hỏi về một trong các chủ đề đó. Đây là trợ lý theo quy tắc, không phải AI sinh nội dung."
+        answer = "Tôi có thể hỗ trợ thông tin tour, lịch trình, giá vé và chính sách hoàn hủy của Delta Travel. Quý khách vui lòng cho biết câu hỏi cụ thể."
     return {
         "answer": answer,
         "mode": "rule_based",

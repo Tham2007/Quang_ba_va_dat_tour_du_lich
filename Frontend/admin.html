@@ -25,15 +25,6 @@
   <link rel="stylesheet" href="assets/css/admin.css">
 </head>
 <body class="admin-body">
-  <aside class="delta-demo-notice" role="status" aria-label="Trạng thái quản trị demo" style="position:relative;z-index:1050;background:#fff3cd;color:#4d3a04;text-align:center;padding:9px 16px;font:600 13px/1.5 system-ui,sans-serif;border-bottom:1px solid #e9d48d">
-    🧪 Cổng quản trị DEMO: quyền, đơn, số liệu và thanh toán chỉ mô phỏng bằng localStorage. Không xử lý dữ liệu hoặc tiền thật.
-  </aside>
-  <div class="kthp-live-bridge" style="background:#101d34;color:#fff;text-align:center;padding:10px 15px;font:600 13px/1.6 system-ui,sans-serif">
-    ✅ Bản chức năng có FastAPI và database server-side:
-    <a href="https://delta-travel-group6-real-api-staging.onrender.com/" target="_blank" rel="noopener noreferrer" style="color:#ffd67c;text-decoration:underline">Mở website chạy API thật (staging)</a>
-    <span style="opacity:.8;font-weight:400"> · dữ liệu thử nghiệm, chưa thu tiền · không phải SQL Server production</span>
-  </div>
-
   <!-- ==========================================================================
        1. MÀN HÌNH KHÓA XÁC THỰC (AUTH LOCK SCREEN CHO KHÁCH / CHƯA ĐĂNG NHẬP)
        ========================================================================== -->
@@ -297,13 +288,12 @@
        ========================================================================== -->
   <div class="modal fade" id="adminTourModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-      <div class="modal-content border-0 rounded-4 shadow-lg">
+      <form class="modal-content border-0 rounded-4 shadow-lg" id="tourForm" onsubmit="handleSaveTourSubmit(event)">
         <div class="modal-header border-bottom p-4">
           <h5 class="modal-title fw-bold" id="tourModalTitle">Thêm Tour Du Lịch Mới</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <form id="tourForm" onsubmit="handleSaveTourSubmit(event)">
-          <div class="modal-body p-4">
+        <div class="modal-body p-4">
             <!-- Nav Tabs Điều Hướng Quản Trị Tour -->
             <ul class="nav nav-pills mb-3 border-bottom pb-2" id="adminTourTabs" role="tablist">
               <li class="nav-item" role="presentation">
@@ -471,27 +461,25 @@
               </div>
             </div>
           </div>
-          <div class="modal-footer border-top p-3">
+          <div class="modal-footer border-top p-3 bg-white">
             <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy bỏ</button>
             <button type="submit" class="btn btn-admin-primary px-4 fw-bold"><i class="bi bi-save2-fill me-1"></i> Lưu Tour & Lịch Trình</button>
           </div>
         </form>
       </div>
     </div>
-  </div>
 
   <!-- ==========================================================================
        4. MODAL: THÊM / SỬA LỊCH KHỞI HÀNH (SCHEDULE MODAL)
        ========================================================================== -->
   <div class="modal fade" id="adminScheduleModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content border-0 rounded-4 shadow-lg">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <form class="modal-content border-0 rounded-4 shadow-lg" id="scheduleForm" onsubmit="handleSaveScheduleSubmit(event)">
         <div class="modal-header border-bottom p-4">
           <h5 class="modal-title fw-bold" id="scheduleModalTitle">Thêm Lịch Khởi Hành</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <form id="scheduleForm" onsubmit="handleSaveScheduleSubmit(event)">
-          <div class="modal-body p-4">
+        <div class="modal-body p-4">
             <div class="row g-3">
               <div class="col-12">
                 <label class="form-label small fw-bold">Mã Lịch (ID)</label>
@@ -526,20 +514,19 @@
               </div>
             </div>
           </div>
-          <div class="modal-footer border-top p-3">
+          <div class="modal-footer border-top p-3 bg-white">
             <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy bỏ</button>
             <button type="submit" class="btn btn-admin-primary">Lưu Lịch Khởi Hành</button>
           </div>
         </form>
       </div>
     </div>
-  </div>
 
   <!-- ==========================================================================
        5. MODAL: CHI TIẾT ĐƠN ĐẶT TOUR (BOOKING DETAIL MODAL)
        ========================================================================== -->
   <div class="modal fade" id="adminBookingDetailModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
       <div class="modal-content border-0 rounded-4 shadow-lg">
         <div class="modal-header border-bottom p-4">
           <div>
@@ -602,39 +589,37 @@
        6. MODAL: HỦY ĐƠN ĐẶT TOUR (CANCEL MODAL KÈM LÝ DO CHUẨN)
        ========================================================================== -->
   <div class="modal fade" id="adminCancelModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content border-0 rounded-4 shadow-lg">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <form class="modal-content border-0 rounded-4 shadow-lg" onsubmit="handleConfirmCancelSubmit(event)">
         <div class="modal-header border-bottom p-4">
           <h5 class="modal-title fw-bold text-danger">
             <i class="bi bi-x-circle-fill me-1"></i> Xác Nhận Hủy Đơn Đặt Tour
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <form onsubmit="handleConfirmCancelSubmit(event)">
-          <input type="hidden" id="cancelModalTargetId">
-          <div class="modal-body p-4">
-            <p class="small text-muted mb-3">
-              Bạn đang thao tác hủy đơn <strong id="cancelModalBookingId" class="text-dark"></strong> của khách hàng <strong id="cancelModalCustomer" class="text-dark"></strong>.
-              Hành động hủy sẽ cập nhật kho chỗ và tự động ghi nhận vào Nhật ký kiểm toán.
-            </p>
+        <input type="hidden" id="cancelModalTargetId">
+        <div class="modal-body p-4">
+          <p class="small text-muted mb-3">
+            Bạn đang thao tác hủy đơn <strong id="cancelModalBookingId" class="text-dark"></strong> của khách hàng <strong id="cancelModalCustomer" class="text-dark"></strong>.
+            Hành động hủy sẽ cập nhật kho chỗ và tự động ghi nhận vào Nhật ký kiểm toán.
+          </p>
 
-            <label class="form-label small fw-bold">Chọn nhanh lý do hủy:</label>
-            <div class="d-flex flex-wrap gap-1 mb-3">
-              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="handleQuickCancelReason('Thay đổi kế hoạch công tác / gia đình')">Lịch bận đột xuất</button>
-              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="handleQuickCancelReason('Đặt nhầm ngày khởi hành hoặc số lượng khách')">Đặt nhầm ngày/số khách</button>
-              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="handleQuickCancelReason('Khách muốn đổi sang hành trình tour khác')">Đổi sang tour khác</button>
-              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="handleQuickCancelReason('Hết thời gian giữ chỗ 24h thu tiền mặt')">Quá hạn giữ chỗ 24h</button>
-            </div>
+          <label class="form-label small fw-bold">Chọn nhanh lý do hủy:</label>
+          <div class="d-flex flex-wrap gap-1 mb-3">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="handleQuickCancelReason('Thay đổi kế hoạch công tác / gia đình')">Lịch bận đột xuất</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="handleQuickCancelReason('Đặt nhầm ngày khởi hành hoặc số lượng khách')">Đặt nhầm ngày/số khách</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="handleQuickCancelReason('Khách muốn đổi sang hành trình tour khác')">Đổi sang tour khác</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="handleQuickCancelReason('Hết thời gian giữ chỗ 24h thu tiền mặt')">Quá hạn giữ chỗ 24h</button>
+          </div>
 
-            <label class="form-label small fw-bold">Lý do hủy đơn chi tiết <span class="text-danger">*</span></label>
-            <textarea class="form-control" id="cancelReasonInput" rows="3" placeholder="Nhập lý do hủy đơn bắt buộc..." required></textarea>
-          </div>
-          <div class="modal-footer border-top p-3">
-            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy bỏ</button>
-            <button type="submit" class="btn btn-danger fw-bold">Xác Nhận Hủy Đơn</button>
-          </div>
-        </form>
-      </div>
+          <label class="form-label small fw-bold">Lý do hủy đơn chi tiết <span class="text-danger">*</span></label>
+          <textarea class="form-control" id="cancelReasonInput" rows="3" placeholder="Nhập lý do hủy đơn bắt buộc..." required></textarea>
+        </div>
+        <div class="modal-footer border-top p-3 bg-white">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy bỏ</button>
+          <button type="submit" class="btn btn-danger fw-bold">Xác Nhận Hủy Đơn</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -642,39 +627,37 @@
        7. MODAL: GHI NHẬN THU TIỀN MẶT (RECORD CASH RECEIPT)
        ========================================================================== -->
   <div class="modal fade" id="adminCashModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content border-0 rounded-4 shadow-lg">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <form class="modal-content border-0 rounded-4 shadow-lg" onsubmit="handleRecordCashSubmit(event)">
         <div class="modal-header border-bottom p-4">
           <h5 class="modal-title fw-bold text-success">
             <i class="bi bi-cash-coin me-1"></i> Ghi Nhận Thu Tiền Mặt (CASH)
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <form onsubmit="handleRecordCashSubmit(event)">
-          <input type="hidden" id="cashTargetPaymentId">
-          <div class="modal-body p-4">
-            <div class="p-3 bg-light border rounded-3 mb-3 small">
-              <div>Mã giao dịch: <strong id="cashModalPaymentId"></strong></div>
-              <div>Mã đơn đặt: <strong id="cashModalBookingId"></strong></div>
-              <div>Số tiền thu: <strong id="cashModalAmount" class="text-success fs-6"></strong></div>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label small fw-bold">Mã Biên Lai / Phiếu Thu Tiền Mặt <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="cashRefInput" required>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label small fw-bold">Ghi Chú Nghiệp Vụ</label>
-              <textarea class="form-control" id="cashNoteInput" rows="2"></textarea>
-            </div>
+        <input type="hidden" id="cashTargetPaymentId">
+        <div class="modal-body p-4">
+          <div class="p-3 bg-light border rounded-3 mb-3 small">
+            <div>Mã giao dịch: <strong id="cashModalPaymentId"></strong></div>
+            <div>Mã đơn đặt: <strong id="cashModalBookingId"></strong></div>
+            <div>Số tiền thu: <strong id="cashModalAmount" class="text-success fs-6"></strong></div>
           </div>
-          <div class="modal-footer border-top p-3">
-            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
-            <button type="submit" class="btn btn-success fw-bold">Xác Nhận Đã Thu Tiền</button>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Mã Biên Lai / Phiếu Thu Tiền Mặt <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="cashRefInput" required>
           </div>
-        </form>
-      </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Ghi Chú Nghiệp Vụ</label>
+            <textarea class="form-control" id="cashNoteInput" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-top p-3 bg-white">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+          <button type="submit" class="btn btn-success fw-bold">Xác Nhận Đã Thu Tiền</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -682,39 +665,37 @@
        8. MODAL: GHI NHẬN HOÀN TIỀN (RECORD REFUND)
        ========================================================================== -->
   <div class="modal fade" id="adminRefundModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content border-0 rounded-4 shadow-lg">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <form class="modal-content border-0 rounded-4 shadow-lg" onsubmit="handleRecordRefundSubmit(event)">
         <div class="modal-header border-bottom p-4">
           <h5 class="modal-title fw-bold text-warning">
             <i class="bi bi-arrow-counterclockwise me-1"></i> Ghi Nhận Hoàn Tiền (Refund)
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <form onsubmit="handleRecordRefundSubmit(event)">
-          <input type="hidden" id="refundTargetPaymentId">
-          <div class="modal-body p-4">
-            <div class="p-3 bg-light border rounded-3 mb-3 small">
-              <div>Mã giao dịch: <strong id="refundModalPaymentId"></strong></div>
-              <div>Mã đơn đặt: <strong id="refundModalBookingId"></strong></div>
-              <div>Số tiền hoàn trả: <strong id="refundModalAmount" class="text-danger fs-6"></strong></div>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label small fw-bold">Mã Tham Chiếu Hoàn Tiền Ngân Hàng <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="refundRefInput" required>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label small fw-bold">Ghi Chú Hoàn Trả</label>
-              <textarea class="form-control" id="refundNoteInput" rows="2"></textarea>
-            </div>
+        <input type="hidden" id="refundTargetPaymentId">
+        <div class="modal-body p-4">
+          <div class="p-3 bg-light border rounded-3 mb-3 small">
+            <div>Mã giao dịch: <strong id="refundModalPaymentId"></strong></div>
+            <div>Mã đơn đặt: <strong id="refundModalBookingId"></strong></div>
+            <div>Số tiền hoàn trả: <strong id="refundModalAmount" class="text-danger fs-6"></strong></div>
           </div>
-          <div class="modal-footer border-top p-3">
-            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
-            <button type="submit" class="btn btn-warning fw-bold text-dark">Xác Nhận Hoàn Tiền</button>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Mã Tham Chiếu Hoàn Tiền Ngân Hàng <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="refundRefInput" required>
           </div>
-        </form>
-      </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Ghi Chú Hoàn Trả</label>
+            <textarea class="form-control" id="refundNoteInput" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-top p-3 bg-white">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+          <button type="submit" class="btn btn-warning fw-bold text-dark">Xác Nhận Hoàn Tiền</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -734,7 +715,7 @@
 
   <!-- Bộ điều khiển chuyên sâu Admin -->
   <script src="assets/js/controllers/admin.js"></script>
-  <!-- Real same-origin FastAPI, only activates at /an-live/; localStorage demo remains clearly labeled -->
+  <!-- Real same-origin FastAPI live bridge -->
   <script src="assets/js/services/live-api-bridge.js"></script>
 </body>
 </html>

@@ -18,7 +18,7 @@ from api.core import (
 from api.models import User, Tour, SessionToken, Favorite, lock_writes, now
 from api.schemas import Signup, Login, ProfilePatch, ChangePassword
 from api.core.security import hash_password, verify_password, rate_limit, token_hash
-from api.repositories.user_repository import user_conflict, find_user_by_email
+from api.repositories.user_repository import user_conflict, find_user_by_email, find_user_by_identifier
 from api.services.auth_service import credentials_match
 
 
@@ -54,7 +54,7 @@ def login(
 ):
     ip = request.client.host if request.client else "unknown"
     rate_limit("login:" + ip, 10)
-    u = find_user_by_email(db, body.email)
+    u = find_user_by_identifier(db, body.identifier)
     if not credentials_match(u, body.password):
         fail(401, "Thông tin đăng nhập không chính xác.")
     with db.begin_nested():
