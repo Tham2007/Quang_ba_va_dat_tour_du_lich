@@ -2,9 +2,9 @@
 
 **Status:** runnable academic demo, **NOT** production-certified online tour sales. Companion code for `https://github.com/Anniehatani/deltatrdelt2.0`, which is currently a static HTML/CSS/JS app. This ZIP is a separate delivery since the connected GitHub user has read-only access to An's repository.
 
-## MVC extended layout (refactored 03/11/2026)
+## MVC-style application structure
 
-FastAPI still runs as `api.app:app`; HTTP registration is in `api/routes/`, controllers in `api/controllers/`, domain services in `api/services/`, SQLAlchemy queries in `api/repositories/`, entity classes in `api/models/`, request DTOs in `api/schemas/`, and session/security configuration in `api/core/`. Existing APIs, DB tables, cookies and transaction behavior are preserved. This is not SQL Server booking integration. See `docs/MVC_REFACTOR_20261103.md`.
+FastAPI still runs as `api.app:app`. The backend is split into route registration, HTTP controllers, business services, repositories, ORM models, validation schemas and shared core infrastructure. The main browser UI is in the repository-level `Frontend/`; tests, docs and scripts remain separate. PostgreSQL/SQLite API persistence and the separate SQL Server adapter use different schemas. See `docs/MVC_REFACTOR_20261103.md`.
 
 ## Setup (Windows PowerShell / Linux / macOS)
 
@@ -20,7 +20,7 @@ python -m uvicorn api.app:app --host 127.0.0.1 --port 8000 --reload
 
 On Windows if `python` is not found use `py -3`. Browser: `http://127.0.0.1:8000/`; OpenAPI interactive docs: `http://127.0.0.1:8000/docs`. Local SQLite file `delta_dev.db` is automatically created; 6 demo tours and **synthetic schedules** seeded once. All services run from one host to avoid CORS misconfiguration.
 
-**Do not open `frontend/index.html` directly via file://**; always use server for cookie/session and API. Do not use real identity documents or banking information in demo.
+**Do not open `../Frontend/index.html` directly via file://**; always use the server for cookie/session and API. Do not use real identity documents or banking information in demo.
 
 ## Functional flows
 
@@ -28,10 +28,28 @@ On Windows if `python` is not found use `py -3`. Browser: `http://127.0.0.1:8000
 2. Register/login/logout with scrypt password hash, hashed opaque session cookie (HttpOnly, SameSite=Strict) and CSRF token.
 3. Read schedules/stock, receive quote from server; hold seats for 15 minutes with idempotent booking key, timeout and cancellation.
 4. View own bookings; can't read other customers' bookings. Changing price leaves old bookings' price snapshots intact.
-5. Admin APIs for tour price/status, schedule creation/capacity, audit trail, metrics and **manual verified-bank-reference** payment recording. There is no fake client-paid button.
+5. Admin APIs for tour price/status, schedule creation/capacity, private per-person cost breakdown, structured day-by-day itinerary (meals, accommodation, activities and team building), audit trail, metrics and **manual verified-bank-reference** payment recording. Public APIs expose the sale price and itinerary but never the internal cost breakdown.
 6. Rule-based FAQ helper, visibly disclosed as such (no browser Gemini key).
 
-**Out of scope:** realtime WebSocket (tour polling 30s), automatic payment gateway/return, password recovery, real e-tickets, vouchers/addons and complete itinerary authoring screens. Release blockers are itemized in `docs/RELEASE_GATE.md`.
+**Out of scope:** realtime WebSocket (tour polling 30s), automatic payment gateway/return, password recovery, real e-tickets, vouchers/addons and itinerary exports. Release blockers are itemized in `docs/RELEASE_GATE.md`.
+
+## Tour content and database upgrades
+
+Administrators can configure each tour from **Quản trị**: add per-person cost
+lines (for example yacht, hotel and meals), enter the customer sale price, and
+author ordered daily activities. The system calculates the private base cost
+from the line items. Customers can view the itinerary and choose from the
+published departure dates when booking; internal cost figures are not returned
+by public endpoints.
+
+New schema is added through incremental Alembic revisions, not by dropping and
+recreating the database. For PostgreSQL set `DATABASE_URL` and run
+`alembic -c database/database/alembic.ini upgrade head`. The current revision
+`0003_tour_costs_and_itinerary` only adds tables. Local SQLite development
+creates new tables on startup; PostgreSQL staging migrations require the
+existing explicit `STAGING_AUTO_MIGRATE=1` opt-in. The legacy SQL Server
+`full_database_deploy.sql` is destructive and is not the migration path for
+this API.
 
 ## Try admin safely on local dev
 
@@ -48,7 +66,7 @@ Note: manual payment confirmation is authorized only after bank proof verified b
 ```bash
 pip install pytest httpx
 python -m pytest -q tests/test_api.py
-node --check frontend/assets/app.js    # optional Node.js
+node --check ../Frontend/assets/js/controllers/main.js  # optional Node.js
 ```
 
 Ten test scenarios include auth, cookie, CSRF, IDOR, amount authority, idempotency, cancels, inventory expiry, admin authorization and 2 concurrent customers attempting the last seat. Repeat the suite with PostgreSQL native after Thắm has completed migrations. `docs/LOCAL_TEST_REPORT.md` records exact results from this delivery run.

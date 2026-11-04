@@ -1,25 +1,46 @@
-# FastAPI của Mạnh — README cho nhóm
+# FastAPI backend — hướng dẫn cấu trúc cho nhóm
 
-**Lưu ý:** đây là backend demo học phần (SQLite local), chưa phải hệ thống đã tích hợp database SQL Server của Thắm. Đã chia module để nhóm dễ đọc; không tự thay thế frontend chính thức của An.
-
-## Đọc mã theo đường đi HTTP
+Backend demo dùng MVC mở rộng để tách giao tiếp HTTP, nghiệp vụ và truy cập dữ
+liệu. Luồng request:
 
 ```text
-api/app.py                 FastAPI app, middlewares, router mounts, static UI
-api/routes/auth.py         đăng ký, đăng nhập, session, CSRF, hồ sơ, yêu thích
-api/routes/tours.py        danh sách/chi tiết tour và lịch khởi hành
-api/routes/bookings.py     báo giá, đặt/huỷ và xem đơn
-api/routes/admin.py        quản trị tour, lịch, thanh toán thủ công, audit
-api/routes/assistant.py    trợ lý FAQ theo quy tắc
-api/schemas.py             định nghĩa request/validation
-api/core.py                dependencies auth, role, session, helper
-api/logic.py               giá, ghế, expire, serializer
-api/models.py              ORM demo SQLite/Postgres (không phải DB Thắm)
-api/security.py            hash mật khẩu, token, rate limit
-api/tham_sqlserver_app.py  ứng dụng độc lập, đọc SQL Server 12 bảng
+api/routes -> api/controllers -> api/services -> api/repositories -> api/models
+                       \-> api/schemas (kiểm tra input/output)
 ```
 
-Không viết thêm toàn bộ logic vào `api/app.py`. Route mới vào đúng `api/routes/<module>.py`, input mới vào `api/schemas.py`. Khi đổi API contract phải báo An và Đăng.
+## Trách nhiệm từng thư mục
+
+| Thư mục / module | Trách nhiệm |
+|---|---|
+| `api/app.py` | Composition root: tạo FastAPI app, đăng ký router và mount giao diện |
+| `api/routes/` | Khai báo path, HTTP method và controller handler; không truy vấn DB |
+| `api/controllers/` | Nhận dependency/request, gọi service và trả kết quả HTTP |
+| `api/services/` | Quy tắc nghiệp vụ, giao dịch, giá, tồn chỗ, quyền và mapping |
+| `api/repositories/` | Truy vấn/ghi SQLAlchemy; không quyết định nghiệp vụ HTTP |
+| `api/models/` | ORM entities và metadata dùng chung |
+| `api/schemas/` | Pydantic contracts, parse và validate dữ liệu đầu vào |
+| `api/core/` | Cấu hình, session, authentication, CSRF và tiện ích dùng chung |
+| `../Frontend/` | Giao diện khách/admin (View), được FastAPI phục vụ cùng origin |
+| `tests/` | API regression, contract, architecture và database tests |
+| `scripts/` | Công cụ vận hành/kiểm tra thủ công |
+| `docs/` | Tài liệu kỹ thuật của API |
+
+`../database/` lưu
+migrations PostgreSQL và các script SQL Server tham khảo. Không chuyển tests,
+scripts, migration hay docs vào thư mục MVC của ứng dụng.
+
+## Quy tắc khi thêm chức năng
+
+1. Thêm/đổi entity trong `api/models/` và migration Alembic tương ứng.
+2. Thêm contract trong `api/schemas/`.
+3. Viết query trong `api/repositories/`.
+4. Đặt quy tắc và transaction trong `api/services/`.
+5. Controller gọi service; route chỉ đăng ký endpoint.
+6. Thêm regression test trong `tests/` và cập nhật docs liên quan.
+
+Không thêm SQL hoặc quy tắc nghiệp vụ vào `api/app.py` hay file route. Không
+trỏ ORM SQLite/PostgreSQL vào schema SQL Server của Thắm. Adapter
+`api.tham_sqlserver_app` là ứng dụng riêng, hiện chỉ đọc.
 
 ## Chạy trên Windows PowerShell
 
@@ -30,24 +51,11 @@ py -3 -m venv .venv
 .\.venv\Scripts\python.exe -m uvicorn api.app:app --host 127.0.0.1 --port 8000
 ```
 
-Mở `http://127.0.0.1:8000/` hoặc `http://127.0.0.1:8000/docs`. **Giao diện tại `API/frontend/` là UI demo backend**, không phải source gốc An.
-
-## Chạy kiểm thử (terminal khác, thư mục API)
+Chạy regression:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q tests/test_api.py tests/test_legacy_schema_guard.py tests/test_static_assets.py
-.\.venv\Scripts\python.exe -m pytest -q tests/test_tham_sqlserver_app.py tests/test_tham_sqlserver_checker.py
-.\.venv\Scripts\python.exe -m scripts.check_static_assets
+.\.venv\Scripts\python.exe -m pytest -q tests
 ```
 
-CI chạy qua `.github/workflows/ci-backend-regression.yml` và `.github/workflows/ci-tham-sqlserver-bridge.yml`. Mock xanh không chứng minh server SQL Server của Thắm đã chạy; tham khảo `docs/SQLSERVER_LIVE_VERIFICATION_RUNBOOK.md`.
-
-## Tích hợp tiếp với Thắm/An/Đăng/Phúc
-
-- **Thắm:** duyệt ERD, T-SQL 12 bảng, role, giữ chỗ, migration an toàn và database test.
-- **Mạnh:** sau DB thật, tích hợp auth/booking/payment với schema đã chốt.
-- **An:** đưa source frontend chính thức vào `Frontend/` qua PR và gọi endpoint đã nghiệm thu.
-- **Đăng:** test UAT/E2E, 401/403, static 404, concurrency và quyền user.
-- **Phúc:** CI/staging sử dụng **đúng repo nhóm** và SQL Server test, bảo mật secrets.
-
-**Release:** không commit .env, credentials, file db hay quyền Admin trên frontend; không chạy SQL chứa DROP DATABASE trên dữ liệu thật; không coi 'đã merge' là 'đã kết nối FE–BE–DB'.
+Khi đổi API contract, phối hợp với frontend và cập nhật tài liệu API trước khi
+merge.

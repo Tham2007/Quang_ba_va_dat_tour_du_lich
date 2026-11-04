@@ -7,7 +7,7 @@
 
 ## 1. Mục tiêu và phạm vi
 
-Thực hiện **PostgreSQL schema/migrations thật**, duy trì chính xác dữ liệu thay đổi theo thời gian: tour, giá, thời gian khởi hành, tổng số chỗ, chỗ đã giữ, hồ sơ người dùng, đơn hàng và bằng chứng đối soát thanh toán. Backend hiện có ORM trong `api/models.py`. Thắm **không thiết kế một database song song** khiến thông tin lệch nhau. `frontend/assets/app.js` tuyệt đối không được dùng `localStorage` làm nguồn sự thật cho tài khoản, giá, số chỗ, trạng thái thanh toán.
+Thực hiện **PostgreSQL schema/migrations thật**, duy trì chính xác dữ liệu thay đổi theo thời gian: tour, giá, thời gian khởi hành, tổng số chỗ, chỗ đã giữ, hồ sơ người dùng, đơn hàng và bằng chứng đối soát thanh toán. Backend hiện có ORM trong `api/models/` (gồm chi phí nội bộ và lịch trình tại `api/models/tour_detail.py`). Thắm **không thiết kế một database song song** khiến thông tin lệch nhau. `frontend/assets/app.js` tuyệt đối không được dùng `localStorage` làm nguồn sự thật cho tài khoản, giá, số chỗ, trạng thái thanh toán.
 
 ### 1.1 Các bảng tối thiểu đang có
 
@@ -35,7 +35,7 @@ Thực hiện **PostgreSQL schema/migrations thật**, duy trì chính xác dữ
 
 ## 2. Bản giao nộp bắt buộc
 
-- `db/migrations/001_initial.sql` hoặc Alembic migration có upgrade + downgrade được review, đồng bộ đúng với `api/models.py`, đảm bảo kiểu `BIGINT` cho tiền VND và timezone UTC.
+- `db/migrations/001_initial.sql` hoặc Alembic migration có upgrade + downgrade được review, đồng bộ đúng với `api/models/`, đảm bảo kiểu `BIGINT` cho tiền VND và timezone UTC.
 - `db/migrations/002_invariants.sql`: CHECK giá > 0, `reserved_seats >= 0`, `total_seats > 0`, `reserved_seats <= total_seats`, số khách hợp lệ, status enum/check. UNIQUE và foreign keys đã có phải giữ nguyên; **đừng dùng CASCADE DELETE với bookings**.
 - ERD Mermaid hoặc PNG thể hiện 7 bảng hiện tại và mối quan hệ 1-N.
 - `db/README.md` mô tả tạo DB, biến môi trường `DATABASE_URL`, migration/rollback, dữ liệu demo, backup/restore và an toàn dữ liệu cá nhân.

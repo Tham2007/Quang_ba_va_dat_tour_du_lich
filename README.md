@@ -10,9 +10,9 @@ Hệ thống giới thiệu tour trong nước, lịch khởi hành, quản lý 
 | Thành phần | Đường dẫn | Hiện trạng |
 |---|---|---|
 | FastAPI demo của Mạnh | [`API/api/`](API/api/) | Backend SQLite/PostgreSQL demo, refactor MVC mở rộng với routes/controllers/services/repositories |
-| Giao diện demo đi kèm backend | [`API/frontend/`](API/frontend/) | Giao diện thử API, **không phải** frontend An bàn giao |
+| Giao diện chính | [`Frontend/`](Frontend/) | Giao diện khách/admin chính thức, kết nối API cùng origin |
 | API đọc SQL Server 12 bảng | [`API/api/tham_sqlserver_app.py`](API/api/tham_sqlserver_app.py) | **Đã thử với SQL Server 2022 thật trong CI ephemeral**; đọc dữ liệu OK, ghi qua HTTP API cố ý 503, chưa có SQL Server host bền vững |
-| Frontend của An | [`Frontend/`](Frontend/) | Giao diện Vanilla JS chia controllers/models/services, có **bảng API thật** ở `/an-live/` (đăng ký/đặt/hủy server-side); các nút giao diện cũ vẫn localStorage demo. Chromium E2E đạt |
+| Frontend | [`Frontend/`](Frontend/) | Giao diện Vanilla JS chia controllers/models/services, được phục vụ tại `/` và `/an-live/` |
 | Thiết kế database của Thắm | [`database/`](database/) | **12 bảng T-SQL chạy đạt trên SQL Server 2022 thật CI**; SP đặt/hủy, 20 người tranh 1 chỗ chỉ 1 thành công. Chưa host SQL Server lâu dài |
 | Yêu cầu và quyết định | [`docs/`](docs/) | SRS, 20 use cases, API contract, ADR đang chờ thống nhất |
 
@@ -28,16 +28,15 @@ Hệ thống giới thiệu tour trong nước, lịch khởi hành, quản lý 
 │   │   ├── controllers/           # auth, tour, booking, admin, assistant
 │   │   ├── services/              # Nghiệp vụ, giá, tồn chỗ, payment evidence
 │   │   ├── repositories/          # Truy vấn ORM với SQLAlchemy Session
-│   │   ├── models/                # 7 ORM entities, Base chung
+│   │   ├── models/                # ORM entities, Base chung
 │   │   ├── schemas/               # Pydantic input contracts
 │   │   ├── core/                  # security, session, config
 │   │   ├── logic.py               # Compatibility import cho code cũ
 │   │   ├── security.py            # Compatibility import cho code cũ
 │   │   └── tham_sqlserver_app.py  # SQL Server 12 bảng, adapter chỉ đọc
-│   ├── frontend/                  # UI API demo riêng
 │   ├── tests/                     # Regression và MVC architecture tests
 │   └── scripts/
-├── Frontend/
+├── Frontend/                      # UI chính, cùng origin với FastAPI
 │   ├── index.html
 │   ├── admin.html
 │   └── assets/
@@ -51,7 +50,15 @@ Hệ thống giới thiệu tour trong nước, lịch khởi hành, quản lý 
 └── docs/                         # SRS, ADR, giải thích kiến trúc
 ```
 
-**Lưu ý:** MVC ở đây là cách tổ chức mã, không đồng nghĩa mọi thành phần đã dùng chung SQL Server. `api.app` vẫn chạy DB SQLite/PostgreSQL theo schema demo. Adapter SQL Server riêng hiện chỉ đọc, API ghi booking trả 503. Xem [giải thích các tầng MVC](API/docs/MVC_REFACTOR_20261103.md).
+**Quy ước MVC mở rộng:** `routes/` nhận URL/method, `controllers/` xử lý HTTP,
+`services/` giữ nghiệp vụ, `repositories/` truy vấn dữ liệu, `models/` định
+nghĩa ORM và `schemas/` kiểm tra request. `Frontend/` là phần giao diện;
+`database/`, `tests/`, `scripts/`, `docs/` được giữ riêng vì
+đó là migration, kiểm thử, vận hành và tài liệu — không phải MVC layer.
+**Lưu ý:** cách tổ chức này không đồng nghĩa mọi thành phần đã dùng chung SQL
+Server. `api.app` vẫn chạy DB SQLite/PostgreSQL theo schema demo. Adapter SQL
+Server riêng hiện chỉ đọc, API ghi booking trả 503. Xem
+[giải thích các tầng MVC](API/docs/MVC_REFACTOR_20261103.md).
 
 ## Chạy nhanh backend demo
 
@@ -64,7 +71,7 @@ py -3 -m venv .venv
 .\.venv\Scripts\python.exe -m uvicorn api.app:app --host 127.0.0.1 --port 8000
 ```
 
-Mở `http://127.0.0.1:8000/` để xem giao diện API hoặc `http://127.0.0.1:8000/an-live/` để xem **giao diện An có bảng đăng ký/đặt tour qua API**, và `http://127.0.0.1:8000/docs` để thử Swagger. **Không** nhấp mở `index.html` bằng `file://`; cookie/session và API phải cùng máy chủ.
+Mở `http://127.0.0.1:8000/` hoặc `http://127.0.0.1:8000/an-live/` để xem giao diện, và `http://127.0.0.1:8000/docs` để thử Swagger. **Không** nhấp mở `index.html` bằng `file://`; cookie/session và API phải cùng máy chủ.
 
 ```powershell
 # Từ thư mục API:
