@@ -57,6 +57,7 @@ def run_sqlserver_write_tests(host: str, password: str, engine) -> None:
         assert registered.status_code == 201, f"register {registered.status_code}: {registered.text[:350]}"
         assert registered.json()["role"] == "CUSTOMER"
         assert client.get("/api/v1/auth/me").status_code == 200
+        assert client.get("/api/v1/bookings").json() == []
         assert client.get("/api/v1/auth/session").json()["authenticated"] is True
         csrf = client.cookies["delta_csrf"]
         head = {"X-CSRF-Token": csrf}
@@ -73,7 +74,9 @@ def run_sqlserver_write_tests(host: str, password: str, engine) -> None:
         booking = created.json()
         assert booking["status"] == "PENDING_PAYMENT" and not booking["paid"]
         assert booking["storage"] == "sqlserver"
-        assert client.get("/api/v1/bookings/" + booking["id"]).status_code == 200
+        owned = client.get("/api/v1/bookings/" + booking["id"])
+        assert owned.status_code == 200
+        assert owned.json()["tourTitle"] and owned.json()["storage"] == "sqlserver"
         replay = client.post("/api/v1/bookings", json=body, headers={**head, "Idempotency-Key": idem})
         assert replay.status_code == 201 and replay.json()["id"] == booking["id"]
         changed_body = {**body, "adults": 2}
@@ -98,6 +101,17 @@ def run_sqlserver_write_tests(host: str, password: str, engine) -> None:
             seats = conn.execute(text("SELECT SoChoDaDat FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=:sid"),
                                  {"sid": schedule_id}).scalar_one()
         assert seats == 1, f"Expected 1 remaining hold, got {seats}"
+        # Other authenticated customer must not read or cancel this booking.
+        with TestClient(write_bridge.app) as outsider:
+            other = {**user, "email": "other-" + ident[:12] + "@example.invalid",
+                     "phone": "093" + "".join(str(int(x,16)%10) for x in ident[7:14])}
+            other_registered = outsider.post("/api/v1/auth/register", json=other)
+            assert other_registered.status_code == 201, f"other register {other_registered.status_code}"
+            assert outsider.get("/api/v1/bookings/" + booking["id"]).status_code == 404
+            outsider_csrf = outsider.cookies["delta_csrf"]
+            assert outsider.post("/api/v1/bookings/" + booking["id"] + "/cancel",
+                                headers={"X-CSRF-Token": outsider_csrf}).status_code == 404
+            assert outsider.get("/api/v1/bookings").json() == []
         assert client.post("/api/v1/admin/bookings/1/confirm-payment", json={}, headers=head).status_code == 503
         assert client.post("/api/v1/auth/logout", headers=head).status_code == 200
         assert client.get("/api/v1/auth/me").status_code == 401
