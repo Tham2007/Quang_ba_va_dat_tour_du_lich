@@ -48,7 +48,7 @@ document.addEventListener("DOMContentLoaded", () => {
     DeltaAPI.checkHealth().then(status => {
       if (status && status.online && typeof DeltaAPI.fetchTours === "function") {
         DeltaAPI.fetchTours().then(res => {
-          if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+          if (res && res.success && Array.isArray(res.data)) {
             const serverTours = res.data.map(st => {
               let itinerary = [];
               try { itinerary = JSON.parse(st.itineraryJson || '[]'); } catch (e) {}
@@ -75,8 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 exclusions: ['Chi phí cá nhân', 'Thuế VAT']
               };
             });
-            const existingIds = new Set(serverTours.map(t => t.id));
-            TOURS_DATA = [...serverTours, ...TOURS_DATA.filter(t => !existingIds.has(t.id))];
+            TOURS_DATA.splice(0, TOURS_DATA.length, ...serverTours);
             Promise.all(serverTours.map(async tour => {
               const schedules = await DeltaAPI.fetchSchedules(tour.id);
               if (schedules.success && schedules.data.length) {
@@ -911,12 +910,18 @@ function setMinimumDepartureDate() {
  * Mở Modal Đặt tour với tour được chỉ định
  */
 async function openBookingModal(tourId) {
-  const tour = TOURS_DATA.find(t => t.id === tourId);
-  if (!tour) return;
+  const normalizedTourId = String(tourId).trim().toLowerCase();
+  const tour = TOURS_DATA.find(
+    t => String(t.id).trim().toLowerCase() === normalizedTourId
+  );
+  if (!tour) {
+    showToast("Không tìm thấy tour trong danh sách hiện tại. Vui lòng tải lại trang.", "error");
+    return;
+  }
 
   let schedules = [];
   if (typeof DeltaAPI !== "undefined" && DeltaAPI.isOnline()) {
-    const response = await DeltaAPI.fetchSchedules(tourId);
+    const response = await DeltaAPI.fetchSchedules(tour.id);
     if (!response.success) {
       showToast(response.error || "Không thể tải lịch khởi hành.", "error");
       return;
@@ -924,7 +929,7 @@ async function openBookingModal(tourId) {
     schedules = response.data.filter(schedule => schedule.availableSeats > 0);
   } else if (typeof getSchedulesData === "function") {
     schedules = getSchedulesData()
-      .filter(schedule => schedule.tourId === tourId && schedule.status === "OPEN")
+      .filter(schedule => schedule.tourId === tour.id && schedule.status === "OPEN")
       .map(schedule => ({
         ...schedule,
         availableSeats: schedule.totalSeats - (schedule.bookedSeats || 0)
