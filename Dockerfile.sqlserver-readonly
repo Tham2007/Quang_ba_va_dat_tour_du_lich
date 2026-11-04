@@ -21,6 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt pyodbc
 
 COPY API/api ./api
 COPY API/scripts ./scripts
+COPY Frontend ./Frontend
 
 EXPOSE 10000
 CMD ["sh", "-c", "exec uvicorn api.tham_sqlserver_app:app --host 0.0.0.0 --port ${PORT:-10000}"]

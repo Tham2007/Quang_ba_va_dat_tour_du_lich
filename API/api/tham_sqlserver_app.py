@@ -272,7 +272,30 @@ def booking_quote(body: QuoteInput, reader: Annotated[SqlServerReader, Depends(g
             "addonsSupported": False, "vouchersSupported": False, "quoteOnly": True}
 
 
-@app.post("/api/v1/bookings")
-@app.post("/api/v1/admin/bookings/{booking_id}/confirm-payment")
-def blocked_writes():
-    raise HTTPException(503, "Chức năng ghi đơn/thanh toán chưa được duyệt và tích hợp an toàn.")
+# Opt-in only: the existing read-only Render deployment remains unchanged.
+# This feature requires an explicit, reviewed DB migration and a credential
+# with narrowly scoped writes. Never enable it by merely changing DATABASE_URL.
+if os.environ.get("THAM_BOOKING_WRITES_ENABLED") == "1":
+    from api.sqlserver_writes import router as sqlserver_write_router
+    app.include_router(sqlserver_write_router)
+else:
+    @app.post("/api/v1/bookings")
+    @app.post("/api/v1/admin/bookings/{booking_id}/confirm-payment")
+    def blocked_writes():
+        raise HTTPException(503, "Chức năng ghi đơn/thanh toán chưa được duyệt và tích hợp an toàn.")
+
+
+# Optional SQL Server same-origin An UI preview. Without opt-in this remains
+# the existing read-only catalog API, with no change to static routing.
+if os.environ.get("THAM_SERVE_AN_UI") == "1":
+    from pathlib import Path
+    from fastapi.staticfiles import StaticFiles
+    source = Path(__file__).resolve()
+    for parent in (source.parents[2], source.parents[1]):
+        frontend = parent / "Frontend"
+        if frontend.is_dir():
+            app.mount("/an-live", StaticFiles(directory=str(frontend), html=True),
+                      name="an-sqlserver-ui")
+            break
+    else:
+        raise RuntimeError("THAM_SERVE_AN_UI=1 requires the Frontend/ directory in the image")
