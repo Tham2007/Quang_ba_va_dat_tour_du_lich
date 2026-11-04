@@ -4,7 +4,7 @@ from fastapi import Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from api.core import db_session, fail
-from api.services.tour_service import public_tour, availability
+from api.services.tour_service import public_tour, availability, itinerary_items
 from api.services.booking_service import sweep
 from api.repositories.tour_repository import list_public_tours
 from api.models import Tour, Schedule, lock_writes, now
@@ -30,6 +30,13 @@ def tour_one(tour_id: str, db: Session = Depends(db_session)):
     if not t or not t.active:
         fail(404, "Không tìm thấy tour.")
     return public_tour(t)
+
+
+def tour_itinerary(tour_id: str, db: Session = Depends(db_session)):
+    t = db.get(Tour, tour_id)
+    if not t or not t.active:
+        fail(404, "Không tìm thấy tour.")
+    return itinerary_items(db, tour_id)
 
 
 def schedules(tour_id: str, db: Session = Depends(db_session)):

@@ -395,3 +395,170 @@ def test_r_an_original_frontend_served_on_same_origin_as_fastapi():
         assert '"/api/v1"' in bridge.text
         assert "credentials: \"same-origin\"" in bridge.text
         assert c.get("/api/v1/tours").status_code == 200
+
+
+def test_s_admin_tour_costs_and_itinerary_are_private_and_replaceable():
+    with TestClient(app) as admin_client, TestClient(app) as customer_client:
+        account = reg(admin_client, 801)
+        reg(customer_client, 802)
+        with SessionLocal.begin() as db:
+            db.scalar(select(User).where(User.email == account["email"])).role = "ADMIN"
+
+        url = "/api/v1/admin/tours/DL-HL01/details"
+        assert customer_client.get(url).status_code == 403
+        assert customer_client.put(
+            url, json={"price": 5000000}, headers=csrf(customer_client)
+        ).status_code == 403
+
+        payload = {
+            "price": 5500000,
+            "cost_items": [
+                {
+                    "category": "transport",
+                    "name": "Du thuyền",
+                    "notes": "Chi phí tàu trên mỗi khách",
+                    "amount_per_person": 2100000,
+                },
+                {
+                    "category": "accommodation",
+                    "name": "Khách sạn",
+                    "notes": "",
+                    "amount_per_person": 800000,
+                },
+                {
+                    "category": "meal",
+                    "name": "Các bữa ăn",
+                    "notes": "",
+                    "amount_per_person": 500000,
+                },
+            ],
+            "itinerary": [
+                {
+                    "day_number": 1,
+                    "sequence": 1,
+                    "category": "transport",
+                    "title": "Đón khách tại Hà Nội",
+                    "description": "Khởi hành đến cảng",
+                    "location": "Hà Nội",
+                    "start_time": "07:00",
+                },
+                {
+                    "day_number": 1,
+                    "sequence": 2,
+                    "category": "team_building",
+                    "title": "Teambuilding trên du thuyền",
+                    "description": "",
+                    "location": "Vịnh Hạ Long",
+                },
+                {
+                    "day_number": 2,
+                    "sequence": 1,
+                    "category": "meal",
+                    "title": "Ăn sáng tại khách sạn",
+                    "description": "",
+                    "location": "",
+                },
+            ],
+        }
+        saved = admin_client.put(url, json=payload, headers=csrf(admin_client))
+        assert saved.status_code == 200, saved.text
+        assert saved.json()["baseCost"] == 3400000
+        assert saved.json()["tour"]["price"] == 5500000
+        assert len(saved.json()["costItems"]) == 3
+
+        public_tour = customer_client.get("/api/v1/tours/DL-HL01").json()
+        assert public_tour["price"] == 5500000
+        assert "originalPrice" not in public_tour
+        assert "baseCost" not in public_tour
+        assert "costItems" not in public_tour
+        assert "amountPerPerson" not in str(public_tour)
+        itinerary = customer_client.get("/api/v1/tours/DL-HL01/itinerary")
+        assert itinerary.status_code == 200
+        assert [(item["dayNumber"], item["sequence"]) for item in itinerary.json()] == [
+            (1, 1),
+            (1, 2),
+            (2, 1),
+        ]
+        assert itinerary.json()[1]["category"] == "team_building"
+
+        invalid = admin_client.put(
+            url,
+            json={
+                **payload,
+                "itinerary": [payload["itinerary"][0], payload["itinerary"][0]],
+            },
+            headers=csrf(admin_client),
+        )
+        assert invalid.status_code == 422
+        assert admin_client.put(
+            url,
+            json={**payload, "price": 3400000},
+            headers=csrf(admin_client),
+        ).status_code == 422
+        assert admin_client.patch(
+            "/api/v1/admin/tours/DL-HL01",
+            json={"price": 3400000},
+            headers=csrf(admin_client),
+        ).status_code == 422
+        still_saved = admin_client.get(url).json()
+        assert still_saved["baseCost"] == 3400000
+        assert len(still_saved["itinerary"]) == 3
+
+
+def test_t_booking_cannot_exceed_remaining_seats_in_quote_or_create():
+    with TestClient(app) as client:
+        reg(client, 901)
+        departure = (datetime.now(timezone.utc) + timedelta(days=180)).replace(
+            microsecond=0
+        )
+        schedule_id = str(uuid.uuid4())
+        with SessionLocal.begin() as db:
+            db.add(
+                Schedule(
+                    id=schedule_id,
+                    tour_id="DL-HL01",
+                    departure_at=departure,
+                    total_seats=2,
+                    reserved_seats=0,
+                )
+            )
+
+        quote_url = "/api/v1/bookings/quote"
+        request = {
+            "schedule_id": schedule_id,
+            "adults": 1,
+            "children": 1,
+            "infants": 1,
+        }
+        rejected_quote = client.post(quote_url, json=request)
+        assert rejected_quote.status_code == 409
+        assert "còn 2 chỗ" in rejected_quote.json()["detail"]
+        rejected_booking = post_booking(client, {
+            **booking_body(client),
+            "schedule_id": schedule_id,
+            "adults": 3,
+        })
+        assert rejected_booking.status_code == 409
+
+        accepted = client.post(
+            quote_url,
+            json={**request, "adults": 1, "children": 1, "infants": 0},
+        )
+        assert accepted.status_code == 200
+        assert accepted.json()["seats"] == 2
+        assert accepted.json()["availableSeats"] == 2
+        booked = post_booking(
+            client,
+            {
+                **booking_body(client),
+                "schedule_id": schedule_id,
+                "adults": 1,
+                "children": 1,
+            },
+        )
+        assert booked.status_code == 201, booked.text
+        fully_reserved_quote = client.post(
+            quote_url,
+            json={**request, "adults": 1, "children": 1, "infants": 0},
+        )
+        assert fully_reserved_quote.status_code == 409

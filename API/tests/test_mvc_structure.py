@@ -1,7 +1,14 @@
 """Verify MVC modules are real and public HTTP handlers stay registered."""
 from pathlib import Path
 from api.app import app
-from api.models import Base, User, Tour, Booking
+from api.models import (
+    Base,
+    User,
+    Tour,
+    Booking,
+    TourCostItem,
+    ItineraryItem,
+)
 from api.schemas import Signup, TourCreate, BookingInput
 from api.core import me, db_session
 
@@ -13,7 +20,9 @@ def test_models_and_schemas_preserve_metadata():
     assert Signup.__module__ == "api.schemas.auth_schema"
     assert TourCreate.__module__ == "api.schemas.tour_schema"
     assert BookingInput.__module__ == "api.schemas.booking_schema"
-    assert len(Base.metadata.tables) == 7
+    assert TourCostItem.__module__ == "api.models.tour_detail"
+    assert ItineraryItem.__module__ == "api.models.tour_detail"
+    assert len(Base.metadata.tables) == 9
 
 
 def test_registered_handlers_are_controllers():

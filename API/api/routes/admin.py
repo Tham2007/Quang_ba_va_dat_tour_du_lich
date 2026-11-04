@@ -15,6 +15,16 @@ router.add_api_route(
     "/api/v1/admin/tours/{tour_id}", controller.admin_tour_patch, methods=["PATCH"]
 )
 router.add_api_route(
+    "/api/v1/admin/tours/{tour_id}/details",
+    controller.get_admin_tour_details,
+    methods=["GET"],
+)
+router.add_api_route(
+    "/api/v1/admin/tours/{tour_id}/details",
+    controller.replace_admin_tour_details,
+    methods=["PUT"],
+)
+router.add_api_route(
     "/api/v1/admin/tours/{tour_id}", controller.admin_tour_delete, methods=["DELETE"]
 )
 router.add_api_route(

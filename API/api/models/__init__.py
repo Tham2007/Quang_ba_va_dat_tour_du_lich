@@ -3,6 +3,7 @@
 from .base import Base, engine, SessionLocal, make_engine, lock_writes, now
 from .user import User, SessionToken
 from .tour import Tour
+from .tour_detail import TourCostItem, ItineraryItem
 from .schedule import Schedule
 from .booking import Booking
 from .favorite import Favorite
@@ -18,6 +19,8 @@ __all__ = [
     "User",
     "SessionToken",
     "Tour",
+    "TourCostItem",
+    "ItineraryItem",
     "Schedule",
     "Booking",
     "Favorite",

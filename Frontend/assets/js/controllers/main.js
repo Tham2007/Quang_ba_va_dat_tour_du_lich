@@ -22,6 +22,7 @@ const AppState = {
   selectedPriceRange: "all",     // Khoảng giá ('all', 'under3m', '3to5m', 'above5m')
   sortCriteria: "default",       // Sắp xếp ('default', 'price-asc', 'price-desc', 'rating-desc')
   currentBookingTour: null,      // Tour đang được chọn để đặt
+  currentSchedules: [],
   appliedVoucher: null,          // Voucher đang áp dụng
   bookingReference: "",          // Mã đặt chỗ tạm tính
   selectedPaymentMethod: "qr"    // Phương thức thanh toán đang chọn
@@ -50,7 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
           if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
             const serverTours = res.data.map(st => {
               let itinerary = [];
-              try { itinerary = JSON.parse(st.itinerary_json || '[]'); } catch (e) {}
+              try { itinerary = JSON.parse(st.itineraryJson || '[]'); } catch (e) {}
               return {
                 id: st.id,
                 title: st.title,
@@ -62,11 +63,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 departure: st.departure,
                 transport: st.transport,
                 price: st.price,
-                originalPrice: st.original_price,
+                originalPrice: 0,
                 rating: 5.0,
                 reviewsCount: 120,
-                badge: st.flash_sale ? 'FLASH SALE' : 'TOUR NỔI BẬT',
-                availableSeats: 20,
+                badge: st.isFlashSale ? 'FLASH SALE' : 'TOUR NỔI BẬT',
+                availableSeats: 0,
                 itinerary: itinerary.length > 0 ? itinerary : [
                   { day: 1, title: 'Hành trình khởi hành', morning: 'Khởi hành theo lịch trình', afternoon: 'Nhận phòng và tham quan', evening: 'Dùng bữa tối và tự do' }
                 ],
@@ -76,7 +77,12 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             const existingIds = new Set(serverTours.map(t => t.id));
             TOURS_DATA = [...serverTours, ...TOURS_DATA.filter(t => !existingIds.has(t.id))];
-            renderTourCards();
+            Promise.all(serverTours.map(async tour => {
+              const schedules = await DeltaAPI.fetchSchedules(tour.id);
+              if (schedules.success && schedules.data.length) {
+                tour.availableSeats = schedules.data[0].availableSeats;
+              }
+            })).finally(renderTourCards);
           }
         }).catch(() => {});
       }
@@ -441,7 +447,6 @@ function renderTourCards() {
 
             <!-- Giá tour -->
             <div class="tour-price-box">
-              <div class="tour-price-original">${formatVND(tour.originalPrice)}</div>
               <div class="tour-price-current">
                 ${formatVND(tour.price)}
                 <span class="tour-price-unit">/ khách</span>
@@ -646,7 +651,7 @@ function openWishlistModal() {
 /**
  * Mở modal xem toàn bộ lịch trình chi tiết từng ngày của Tour
  */
-function openItineraryModal(tourId) {
+async function openItineraryModal(tourId) {
   // Tìm tour an toàn theo id (hỗ trợ cả uppercase, lowercase, string)
   const tour = TOURS_DATA.find(t => String(t.id).trim().toLowerCase() === String(tourId).trim().toLowerCase());
   if (!tour) {
@@ -691,9 +696,26 @@ function openItineraryModal(tourId) {
   const priceEl = document.getElementById("itineraryPrice");
   if (priceEl) priceEl.textContent = formatVND(tour.price);
 
-  // 2. Điền Timeline lịch trình từng ngày (Xử lý an toàn cả mảng lẫn chuỗi JSON)
+  // Prefer the published structured schedule when the API is available.
   let itineraryDays = [];
-  if (Array.isArray(tour.itinerary)) {
+  if (typeof DeltaAPI !== "undefined" && DeltaAPI.isOnline() && DeltaAPI.fetchItinerary) {
+    const response = await DeltaAPI.fetchItinerary(tour.id);
+    if (response.success && Array.isArray(response.data)) {
+      const grouped = new Map();
+      for (const activity of response.data) {
+        if (!grouped.has(activity.dayNumber)) grouped.set(activity.dayNumber, []);
+        grouped.get(activity.dayNumber).push(activity);
+      }
+      itineraryDays = [...grouped.entries()].map(([day, activities]) => ({
+        day,
+        title: `Lịch trình ngày ${day}`,
+        activities
+      }));
+    }
+  }
+  if (itineraryDays.length) {
+    // Keep API-authored activities grouped by day for the timeline below.
+  } else if (Array.isArray(tour.itinerary)) {
     itineraryDays = tour.itinerary;
   } else if (typeof tour.itinerary === "string") {
     try {
@@ -726,6 +748,23 @@ function openItineraryModal(tourId) {
     timelineEl.innerHTML = itineraryDays.map((day, idx) => {
       const dayNum = day.day || (idx + 1);
       const dayTitle = day.title || `Khám phá ngày ${dayNum}`;
+      if (Array.isArray(day.activities)) {
+        return `
+          <div class="itinerary-day-card">
+            <div class="itinerary-day-badge">${dayNum}</div>
+            <h5 class="itinerary-day-title">Ngày ${dayNum}: ${escapeHtml(dayTitle)}</h5>
+            ${day.activities.map(activity => `
+              <div class="day-period-block">
+                <div class="period-icon-wrap period-morning"><i class="bi bi-calendar-check"></i></div>
+                <div class="period-content">
+                  <h6>${escapeHtml([activity.startTime, activity.title].filter(Boolean).join(" · "))}</h6>
+                  <p>${escapeHtml(activity.description || "")}</p>
+                  ${activity.location ? `<small>${escapeHtml(activity.location)}</small>` : ""}
+                </div>
+              </div>
+            `).join("")}
+          </div>`;
+      }
       const morningText = day.morning || day.activities || "Hoạt động tham quan buổi sáng theo hướng dẫn viên.";
       const afternoonText = day.afternoon || "Hoạt động buổi chiều và khám phá các danh lam thắng cảnh tiêu biểu.";
       const eveningText = day.evening || "Hoạt động buổi tối, ăn tối và tự do dạo chơi.";
@@ -742,7 +781,7 @@ function openItineraryModal(tourId) {
             </div>
             <div class="period-content">
               <h6>Buổi Sáng</h6>
-              <p>${morningText}</p>
+              <p>${escapeHtml(morningText)}</p>
             </div>
           </div>
 
@@ -753,7 +792,7 @@ function openItineraryModal(tourId) {
             </div>
             <div class="period-content">
               <h6>Buổi Chiều</h6>
-              <p>${afternoonText}</p>
+              <p>${escapeHtml(afternoonText)}</p>
             </div>
           </div>
 
@@ -764,12 +803,18 @@ function openItineraryModal(tourId) {
             </div>
             <div class="period-content">
               <h6>Buổi Tối</h6>
-              <p>${eveningText}</p>
+              <p>${escapeHtml(eveningText)}</p>
             </div>
           </div>
         </div>
       `;
     }).join("");
+  }
+
+  function escapeHtml(value) {
+    return String(value || "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    })[char]);
   }
 
   // 3. Điền Dịch vụ bao gồm & Không bao gồm
@@ -859,22 +904,34 @@ function prevTestimonial() {
  */
 function setMinimumDepartureDate() {
   const dateInput = document.getElementById("bookingDepartureDate");
-  if (!dateInput) return;
-
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDate = tomorrow.toISOString().split("T")[0];
-  dateInput.min = minDate;
-  dateInput.value = minDate;
+  if (dateInput) dateInput.replaceChildren(new Option("Đang tải ngày khởi hành...", ""));
 }
 
 /**
  * Mở Modal Đặt tour với tour được chỉ định
  */
-function openBookingModal(tourId) {
+async function openBookingModal(tourId) {
   const tour = TOURS_DATA.find(t => t.id === tourId);
   if (!tour) return;
 
+  let schedules = [];
+  if (typeof DeltaAPI !== "undefined" && DeltaAPI.isOnline()) {
+    const response = await DeltaAPI.fetchSchedules(tourId);
+    if (!response.success) {
+      showToast(response.error || "Không thể tải lịch khởi hành.", "error");
+      return;
+    }
+    schedules = response.data.filter(schedule => schedule.availableSeats > 0);
+  } else if (typeof getSchedulesData === "function") {
+    schedules = getSchedulesData()
+      .filter(schedule => schedule.tourId === tourId && schedule.status === "OPEN")
+      .map(schedule => ({
+        ...schedule,
+        availableSeats: schedule.totalSeats - (schedule.bookedSeats || 0)
+      }))
+      .filter(schedule => schedule.availableSeats > 0);
+  }
+  AppState.currentSchedules = schedules;
   AppState.currentBookingTour = tour;
   AppState.appliedVoucher = null;
   AppState.selectedPaymentMethod = "qr";
@@ -893,6 +950,23 @@ function openBookingModal(tourId) {
   document.getElementById("qtyAdults").value = 1;
   document.getElementById("qtyChildren").value = 0;
   document.getElementById("qtyInfants").value = 0;
+  const departureSelect = document.getElementById("bookingDepartureDate");
+  if (departureSelect) {
+    departureSelect.replaceChildren();
+    for (const schedule of schedules) {
+      const option = new Option(
+        `${new Date(schedule.departureAt).toLocaleDateString("vi-VN")} · còn ${schedule.availableSeats} chỗ`,
+        schedule.id
+      );
+      option.disabled = schedule.availableSeats < 1;
+      departureSelect.append(option);
+    }
+    if (!schedules.length) {
+      departureSelect.append(new Option("Chưa có ngày khởi hành", ""));
+      showToast("Tour chưa có ngày khởi hành mở bán.", "warning");
+      return;
+    }
+  }
 
   // Bỏ chọn tất cả checkbox dịch vụ gia tăng
   document.querySelectorAll(".addon-checkbox").forEach(cb => cb.checked = false);
@@ -941,6 +1015,7 @@ function initBookingListeners() {
       input.addEventListener("change", calculateOrderPricing);
     }
   });
+  document.getElementById("bookingDepartureDate")?.addEventListener("change", calculateOrderPricing);
 
   // Tích chọn dịch vụ gia tăng
   document.querySelectorAll(".addon-checkbox").forEach(cb => {
@@ -974,7 +1049,16 @@ function changePassengerQty(type, delta) {
 
   let current = parseInt(input.value) || 0;
   let min = (type === "Adults") ? 1 : 0; // Ít nhất phải có 1 người lớn
-  let max = 20;
+  const selected = AppState.currentSchedules.find(schedule => schedule.id === document.getElementById("bookingDepartureDate")?.value);
+  const max = selected ? selected.availableSeats : 20;
+
+  const total = ["Adults", "Children", "Infants"].reduce((sum, passengerType) => {
+    return sum + (Number(document.getElementById(`qty${passengerType}`)?.value) || 0);
+  }, 0);
+  if (delta > 0 && total >= max) {
+    showToast(`Chỉ còn ${max} chỗ cho ngày khởi hành này.`, "warning");
+    return;
+  }
 
   current += delta;
   if (current < min) current = min;
@@ -1221,6 +1305,17 @@ async function handleBookingSubmission(e) {
     document.getElementById("bookingDepartureDate")?.focus();
     return;
   }
+  const selectedSchedule = AppState.currentSchedules.find(schedule => schedule.id === departureDate);
+  if (!selectedSchedule) {
+    showToast("Ngày khởi hành đã chọn không hợp lệ. Vui lòng chọn lại.", "error");
+    return;
+  }
+  const pricing = calculateOrderPricing();
+  const requestedSeats = pricing.adultQty + pricing.childQty + pricing.infantQty;
+  if (selectedSchedule && requestedSeats > selectedSchedule.availableSeats) {
+    showToast(`Số khách vượt quá số chỗ còn (${selectedSchedule.availableSeats}).`, "error");
+    return;
+  }
 
   // Thanh toán bảo mật qua hệ thống cổng thanh toán trực tuyến
   if (AppState.selectedPaymentMethod === "card") {
@@ -1229,8 +1324,6 @@ async function handleBookingSubmission(e) {
   }
 
   // 4. Tính toán số tiền cuối
-  const pricing = calculateOrderPricing();
-
   // 5. Kiểm tra đăng nhập tài khoản
   let currentUser = (typeof getCurrentUser === "function") ? getCurrentUser() : null;
   if (!currentUser) {
@@ -1243,11 +1336,7 @@ async function handleBookingSubmission(e) {
   if (typeof DeltaAPI !== "undefined" && DeltaAPI.isOnline()) {
     try {
       showToast("Đang tạo đơn giữ chỗ trên máy chủ...", "info");
-      let scheduleId = null;
-      const schedRes = await DeltaAPI.fetchSchedules(pricing.tourId);
-      if (schedRes && schedRes.success && Array.isArray(schedRes.data) && schedRes.data.length > 0) {
-        scheduleId = schedRes.data[0].id;
-      }
+      const scheduleId = departureDate;
       if (!scheduleId) {
         showToast("Hiện tour chưa có lịch khởi hành mở bán trên hệ thống máy chủ.", "warning");
         return;
@@ -1271,7 +1360,7 @@ async function handleBookingSubmission(e) {
           serverBookingId: sb.id,
           tourId: pricing.tourId,
           tourTitle: pricing.tourTitle,
-          departureDate: departureDate,
+          departureDate: selectedSchedule?.departureAt || departureDate,
           userId: currentUser ? currentUser.id : null,
           userEmail: currentUser ? currentUser.email : null,
           customer: {
@@ -1325,7 +1414,7 @@ async function handleBookingSubmission(e) {
     bookingId: AppState.bookingReference,
     tourId: pricing.tourId,
     tourTitle: pricing.tourTitle,
-    departureDate: departureDate,
+    departureDate: selectedSchedule?.departureAt || departureDate,
     userId: currentUser ? currentUser.id : null,
     userEmail: currentUser ? currentUser.email : null,
     customer: {

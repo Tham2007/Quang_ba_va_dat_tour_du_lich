@@ -29,6 +29,7 @@ const AdminState = {
   tourSearch: "",
   tourStatusFilter: "all",
   editingTourId: null,
+  tourCostItems: [],
 
   // Schedules tab filter
   scheduleTourFilter: "all",
@@ -184,7 +185,7 @@ function refreshAdminData() {
       if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
         const serverTours = res.data.map(st => {
           let itinerary = [];
-          try { itinerary = JSON.parse(st.itinerary_json || '[]'); } catch (e) {}
+          try { itinerary = JSON.parse(st.itineraryJson || '[]'); } catch (e) {}
           return {
             id: st.id,
             title: st.title,
@@ -196,10 +197,10 @@ function refreshAdminData() {
             departure: st.departure,
             transport: st.transport,
             price: st.price,
-            originalPrice: st.original_price,
+            originalPrice: 0,
             rating: 5.0,
             reviewsCount: 100,
-            badge: st.flash_sale ? 'Ưu đãi' : '',
+            badge: st.isFlashSale ? 'Ưu đãi' : '',
             availableSeats: 20,
             status: st.active ? 'ACTIVE' : 'INACTIVE',
             itinerary: itinerary.length > 0 ? itinerary : [
@@ -211,11 +212,39 @@ function refreshAdminData() {
         });
         const existingIds = new Set(serverTours.map(t => t.id));
         AdminState.tours = [...serverTours, ...AdminState.tours.filter(t => !existingIds.has(t.id))];
-        if (AdminState.currentTab === "tours" || AdminState.currentTab === "dashboard") {
+        if (AdminState.currentTab === "tours" || AdminState.currentTab === "schedules" ||
+            AdminState.currentTab === "dashboard") {
           renderCurrentTab();
         }
       }
-    }).catch(() => {});
+    }).catch(error => {
+      console.error("Could not load admin tours from API.", error);
+    });
+  }
+  if (typeof DeltaAPI !== "undefined" && DeltaAPI.isOnline() &&
+      typeof DeltaAPI.adminFetchSchedules === "function") {
+    DeltaAPI.adminFetchSchedules().then(res => {
+      if (!res?.success || !Array.isArray(res.data)) {
+        AdminState.schedules = [];
+        showAdminToast(res?.error || "Không thể tải lịch khởi hành từ máy chủ.", "error");
+        return;
+      }
+      AdminState.schedules = res.data.map(schedule => ({
+        id: schedule.id,
+        tourId: schedule.tourId,
+        departureAt: schedule.departureAt,
+        totalSeats: schedule.totalSeats,
+        bookedSeats: schedule.totalSeats - schedule.availableSeats,
+        status: schedule.active ? "OPEN" : "CLOSED"
+      }));
+      if (AdminState.currentTab === "schedules" || AdminState.currentTab === "dashboard") {
+        renderCurrentTab();
+      }
+    }).catch(error => {
+      console.error("Could not load admin schedules from API.", error);
+      AdminState.schedules = [];
+      showAdminToast("Không thể tải lịch khởi hành từ máy chủ.", "error");
+    });
   }
 }
 
@@ -1074,7 +1103,10 @@ function openTourModal(tourId = null) {
   document.getElementById("formTourSlug").value = tour ? tour.slug : "";
   document.getElementById("formTourRegion").value = tour ? (tour.region || "north") : "north";
   document.getElementById("formTourDuration").value = tour ? (tour.duration || "3N2Đ") : "3N2Đ";
-  document.getElementById("formTourOriginalPrice").value = tour ? (tour.originalPrice || "") : "";
+  const baseCostInput = document.getElementById("formTourOriginalPrice");
+  baseCostInput.value = tour ? (tour.originalPrice || "") : "";
+  baseCostInput.readOnly = true;
+  baseCostInput.title = "Tổng chi phí gốc được tự cộng từ các khoản chi bên dưới.";
   document.getElementById("formTourPrice").value = tour ? tour.price : "";
   document.getElementById("formTourDeparture").value = tour ? (tour.departure || "") : "Hà Nội / TP.HCM";
   document.getElementById("formTourTransport").value = tour ? (tour.transport || "") : "Xe du lịch đời mới / Máy bay";
@@ -1120,9 +1152,114 @@ function openTourModal(tourId = null) {
 
   // Tab 2: Render lịch trình Day-by-Day
   renderAdminItineraryDays(tour ? tour.itinerary : null);
+  renderAdminCostItems([]);
+  if (tour && typeof DeltaAPI !== "undefined" && DeltaAPI.adminFetchTourDetails) {
+    DeltaAPI.adminFetchTourDetails(tourId).then(result => {
+      if (!result.success || AdminState.editingTourId !== tourId) return;
+      renderAdminCostItems(result.data.costItems || []);
+      document.getElementById("formTourPrice").value = result.data.tour.price;
+      const base = document.getElementById("formTourOriginalPrice");
+      if (base) base.value = result.data.baseCost;
+      renderAdminItineraryDays(groupStructuredItinerary(result.data.itinerary || []));
+    }).catch(error => showAdminToast(error.message, "error"));
+  }
 
   const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
   modal.show();
+}
+
+function groupStructuredItinerary(items) {
+  const days = new Map();
+  for (const item of items) {
+    if (!days.has(item.dayNumber)) {
+      days.set(item.dayNumber, {
+        day: item.dayNumber,
+        title: `Lịch trình ngày ${item.dayNumber}`
+      });
+    }
+    const day = days.get(item.dayNumber);
+    const slot = ["morning", "afternoon", "evening"][item.sequence - 1];
+    if (slot) {
+      day[slot] = item.description || item.title;
+      day[`${slot}Category`] = item.category;
+    } else {
+      day.evening = [day.evening, item.description || item.title].filter(Boolean).join("\n");
+    }
+  }
+  return [...days.values()];
+}
+
+function renderAdminCostItems(items) {
+  const basic = document.getElementById("adminTabTourBasic");
+  if (!basic) return;
+  let section = document.getElementById("adminTourCostEditor");
+  if (!section) {
+    section = document.createElement("section");
+    section.id = "adminTourCostEditor";
+    section.className = "card border p-3 mt-3";
+    section.innerHTML = `
+      <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+        <div><h6 class="fw-bold mb-1">Chi phí gốc nội bộ / khách</h6>
+        <small class="text-muted">Chỉ admin xem. Tổng khoản chi phải thấp hơn giá bán.</small></div>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="adminAddTourCost">Thêm khoản chi</button>
+      </div>
+      <div id="adminTourCostRows" class="d-flex flex-column gap-2"></div>`;
+    basic.append(section);
+    section.querySelector("#adminAddTourCost").addEventListener("click", () => appendAdminCostItem());
+  }
+  AdminState.tourCostItems = items;
+  const rows = section.querySelector("#adminTourCostRows");
+  rows.replaceChildren();
+  for (const item of items) appendAdminCostItem(item, rows);
+  updateAdminBaseCost();
+}
+
+function appendAdminCostItem(item = {}, target) {
+  const rows = target || document.getElementById("adminTourCostRows");
+  if (!rows) return;
+  const row = document.createElement("div");
+  row.className = "row g-2 align-items-center admin-tour-cost-row";
+  row.innerHTML = `
+    <div class="col-md-2"><select class="form-select form-select-sm cost-category">
+      <option value="transport">Di chuyển</option><option value="accommodation">Khách sạn / du thuyền</option>
+      <option value="meal">Ăn uống</option><option value="sightseeing">Vé tham quan</option>
+      <option value="activity">Vui chơi</option><option value="guide">Hướng dẫn viên</option>
+      <option value="insurance">Bảo hiểm</option><option value="other">Khác</option>
+    </select></div>
+    <div class="col-md-3"><input class="form-control form-control-sm cost-name" maxlength="150" placeholder="Tên khoản chi"></div>
+    <div class="col-md-3"><input class="form-control form-control-sm cost-notes" maxlength="2000" placeholder="Ghi chú"></div>
+    <div class="col-md-3"><input class="form-control form-control-sm cost-amount" type="number" min="0" step="1" placeholder="VND / khách"></div>
+    <div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger" aria-label="Xóa khoản chi">Xóa</button></div>`;
+  row.querySelector(".cost-category").value = item.category || "other";
+  row.querySelector(".cost-name").value = item.name || "";
+  row.querySelector(".cost-notes").value = item.notes || "";
+  row.querySelector(".cost-amount").value = item.amountPerPerson ?? "";
+  row.querySelectorAll("input,select").forEach(field => {
+    field.addEventListener("input", updateAdminBaseCost);
+    field.addEventListener("change", updateAdminBaseCost);
+  });
+  row.querySelector("button").addEventListener("click", () => {
+    row.remove();
+    updateAdminBaseCost();
+  });
+  rows.append(row);
+  updateAdminBaseCost();
+}
+
+function updateAdminBaseCost() {
+  const total = [...document.querySelectorAll("#adminTourCostRows .cost-amount")]
+    .reduce((sum, input) => sum + (Number(input.value) || 0), 0);
+  const output = document.getElementById("formTourOriginalPrice");
+  if (output) output.value = total;
+}
+
+function collectAdminCostItems() {
+  return [...document.querySelectorAll("#adminTourCostRows .admin-tour-cost-row")].map(row => ({
+    category: row.querySelector(".cost-category").value,
+    name: row.querySelector(".cost-name").value.trim(),
+    notes: row.querySelector(".cost-notes").value.trim(),
+    amount_per_person: Number(row.querySelector(".cost-amount").value) || 0
+  })).filter(item => item.name);
 }
 
 /**
@@ -1179,23 +1316,38 @@ function renderAdminItineraryDays(itinerary) {
               <i class="bi bi-brightness-alt-high-fill text-warning"></i> Buổi Sáng:
             </label>
             <textarea class="form-control form-control-sm admin-itinerary-morning" rows="3" placeholder="Chi tiết hoạt động buổi sáng...">${escapeAdminHtml(item.morning || '')}</textarea>
+            ${adminItineraryCategorySelect("morning", item.morningCategory || "transport")}
           </div>
           <div class="col-md-4">
             <label class="form-label small fw-bold text-primary-emphasis d-flex align-items-center gap-1 mb-1">
               <i class="bi bi-sun-fill text-primary"></i> Buổi Chiều:
             </label>
             <textarea class="form-control form-control-sm admin-itinerary-afternoon" rows="3" placeholder="Chi tiết hoạt động buổi chiều...">${escapeAdminHtml(item.afternoon || '')}</textarea>
+            ${adminItineraryCategorySelect("afternoon", item.afternoonCategory || "activity")}
           </div>
           <div class="col-md-4">
             <label class="form-label small fw-bold text-info-emphasis d-flex align-items-center gap-1 mb-1">
               <i class="bi bi-moon-stars-fill text-info"></i> Buổi Tối:
             </label>
             <textarea class="form-control form-control-sm admin-itinerary-evening" rows="3" placeholder="Chi tiết hoạt động buổi tối...">${escapeAdminHtml(item.evening || '')}</textarea>
+            ${adminItineraryCategorySelect("evening", item.eveningCategory || "meal")}
           </div>
         </div>
       </div>
     `;
   }).join("");
+}
+
+function adminItineraryCategorySelect(period, selected) {
+  const categories = [
+    ["transport", "Di chuyển"],
+    ["meal", "Ăn uống"],
+    ["accommodation", "Khách sạn / nghỉ ngơi"],
+    ["activity", "Vui chơi / tham quan"],
+    ["team_building", "Teambuilding"],
+    ["note", "Thông tin khác"]
+  ];
+  return `<select class="form-select form-select-sm admin-itinerary-category admin-itinerary-${period}-category" aria-label="Loại hoạt động">${categories.map(([value, label]) => `<option value="${value}" ${selected === value ? "selected" : ""}>${label}</option>`).join("")}</select>`;
 }
 
 function escapeAdminHtml(str) {
@@ -1232,18 +1384,21 @@ function addAdminItineraryDay() {
             <i class="bi bi-brightness-alt-high-fill text-warning"></i> Buổi Sáng:
           </label>
           <textarea class="form-control form-control-sm admin-itinerary-morning" rows="3" placeholder="Chi tiết hoạt động buổi sáng..."></textarea>
+          ${adminItineraryCategorySelect("morning", "transport")}
         </div>
         <div class="col-md-4">
           <label class="form-label small fw-bold text-primary-emphasis d-flex align-items-center gap-1 mb-1">
             <i class="bi bi-sun-fill text-primary"></i> Buổi Chiều:
           </label>
           <textarea class="form-control form-control-sm admin-itinerary-afternoon" rows="3" placeholder="Chi tiết hoạt động buổi chiều..."></textarea>
+          ${adminItineraryCategorySelect("afternoon", "activity")}
         </div>
         <div class="col-md-4">
           <label class="form-label small fw-bold text-info-emphasis d-flex align-items-center gap-1 mb-1">
             <i class="bi bi-moon-stars-fill text-info"></i> Buổi Tối:
           </label>
           <textarea class="form-control form-control-sm admin-itinerary-evening" rows="3" placeholder="Chi tiết hoạt động buổi tối..."></textarea>
+          ${adminItineraryCategorySelect("evening", "meal")}
         </div>
       </div>
     </div>
@@ -1294,7 +1449,7 @@ function updateAdminItineraryDayCount() {
   }
 }
 
-function handleSaveTourSubmit(e) {
+async function handleSaveTourSubmit(e) {
   e.preventDefault();
   const id = document.getElementById("formTourId").value.trim();
   const title = document.getElementById("formTourTitle").value.trim();
@@ -1303,6 +1458,8 @@ function handleSaveTourSubmit(e) {
   const duration = document.getElementById("formTourDuration").value.trim();
   const originalPrice = Number(document.getElementById("formTourOriginalPrice").value) || 0;
   const price = Number(document.getElementById("formTourPrice").value) || 0;
+  const costItems = collectAdminCostItems();
+  const calculatedBaseCost = costItems.reduce((sum, item) => sum + item.amount_per_person, 0);
   const departure = document.getElementById("formTourDeparture").value.trim();
   const transport = document.getElementById("formTourTransport").value.trim();
   const availableSeats = Number(document.getElementById("formTourSeats").value) || 20;
@@ -1325,6 +1482,7 @@ function handleSaveTourSubmit(e) {
   // Thu thập lịch trình từng ngày từ Container
   const dayCards = document.querySelectorAll("#adminTourItineraryContainer .admin-itinerary-day-card");
   const itinerary = [];
+  const structuredItinerary = [];
   dayCards.forEach((card, idx) => {
     const dayNum = idx + 1;
     const dayTitle = card.querySelector(".admin-itinerary-title")?.value.trim() || `Ngày ${dayNum}: Lịch trình khám phá`;
@@ -1338,10 +1496,26 @@ function handleSaveTourSubmit(e) {
       afternoon,
       evening
     });
+    [
+      ["morning", morning],
+      ["afternoon", afternoon],
+      ["evening", evening]
+    ].forEach(([period, description], periodIndex) => {
+      const field = card.querySelector(`.admin-itinerary-${period}-category`);
+      structuredItinerary.push({
+        day_number: dayNum,
+        sequence: periodIndex + 1,
+        category: field?.value || (period === "evening" ? "meal" : "activity"),
+        title: `${dayTitle} - ${period === "morning" ? "Buổi sáng" : period === "afternoon" ? "Buổi chiều" : "Buổi tối"}`,
+        description,
+        location: "",
+        start_time: null
+      });
+    });
   });
 
-  if (!title || price <= 0) {
-    alert("Vui lòng nhập đầy đủ tên tour và giá bán hợp lệ!");
+  if (!title || price <= calculatedBaseCost) {
+    alert("Giá bán phải cao hơn tổng giá gốc nội bộ. Vui lòng kiểm tra các khoản chi.");
     return;
   }
 
@@ -1362,7 +1536,7 @@ function handleSaveTourSubmit(e) {
     daysCount: itinerary.length || parseInt(duration) || 3,
     departure,
     transport,
-    originalPrice: originalPrice > price ? originalPrice : Math.round(price * 1.25),
+    originalPrice: calculatedBaseCost || originalPrice,
     price,
     childPrice: Math.round(price * 0.65),
     rating: existingIdx !== -1 ? tours[existingIdx].rating : 5.0,
@@ -1381,26 +1555,23 @@ function handleSaveTourSubmit(e) {
 
   if (existingIdx !== -1) {
     tours[existingIdx] = tourData;
-    addAuditLog("UPDATE_TOUR", "Tour", id, `Cập nhật toàn bộ thông tin & ${itinerary.length} ngày lịch trình tour "${title}" (Giá: ${price.toLocaleString("vi-VN")} đ)`);
-    showAdminToast(`Cập nhật toàn bộ tour và ${itinerary.length} ngày lịch trình ${id} thành công!`, "success");
-    // Đồng bộ Backend API nếu có
+    // Persist catalog fields separately; price, private costs and itinerary are
+    // replaced atomically by the dedicated details endpoint.
     if (typeof DeltaAPI !== "undefined" && DeltaAPI.adminPatchTour) {
-      DeltaAPI.adminPatchTour(id, {
+      const catalogUpdate = await DeltaAPI.adminPatchTour(id, {
         title: tourData.title,
-        price: tourData.price,
-        original_price: tourData.originalPrice,
-        itinerary_json: JSON.stringify(tourData.itinerary),
-        image: tourData.image,
-        description: tourData.highlights.join("\n")
-      }).catch(err => console.log("API backend sync notice:", err));
+        description: tourData.highlights.join("\n"),
+        active: status === "ACTIVE"
+      });
+      if (!catalogUpdate.success) {
+        showAdminToast(catalogUpdate.error || "Không thể cập nhật tour trên máy chủ.", "error");
+        return;
+      }
     }
   } else {
     tours.unshift(tourData);
-    addAuditLog("CREATE_TOUR", "Tour", id, `Tạo mới tour "${title}" với ${itinerary.length} ngày lịch trình, giá bán ${price.toLocaleString("vi-VN")} đ`);
-    showAdminToast(`Tạo mới tour ${id} cùng ${itinerary.length} ngày lịch trình thành công!`, "success");
-    // Đồng bộ Backend API nếu có
     if (typeof DeltaAPI !== "undefined" && DeltaAPI.adminCreateTour) {
-      DeltaAPI.adminCreateTour({
+      const created = await DeltaAPI.adminCreateTour({
         id: tourData.id,
         title: tourData.title,
         slug: tourData.slug,
@@ -1409,14 +1580,36 @@ function handleSaveTourSubmit(e) {
         departure: tourData.departure,
         transport: tourData.transport,
         price: tourData.price,
-        original_price: tourData.originalPrice,
+        original_price: Math.max(calculatedBaseCost, 1),
         image: tourData.image,
-        itinerary_json: JSON.stringify(tourData.itinerary),
         description: tourData.highlights.join("\n")
-      }).catch(err => console.log("API backend sync notice:", err));
+      });
+      if (!created.success) {
+        showAdminToast(created.error || "Không thể tạo tour trên máy chủ.", "error");
+        return;
+      }
     }
   }
 
+  if (typeof DeltaAPI !== "undefined" && DeltaAPI.adminReplaceTourDetails) {
+    const savedDetails = await DeltaAPI.adminReplaceTourDetails(id, {
+      price,
+      cost_items: costItems,
+      itinerary: structuredItinerary
+    });
+    if (!savedDetails.success) {
+      showAdminToast(savedDetails.error || "Không thể lưu giá và lịch trình trên máy chủ.", "error");
+      return;
+    }
+  }
+
+  addAuditLog(
+    existingIdx !== -1 ? "UPDATE_TOUR" : "CREATE_TOUR",
+    "Tour",
+    id,
+    `Đã lưu giá bán ${price.toLocaleString("vi-VN")} đ, giá gốc ${calculatedBaseCost.toLocaleString("vi-VN")} đ và lịch trình ${itinerary.length} ngày.`
+  );
+  showAdminToast(`Đã lưu tour ${id}, chi phí và lịch trình.`, "success");
   saveToursData(tours);
   bootstrap.Modal.getInstance(document.getElementById("adminTourModal"))?.hide();
   renderCurrentTab();
@@ -1522,8 +1715,8 @@ function renderTabSchedules(container) {
                         <span class="small font-monospace fw-bold">${percent}%</span>
                       </div>
                     </td>
-                    <td class="fw-bold text-dark">${s.adultPrice.toLocaleString("vi-VN")} đ</td>
-                    <td class="text-muted">${(s.childPrice || Math.round(s.adultPrice * 0.65)).toLocaleString("vi-VN")} đ</td>
+                    <td class="fw-bold text-dark">${(tours.find(t => t.id === s.tourId)?.price || 0).toLocaleString("vi-VN")} đ</td>
+                    <td class="text-muted">${Math.round((tours.find(t => t.id === s.tourId)?.price || 0) * 0.75).toLocaleString("vi-VN")} đ</td>
                     <td>
                       <span class="admin-badge badge-status-${s.status || 'OPEN'}">
                         ${s.status === 'OPEN' ? 'ĐANG MỞ BÁN' : 'ĐÃ ĐÓNG SỔ'}
@@ -1560,12 +1753,27 @@ function handleScheduleStatusFilter(val) {
   renderTabSchedules(document.getElementById("adminTabContentContainer"));
 }
 
-function handleToggleScheduleStatus(schId) {
+async function handleToggleScheduleStatus(schId) {
   const schedules = [...AdminState.schedules];
   const idx = schedules.findIndex(s => s.id === schId);
   if (idx !== -1) {
     const cur = schedules[idx].status || "OPEN";
-    schedules[idx].status = (cur === "OPEN") ? "CLOSED" : "OPEN";
+    const status = (cur === "OPEN") ? "CLOSED" : "OPEN";
+    if (typeof DeltaAPI !== "undefined" && DeltaAPI.isOnline()) {
+      let response;
+      try {
+        response = await DeltaAPI.adminPatchSchedule(schId, { active: status === "OPEN" });
+      } catch (error) {
+        console.error("Could not update schedule status through API.", error);
+        showAdminToast("Không thể kết nối máy chủ để cập nhật lịch.", "error");
+        return;
+      }
+      if (!response?.success) {
+        showAdminToast(response?.error || "Không thể cập nhật trạng thái lịch.", "error");
+        return;
+      }
+    }
+    schedules[idx].status = status;
     saveSchedulesData(schedules);
     addAuditLog("UPDATE_SCHEDULE", "Schedule", schId, `Chuyển trạng thái lịch ${schId} sang ${schedules[idx].status}`);
     showAdminToast(`Lịch ${schId} đã chuyển sang ${schedules[idx].status}`, "success");
@@ -1591,22 +1799,25 @@ function openScheduleModal(scheduleId = null) {
   document.getElementById("formSchId").value = sch ? sch.id : ("SCH-" + Date.now().toString().slice(-4));
   document.getElementById("formSchDate").value = sch ? sch.departureAt.slice(0, 16) : defaultDate;
   document.getElementById("formSchSeats").value = sch ? sch.totalSeats : 30;
-  document.getElementById("formSchAdultPrice").value = sch ? sch.adultPrice : 3890000;
-  document.getElementById("formSchChildPrice").value = sch ? (sch.childPrice || 2490000) : 2490000;
+  const tour = AdminState.tours.find(item => item.id === (sch?.tourId || selectTour?.value));
+  if (selectTour) selectTour.disabled = Boolean(sch);
+  document.getElementById("formSchAdultPrice").value = tour?.price || 3890000;
+  document.getElementById("formSchChildPrice").value = tour ? Math.round(tour.price * 0.75) : 2490000;
   document.getElementById("formSchStatus").value = sch ? sch.status : "OPEN";
+  document.getElementById("formSchDate").disabled = Boolean(sch);
+  document.getElementById("formSchAdultPrice").disabled = true;
+  document.getElementById("formSchChildPrice").disabled = true;
 
   const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
   modal.show();
 }
 
-function handleSaveScheduleSubmit(e) {
+async function handleSaveScheduleSubmit(e) {
   e.preventDefault();
   const id = document.getElementById("formSchId").value.trim();
   const tourId = document.getElementById("formSchTourId").value;
   const departureAt = document.getElementById("formSchDate").value;
   const totalSeats = Number(document.getElementById("formSchSeats").value) || 30;
-  const adultPrice = Number(document.getElementById("formSchAdultPrice").value) || 0;
-  const childPrice = Number(document.getElementById("formSchChildPrice").value) || Math.round(adultPrice * 0.65);
   const status = document.getElementById("formSchStatus").value;
 
   const tour = AdminState.tours.find(t => t.id === tourId);
@@ -1615,17 +1826,49 @@ function handleSaveScheduleSubmit(e) {
   const schedules = [...AdminState.schedules];
   const idx = schedules.findIndex(s => s.id === id);
 
-  const schData = {
+  let schData = {
     id,
     tourId,
     tourTitle,
     departureAt: new Date(departureAt).toISOString(),
     totalSeats,
     bookedSeats: idx !== -1 ? schedules[idx].bookedSeats : 0,
-    adultPrice,
-    childPrice,
     status
   };
+
+  if (typeof DeltaAPI !== "undefined" && DeltaAPI.isOnline()) {
+    let response;
+    try {
+      response = idx !== -1
+        ? await DeltaAPI.adminPatchSchedule(id, {
+          total_seats: totalSeats,
+          active: status === "OPEN"
+        })
+        : await DeltaAPI.adminCreateSchedule({
+          tour_id: tourId,
+          departure_at: schData.departureAt,
+          total_seats: totalSeats
+        });
+    } catch (error) {
+      console.error("Could not save schedule to API.", error);
+      showAdminToast("Không thể kết nối máy chủ để lưu lịch khởi hành.", "error");
+      return;
+    }
+    if (!response?.success) {
+      showAdminToast(response?.error || "Không thể lưu lịch khởi hành.", "error");
+      return;
+    }
+    const saved = response.data;
+    schData = {
+      id: saved.id,
+      tourId: saved.tourId,
+      tourTitle,
+      departureAt: saved.departureAt,
+      totalSeats: saved.totalSeats,
+      bookedSeats: saved.totalSeats - saved.availableSeats,
+      status: saved.active ? "OPEN" : "CLOSED"
+    };
+  }
 
   if (idx !== -1) {
     schedules[idx] = schData;
@@ -2579,4 +2822,3 @@ function showAdminToast(message, type = "info") {
     if (el) el.remove();
   }, 4000);
 }
-

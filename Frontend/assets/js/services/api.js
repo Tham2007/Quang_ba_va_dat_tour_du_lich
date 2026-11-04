@@ -152,6 +152,10 @@ const DeltaAPI = (() => {
     return await request(`/tours/${encodeURIComponent(tourId)}/schedules`);
   }
 
+  async function fetchItinerary(tourId) {
+    return await request(`/tours/${encodeURIComponent(tourId)}/itinerary`);
+  }
+
   /**
    * Báo giá tính tiền đơn đặt tour từ server
    */
@@ -269,6 +273,17 @@ const DeltaAPI = (() => {
     });
   }
 
+  async function adminFetchTourDetails(tourId) {
+    return await request(`/admin/tours/${encodeURIComponent(tourId)}/details`);
+  }
+
+  async function adminReplaceTourDetails(tourId, details) {
+    return await request(`/admin/tours/${encodeURIComponent(tourId)}/details`, {
+      method: "PUT",
+      body: details
+    });
+  }
+
   async function adminDeleteTour(tourId) {
     return await request(`/admin/tours/${encodeURIComponent(tourId)}`, {
       method: "DELETE"
@@ -359,6 +374,7 @@ const DeltaAPI = (() => {
     fetchTours,
     fetchTourById,
     fetchSchedules,
+    fetchItinerary,
     quoteBooking,
     createBooking,
     fetchMyBookings,
@@ -373,6 +389,8 @@ const DeltaAPI = (() => {
     adminGetTours: adminFetchTours,
     adminCreateTour,
     adminPatchTour,
+    adminFetchTourDetails,
+    adminReplaceTourDetails,
     adminDeleteTour,
     adminFetchBookings,
     adminGetBookings: adminFetchBookings,
@@ -397,4 +415,3 @@ const DeltaAPI = (() => {
 
 // Gán toàn cục để sử dụng trong main.js và admin.js
 window.DeltaAPI = DeltaAPI;
-

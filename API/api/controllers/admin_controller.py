@@ -3,20 +3,35 @@
 import json
 from datetime import timedelta, timezone
 from fastapi import Depends
-from sqlalchemy import select, func
+from sqlalchemy import delete, select, func
 from sqlalchemy.orm import Session
 from api.core import admin, audit, db_session, fail, iso, new_id, utc
-from api.services.tour_service import availability, public_tour
+from api.services.tour_service import (
+    admin_tour_details,
+    availability,
+    public_tour,
+)
 from api.services.booking_service import booking_dict, sweep
 from api.services.admin_service import admin_booking_record
 from api.services.payment_service import payment_reference_used
-from api.models import User, Tour, Schedule, Booking, Audit, lock_writes, now
+from api.models import (
+    User,
+    Tour,
+    TourCostItem,
+    ItineraryItem,
+    Schedule,
+    Booking,
+    Audit,
+    lock_writes,
+    now,
+)
 from api.schemas import (
     TourCreate,
     TourPatch,
     ScheduleCreate,
     SchedulePatch,
     PaymentEvidence,
+    TourDetailsReplace,
 )
 
 
@@ -52,11 +67,85 @@ def admin_tour_patch(
         t = db.scalar(select(Tour).where(Tour.id == tour_id).with_for_update())
         if not t:
             fail(404, "Không tìm thấy tour.")
+        if "price" in patch:
+            base_cost = db.scalar(
+                select(func.coalesce(func.sum(TourCostItem.amount_per_person), 0)).where(
+                    TourCostItem.tour_id == tour_id
+                )
+            )
+            if patch["price"] <= base_cost:
+                fail(422, "Giá bán phải cao hơn tổng giá gốc.")
         for key, value in patch.items():
             setattr(t, key, value)
         audit(db, user, "TOUR_UPDATED", t.id, {"fields": list(patch.keys())})
     db.commit()
     return public_tour(t)
+
+
+def get_admin_tour_details(
+    tour_id: str, user=Depends(admin), db: Session = Depends(db_session)
+):
+    tour = db.get(Tour, tour_id)
+    if not tour:
+        fail(404, "Không tìm thấy tour.")
+    return admin_tour_details(db, tour)
+
+
+def replace_admin_tour_details(
+    tour_id: str,
+    body: TourDetailsReplace,
+    user=Depends(admin),
+    db: Session = Depends(db_session),
+):
+    with db.begin_nested():
+        lock_writes(db)
+        tour = db.scalar(select(Tour).where(Tour.id == tour_id).with_for_update())
+        if not tour:
+            fail(404, "Không tìm thấy tour.")
+        base_cost = sum(item.amount_per_person for item in body.cost_items)
+        if body.price <= base_cost:
+            fail(422, "Giá bán phải cao hơn tổng giá gốc.")
+        tour.price = body.price
+        db.execute(delete(TourCostItem).where(TourCostItem.tour_id == tour_id))
+        db.execute(delete(ItineraryItem).where(ItineraryItem.tour_id == tour_id))
+        db.add_all(
+            TourCostItem(
+                id=new_id(),
+                tour_id=tour_id,
+                category=item.category,
+                name=item.name,
+                notes=item.notes,
+                amount_per_person=item.amount_per_person,
+            )
+            for item in body.cost_items
+        )
+        db.add_all(
+            ItineraryItem(
+                id=new_id(),
+                tour_id=tour_id,
+                day_number=item.day_number,
+                sequence=item.sequence,
+                category=item.category,
+                title=item.title,
+                description=item.description,
+                location=item.location,
+                start_time=item.start_time,
+            )
+            for item in body.itinerary
+        )
+        audit(
+            db,
+            user,
+            "TOUR_DETAILS_REPLACED",
+            tour_id,
+            {
+                "price": body.price,
+                "costItemCount": len(body.cost_items),
+                "itineraryItemCount": len(body.itinerary),
+            },
+        )
+    db.commit()
+    return admin_tour_details(db, tour)
 
 
 def admin_tour_delete(
