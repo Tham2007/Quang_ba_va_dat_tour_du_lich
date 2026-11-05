@@ -3,9 +3,17 @@
  */
 
 const http = require("http");
-const { app, server } = require("./server");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
 
-const BASE_URL = "http://127.0.0.1:8000";
+const testDbPath = path.join(os.tmpdir(), `delta-node-tests-${process.pid}.db`);
+process.env.DELTA_DB_PATH = testDbPath;
+process.env.PORT = "0";
+process.env.HOST = "127.0.0.1";
+const { app, server, db } = require("./server");
+
+let BASE_URL;
 
 async function req(path, options = {}) {
   const url = `${BASE_URL}${path}`;
@@ -22,6 +30,11 @@ async function req(path, options = {}) {
 }
 
 async function runTests() {
+  await new Promise(resolve => {
+    if (server.listening) resolve();
+    else server.once("listening", resolve);
+  });
+  BASE_URL = `http://127.0.0.1:${server.address().port}`;
   console.log("\n=======================================================");
   console.log("  KIỂM THỬ MÁY CHỦ NODE.JS (EXPRESS + SQLITE)");
   console.log("=======================================================\n");
@@ -143,7 +156,11 @@ async function runTests() {
         note: "Đặt tour từ Nodejs Test"
       }
     });
-    assert("POST /api/v1/bookings", bookRes.status === 201 && bookRes.json?.id !== undefined, `(Mã: ${bookRes.json?.reference})`);
+    assert(
+      "POST /api/v1/bookings",
+      bookRes.status === 201 && bookRes.json?.id !== undefined,
+      `(HTTP ${bookRes.status}; ${bookRes.json?.detail || bookRes.text})`
+    );
     const bookingId = bookRes.json?.id;
 
     // 10. List user bookings & details
@@ -330,8 +347,13 @@ async function runTests() {
     console.log("\n=======================================================");
     console.log(`  KẾT QUẢ: ${passed}/${total} ĐẠT (${((passed / total) * 100).toFixed(1)}%)`);
     console.log("=======================================================\n");
-    server.close();
-    process.exit(passed === total ? 0 : 1);
+    await new Promise(resolve => server.close(resolve));
+    db.close();
+    for (const suffix of ["", "-shm", "-wal"]) {
+      const file = testDbPath + suffix;
+      if (fs.existsSync(file)) fs.rmSync(file);
+    }
+    process.exitCode = passed === total ? 0 : 1;
   }
 }
 

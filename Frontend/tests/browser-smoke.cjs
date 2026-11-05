@@ -41,45 +41,69 @@ async function main() {
     // Require a demo page to stay a demo even if the user chooses QR.
     assert.equal(await page.evaluate(() => document.body.innerHTML.includes('cardCvv')), false, "CVV input found");
 
-    // KTHP regression: optional identity must reject text-only input.
-    const documentCases = await page.evaluate(() => ({
-      empty: isIdentityDocumentFormatValid(""),
-      id: isIdentityDocumentFormatValid("000000000000"),
-      passport: isIdentityDocumentFormatValid("B1234567"),
-      text: isIdentityDocumentFormatValid("onlyletters"),
-      short: isIdentityDocumentFormatValid("12345"),
-      punct: isIdentityDocumentFormatValid("<script>")
-    }));
+    // KTHP regression: CCCD is required and must contain exactly 12 digits.
+    const documentCases = await page.evaluate(async () => {
+      await openBookingModal(TOURS_DATA[0].id);
+      const input = document.getElementById("customerCCCD");
+      const valid = value => {
+        input.value = value;
+        return input.checkValidity();
+      };
+      return {
+        empty: valid(""),
+        id: valid("000000000000"),
+        passport: valid("B1234567"),
+        text: valid("onlyletters"),
+        short: valid("12345"),
+        punct: valid("<script>")
+      };
+    });
     assert.deepEqual(documentCases, {
-      empty: true, id: true, passport: true,
+      empty: false, id: true, passport: false,
       text: false, short: false, punct: false
     });
-    const booking = await page.evaluate(() => {
+    const booking = await page.evaluate(async () => {
       const count = getLocalBookings().length;
-      openBookingModal(TOURS_DATA[0].id);
+      await openBookingModal(TOURS_DATA[0].id);
       document.getElementById("customerName").value = "Khach Hang Test";
       document.getElementById("customerPhone").value = "0987654321";
       document.getElementById("customerEmail").value = "demo@example.test";
+      document.getElementById("bookingDepartureDate").value = AppState.currentSchedules[0]?.id || "";
+      setCurrentUser({
+        id: "DEMO-SMOKE-USER",
+        fullName: "Khach Hang Test",
+        email: "demo@example.test",
+        phone: "0987654321",
+        role: "CUSTOMER"
+      });
       document.getElementById("customerCCCD").value = "onlyletters";
-      handleBookingSubmission({ preventDefault() {} });
+      await handleBookingSubmission({ preventDefault() {} });
       const invalidRejected = getLocalBookings().length === count;
 
-      document.getElementById("customerCCCD").value = "B1234567";
-      handleBookingSubmission({ preventDefault() {} });
-      const orders = getLocalBookings();
-      const created = orders.length === count + 1 ? orders[0] : null;
-      const documentIsNotStored = created?.customer?.cccd === "Không thu thập (bản demo)";
-      const inputIsCleared = document.getElementById("customerCCCD").value === "";
-      const beforePay = JSON.stringify(orders);
-      handleCustomerPayNow(created?.bookingId);
+      document.getElementById("customerCCCD").value = "000000000000";
+      await handleBookingSubmission({ preventDefault() {} });
+      const bookingBlockedOffline = getLocalBookings().length === count;
+      const identityIsNotStored = !Object.keys(localStorage).some(key =>
+        (localStorage.getItem(key) || "").includes("000000000000")
+      );
+      setCurrentUser(null);
+      const order = {
+        bookingId: "DEMO-SMOKE",
+        isPaid: false,
+        statusCode: "PENDING_DEMO"
+      };
+      localStorage.setItem("delta_bookings_v2", JSON.stringify([order]));
+      const beforePay = JSON.stringify(getLocalBookings());
+      await handleCustomerPayNow(order.bookingId);
       const paymentCouldNotMutateOrder = JSON.stringify(getLocalBookings()) === beforePay;
-      return { invalidRejected, created: Boolean(created), documentIsNotStored, inputIsCleared, paymentCouldNotMutateOrder };
+      localStorage.removeItem("delta_bookings_v2");
+      return { invalidRejected, bookingBlockedOffline, identityIsNotStored, paymentCouldNotMutateOrder };
     });
     assert.deepEqual(booking, {
-      invalidRejected: true, created: true, documentIsNotStored: true,
-      inputIsCleared: true, paymentCouldNotMutateOrder: true
+      invalidRejected: true, bookingBlockedOffline: true, identityIsNotStored: true,
+      paymentCouldNotMutateOrder: true
     });
-    console.log("PASS: identity format, booking rejects all letters, no ID persistence and no client-side PAID.");
+    console.log("PASS: required CCCD validation, no offline booking/ID persistence and no client-side PAID.");
 
     await page.goto(base + "/admin.html", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1200);

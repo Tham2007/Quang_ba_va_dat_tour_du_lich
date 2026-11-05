@@ -21,7 +21,14 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, inspect, select
 from api.app import app
 from api.core.sqlite_schema import migrate_booking_identity
-from api.models import SessionLocal, User, Schedule, Booking, Tour
+from api.models import SessionLocal, User, Schedule, Booking, Tour, engine
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_test_database():
+    yield
+    engine.dispose()
+    TEST_FOLDER.cleanup()
 
 
 def reg(client,num):

@@ -28,11 +28,18 @@ def main() -> None:
             any(x["name"] == "uq_booking_payment_evidence" for x in constraints),
             "Alembic 0002 unique payment evidence migration did not run",
         )
-        print("PASS PostgreSQL 16 migrations 0001+0002, 8 schema tables, payment unique constraint")
+        print("PASS PostgreSQL 16 migrations through head, 8 schema tables, payment unique constraint")
         r = c.get("/api/v1/health/ready")
         must(r.status_code == 200, f"Health HTTP {r.status_code}")
-        tours = c.get("/api/v1/tours").json()
-        must(len(tours) == 6, "Expected six synthetic tours after DB seed")
+        catalog = c.get("/api/v1/tours").json()
+        tours = catalog.get("items") if isinstance(catalog, dict) else catalog
+        total = catalog.get("total", len(tours)) if isinstance(catalog, dict) else len(tours)
+        must(
+            isinstance(tours, list)
+            and len(tours) == 6
+            and total == 6,
+            "Expected six synthetic tours after DB seed",
+        )
         print("PASS real PostgreSQL catalog and GET health")
 
         nonce = uuid.uuid4().hex
@@ -56,7 +63,8 @@ def main() -> None:
         data = {
             "schedule_id": schedule["id"], "adults": 1, "children": 0, "infants": 0,
             "customer_name": account["full_name"], "customer_email": account["email"],
-            "customer_phone": account["phone"], "note": "synthetic PostgreSQL CI",
+            "customer_phone": account["phone"], "customer_identity": "000000000000",
+            "note": "synthetic PostgreSQL CI",
         }
         token = str(uuid.uuid4())
         res = c.post("/api/v1/bookings", json=data, headers={**headers, "Idempotency-Key": token})

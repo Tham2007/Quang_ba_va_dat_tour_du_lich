@@ -61,11 +61,7 @@ def quote_schedule(db, schedule_id, adults, children, infants):
     if not schedule_pair:
         fail(404, "Lịch khởi hành không tồn tại.")
     schedule, tour = schedule_pair
-    if (
-        not schedule.active
-        or not tour.active
-        or utc(schedule.departure_at) <= now()
-    ):
+    if not schedule.active or not tour.active or utc(schedule.departure_at) <= now():
         fail(404, "Lịch khởi hành không tồn tại.")
     with db.begin_nested():
         lock_writes(db)
@@ -189,18 +185,14 @@ def confirm_customer_payment(db, booking_id, reference, user):
         sweep(db)
         booking = lock_booking_for_owner(db, booking_id, user.id)
         if not booking:
-            booking = lock_booking_by_reference_for_owner(
-                db, booking_id, user.id
-            )
+            booking = lock_booking_by_reference_for_owner(db, booking_id, user.id)
         if not booking:
             fail(404, "Không tìm thấy đơn.")
         if booking.status == "PAID":
             return booking_dict(booking)
         if booking.status != "PENDING_PAYMENT":
             fail(409, "Đơn không còn chờ thanh toán.")
-        if payment_reference_used(
-            db, reference, except_booking_id=booking.id
-        ):
+        if payment_reference_used(db, reference, except_booking_id=booking.id):
             fail(409, "Mã giao dịch đã được sử dụng cho đơn khác.")
         booking.status = "PAID"
         booking.payment_evidence = reference

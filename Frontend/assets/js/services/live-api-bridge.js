@@ -86,7 +86,7 @@
   header.append(heading, close);
   const main = node("div", undefined, "kthp-main");
   const info = node("p",
-    "Hệ thống đặt chỗ trực tuyến Delta Travel kết nối trực tiếp cơ sở dữ liệu và thanh toán an toàn.", "kthp-muted");
+    "Bản demo học phần: không nhập thông tin thật. Tài khoản và đơn đặt chỉ dùng dữ liệu thử nghiệm.", "kthp-muted");
   const status = node("p", "", "kthp-status");
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
@@ -195,9 +195,14 @@
   }
   async function catalog() {
     clear();
-    const tours = await api("/tours");
+    const result = await api("/tours");
+    const tours = Array.isArray(result) ? result : result?.items;
+    if (!Array.isArray(tours)) {
+      throw new Error("API danh sách tour trả dữ liệu không hợp lệ.");
+    }
     state.tours = tours;
-    surface.append(node("h3", "Danh sách tour trên database (" + tours.length + ")"));
+    const total = Array.isArray(result) ? tours.length : Number(result.total) || tours.length;
+    surface.append(node("h3", "Danh sách tour trên database (" + total + ")"));
     const nav = row(surface);
     if (state.user) nav.append(action("Xem đơn của tôi", orders));
     else nav.append(action("Đăng ký / Đăng nhập", () => auth("register"), true),
@@ -237,6 +242,11 @@
     const customer = field(form, "Người liên hệ", "customer_name", "text", {value:state.user.fullName});
     const phone = field(form, "Số điện thoại", "customer_phone", "tel", {value:state.user.phone,pattern:"0[35789][0-9]{8}"});
     const email = field(form, "Email", "customer_email", "email", {value:state.user.email});
+    const identity = field(form, "CCCD giả lập 12 chữ số (không nhập thông tin thật)", "customer_identity", "text", {
+      value:"000000000000", pattern:"[0-9]{12}"
+    });
+    identity.maxLength = 12;
+    identity.inputMode = "numeric";
     const comment = field(form, "Ghi chú", "note", "text", {required:false});
     const quote = node("p", "Đang tính giá từ server...");
     form.append(quote);
@@ -261,6 +271,7 @@
         const body = {
           ...quantities(), customer_name:customer.value,
           customer_phone:phone.value, customer_email:email.value,
+          customer_identity:identity.value,
           note:comment.value
         };
         const b = await api("/bookings", "POST", body,

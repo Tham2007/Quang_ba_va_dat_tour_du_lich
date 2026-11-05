@@ -15,7 +15,9 @@ const app = express();
 const PORT = process.env.PORT || 8000;
 const HOST = process.env.HOST || "127.0.0.1";
 const FRONTEND_DIR = path.resolve(__dirname, "Frontend");
-const DB_PATH = path.resolve(__dirname, "API", "delta_dev.db");
+const DB_PATH = process.env.DELTA_DB_PATH
+  ? path.resolve(process.env.DELTA_DB_PATH)
+  : path.resolve(__dirname, "API", "delta_dev.db");
 
 // Đảm bảo thư mục cha của Database tồn tại
 if (!fs.existsSync(path.dirname(DB_PATH))) {
@@ -1131,12 +1133,13 @@ if (!fs.existsSync(FRONTEND_DIR)) {
 
 // Khởi động Server
 const server = app.listen(PORT, HOST, () => {
+  const port = server.address().port;
   console.log("==================================================================");
   console.log(`  DELTA TRAVEL 2.0 (NODE.JS SERVER) ĐANG CHẠY`);
-  console.log(`  Trang chủ đặt tour:  http://${HOST}:${PORT}/`);
-  console.log(`  Cổng quản trị Admin: http://${HOST}:${PORT}/admin.html`);
-  console.log(`  Kiểm tra hệ thống:  http://${HOST}:${PORT}/api/v1/health/ready`);
+  console.log(`  Trang chủ đặt tour:  http://${HOST}:${port}/`);
+  console.log(`  Cổng quản trị Admin: http://${HOST}:${port}/admin.html`);
+  console.log(`  Kiểm tra hệ thống:  http://${HOST}:${port}/api/v1/health/ready`);
   console.log("==================================================================");
 });
 
-module.exports = { app, server };
+module.exports = { app, server, db };

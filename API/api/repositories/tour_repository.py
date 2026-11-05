@@ -25,11 +25,12 @@ def _schedule_conditions(filters):
         Schedule.departure_at > now(),
     ]
     if filters.departure_date:
-        start = datetime.combine(
-            filters.departure_date, time.min, tzinfo=timezone.utc
-        )
+        start = datetime.combine(filters.departure_date, time.min, tzinfo=timezone.utc)
         conditions.extend(
-            (Schedule.departure_at >= start, Schedule.departure_at < start + timedelta(days=1))
+            (
+                Schedule.departure_at >= start,
+                Schedule.departure_at < start + timedelta(days=1),
+            )
         )
     if filters.availability == "available":
         conditions.append(Schedule.total_seats > Schedule.reserved_seats)

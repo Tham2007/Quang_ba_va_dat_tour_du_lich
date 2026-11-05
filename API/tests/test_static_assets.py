@@ -4,7 +4,7 @@ from scripts.check_static_assets import missing_static_files
 
 
 def test_official_frontend_has_no_missing_html_css_assets():
-    frontend = Path(__file__).resolve().parents[1] / "frontend"
+    frontend = Path(__file__).resolve().parents[2] / "Frontend"
     assert missing_static_files(frontend) == []
 
 

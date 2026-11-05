@@ -19,16 +19,8 @@ def phone_conflict(db, phone: str, exclude_user_id: str) -> bool:
 
 
 def find_user_by_email(db, email: str):
-    return db.scalar(
-        select(User).where(
-            (User.email == email) | (User.phone == email)
-        )
-    )
+    return db.scalar(select(User).where((User.email == email) | (User.phone == email)))
 
 
 def find_user_by_identifier(db, ident: str):
-    return db.scalar(
-        select(User).where(
-            (User.email == ident) | (User.phone == ident)
-        )
-    )
+    return db.scalar(select(User).where((User.email == ident) | (User.phone == ident)))

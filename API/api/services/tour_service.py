@@ -75,9 +75,8 @@ def admin_tour_details(db, tour):
     return {
         "tour": {**public_tour(tour), "active": tour.active},
         "baseCost": sum(item.amount_per_person for item in costs),
-        "grossMarginPerPerson": tour.price - sum(
-            item.amount_per_person for item in costs
-        ),
+        "grossMarginPerPerson": tour.price
+        - sum(item.amount_per_person for item in costs),
         "costItems": cost_items,
         "itinerary": itinerary_items(db, tour.id),
     }

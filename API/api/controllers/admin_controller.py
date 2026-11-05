@@ -75,9 +75,9 @@ def admin_tour_patch(
             fail(404, "Không tìm thấy tour.")
         if "price" in patch:
             base_cost = db.scalar(
-                select(func.coalesce(func.sum(TourCostItem.amount_per_person), 0)).where(
-                    TourCostItem.tour_id == tour_id
-                )
+                select(
+                    func.coalesce(func.sum(TourCostItem.amount_per_person), 0)
+                ).where(TourCostItem.tour_id == tour_id)
             )
             if patch["price"] <= base_cost:
                 fail(422, "Giá bán phải cao hơn tổng giá gốc.")

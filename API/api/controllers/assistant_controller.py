@@ -53,9 +53,7 @@ DESTINATIONS = (
 
 def _fold(value: str) -> str:
     decomposed = unicodedata.normalize("NFD", value.casefold())
-    folded = "".join(
-        char for char in decomposed if unicodedata.category(char) != "Mn"
-    )
+    folded = "".join(char for char in decomposed if unicodedata.category(char) != "Mn")
     return folded.replace("đ", "d")
 
 

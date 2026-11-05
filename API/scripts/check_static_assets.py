@@ -48,7 +48,11 @@ def missing_static_files(root: Path) -> list[dict[str, str]]:
 
 
 def main() -> int:
-    root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[1] / "frontend"
+    root = (
+        Path(sys.argv[1])
+        if len(sys.argv) > 1
+        else Path(__file__).resolve().parents[2] / "Frontend"
+    )
     try:
         missing = missing_static_files(root)
     except (ValueError, OSError, UnicodeError) as exc:
