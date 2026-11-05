@@ -14,6 +14,7 @@ class BookingInput(BaseModel):
     customer_name: str = Field(min_length=2, max_length=120)
     customer_phone: str = Field(pattern=r"^0[35789][0-9]{8}$")
     customer_email: str
+    customer_identity: str = Field(pattern=r"^[0-9]{12}$")
     note: str = Field(default="", max_length=500)
 
     @field_validator("customer_email")

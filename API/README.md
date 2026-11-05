@@ -24,9 +24,16 @@ On Windows if `python` is not found use `py -3`. Browser: `http://127.0.0.1:8000
 
 ## Functional flows
 
-1. Tour browse/filter/flash sale and read up-to-date server pricing.
+1. Tour catalog search with destination, region, departure point/date, price,
+   duration, transport, audience, availability, sorting and pagination.
+   Catalog responses contain `items`, `total`, `page`, `pageSize` and
+   `totalPages`; multiple tour images are returned in `images`.
 2. Register/login/logout with scrypt password hash, hashed opaque session cookie (HttpOnly, SameSite=Strict) and CSRF token.
-3. Read schedules/stock, receive quote from server; hold seats for 15 minutes with idempotent booking key, timeout and cancellation.
+3. Read multiple future schedules/stock, receive quote from server; hold seats
+   for 15 minutes with idempotent booking key, timeout and cancellation.
+   Booking requires a 12-digit CCCD, stored only by the SQLite/PostgreSQL API
+   and excluded from booking responses, browser storage and tickets. The demo
+   warns users not to submit real identity documents.
 4. View own bookings; can't read other customers' bookings. Changing price leaves old bookings' price snapshots intact.
 5. Admin APIs for tour price/status, schedule creation/capacity, private per-person cost breakdown, structured day-by-day itinerary (meals, accommodation, activities and team building), audit trail, metrics and **manual verified-bank-reference** payment recording. Public APIs expose the sale price and itinerary but never the internal cost breakdown.
 6. Rule-based FAQ helper, visibly disclosed as such (no browser Gemini key).
@@ -43,11 +50,12 @@ published departure dates when booking; internal cost figures are not returned
 by public endpoints.
 
 New schema is added through incremental Alembic revisions, not by dropping and
-recreating the database. For PostgreSQL set `DATABASE_URL` and run
+recreating the database. Revision `0004_booking_customer_identity` adds the
+booking identity column. For PostgreSQL set `DATABASE_URL` and run
 `alembic -c database/database/alembic.ini upgrade head`. The current revision
-`0003_tour_costs_and_itinerary` only adds tables. Local SQLite development
-creates new tables on startup; PostgreSQL staging migrations require the
-existing explicit `STAGING_AUTO_MIGRATE=1` opt-in. The legacy SQL Server
+Local SQLite development creates new tables on startup and adds the identity
+column to an existing bookings table when needed; PostgreSQL staging migrations
+require the existing explicit `STAGING_AUTO_MIGRATE=1` opt-in. The legacy SQL Server
 `full_database_deploy.sql` is destructive and is not the migration path for
 this API.
 
@@ -69,7 +77,12 @@ python -m pytest -q tests/test_api.py
 node --check ../Frontend/assets/js/controllers/main.js  # optional Node.js
 ```
 
-Ten test scenarios include auth, cookie, CSRF, IDOR, amount authority, idempotency, cancels, inventory expiry, admin authorization and 2 concurrent customers attempting the last seat. Repeat the suite with PostgreSQL native after Thắm has completed migrations. `docs/LOCAL_TEST_REPORT.md` records exact results from this delivery run.
+The test suite covers auth, cookie, CSRF, IDOR, amount authority, idempotency,
+cancellation, inventory expiry, admin authorization, concurrent booking,
+catalog filtering/pagination, gallery persistence, required identity storage,
+profile updates and assistant scope. Repeat the suite with PostgreSQL native
+after migrations are applied. `docs/LOCAL_TEST_REPORT.md` records the baseline
+delivery run.
 
 ## Responsibility matrix
 
@@ -85,7 +98,7 @@ Upstream original HTML is not included, because it could not be downloaded into 
 
 ## API contract
 
-All API endpoints live under `/api/v1`. JSON request keys are snake_case, tour response keys use `camelCase`. FastAPI generates OpenAPI at `/openapi.json` and interactive UI at `/docs`. Follow `docs/THAM_DATABASE_HANDOFF.md` before changing data models.
+All API endpoints live under `/api/v1`. JSON request keys are snake_case, tour response keys use `camelCase`. Domestic/international type currently derives from the existing region field and audience from tour text; the database does not yet have dedicated tour-type or audience columns. FastAPI generates OpenAPI at `/openapi.json` and interactive UI at `/docs`. Follow `docs/THAM_DATABASE_HANDOFF.md` before changing data models.
 
 ## Production safety
 

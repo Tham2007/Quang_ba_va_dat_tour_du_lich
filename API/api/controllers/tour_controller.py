@@ -1,28 +1,44 @@
 """Public tours and schedules."""
 
+import math
 from fastapi import Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from api.core import db_session, fail
 from api.services.tour_service import public_tour, availability, itinerary_items
 from api.services.booking_service import sweep
-from api.repositories.tour_repository import list_public_tours
+from api.repositories.tour_repository import search_public_tours
 from api.models import Tour, Schedule, lock_writes, now
+from api.schemas import TourSearch
 
 
 def tours(
-    q: str = "",
-    region: str = "",
-    flash: bool = False,
-    max_price: int | None = None,
+    filters: TourSearch = Depends(),
     db: Session = Depends(db_session),
 ):
-    return [
-        public_tour(t)
-        for t in list_public_tours(
-            db, q=q, region=region, flash=flash, max_price=max_price
-        )
-    ]
+    if (
+        filters.min_price is not None
+        and filters.max_price is not None
+        and filters.min_price > filters.max_price
+    ):
+        fail(422, "Giá tối thiểu không được lớn hơn giá tối đa.")
+    tours, schedules_by_tour, total = search_public_tours(db, filters)
+    return {
+        "items": [
+            {
+                **public_tour(tour),
+                "schedules": [
+                    availability(schedule)
+                    for schedule in schedules_by_tour.get(tour.id, [])
+                ],
+            }
+            for tour in tours
+        ],
+        "total": total,
+        "page": filters.page,
+        "pageSize": filters.page_size,
+        "totalPages": math.ceil(total / filters.page_size),
+    }
 
 
 def tour_one(tour_id: str, db: Session = Depends(db_session)):

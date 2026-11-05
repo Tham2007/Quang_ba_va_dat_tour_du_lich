@@ -130,9 +130,17 @@ const DeltaAPI = (() => {
    */
   async function fetchTours(query = {}) {
     const params = new URLSearchParams();
-    if (query.region && query.region !== "all") params.append("region", query.region);
-    if (query.q) params.append("q", query.q);
-    if (query.max_price) params.append("max_price", query.max_price);
+    const allowed = [
+      "q", "region", "destination", "departure_location", "departure_date",
+      "min_price", "max_price", "duration", "transport", "tour_type",
+      "audience", "availability", "sort_by", "page", "page_size"
+    ];
+    for (const key of allowed) {
+      const value = query[key];
+      if (value === undefined || value === null || value === "") continue;
+      if (key === "region" && value === "all") continue;
+      params.set(key, String(value));
+    }
 
     const queryStr = params.toString() ? `?${params.toString()}` : "";
     return await request(`/tours${queryStr}`);

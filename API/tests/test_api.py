@@ -18,8 +18,9 @@ def reset_test_limiter():
     _limiter.clear()
 
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import create_engine, inspect, select
 from api.app import app
+from api.core.sqlite_schema import migrate_booking_identity
 from api.models import SessionLocal, User, Schedule, Booking, Tour
 
 
@@ -40,7 +41,7 @@ def booking_body(client,people=1):
     s=client.get('/api/v1/tours/DL-HL01/schedules').json()[0]
     return {'schedule_id':s['id'],'adults':people,'children':0,'infants':0,
             'customer_name':'Nguyen Van A','customer_phone':'0912345678',
-            'customer_email':'booker@example.com'}
+            'customer_email':'booker@example.com','customer_identity':'123456789012'}
 
 
 def post_booking(client,body,key=None,headers=None):
@@ -53,10 +54,68 @@ def test_a_site_and_tour_search():
         assert c.get('/').status_code==200
         assert c.get('/assets/app.js').status_code==200
         assert c.get('/api/v1/health/ready').json()['status']=='ok'
-        assert len(c.get('/api/v1/tours').json())==6
-        assert len(c.get('/api/v1/tours?region=north').json())==2
-        assert len(c.get('/api/v1/tours?flash=true').json())==3
-        assert c.get('/api/v1/tours?max_price=2000000').json()[0]['id']=='DL-MT06'
+        catalog=c.get('/api/v1/tours').json()
+        assert catalog['total']==6 and len(catalog['items'])==6
+        northern=c.get('/api/v1/tours?region=north').json()
+        assert northern['total']==2
+        affordable=c.get('/api/v1/tours?max_price=2000000&sort_by=price_asc').json()
+        assert affordable['items'][0]['id']=='DL-MT06'
+        assert affordable['items'][0]['images']
+
+
+def test_existing_sqlite_bookings_gain_identity_column():
+    legacy_db=Path(TEST_FOLDER.name)/"legacy-bookings.db"
+    engine=create_engine(f"sqlite:///{legacy_db}")
+    with engine.begin() as connection:
+        connection.exec_driver_sql("CREATE TABLE bookings (id VARCHAR PRIMARY KEY)")
+    migrate_booking_identity(engine)
+    migrate_booking_identity(engine)
+    assert "customer_identity" in {
+        column["name"] for column in inspect(engine).get_columns("bookings")
+    }
+    engine.dispose()
+
+
+def test_tour_search_filters_pagination_and_schedules():
+    with TestClient(app) as c:
+        first=c.get('/api/v1/tours?page=1&page_size=2').json()
+        second=c.get('/api/v1/tours?page=2&page_size=2').json()
+        assert first['total']==6 and first['totalPages']==3
+        assert len(first['items'])==2 and len(second['items'])==2
+        assert first['items'][0]['id'] != second['items'][0]['id']
+
+        schedule=c.get('/api/v1/tours/DL-HL01/schedules').json()[0]
+        date=schedule['departureAt'][:10]
+        dated=c.get(f'/api/v1/tours?departure_date={date}').json()
+        assert dated['total'] >= 1
+        assert all(
+            item['schedules'] and item['schedules'][0]['departureAt'][:10] == date
+            for item in dated['items']
+        )
+        assert c.get('/api/v1/tours?min_price=5000000&max_price=1000000').status_code==422
+
+
+def test_admin_can_publish_multiple_future_departures():
+    with TestClient(app) as client:
+        person=reg(client,112)
+        with SessionLocal.begin() as db:
+            db.scalar(select(User).where(User.email==person['email'])).role='ADMIN'
+        schedule_ids=[]
+        for days in (150,160):
+            departure=(datetime.now(timezone.utc)+timedelta(days=days)).replace(microsecond=0)
+            response=client.post(
+                '/api/v1/admin/schedules',
+                json={
+                    'tour_id':'DL-HL01',
+                    'departure_at':departure.isoformat(),
+                    'total_seats':20
+                },
+                headers=csrf(client)
+            )
+            assert response.status_code==201,response.text
+            schedule_ids.append(response.json()['id'])
+        published={item['id'] for item in client.get('/api/v1/tours/DL-HL01/schedules').json()}
+        assert set(schedule_ids).issubset(published)
 
 
 def test_b_login_register_cookie_and_logout():
@@ -70,6 +129,27 @@ def test_b_login_register_cookie_and_logout():
         bad=c.post('/api/v1/auth/login',json={'email':p['email'],'password':'badpass'})
         assert bad.status_code==401
         assert c.post('/api/v1/auth/login',json={'email':p['email'],'password':p['password']}).status_code==200
+
+
+def test_profile_update_persists_and_rejects_duplicate_phone():
+    with TestClient(app) as client, TestClient(app) as other:
+        person=reg(client,110)
+        reg(other,111)
+        updated=client.patch(
+            '/api/v1/auth/profile',
+            json={'full_name':'Tên đã cập nhật','phone':'0930000110'},
+            headers=csrf(client)
+        )
+        assert updated.status_code==200,updated.text
+        assert updated.json()['fullName']=='Tên đã cập nhật'
+        assert updated.json()['phone']=='0930000110'
+        duplicate=client.patch(
+            '/api/v1/auth/profile',
+            json={'phone':'0910000111'},
+            headers=csrf(client)
+        )
+        assert duplicate.status_code==409
+        assert client.get('/api/v1/auth/me').json()['phone']=='0930000110'
 
 
 def test_c_server_price_idempotency_and_no_fake_paid():
@@ -86,7 +166,11 @@ def test_c_server_price_idempotency_and_no_fake_paid():
         assert a.status_code==201,a.text
         assert b.status_code==201 and a.json()['id']==b.json()['id']
         assert a.json()['paid'] is False and a.json()['status']=='PENDING_PAYMENT'
+        with SessionLocal() as db:
+            assert db.get(Booking,a.json()['id']).customer_identity=='123456789012'
+        assert 'customer_identity' not in a.json()
         assert post_booking(c,{**body,'adults':1},key).status_code==409
+        assert post_booking(c,{**body,'customer_identity':'12345'}).status_code==422
         assert len(c.get('/api/v1/bookings').json())==1
 
 
@@ -192,7 +276,10 @@ def test_j_no_auth_reset_no_fake_gateway():
     with TestClient(app) as c:
         assert c.post('/api/v1/auth/forgot-password',json={'email':'x@a.com','password':'new'}).status_code==404
         assert c.post('/api/v1/payments/success',json={'paid':True}).status_code==404
-        assert c.post('/api/v1/assistant/chat',json={'message':'Giá tour'}).json()['mode']=='rule_based'
+        travel=c.post('/api/v1/assistant/chat',json={'message':'Giá tour'}).json()
+        assert travel['mode']=='rule_based'
+        outside=c.post('/api/v1/assistant/chat',json={'message':'Giúp tôi viết bài văn về toán học'}).json()
+        assert 'chỉ hỗ trợ' in outside['answer']
 
 
 def test_k_profile_changes_and_favorites_are_user_scoped():
@@ -281,7 +368,7 @@ def test_p_admin_tour_crud_soft_delete_preserves_references_and_permissions():
             "duration": "2N1D",
             "departure": "Hà Nội",
             "transport": "Xe du lịch",
-            "image": "/static/test-tour.jpg",
+            "images": ["/static/test-tour.jpg", "https://example.com/test-tour-2.jpg"],
         }
 
         assert customer_client.post(
@@ -294,6 +381,7 @@ def test_p_admin_tour_crud_soft_delete_preserves_references_and_permissions():
         )
         assert created.status_code == 201, created.text
         assert created.json()["id"] == body["id"]
+        assert created.json()["images"] == body["images"]
         assert admin_client.post(
             "/api/v1/admin/tours", json=body, headers=csrf(admin_client)
         ).status_code == 409
@@ -305,6 +393,12 @@ def test_p_admin_tour_crud_soft_delete_preserves_references_and_permissions():
         )
         assert changed.status_code == 200, changed.text
         assert changed.json()["price"] == 1400000
+        gallery = admin_client.patch(
+            target, json={"images": ["https://example.com/new-tour.jpg"]},
+            headers=csrf(admin_client)
+        )
+        assert gallery.status_code == 200, gallery.text
+        assert gallery.json()["images"] == ["https://example.com/new-tour.jpg"]
 
         assert customer_client.delete(target, headers=csrf(customer_client)).status_code == 403
         assert admin_client.delete(target).status_code == 403

@@ -18,7 +18,12 @@ from api.core import (
 from api.models import User, Tour, SessionToken, Favorite, lock_writes, now
 from api.schemas import Signup, Login, ProfilePatch, ChangePassword
 from api.core.security import hash_password, verify_password, rate_limit, token_hash
-from api.repositories.user_repository import user_conflict, find_user_by_email, find_user_by_identifier
+from api.repositories.user_repository import (
+    find_user_by_email,
+    find_user_by_identifier,
+    phone_conflict,
+    user_conflict,
+)
 from api.services.auth_service import credentials_match
 
 
@@ -110,6 +115,8 @@ def change_profile(
     patch = body.model_dump(exclude_unset=True)
     if not patch or any(v is None for v in patch.values()):
         fail(422, "Không có nội dung hợp lệ để cập nhật.")
+    if "phone" in patch and phone_conflict(db, patch["phone"], user.id):
+        fail(409, "Số điện thoại đã được sử dụng bởi tài khoản khác.")
     with db.begin_nested():
         lock_writes(db)
         locked = db.scalar(select(User).where(User.id == user.id).with_for_update())

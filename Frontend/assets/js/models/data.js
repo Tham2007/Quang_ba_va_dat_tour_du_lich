@@ -1269,37 +1269,31 @@ const ADDON_SERVICES = {
 const DESTINATIONS_DATA = [
   {
     "name": "Vịnh Hạ Long",
-    "count": "18+ Tours",
     "image": "assets/images/halong.png",
     "region": "north"
   },
   {
     "name": "Đà Nẵng - Hội An",
-    "count": "25+ Tours",
     "image": "assets/images/danang.png",
     "region": "central"
   },
   {
     "name": "Phú Quốc Đảo Ngọc",
-    "count": "15+ Tours",
     "image": "assets/images/phuquoc.png",
     "region": "south"
   },
   {
     "name": "Đà Lạt Mộng Mơ",
-    "count": "20+ Tours",
     "image": "assets/images/dalat.png",
     "region": "central"
   },
   {
     "name": "Sa Pa Sương Mù",
-    "count": "12+ Tours",
     "image": "assets/images/sapa.png",
     "region": "north"
   },
   {
     "name": "Sông Nước Miền Tây",
-    "count": "14+ Tours",
     "image": "assets/images/mientay.png",
     "region": "south"
   }

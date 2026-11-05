@@ -9,7 +9,7 @@
  * 5. Tab Schedules: Quản lý lịch khởi hành & kho chỗ (Slots)
  * 6. Tab Bookings: Quản lý đơn, duyệt, hủy (kèm lý do), in & xuất sao kê CSV
  * 7. Tab Payments: Đối soát thanh toán, Ghi nhận thu tiền mặt, Hoàn tiền
- * 8. Tab System: Chẩn đoán AI Gemini, Bộ nhớ LocalStorage, Khôi phục dữ liệu gốc
+ * 8. Tab System: Chẩn đoán trợ lý du lịch, Bộ nhớ LocalStorage, Khôi phục dữ liệu gốc
  * 9. Tab Audit Logs: Nhật ký kiểm toán bảo mật (Chỉ dành cho ADMIN)
  */
 
@@ -359,7 +359,7 @@ const COPILOT_PROMPTS = {
     prompt: "Đánh giá trạng thái production hiện tại từ dữ liệu hệ thống có thể kiểm chứng. Nêu rõ integration nào ready và dependency nào còn bên ngoài.",
     suggestions: [
       "Tóm tắt production readiness của Delta Travel",
-      "AI provider Google Gemini có đang kết nối ổn định?",
+      "Giới thiệu các tour đang mở bán",
       "Kiểm tra dung lượng bộ nhớ LocalStorage"
     ]
   },
@@ -470,7 +470,7 @@ function updateAiCopilotStrip(tabKey) {
 }
 
 // =============================================================================
-// VI. LOGIC AI OPERATIONS COPILOT (TÍCH HỢP GEMINI AI HOẶC PHÂN TÍCH VẬN HÀNH)
+// VI. LOGIC TRỢ LÝ VẬN HÀNH NỘI BỘ
 // =============================================================================
 function initAiCopilot() {
   updateAiCopilotStrip("dashboard");
@@ -488,7 +488,6 @@ async function askAiCopilot(queryText) {
     </div>
   `;
 
-  // Chuẩn bị snapshot dữ liệu hiện tại để cung cấp ngữ cảnh cho AI
   const totalTours = AdminState.tours.length;
   const totalBookings = AdminState.bookings.length;
   const pendingCashBookings = AdminState.bookings.filter(b => b.statusCode === "AWAITING_CASH" || b.status?.includes("TIỀN MẶT")).length;
@@ -496,62 +495,6 @@ async function askAiCopilot(queryText) {
   const totalRevenue = AdminState.bookings
     .filter(b => b.isPaid || b.statusCode === "PAID" || b.statusCode === "CONFIRMED" || b.statusCode === "COMPLETED")
     .reduce((sum, b) => sum + (b.pricing?.total || 0), 0);
-
-  const contextData = `
-    [DỮ LIỆU VẬN HÀNH HỆ THỐNG]:
-    - Tổng số tour: ${totalTours}
-    - Tổng đơn đặt: ${totalBookings}
-    - Đơn chờ thanh toán tiền mặt: ${pendingCashBookings}
-    - Khoản chờ hoàn tiền (REFUND_REQUIRED): ${refundRequired}
-    - Doanh thu đã thanh toán: ${totalRevenue.toLocaleString("vi-VN")} đ
-    - Trạng thái AI Provider: Google Gemini 2.5 Flash sẵn sàng
-    - Trạng thái Cổng thanh toán: VietQR & CASH hoạt động trực tiếp.
-  `;
-
-  // Nếu có cấu hình AI_API_KEY trong chatbot.js, gọi trực tiếp Gemini API
-  if (typeof AI_API_KEY !== "undefined" && AI_API_KEY && !AI_API_KEY.includes("YOUR_")) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${AI_API_KEY}`;
-      const payload = {
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: `Bạn là Delta AI Operations Copilot - Cố vấn thông minh hỗ trợ ban quản trị và điều hành tour của Delta Travel.
-Hãy trả lời ngắn gọn, chuẩn xác, ưu tiên các việc cần xử lý ngay, đưa ra các con số chính xác dựa trên snapshot sau:
-${contextData}
-
-Câu hỏi của Quản trị viên: "${queryText}"`
-              }
-            ]
-          }
-        ]
-      };
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        const json = await res.json();
-        const reply = json.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (reply) {
-          responseBox.innerHTML = `
-            <div class="mb-2 fw-bold text-warning d-flex align-items-center gap-1.5">
-              <i class="bi bi-robot"></i> Phản hồi từ Delta AI Copilot (Gemini 2.5 Flash):
-            </div>
-            <div class="small">${formatAiMarkdown(reply)}</div>
-          `;
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn("Lỗi gọi Gemini API Copilot, chuyển sang Rule Engine nội bộ:", e);
-    }
-  }
 
   // Fallback Rule Engine thông minh xử lý câu hỏi thường gặp
   setTimeout(() => {
@@ -577,7 +520,7 @@ Câu hỏi của Quản trị viên: "${queryText}"`
       replyContent = `
         <strong>Trạng thái Readiness của Hệ thống:</strong><br>
         - <strong>Frontend Engine:</strong> Hoạt động ổn định 100% trên Local Storage.<br>
-        - <strong>AI Provider:</strong> Google Gemini API (model <code>gemini-2.5-flash</code>) & Chatbot Client đã sẵn sàng.<br>
+        - <strong>Trợ lý:</strong> FAQ du lịch dạng rule-based chạy qua API nội bộ.<br>
         - <strong>Cổng thanh toán:</strong> Phương thức CASH và VietQR đang Available hoạt động thực tế. Các cổng VNPay, MoMo, ZaloPay sandbox đã nạp sẵn cấu hình adapter.
       `;
     } else {
@@ -595,15 +538,6 @@ Câu hỏi của Quản trị viên: "${queryText}"`
       <div class="small leading-relaxed">${replyContent}</div>
     `;
   }, 400);
-}
-
-function formatAiMarkdown(text) {
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\n\n/g, '<br><br>')
-    .replace(/\n/g, '<br>');
 }
 
 // =============================================================================
@@ -822,7 +756,7 @@ function renderTabDashboard(container) {
                   <i class="bi bi-cpu-fill text-warning fs-5"></i>
                   <div>
                     <div class="fw-bold small">AI Copilot & Chatbot Engine</div>
-                    <div class="text-muted" style="font-size: 11px;">Google Gemini 2.5 Flash API</div>
+                    <div class="text-muted" style="font-size: 11px;">Rule-based nội bộ</div>
                   </div>
                 </div>
                 <span class="badge bg-success">ONLINE</span>
@@ -1091,9 +1025,11 @@ function selectTourPresetImage(path) {
   const imgInput = document.getElementById("formTourImage");
   const previewImg = document.getElementById("formTourImagePreview");
   const fileNameEl = document.getElementById("formTourImageFileName");
+  const galleryInput = document.getElementById("formTourImages");
   if (imgInput) imgInput.value = path;
   if (previewImg) previewImg.src = path;
   if (fileNameEl) fileNameEl.textContent = "(Ảnh thư viện Delta)";
+  if (galleryInput && !galleryInput.value.trim()) galleryInput.value = path;
 }
 
 function updateTourImagePreview(url) {
@@ -1142,8 +1078,13 @@ function openTourModal(tourId = null) {
   const imgPreview = document.getElementById("formTourImagePreview");
   const imgFileInput = document.getElementById("formTourImageFileInput");
   const imgFileName = document.getElementById("formTourImageFileName");
+  const galleryInput = document.getElementById("formTourImages");
   
   if (imgInput) imgInput.value = imgPath;
+  if (galleryInput) {
+    const images = Array.isArray(tour?.images) ? tour.images : (tour ? [imgPath] : [imgPath]);
+    galleryInput.value = images.join("\n");
+  }
   if (imgPreview) imgPreview.src = imgPath;
   if (imgFileInput) imgFileInput.value = "";
   if (imgFileName) imgFileName.textContent = tour ? "(Ảnh hiện tại)" : "(JPG, PNG, WebP)";
@@ -1486,6 +1427,16 @@ async function handleSaveTourSubmit(e) {
   const status = document.getElementById("formTourStatus").value;
   const badge = document.getElementById("formTourBadge")?.value.trim() || "";
   const image = document.getElementById("formTourImage").value.trim() || "assets/images/halong.png";
+  const galleryInput = document.getElementById("formTourImages")?.value || "";
+  const galleryImages = [...new Set(galleryInput.split(/\r?\n/).map(url => url.trim()).filter(Boolean))];
+  if (!image.startsWith("data:") && !galleryImages.includes(image)) {
+    galleryImages.unshift(image);
+  }
+  if (galleryImages.length > 12) {
+    alert("Mỗi tour chỉ được có tối đa 12 ảnh.");
+    return;
+  }
+  const apiImages = galleryImages.filter(url => !url.startsWith("data:"));
 
   const descRaw = document.getElementById("formTourDesc")?.value.trim() || "";
   const highlights = descRaw ? descRaw.split("\n").map(s => s.trim()).filter(Boolean) : ["Trải nghiệm tour chất lượng cao của Delta Travel"];
@@ -1552,6 +1503,7 @@ async function handleSaveTourSubmit(e) {
     region,
     regionName,
     image,
+    images: galleryImages,
     duration,
     daysCount: itinerary.length || parseInt(duration) || 3,
     departure,
@@ -1581,7 +1533,8 @@ async function handleSaveTourSubmit(e) {
       const catalogUpdate = await DeltaAPI.adminPatchTour(id, {
         title: tourData.title,
         description: tourData.highlights.join("\n"),
-        active: status === "ACTIVE"
+        active: status === "ACTIVE",
+        images: apiImages
       });
       if (!catalogUpdate.success) {
         showAdminToast(catalogUpdate.error || "Không thể cập nhật tour trên máy chủ.", "error");
@@ -1601,7 +1554,7 @@ async function handleSaveTourSubmit(e) {
         transport: tourData.transport,
         price: tourData.price,
         original_price: Math.max(calculatedBaseCost, 1),
-        image: tourData.image,
+        images: apiImages,
         description: tourData.highlights.join("\n")
       });
       if (!created.success) {
@@ -2566,11 +2519,11 @@ function renderTabSystem(container) {
         <div class="admin-card h-100">
           <div class="admin-card-body">
             <div class="d-flex align-items-center justify-content-between mb-3">
-              <span class="admin-metric-label">AI Runtime Provider</span>
+              <span class="admin-metric-label">Trợ lý nội bộ</span>
               <span class="badge bg-success">ONLINE</span>
             </div>
-            <h4 class="fw-bold text-dark mb-1">Gemini 2.5 Flash</h4>
-            <p class="text-muted small mb-0">Google Generative AI API kết nối trực tiếp với fallback nội bộ.</p>
+            <h4 class="fw-bold text-dark mb-1">Trợ lý du lịch</h4>
+            <p class="text-muted small mb-0">Phản hồi rule-based từ API nội bộ, không gửi dữ liệu đến dịch vụ AI bên ngoài.</p>
           </div>
         </div>
       </div>
@@ -2602,21 +2555,21 @@ function renderTabSystem(container) {
       </div>
     </div>
 
-    <!-- Công cụ Kiểm tra Gemini AI Trực Tiếp & Factory Reset -->
+    <!-- Công cụ Kiểm tra Trợ lý Du lịch & Factory Reset -->
     <div class="row g-4">
       <div class="col-lg-7">
         <div class="admin-card">
           <div class="admin-card-header">
             <h5 class="admin-card-title">
-              <i class="bi bi-terminal text-primary"></i> Chẩn Đoán & Kiểm Tra Kết Nối AI Trực Tiếp
+              <i class="bi bi-terminal text-primary"></i> Chẩn Đoán Trợ Lý Du Lịch
             </h5>
           </div>
           <div class="admin-card-body">
             <p class="small text-muted mb-3">
-              Nhập câu hỏi để kiểm tra độ trễ và khả năng phản hồi trực tiếp từ mô hình <code>gemini-2.5-flash</code>.
+              Nhập câu hỏi về tour để kiểm tra phản hồi từ API trợ lý du lịch nội bộ.
             </p>
             <div class="input-group mb-3">
-              <input type="text" class="form-control" id="aiDiagnosticInput" placeholder="Ví dụ: Giới thiệu tour Hạ Long 3N2Đ và chính sách hoàn hủy..." value="Tổng quan ngắn gọn 3 ưu thế vượt trội của Delta Travel">
+              <input type="text" class="form-control" id="aiDiagnosticInput" placeholder="Ví dụ: Giới thiệu tour Hạ Long 3N2Đ và chính sách hoàn hủy..." value="Giới thiệu tour Hạ Long 3N2Đ và chính sách hoàn hủy">
               <button class="btn btn-admin-primary" type="button" onclick="testLiveAiConnection()">
                 <i class="bi bi-play-fill"></i> Gửi Kiểm Tra
               </button>
@@ -2655,43 +2608,31 @@ async function testLiveAiConnection() {
   const outputEl = document.getElementById("aiDiagnosticOutput");
   if (!outputEl) return;
 
-  const query = inputEl ? inputEl.value.trim() : "Test connection";
-  outputEl.innerHTML = `<span class="text-warning">Đang gửi truy vấn đến Google Gemini API...</span>`;
-
-  const startTime = Date.now();
-  if (typeof AI_API_KEY !== "undefined" && AI_API_KEY && !AI_API_KEY.includes("YOUR_")) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${AI_API_KEY}`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: query }] }]
-        })
-      });
-      const latency = Date.now() - startTime;
-      if (res.ok) {
-        const json = await res.json();
-        const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-        outputEl.innerHTML = `
-          <div class="text-success fw-bold mb-1">[200 OK] Kết nối thành công! Độ trễ: ${latency} ms</div>
-          <div class="text-dark">${formatAiMarkdown(text || "No reply text")}</div>
-        `;
-        return;
-      }
-    } catch (e) {
-      console.warn("Lỗi API live:", e);
-    }
+  const query = inputEl?.value.trim() || "";
+  if (!query) {
+    outputEl.textContent = "Vui lòng nhập câu hỏi về tour hoặc dịch vụ du lịch.";
+    return;
+  }
+  if (typeof DeltaAPI === "undefined" || !DeltaAPI.assistantChat) {
+    outputEl.textContent = "Dịch vụ trợ lý du lịch chưa sẵn sàng.";
+    return;
   }
 
-  // Fallback demo response
-  setTimeout(() => {
-    const latency = Date.now() - startTime;
+  outputEl.textContent = "Đang kiểm tra API trợ lý du lịch...";
+  const startedAt = Date.now();
+  try {
+    const result = await DeltaAPI.assistantChat(query);
+    if (!result.success || !result.data?.answer) {
+      throw new Error(result.error || "Không nhận được phản hồi từ máy chủ.");
+    }
     outputEl.innerHTML = `
-      <div class="text-success fw-bold mb-1">[LOCAL FALLBACK ACTIVE] Độ trễ: ${latency} ms</div>
-      <div class="text-dark">Delta Travel là thương hiệu lữ hành 5 sao hàng đầu Việt Nam với cam kết 100% bảo hiểm, quy trình đặt tour nhanh chóng qua VietQR, hỗ trợ trợ lý ảo thông minh 24/7 và hệ thống quản trị chuyên nghiệp.</div>
+      <div class="text-success fw-bold mb-1">API nội bộ phản hồi sau ${Date.now() - startedAt} ms</div>
+      <div class="text-dark">${escapeAdminHtml(result.data.answer).replace(/\n/g, "<br>")}</div>
     `;
-  }, 300);
+  } catch (error) {
+    console.error("Travel assistant diagnostics failed:", error);
+    outputEl.textContent = `Không thể kiểm tra trợ lý du lịch: ${error.message || "Lỗi không xác định"}`;
+  }
 }
 
 function handleFactoryReset() {

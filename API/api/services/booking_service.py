@@ -126,6 +126,7 @@ def place_booking(db, user, body, idempotency_key):
             customer_name=body.customer_name.strip(),
             customer_phone=body.customer_phone,
             customer_email=body.customer_email,
+            customer_identity=body.customer_identity,
             note=body.note,
             adults=body.adults,
             children=body.children,

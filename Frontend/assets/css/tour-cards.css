@@ -74,9 +74,49 @@
   cursor: pointer;
 }
 
-/* ==========================================================================
-   THẺ TOUR DU LỊCH (Tour Card)
-   ========================================================================== */
+.tour-advanced-filters {
+  padding: 1.25rem;
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+.tour-advanced-filters .form-label {
+  margin-bottom: 0.35rem;
+  color: var(--text-main);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.tour-advanced-filters .form-control,
+.tour-advanced-filters .form-select {
+  min-height: 42px;
+  border-color: #cbd5e1;
+}
+
+#tourFilterStatus:empty,
+#tourActiveFilters:empty {
+  display: none;
+}
+
+#tourFilterStatus[data-state="error"] {
+  color: #b91c1c;
+}
+
+#tourFilterStatus[data-state="loading"] {
+  color: var(--text-muted);
+}
+
+#tourPagination .pagination {
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+#tourPagination .page-link {
+  color: var(--primary-color);
+}
+
+/* TOUR CARD */
 .tour-card {
   background: var(--bg-card);
   border-radius: var(--radius-lg);

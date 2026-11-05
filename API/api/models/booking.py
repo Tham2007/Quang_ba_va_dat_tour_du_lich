@@ -44,6 +44,7 @@ class Booking(Base):
     customer_name: Mapped[str] = mapped_column(String(120))
     customer_phone: Mapped[str] = mapped_column(String(20))
     customer_email: Mapped[str] = mapped_column(String(254))
+    customer_identity: Mapped[str | None] = mapped_column(String(12), nullable=True)
     note: Mapped[str] = mapped_column(String(500), default="")
     adults: Mapped[int] = mapped_column(Integer)
     children: Mapped[int] = mapped_column(Integer)

@@ -367,6 +367,15 @@
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.footer-delta .brand-title {
+  color: #ffffff !important;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.6);
+}
+
+.footer-delta .brand-subtitle {
+  color: #cbd5e1 !important;
+}
+
 .footer-delta p,
 .footer-delta .footer-brand-desc,
 .footer-delta .text-muted {

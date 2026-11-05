@@ -1,5 +1,4 @@
 """Delta Travel demo application assembly.
-
 Choose `uvicorn api.app:app` for the educational SQLite/Postgres demo.
 Choose `uvicorn api.tham_sqlserver_app:app` for the read-only SQL Server adapter.
 They deliberately use different schemas; never point the demo ORM at Tham's DB.
@@ -19,6 +18,7 @@ from api.core import ENV, db_session, fail
 from api.models import Base, engine, Tour
 from api.seed import seed_demo
 from api.routes import auth, tours, bookings, admin, assistant
+from api.core.sqlite_schema import migrate_booking_identity
 
 
 @asynccontextmanager
@@ -48,6 +48,7 @@ async def lifespan(app):
             seed_demo()
     elif os.getenv("AUTO_CREATE_SCHEMA", "1") == "1":
         Base.metadata.create_all(engine)
+        migrate_booking_identity(engine)
         if os.getenv("DEMO_SEED", "1") == "1":
             seed_demo()
     yield

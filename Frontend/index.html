@@ -263,21 +263,103 @@
       </div>
 
       <div class="tour-sort-wrapper">
-        <span class="text-muted small fw-semibold me-2" id="tourResultCount">Hiển thị 16 / 16 tour</span>
+        <span class="text-muted small fw-semibold me-2" id="tourResultCount" aria-live="polite">Đang tải tour...</span>
         <label for="tourSortSelect"><i class="bi bi-sort-down"></i> Sắp xếp:</label>
         <select class="form-select form-select-sm tour-sort-select" id="tourSortSelect">
           <option value="default">Mặc định nổi bật</option>
           <option value="price-asc">Giá: Thấp đến cao</option>
           <option value="price-desc">Giá: Cao đến thấp</option>
-          <option value="rating-desc">Đánh giá cao nhất</option>
+          <option value="newest">Tour mới nhất</option>
+          <option value="departure-soonest">Ngày khởi hành gần nhất</option>
         </select>
       </div>
     </div>
+
+    <form id="advancedTourFilters" class="tour-advanced-filters mb-4">
+      <div class="row g-3">
+        <div class="col-md-6 col-lg-3">
+          <label class="form-label" for="filterDestination">Điểm đến</label>
+          <input class="form-control" id="filterDestination" name="destination" placeholder="Tên tỉnh, thành phố hoặc vùng">
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <label class="form-label" for="filterDeparture">Điểm khởi hành</label>
+          <input class="form-control" id="filterDeparture" name="departure_location" placeholder="Hà Nội, TP. Hồ Chí Minh...">
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <label class="form-label" for="filterDepartureDate">Ngày khởi hành</label>
+          <input class="form-control" id="filterDepartureDate" name="departure_date" type="date">
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <label class="form-label" for="filterPriceRange">Khoảng giá</label>
+          <select class="form-select" id="filterPriceRange" name="price_range">
+            <option value="">Tất cả mức giá</option>
+            <option value="under2m">Dưới 2 triệu</option>
+            <option value="2to5m">2–5 triệu</option>
+            <option value="5to10m">Trên 5–10 triệu</option>
+            <option value="10to20m">Trên 10–20 triệu</option>
+            <option value="above20m">Trên 20 triệu</option>
+          </select>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <label class="form-label" for="filterDuration">Thời gian</label>
+          <select class="form-select" id="filterDuration" name="duration">
+            <option value="">Mọi thời lượng</option>
+            <option value="1N0Đ">1 ngày</option>
+            <option value="2N1Đ">2 ngày 1 đêm</option>
+            <option value="3N2Đ">3 ngày 2 đêm</option>
+            <option value="4N3Đ">4 ngày 3 đêm</option>
+            <option value="5N4Đ">Từ 5 ngày trở lên</option>
+          </select>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <label class="form-label" for="filterTransport">Phương tiện</label>
+          <select class="form-select" id="filterTransport" name="transport">
+            <option value="">Mọi phương tiện</option>
+            <option value="máy bay">Máy bay</option>
+            <option value="xe">Xe du lịch</option>
+            <option value="tàu hỏa">Tàu hỏa</option>
+            <option value="du thuyền">Tàu thủy / Du thuyền</option>
+          </select>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <label class="form-label" for="filterTourType">Loại tour</label>
+          <select class="form-select" id="filterTourType" name="tour_type">
+            <option value="">Mọi loại tour</option>
+            <option value="domestic">Trong nước</option>
+            <option value="international">Quốc tế</option>
+          </select>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <label class="form-label" for="filterAudience">Đối tượng</label>
+          <select class="form-select" id="filterAudience" name="audience">
+            <option value="">Mọi đối tượng</option>
+            <option value="family">Gia đình</option>
+            <option value="couple">Cặp đôi</option>
+            <option value="friends">Nhóm bạn</option>
+          </select>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <label class="form-label" for="filterAvailability">Tình trạng chỗ</label>
+          <select class="form-select" id="filterAvailability" name="availability">
+            <option value="">Mọi tình trạng</option>
+            <option value="available">Còn chỗ</option>
+            <option value="sold_out">Hết chỗ</option>
+          </select>
+        </div>
+      </div>
+      <div class="d-flex flex-wrap gap-2 mt-3">
+        <button class="btn btn-delta-primary" type="submit"><i class="bi bi-search"></i> Tìm kiếm</button>
+        <button class="btn btn-outline-secondary" type="button" id="clearTourFilters"><i class="bi bi-x-circle"></i> Xóa bộ lọc</button>
+      </div>
+    </form>
+    <p id="tourActiveFilters" class="small text-muted mb-3" aria-live="polite"></p>
+    <div id="tourFilterStatus" class="small mb-3" role="status" aria-live="polite"></div>
 
     <!-- Danh sách thẻ tour được render từ main.js -->
     <div class="row" id="toursContainer">
       <!-- Nội dung thẻ Tour sẽ tự động nạp qua renderTourCards() trong main.js -->
     </div>
+    <nav id="tourPagination" class="mt-4" aria-label="Phân trang danh sách tour"></nav>
   </section>
 
   <!-- ==========================================================================
@@ -814,6 +896,7 @@
         <div class="modal-body">
           <!-- Ảnh đại diện -->
           <img src="" id="itineraryHeroImg" alt="Tour Thumbnail" class="itinerary-hero-img">
+          <div id="itineraryGallery" class="itinerary-gallery" aria-label="Ảnh tour"></div>
 
           <!-- Thanh thông số tóm tắt -->
           <div class="itinerary-meta-bar">
@@ -943,9 +1026,9 @@
                       <input type="email" class="form-control" id="customerEmail" placeholder="nguyenvana@gmail.com" required>
                     </div>
                     <div class="col-md-6">
-                      <label class="form-label small fw-bold" for="customerCCCD">Số CCCD / Hộ chiếu (Tùy chọn)</label>
-                      <input type="text" class="form-control" id="customerCCCD" placeholder="12 chữ số hoặc B1234567" maxlength="12" autocomplete="off" aria-describedby="identityFormatHint" pattern="([0-9]{12}|(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{6,12})">
-                      <small class="text-muted" id="identityFormatHint">Bỏ trống nếu chưa có. Số CCCD 12 số hoặc số hộ chiếu hợp lệ theo quy định du lịch.</small>
+                      <label class="form-label small fw-bold" for="customerCCCD">Số CCCD (bắt buộc)</label>
+                      <input type="text" class="form-control" id="customerCCCD" placeholder="Nhập 12 chữ số" maxlength="12" autocomplete="off" aria-describedby="identityFormatHint" pattern="[0-9]{12}" inputmode="numeric" required>
+                      <small class="text-muted" id="identityFormatHint">Số CCCD được gửi và lưu trong database của bản demo; vui lòng không nhập giấy tờ thật.</small>
                     </div>
                     <div class="col-12">
                       <label class="form-label small fw-bold">Ghi chú đặc biệt (ăn chay, dị ứng, yêu cầu phòng...)</label>
@@ -1787,7 +1870,7 @@
           <span class="status-dot"></span>
         </div>
         <div class="chatbot-title-box">
-          <h6>Trợ lý Delta AI <span class="badge-model">Gemini 2.5</span></h6>
+          <h6>Trợ lý Delta Travel <span class="badge-model">Du lịch</span></h6>
           <small><i class="bi bi-circle-fill text-success" style="font-size: 0.55rem;"></i> Trực tuyến 24/7 • Dữ liệu thật</small>
         </div>
       </div>
@@ -1856,7 +1939,7 @@
   <!-- Hệ thống Đăng ký, Đăng nhập & Quản lý Tài khoản -->
   <script src="assets/js/controllers/auth.js"></script>
 
-  <!-- Trợ lý ảo Chatbot AI kết nối Google Gemini API -->
+  <!-- Trợ lý du lịch kết nối API nội bộ -->
   <script src="assets/js/controllers/chatbot.js"></script>
   <!-- Real same-origin FastAPI live bridge -->
   <script src="assets/js/services/live-api-bridge.js"></script>

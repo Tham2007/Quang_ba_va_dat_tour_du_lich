@@ -734,7 +734,7 @@ function handleUserAvatarUpload(e) {
 /**
  * Cập nhật thông tin Họ tên, SĐT của tài khoản
  */
-function handleProfileUpdate(e) {
+async function handleProfileUpdate(e) {
   e.preventDefault();
   const user = getCurrentUser();
   if (!user) return;
@@ -753,9 +753,31 @@ function handleProfileUpdate(e) {
     return;
   }
 
+  const isBackendAccount = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id);
+  let updatedProfile = null;
+  if (isBackendAccount) {
+    if (typeof DeltaAPI === "undefined" || typeof DeltaAPI.updateProfile !== "function") {
+      showToast("Không thể kết nối dịch vụ cập nhật hồ sơ.", "error");
+      return;
+    }
+    if (!DeltaAPI.isOnline()) {
+      const health = await DeltaAPI.checkHealth();
+      if (!health.online) {
+        showToast("Không thể cập nhật hồ sơ khi máy chủ không kết nối.", "error");
+        return;
+      }
+    }
+    const response = await DeltaAPI.updateProfile(newName, newPhone);
+    if (!response.success || !response.data) {
+      showToast(response.error || "Không thể cập nhật hồ sơ trên máy chủ.", "error");
+      return;
+    }
+    updatedProfile = response.data;
+  }
+
   const users = getAllUsers();
-  // Kiểm tra nếu đổi SĐT mà bị trùng với tài khoản khác
-  if (newPhone !== user.phone) {
+  // Kiểm tra trùng số điện thoại trong bộ nhớ local cho tài khoản demo.
+  if (!isBackendAccount && newPhone !== user.phone) {
     const exists = users.some(u => u.phone === newPhone && u.id !== user.id);
     if (exists) {
       alert("Số điện thoại này đã được sử dụng bởi tài khoản khác.");
@@ -765,12 +787,12 @@ function handleProfileUpdate(e) {
 
   const userIndex = users.findIndex(u => u.id === user.id);
   if (userIndex !== -1) {
-    users[userIndex].fullName = newName;
-    users[userIndex].phone = newPhone;
+    users[userIndex].fullName = updatedProfile?.fullName || newName;
+    users[userIndex].phone = updatedProfile?.phone || newPhone;
     saveUsers(users);
 
-    user.fullName = newName;
-    user.phone = newPhone;
+    user.fullName = users[userIndex].fullName;
+    user.phone = users[userIndex].phone;
     setCurrentUser(user);
 
     openUserProfileModal(); // Tải lại modal

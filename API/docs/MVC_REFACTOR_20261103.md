@@ -36,10 +36,20 @@ persistence orchestration and should be migrated incrementally with regression
 tests rather than moved mechanically. The `api.core` package contains shared
 infrastructure and is not a substitute for either layer.
 
+The public tour catalog uses `TourSearch` validation, repository-level
+parameterized filters, and a paginated controller response. Tour galleries
+reuse the existing `Tour.image` text column as a JSON list so a new table is
+not required. Booking identity validation and persistence stay in the booking
+schema/service/model layers; migration `0004_booking_customer_identity`
+upgrades existing SQLite/PostgreSQL data without exposing the identity in
+booking response serializers. The SQL Server adapter remains read-only and is
+not part of these changes.
+
 Legacy imports from `api.models`, `api.schemas`, `api.core`, `api.logic`, and
 `api.security` still work. The tour cost breakdown and itinerary are represented
 by `TourCostItem` and `ItineraryItem` models and are upgraded with Alembic
-revision `0003_tour_costs_and_itinerary`. The 12-table SQL Server adapter
+revisions `0003_tour_costs_and_itinerary` and
+`0004_booking_customer_identity`. The 12-table SQL Server adapter
 `api.tham_sqlserver_app` remains separate and **read-only**. Do not point the
 PostgreSQL/SQLite ORM at that T-SQL schema.
 

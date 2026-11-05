@@ -413,6 +413,11 @@
                               <span class="input-group-text"><i class="bi bi-link-45deg"></i> Đường dẫn / URL ảnh:</span>
                               <input type="text" class="form-control" id="formTourImage" placeholder="assets/images/halong.png hoặc link ảnh online" oninput="updateTourImagePreview(this.value)">
                             </div>
+                            <div>
+                              <label class="form-label small fw-semibold mb-1" for="formTourImages">Bộ sưu tập ảnh (mỗi URL một dòng)</label>
+                              <textarea class="form-control form-control-sm" id="formTourImages" rows="4" maxlength="16000" placeholder="https://example.com/tour-1.jpg&#10;assets/images/halong.png"></textarea>
+                              <small class="text-muted">Tối đa 12 URL ảnh HTTP(S) hoặc đường dẫn tương đối; dòng đầu tiên là ảnh đại diện.</small>
+                            </div>
                           </div>
                         </div>
                       </div>

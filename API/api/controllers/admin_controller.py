@@ -39,6 +39,9 @@ def admin_tour_create(
     body: TourCreate, user=Depends(admin), db: Session = Depends(db_session)
 ):
     data = body.model_dump(exclude_none=True)
+    images = data.pop("images", None)
+    if images is not None:
+        data["image"] = json.dumps(images, ensure_ascii=False)
     data.setdefault("description", "")
     data.setdefault("flash_sale", False)
     data.setdefault("active", True)
@@ -62,6 +65,9 @@ def admin_tour_patch(
     patch = body.model_dump(exclude_unset=True)
     if any(v is None for v in patch.values()):
         fail(422, "Không được gán null.")
+    images = patch.pop("images", None)
+    if images is not None:
+        patch["image"] = json.dumps(images, ensure_ascii=False)
     with db.begin_nested():
         lock_writes(db)
         t = db.scalar(select(Tour).where(Tour.id == tour_id).with_for_update())

@@ -1,12 +1,25 @@
 """Tour and schedule serializers."""
 
+import json
+
 from sqlalchemy import select
 
 from api.core import iso
 from api.models import ItineraryItem, TourCostItem
 
 
+def tour_images(image_value):
+    try:
+        images = json.loads(image_value)
+    except (TypeError, json.JSONDecodeError):
+        images = None
+    if isinstance(images, list) and all(isinstance(image, str) for image in images):
+        return [image for image in images if image]
+    return [image_value] if image_value else []
+
+
 def public_tour(t):
+    images = tour_images(t.image)
     return {
         "id": t.id,
         "slug": t.slug,
@@ -15,7 +28,8 @@ def public_tour(t):
         "duration": t.duration,
         "departure": t.departure,
         "transport": t.transport,
-        "image": t.image,
+        "image": images[0] if images else "",
+        "images": images,
         "description": t.description,
         "price": t.price,
         "isFlashSale": t.flash_sale,

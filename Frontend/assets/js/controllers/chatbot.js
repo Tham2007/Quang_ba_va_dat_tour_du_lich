@@ -1,15 +1,11 @@
-const AI_API_KEY = ""; // Điền API Key (Gemini / OpenAI) vào đây
-const AI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
-
 /**
- * DELTA TRAVEL - AI TRAVEL CONSULTANT CHATBOT (chatbot.js)
+ * DELTA TRAVEL - API-backed travel assistant (chatbot.js)
  * -------------------------------------------------------------
  * Chức năng:
- * 1. Gọi trực tiếp Google Gemini API thật qua fetch() async/await thuần Frontend.
- * 2. Tự động nạp toàn bộ cơ sở dữ liệu Tours, Lịch trình, Giá vé, Voucher từ data.js vào systemInstruction.
- * 3. Lưu trữ mảng lịch sử chat (chatHistory) để ghi nhớ ngữ cảnh hội thoại.
- * 4. Hiển thị hiệu ứng Typing Loading và xử lý bắt lỗi try...catch chi tiết.
- * 5. Định dạng tin nhắn Rich Text (Bold, Bullet, Voucher/Tour Tags).
+ * 1. Gửi câu hỏi đến trợ lý có phạm vi du lịch ở backend.
+ * 2. Lưu lịch sử hội thoại trong phiên trình duyệt.
+ * 3. Hiển thị trạng thái tải và lỗi kết nối rõ ràng.
+ * 4. Định dạng tin nhắn Rich Text (Bold, Bullet, Voucher/Tour Tags).
  */
 
 // =============================================================================
@@ -20,151 +16,22 @@ let isChatbotOpen = false;
 let isAILoading = false;
 
 // =============================================================================
-// II. KHỞI TẠO SYSTEM INSTRUCTION TỪ DATA.JS
+// II. GỌI TRỢ LÝ TRONG PHẠM VI DU LỊCH Ở BACKEND
 // =============================================================================
 /**
- * Trích xuất toàn bộ dữ liệu của Delta Travel thành văn bản System Prompt cho AI
- */
-function buildDeltaSystemPrompt() {
-  let toursSummary = "";
-  if (typeof TOURS_DATA !== "undefined" && Array.isArray(TOURS_DATA)) {
-    toursSummary = TOURS_DATA.map(t => {
-      const highlights = (t.highlights || []).join("; ");
-      const dailyItinerary = (t.itinerary || []).map(day => 
-        `  * Ngày ${day.day}: ${day.title}. Sáng: ${day.morning || ""} Chiều: ${day.afternoon || ""} Tối: ${day.evening || ""}`
-      ).join("\n");
-
-      return `[MÃ TOUR: ${t.id}]
-- Tên tour: ${t.title}
-- Điểm đến: ${t.regionName} | Thời lượng: ${t.duration}
-- Điểm khởi hành: ${t.departure} | Phương tiện: ${t.transport}
-- Giá ưu đãi hiện tại: ${t.price ? t.price.toLocaleString("vi-VN") + " VNĐ" : "Liên hệ"} (Giá gốc: ${t.originalPrice ? t.originalPrice.toLocaleString("vi-VN") + " VNĐ" : ""})
-- Đánh giá: ${t.rating}/5 sao (${t.reviewsCount} lượt đánh giá)
-- Số chỗ còn nhận: ${t.availableSeats} chỗ
-- Điểm nổi bật: ${highlights}
-- Lịch trình chi tiết:
-${dailyItinerary}
-- Dịch vụ bao gồm: ${(t.inclusions || []).join(", ")}
-- Dịch vụ không bao gồm: ${(t.exclusions || []).join(", ")}`;
-    }).join("\n\n");
-  }
-
-  let vouchersSummary = "";
-  if (typeof VOUCHERS_DATA !== "undefined" && Array.isArray(VOUCHERS_DATA)) {
-    vouchersSummary = VOUCHERS_DATA.map(v => 
-      `- Mã [${v.code}]: ${v.description} (Áp dụng cho đơn từ ${v.minOrderValue ? v.minOrderValue.toLocaleString("vi-VN") + "đ" : "0đ"})`
-    ).join("\n");
-  }
-
-  let addonsSummary = "";
-  if (typeof ADDON_SERVICES !== "undefined") {
-    addonsSummary = Object.values(ADDON_SERVICES).map(a => 
-      `- ${a.name}: ${a.price.toLocaleString("vi-VN")} VNĐ / ${a.unit}`
-    ).join("\n");
-  }
-
-  return `Bạn là "Delta AI" - Chuyên viên tư vấn du lịch và lữ hành thông minh, chuyên nghiệp, nhiệt tình của thương hiệu DELTA TRAVEL (Việt Nam).
-Website: https://deltatravel.vn | Hotline: 1900 8899 | Email: support@deltatravel.vn.
-
-NHIỆM VỤ CỦA BẠN:
-1. Tư vấn chi tiết các gói tour du lịch của Delta Travel, gợi ý tour phù hợp với ngân sách, thời gian, sở thích và điểm xuất phát của khách hàng.
-2. Trả lời chính xác về lịch trình từng ngày, điểm tham quan, bữa ăn, khách sạn và dịch vụ bao gồm/không bao gồm.
-3. Cung cấp và hướng dẫn khách áp dụng các mã giảm giá Voucher hiện có của Delta Travel.
-4. Giải thích quy trình đặt tour trực tuyến, các phương thức thanh toán (chuyển khoản VietQR tức thì, thẻ ATM/Visa, ví MoMo, tiền mặt) và chính sách hoàn hủy vé:
-   - Miễn phí hủy tour trước 7 ngày.
-   - Hủy trước 3 - 6 ngày hoàn 50%.
-   - Hủy dưới 3 ngày tính 100% phí.
-
-QUY TẮC PHẢN HỒI:
-- Luôn thân thiện, lịch sự, xưng "em/tôi" và gọi khách là "quý khách" hoặc "bạn".
-- Sử dụng các emoji du lịch sinh động (🏖️, 🏔️, 🚢, ✈️, 🎟️, 💰, ⭐, 📋).
-- Trình bày thông tin ngắn gọn, mạch lạc, dùng gạch đầu dòng rõ ràng, in đậm các thông tin quan trọng như Tên tour, Giá tiền, Mã Voucher, Mã Tour.
-- Tuyệt đối không bịa đặt các tour không có trong dữ liệu. Nếu khách hỏi tour khác ngoài danh mục, hãy khéo léo giới thiệu các tour hiện có hoặc mời khách liên hệ Hotline 1900 8899 để thiết kế tour riêng.
-
-CƠ SỞ DỮ LIỆU HIỆN CÓ CỦA DELTA TRAVEL:
-
-=== DANH SÁCH TOUR DU LỊCH ===
-${toursSummary}
-
-=== CÁC MÃ GIẢM GIÁ (VOUCHER) ĐANG ÁP DỤNG ===
-${vouchersSummary}
-
-=== DỊCH VỤ GIA TĂNG TÙY CHỌN ===
-${addonsSummary}`;
-}
-
-// =============================================================================
-// III. HÀM GỌI API AI THẬT (FETCH ASYNC/AWAIT)
-// =============================================================================
-/**
- * Gửi yêu cầu tới Google Gemini API bằng fetch() thuần JavaScript
+ * Gửi yêu cầu tới API du lịch để áp dụng cùng một chính sách phạm vi cho mọi UI.
  * @param {string} userMessage - Tin nhắn người dùng nhập vào
  * @returns {Promise<string>} - Nội dung phản hồi từ AI
  */
 async function callAIAPI(userMessage) {
-  // 1. Kiểm tra cấu hình API Key
-  if (!AI_API_KEY || AI_API_KEY.trim() === "") {
-    throw new Error("KEY_NOT_CONFIGURED");
+  if (typeof DeltaAPI === "undefined" || !DeltaAPI.assistantChat) {
+    throw new Error("Dịch vụ tư vấn du lịch chưa sẵn sàng.");
   }
-
-  // 2. Chuẩn bị URL kèm API Key
-  const endpointUrl = `${AI_API_URL}?key=${encodeURIComponent(AI_API_KEY.trim())}`;
-
-  // 3. Chuẩn bị payload chuẩn Google Gemini API
-  const systemInstructionText = buildDeltaSystemPrompt();
-
-  // Đưa lịch sử hội thoại vào contents
-  const requestContents = [
-    ...chatHistory,
-    {
-      role: "user",
-      parts: [{ text: userMessage }]
-    }
-  ];
-
-  const payload = {
-    systemInstruction: {
-      parts: [{ text: systemInstructionText }]
-    },
-    contents: requestContents,
-    generationConfig: {
-      temperature: 0.7,
-      topK: 40,
-      topP: 0.95,
-      maxOutputTokens: 1200
-    }
-  };
-
-  // 4. Gửi HTTP POST Request bằng fetch()
-  const response = await fetch(endpointUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  });
-
-  // 5. Kiểm tra mã trạng thái HTTP
-  if (!response.ok) {
-    let errorDetail = `Lỗi máy chủ (${response.status} ${response.statusText})`;
-    try {
-      const errJson = await response.json();
-      if (errJson && errJson.error && errJson.error.message) {
-        errorDetail = errJson.error.message;
-      }
-    } catch (_) {}
-    throw new Error(errorDetail);
+  const result = await DeltaAPI.assistantChat(userMessage);
+  if (!result.success || !result.data?.answer) {
+    throw new Error(result.error || "Không nhận được phản hồi từ máy chủ.");
   }
-
-  // 6. Đọc kết quả JSON trả về
-  const data = await response.json();
-  const botReply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!botReply) {
-    throw new Error("Không nhận được câu trả lời từ máy chủ AI.");
-  }
-
-  // 7. Cập nhật lịch sử cuộc trò chuyện
+  const botReply = result.data.answer;
   chatHistory.push({
     role: "user",
     parts: [{ text: userMessage }]
@@ -278,7 +145,7 @@ async function handleSendMessage() {
   toggleSendButtonState(true);
 
   try {
-    // 3. Gọi API AI thật bằng fetch()
+    // 3. Gọi trợ lý du lịch nội bộ
     const botResponse = await callAIAPI(messageText);
 
     // 4. Xóa loading và hiển thị câu trả lời của AI
@@ -287,34 +154,10 @@ async function handleSendMessage() {
 
   } catch (err) {
     hideTypingIndicator();
-
-    if (err.message === "KEY_NOT_CONFIGURED") {
-      // Fallback: Gọi trợ lý thông minh từ Backend API FastAPI
-      try {
-        const resp = await fetch("/api/v1/assistant/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: messageText })
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data && data.answer) {
-            appendChatMessage("bot", data.answer);
-            return;
-          }
-        }
-      } catch (backendErr) {}
-
-      // Thông báo chưa cấu hình API Key nếu backend cũng chưa sẵn sàng
-      appendChatWarning(
-        "Chưa cấu hình API Key. Vui lòng thêm khóa vào biến AI_API_KEY trong file assets/js/controllers/chatbot.js để bắt đầu trò chuyện cùng AI."
-      );
-    } else {
-      // Thông báo lỗi mạng hoặc mã lỗi từ API
-      appendChatWarning(
-        `Không thể kết nối tới máy chủ AI. Chi tiết lỗi: ${err.message}. Vui lòng kiểm tra lại kết nối mạng hoặc tính hợp lệ của API Key.`
-      );
-    }
+    console.error("Travel assistant request failed:", err);
+    appendChatWarning(
+      `Không thể kết nối trợ lý du lịch. Chi tiết: ${err.message || "Lỗi không xác định"}. Vui lòng thử lại sau.`
+    );
   } finally {
     isAILoading = false;
     toggleSendButtonState(false);
@@ -382,7 +225,7 @@ function appendChatWarning(warningText) {
     <div class="chat-msg-avatar" title="Delta AI"><i class="bi bi-robot"></i></div>
     <div class="chat-msg-bubble">
       <div class="ai-api-warning">
-        <div class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill text-warning me-1"></i> Thông Báo Cấu Hình API:</div>
+        <div class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill text-warning me-1"></i> Thông báo trợ lý:</div>
         <div>${escapeHTML(warningText)}</div>
       </div>
       <span class="chat-msg-time">${timeStr}</span>
