@@ -107,7 +107,9 @@ async function main() {
 
     await page.goto(base + "/admin.html", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1200);
-    assert((await page.locator("body").innerText()).includes("Cổng quản trị DEMO"), "Admin demo banner missing");
+    const adminBanner = await page.locator(".delta-demo-notice").innerText();
+    assert(adminBanner.includes("DEMO học phần") && adminBanner.includes("thao tác quản trị"),
+      "Admin demo banner missing");
     assert.equal(await page.evaluate(() => typeof window.handleQuickAdminLogin), "function", "Admin UI not initialized");
     await page.evaluate(() => window.handleQuickAdminLogin("USR-01"));
     await page.waitForTimeout(500);
