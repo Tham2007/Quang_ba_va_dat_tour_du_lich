@@ -1,0 +1,28 @@
+{
+  "name": "delta-travel-commercial",
+  "version": "2.0.0",
+  "description": "Delta Travel 2.0 - He Thong Quang Ba Va Dat Tour Du Lich (Node.js Express + SQLite)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node test_node_server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tham2007/Quang_ba_va_dat_tour_du_lich.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Tham2007/Quang_ba_va_dat_tour_du_lich/issues"
+  },
+  "homepage": "https://github.com/Tham2007/Quang_ba_va_dat_tour_du_lich#readme",
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "express": "^5.3.0"
+  }
+}

@@ -60,9 +60,28 @@ Server. `api.app` vẫn chạy DB SQLite/PostgreSQL theo schema demo. Adapter SQ
 Server riêng hiện chỉ đọc, API ghi booking trả 503. Xem
 [giải thích các tầng MVC](API/docs/MVC_REFACTOR_20261103.md).
 
-## Chạy nhanh backend demo
+## Hướng dẫn khởi chạy hệ thống
 
-Yêu cầu Python **3.11+**. Mở terminal tại thư mục `API/`:
+### Cách 1: Khởi chạy bằng Node.js (Khuyên dùng - Tiện lợi & Nhanh chóng)
+Yêu cầu đã cài đặt **Node.js** (phiên bản 18+ hoặc mới nhất).
+1. **Khởi động 1 chạm:** Nhấp đúp vào tệp [`run.bat`](run.bat) ở thư mục gốc. Hệ thống sẽ tự động cài thư viện cần thiết (`npm install`) và khởi động server.
+2. **Khởi động bằng dòng lệnh (Terminal / PowerShell):**
+   ```bash
+   npm install
+   npm start
+   ```
+3. **Kiểm thử tự động hệ thống Node.js:**
+   ```bash
+   npm test
+   ```
+* Hệ thống sẽ mở tại:
+  - **Trang chủ đặt tour trực tuyến:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+  - **Cổng quản trị Admin:** [http://127.0.0.1:8000/admin.html](http://127.0.0.1:8000/admin.html) *(Tài khoản: `admin@deltatravel.vn` / Mật khẩu: `delta123`)*
+
+---
+
+### Cách 2: Khởi chạy bằng Python FastAPI
+Yêu cầu Python **3.11+**. Nhấp đúp file [`run_python.bat`](run_python.bat) hoặc mở terminal tại thư mục `API/`:
 
 ```powershell
 cd API
