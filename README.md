@@ -76,7 +76,7 @@ Yêu cầu đã cài đặt **Node.js** (phiên bản 18+ hoặc mới nhất).
    ```
 * Hệ thống sẽ mở tại:
   - **Trang chủ đặt tour trực tuyến:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
-  - **Cổng quản trị Admin:** [http://127.0.0.1:8000/admin.html](http://127.0.0.1:8000/admin.html) *(Tài khoản: `admin@deltatravel.vn` / Mật khẩu: `delta123`)*
+  - **Cổng quản trị Admin:** [http://127.0.0.1:8000/admin.html](http://127.0.0.1:8000/admin.html) *(Tài khoản máy chủ: `admin@deltatravel.vn` / `delta123`; đăng nhập nhanh thành viên nhóm: mật khẩu `password123`)*
 
 ---
 

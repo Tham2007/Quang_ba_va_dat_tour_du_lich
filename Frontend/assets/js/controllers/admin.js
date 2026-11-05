@@ -133,7 +133,7 @@ function updateAdminProfileUI(user) {
 /**
  * Đăng nhập nhanh từ màn hình khóa dành cho Tester / Giảng viên
  */
-function handleQuickAdminLogin(identifier) {
+async function handleQuickAdminLogin(identifier) {
   const users = (typeof getAllUsers === "function") ? getAllUsers() : (typeof DEFAULT_DEMO_USERS !== "undefined" ? DEFAULT_DEMO_USERS : []);
   let targetUser = null;
 
@@ -152,6 +152,26 @@ function handleQuickAdminLogin(identifier) {
   }
 
   if (targetUser) {
+    if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.login === "function") {
+      const loginResult = await DeltaAPI.login(targetUser.email, targetUser.password);
+      if (loginResult.success) {
+        if (loginResult.data?.role !== "ADMIN") {
+          showAdminToast("Tài khoản này không có quyền quản trị trên máy chủ.", "error");
+          return;
+        }
+        targetUser = {
+          ...targetUser,
+          id: loginResult.data.id,
+          fullName: loginResult.data.fullName,
+          email: loginResult.data.email,
+          phone: loginResult.data.phone,
+          role: loginResult.data.role
+        };
+      } else if (!loginResult.isOffline) {
+        showAdminToast(loginResult.error || "Không thể đăng nhập tài khoản quản trị trên máy chủ.", "error");
+        return;
+      }
+    }
     if (typeof setCurrentUser === "function") setCurrentUser(targetUser);
     checkAdminAuth();
     refreshAdminData();

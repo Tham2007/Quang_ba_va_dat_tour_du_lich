@@ -103,6 +103,28 @@ function initDatabase() {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS tour_cost_items (
+      id TEXT PRIMARY KEY,
+      tour_id TEXT NOT NULL REFERENCES tours(id) ON DELETE CASCADE,
+      category TEXT NOT NULL,
+      name TEXT NOT NULL,
+      notes TEXT DEFAULT '',
+      amount_per_person INTEGER NOT NULL CHECK (amount_per_person >= 0)
+    );
+
+    CREATE TABLE IF NOT EXISTS itinerary_items (
+      id TEXT PRIMARY KEY,
+      tour_id TEXT NOT NULL REFERENCES tours(id) ON DELETE CASCADE,
+      day_number INTEGER NOT NULL CHECK (day_number > 0),
+      sequence INTEGER NOT NULL CHECK (sequence > 0),
+      category TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      location TEXT DEFAULT '',
+      start_time TEXT,
+      UNIQUE (tour_id, day_number, sequence)
+    );
+
     CREATE TABLE IF NOT EXISTS schedules (
       id TEXT PRIMARY KEY,
       tour_id TEXT NOT NULL,
@@ -181,6 +203,25 @@ function initDatabase() {
     );
   }
 
+  // Keep the admin portal's quick-login demo accounts valid for protected API actions.
+  const demoAdmins = [
+    ["USR-01", "Hồng Thắm", "hongtham@deltatravel.vn", "0901112233"],
+    ["USR-02", "Lê Văn An", "an.levan@gmail.com", "0987654321"],
+    ["USR-03", "Lê Hải Đăng", "haidang@deltatravel.vn", "0902223344"],
+    ["USR-04", "Nguyễn Phúc", "nguyenphuc@deltatravel.vn", "0903334455"],
+    ["USR-05", "Mạnh Lê", "manhle@deltatravel.vn", "0905556677"]
+  ];
+  const insertDemoAdmin = db.prepare(`
+    INSERT INTO users (id, full_name, email, phone, password_hash, role, active, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, 'ADMIN', 1, ?, ?)
+  `);
+  for (const [id, fullName, email, phone] of demoAdmins) {
+    const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
+    if (!existing) {
+      insertDemoAdmin.run(id, fullName, email, phone, hashPassword("password123"), now, now);
+    }
+  }
+
   // Đảm bảo có 6 tour thương mại chuẩn
   const tourCount = db.prepare("SELECT COUNT(*) AS count FROM tours").get().count;
   if (tourCount === 0) {
@@ -233,6 +274,40 @@ function publicTour(t) {
     originalPrice: Number(t.original_price),
     isFlashSale: Boolean(t.flash_sale),
     updatedAt: iso(t.updated_at)
+  };
+}
+
+function adminTourDetails(tour) {
+  const costItems = db.prepare(`
+    SELECT id, category, name, notes, amount_per_person
+    FROM tour_cost_items WHERE tour_id = ? ORDER BY category, name
+  `).all(tour.id).map(item => ({
+    id: item.id,
+    category: item.category,
+    name: item.name,
+    notes: item.notes,
+    amountPerPerson: Number(item.amount_per_person)
+  }));
+  const itinerary = db.prepare(`
+    SELECT day_number, sequence, category, title, description, location, start_time
+    FROM itinerary_items WHERE tour_id = ? ORDER BY day_number, sequence
+  `).all(tour.id).map(item => ({
+    dayNumber: Number(item.day_number),
+    sequence: Number(item.sequence),
+    category: item.category,
+    title: item.title,
+    description: item.description,
+    location: item.location,
+    startTime: item.start_time
+  }));
+  const baseCost = costItems.reduce((sum, item) => sum + item.amountPerPerson, 0);
+
+  return {
+    tour: { ...publicTour(tour), active: Boolean(tour.active) },
+    baseCost,
+    grossMarginPerPerson: Number(tour.price) - baseCost,
+    costItems,
+    itinerary
   };
 }
 
@@ -785,6 +860,107 @@ app.get("/api/v1/admin/tours", requireAdmin, (req, res) => {
     ...publicTour(t),
     active: Boolean(t.active)
   })));
+});
+
+app.get("/api/v1/admin/tours/:tour_id/details", requireAdmin, (req, res) => {
+  const { tour_id } = req.params;
+  const tour = db.prepare("SELECT * FROM tours WHERE id = ?").get(tour_id);
+  if (!tour) return res.status(404).json({ detail: "Không tìm thấy tour." });
+  res.json(adminTourDetails(tour));
+});
+
+app.put("/api/v1/admin/tours/:tour_id/details", requireAdmin, (req, res) => {
+  const { tour_id } = req.params;
+  const tour = db.prepare("SELECT * FROM tours WHERE id = ?").get(tour_id);
+  if (!tour) return res.status(404).json({ detail: "Không tìm thấy tour." });
+
+  const { price, cost_items: costItems, itinerary } = req.body || {};
+  const costCategories = new Set([
+    "transport", "accommodation", "meal", "sightseeing",
+    "activity", "guide", "insurance", "other"
+  ]);
+  const itineraryCategories = new Set([
+    "transport", "meal", "accommodation", "activity", "team_building", "note"
+  ]);
+
+  if (!Number.isInteger(price) || price < 1 || price > 2_000_000_000) {
+    return res.status(422).json({ detail: "Giá bán không hợp lệ." });
+  }
+  if (!Array.isArray(costItems) || costItems.length > 100) {
+    return res.status(422).json({ detail: "Danh sách khoản chi không hợp lệ." });
+  }
+  if (!Array.isArray(itinerary) || itinerary.length > 500) {
+    return res.status(422).json({ detail: "Danh sách lịch trình không hợp lệ." });
+  }
+  for (const item of costItems) {
+    if (!item || !costCategories.has(item.category) ||
+        typeof item.name !== "string" || item.name.trim().length < 2 || item.name.length > 150 ||
+        typeof (item.notes || "") !== "string" || (item.notes || "").length > 2000 ||
+        !Number.isInteger(item.amount_per_person) ||
+        item.amount_per_person < 0 || item.amount_per_person > 2_000_000_000) {
+      return res.status(422).json({ detail: "Thông tin khoản chi không hợp lệ." });
+    }
+  }
+  const seenSlots = new Set();
+  for (const item of itinerary) {
+    const slot = item && `${item.day_number}:${item.sequence}`;
+    if (!item || !Number.isInteger(item.day_number) || item.day_number < 1 || item.day_number > 365 ||
+        !Number.isInteger(item.sequence) || item.sequence < 1 || item.sequence > 100 ||
+        !itineraryCategories.has(item.category) ||
+        typeof item.title !== "string" || item.title.trim().length < 2 || item.title.length > 180 ||
+        typeof (item.description || "") !== "string" || (item.description || "").length > 4000 ||
+        typeof (item.location || "") !== "string" || (item.location || "").length > 180 ||
+        (item.start_time != null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(item.start_time)) ||
+        seenSlots.has(slot)) {
+      return res.status(422).json({ detail: "Thông tin lịch trình không hợp lệ." });
+    }
+    seenSlots.add(slot);
+  }
+  const baseCost = costItems.reduce((sum, item) => sum + item.amount_per_person, 0);
+  if (price <= baseCost) {
+    return res.status(422).json({ detail: "Giá bán phải cao hơn tổng giá gốc." });
+  }
+
+  db.exec("BEGIN");
+  try {
+    db.prepare("UPDATE tours SET price = ?, updated_at = ? WHERE id = ?")
+      .run(price, new Date().toISOString(), tour_id);
+    db.prepare("DELETE FROM tour_cost_items WHERE tour_id = ?").run(tour_id);
+    db.prepare("DELETE FROM itinerary_items WHERE tour_id = ?").run(tour_id);
+
+    const insertCost = db.prepare(`
+      INSERT INTO tour_cost_items (id, tour_id, category, name, notes, amount_per_person)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    for (const item of costItems) {
+      insertCost.run(crypto.randomUUID(), tour_id, item.category, item.name.trim(),
+        item.notes || "", item.amount_per_person);
+    }
+
+    const insertItinerary = db.prepare(`
+      INSERT INTO itinerary_items (
+        id, tour_id, day_number, sequence, category, title, description, location, start_time
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const item of itinerary) {
+      insertItinerary.run(
+        crypto.randomUUID(), tour_id, item.day_number, item.sequence, item.category,
+        item.title.trim(), item.description || "", item.location || "", item.start_time || null
+      );
+    }
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    return res.status(409).json({ detail: "Không thể lưu chi tiết tour: " + err.message });
+  }
+
+  audit(req.user.id, "TOUR_DETAILS_REPLACED", tour_id, {
+    price,
+    costItemCount: costItems.length,
+    itineraryItemCount: itinerary.length
+  });
+  const updatedTour = db.prepare("SELECT * FROM tours WHERE id = ?").get(tour_id);
+  res.json(adminTourDetails(updatedTour));
 });
 
 app.post("/api/v1/admin/tours", requireAdmin, (req, res) => {

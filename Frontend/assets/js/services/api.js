@@ -75,7 +75,7 @@ const DeltaAPI = (() => {
         const errorMsg = (data && data.detail)
           ? (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail))
           : `Lỗi kết nối máy chủ (HTTP ${response.status})`;
-        throw new Error(errorMsg);
+        return { success: false, error: errorMsg, isOffline: false };
       }
 
       isBackendOnline = true;

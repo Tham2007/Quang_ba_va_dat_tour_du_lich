@@ -191,6 +191,24 @@ async function runTests() {
     });
     assert("POST /api/v1/auth/login (Admin)", adminLoginRes.status === 200 && adminLoginRes.json?.role === "ADMIN");
 
+    const teamAdminLoginRes = await req("/api/v1/auth/login", {
+      method: "POST",
+      body: { email: "hongtham@deltatravel.vn", password: "password123" }
+    });
+    assert("POST /api/v1/auth/login (Admin quick-login account)",
+      teamAdminLoginRes.status === 200 && teamAdminLoginRes.json?.role === "ADMIN");
+    const teamAdminCookies = teamAdminLoginRes.headers.get("set-cookie") || "";
+    const teamAdminSession = teamAdminCookies.match(/delta_session=([^;]+)/)?.[1] || "";
+    const teamAdminCsrf = teamAdminCookies.match(/delta_csrf=([^;]+)/)?.[1] || "";
+    const teamAdminTours = await req("/api/v1/admin/tours", {
+      headers: {
+        "Cookie": `delta_session=${teamAdminSession}; delta_csrf=${teamAdminCsrf}`,
+        "X-CSRF-Token": teamAdminCsrf
+      }
+    });
+    assert("GET /api/v1/admin/tours (Admin quick-login session)",
+      teamAdminTours.status === 200 && Array.isArray(teamAdminTours.json));
+
     const admCookies = adminLoginRes.headers.get("set-cookie") || "";
     const admSession = admCookies.match(/delta_session=([^;]+)/)?.[1] || "";
     const admCsrf = admCookies.match(/delta_csrf=([^;]+)/)?.[1] || "";
@@ -235,6 +253,50 @@ async function runTests() {
       body: { price: 3400000, flash_sale: true }
     });
     assert(`PATCH /api/v1/admin/tours/${newTourId}`, patchTourRes.status === 200 && patchTourRes.json?.price === 3400000);
+
+    const replaceTourDetailsRes = await req(`/api/v1/admin/tours/${newTourId}/details`, {
+      method: "PUT",
+      headers: adminHeaders,
+      body: {
+        price: 3400000,
+        cost_items: [{
+          category: "transport",
+          name: "Xe du lịch",
+          notes: "Xe đời mới",
+          amount_per_person: 450000
+        }],
+        itinerary: [{
+          day_number: 1,
+          sequence: 1,
+          category: "transport",
+          title: "Khởi hành",
+          description: "Đón khách tại điểm hẹn",
+          location: "Đà Nẵng",
+          start_time: "08:00"
+        }]
+      }
+    });
+    assert(`PUT /api/v1/admin/tours/${newTourId}/details`,
+      replaceTourDetailsRes.status === 200 &&
+      replaceTourDetailsRes.json?.baseCost === 450000 &&
+      replaceTourDetailsRes.json?.tour?.originalPrice === 4500000 &&
+      replaceTourDetailsRes.json?.itinerary?.length === 1);
+
+    const tourDetailsRes = await req(`/api/v1/admin/tours/${newTourId}/details`, {
+      headers: adminHeaders
+    });
+    assert(`GET /api/v1/admin/tours/${newTourId}/details`,
+      tourDetailsRes.status === 200 &&
+      tourDetailsRes.json?.costItems?.[0]?.amountPerPerson === 450000 &&
+      tourDetailsRes.json?.itinerary?.[0]?.startTime === "08:00");
+
+    const invalidTourDetailsRes = await req(`/api/v1/admin/tours/${newTourId}/details`, {
+      method: "PUT",
+      headers: adminHeaders,
+      body: { price: 400000, cost_items: [{ category: "transport", name: "Xe", amount_per_person: 450000 }], itinerary: [] }
+    });
+    assert(`PUT /api/v1/admin/tours/${newTourId}/details rejects invalid pricing`,
+      invalidTourDetailsRes.status === 422);
 
     // Admin delete tour
     const delTourRes = await req(`/api/v1/admin/tours/${newTourId}`, {
