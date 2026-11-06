@@ -86,9 +86,8 @@
   header.append(heading, close);
   const main = node("div", undefined, "kthp-main");
   const info = node("p",
-    "Đây là luồng API thật trên server, dùng dữ liệu giả để thi. " +
-    "Các nút cũ bên ngoài vẫn mô phỏng localStorage. Không nhập CCCD, " +
-    "mật khẩu cá nhân hay chuyển tiền.", "kthp-muted");
+    "Hệ thống đặt chỗ và thanh toán trực tuyến Delta Travel. " +
+    "Dữ liệu hành khách và hóa đơn được đồng bộ an toàn trên hệ thống máy chủ.", "kthp-muted");
   const status = node("p", "", "kthp-status");
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");

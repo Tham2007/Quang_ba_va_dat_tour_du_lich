@@ -50,17 +50,21 @@
 /* Banner ảnh trong modal */
 .itinerary-hero-img {
   width: 100%;
-  height: 280px;
+  height: 320px;
   object-fit: cover;
-  border-radius: var(--radius-lg);
-  margin-bottom: 1.5rem;
+  border-radius: var(--radius-xl);
+  margin-bottom: 0.75rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  transition: opacity 0.3s ease;
 }
 
 .itinerary-gallery {
   display: flex;
-  gap: 0.6rem;
-  margin: -0.75rem 0 1.5rem;
+  gap: 0.75rem;
+  margin: 0 0 1.5rem;
+  padding: 0.5rem 0.25rem;
   overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .itinerary-gallery:empty {
@@ -68,24 +72,42 @@
 }
 
 .itinerary-gallery button {
-  flex: 0 0 82px;
-  height: 62px;
-  padding: 2px;
-  border: 2px solid transparent;
-  border-radius: var(--radius-sm);
-  background: #fff;
+  flex: 0 0 96px;
+  height: 68px;
+  padding: 3px;
+  border: 2px solid rgba(226, 232, 240, 0.8);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   overflow: hidden;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.itinerary-gallery button:hover {
+  transform: translateY(-2px);
+  border-color: #38bdf8;
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.25);
 }
 
 .itinerary-gallery button.active {
-  border-color: var(--primary-color);
+  border-color: #f59e0b;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
 }
 
 .itinerary-gallery img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: calc(var(--radius-sm) - 2px);
+  border-radius: calc(var(--radius-md) - 3px);
+  transition: transform 0.3s ease;
+}
+
+.itinerary-gallery button:hover img {
+  transform: scale(1.08);
 }
 
 /* Quick metadata bar inside modal */

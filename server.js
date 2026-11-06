@@ -259,38 +259,351 @@ function initDatabase() {
     }
   }
 
-  // Đảm bảo có 6 tour thương mại chuẩn
-  const tourCount = db.prepare("SELECT COUNT(*) AS count FROM tours").get().count;
-  if (tourCount === 0) {
-    const REMOTE = "https://raw.githubusercontent.com/Anniehatani/deltatrdelt2.0/main/assets/images/";
-    const TOURS = [
-      ["DL-HL01", "ha-long-lan-ha-cruise", "Tour Du Thuyền 5 Sao Vịnh Hạ Long - Vịnh Lan Hạ", "north", "3N2Đ", 3890000, 4890000, 100, "halong.png", "Hà Nội (Xe Limousine đón tận nơi)", "Du thuyền 5* + Limousine VIP", 1],
-      ["DL-DN02", "da-nang-hoi-an-ba-na", "Thiên Đường Miền Trung: Đà Nẵng - Cầu Vàng - Phố Cổ Hội An", "central", "4N3Đ", 4490000, 5490000, 100, "danang.png", "TP. Hồ Chí Minh / Hà Nội (Vé máy bay)", "Máy bay khứ hồi + Xe du lịch đời mới", 1],
-      ["DL-PQ03", "phu-quoc-hon-thom-grand-world", "Đảo Ngọc Phú Quốc - Cáp Treo Hòn Thơm - Grand World Không Ngủ", "south", "3N2Đ", 4690000, 5990000, 100, "phuquoc.png", "TP. Hồ Chí Minh / Hà Nội (Vé máy bay)", "Vé máy bay + Cano vượt biển + Xe VIP", 1],
-      ["DL-DL04", "da-lat-tuyen-lam-cau-dat", "Thành Phố Ngàn Hoa: Đà Lạt - Hồ Tuyền Lâm - Săn Mây Cầu Đất", "central", "3N2Đ", 2590000, 3200000, 100, "dalat.png", "TP. Hồ Chí Minh / Hà Nội", "Xe Limousine phòng nằm cao cấp", 0],
-      ["DL-SP05", "sapa-fansipan-cat-cat", "Sa Pa Mờ Sương - Chinh Phục Đỉnh Fansipan - Bản Cát Cát", "north", "3N2Đ", 3190000, 3990000, 100, "sapa.png", "Hà Nội (Xe Cabin Tình Yêu)", "Xe Cabin cao cấp + Tàu hỏa Mường Hoa", 0],
-      ["DL-MT06", "mien-tay-cai-rang-tra-su", "Sông Nước Miền Tây: Cần Thơ - Chợ Nổi Cái Răng - Rừng Tràm Trà Sư", "south", "2N1Đ", 1690000, 2190000, 100, "mientay.png", "TP. Hồ Chí Minh", "Xe du lịch máy lạnh + Xuồng ba lá", 0]
-    ];
+  // Đảm bảo có đủ 16 tour thương mại chuẩn toàn quốc với bộ ảnh sắc nét
+  const TOURS_16 = [
+    {
+      "id": "DL-HL01",
+      "slug": "ha-long-lan-ha-cruise",
+      "title": "Tour Du Thuyền 5 Sao Vịnh Hạ Long - Vịnh Lan Hạ",
+      "region": "north",
+      "duration": "3N2Đ",
+      "price": 3890000,
+      "original_price": 4890000,
+      "seats": 100,
+      "images": [
+        "assets/images/tour-ha-long.jpg",
+        "assets/images/luxury-cruise-view.jpg",
+        "assets/images/halong.png",
+        "assets/images/hero-bg.png"
+      ],
+      "departure": "Hà Nội (Xe Limousine đón tận nơi)",
+      "transport": "Du thuyền 5* + Limousine VIP",
+      "flash_sale": 1,
+      "description": "Trải nghiệm du thuyền 5 sao đẳng cấp quốc tế trên vịnh Lan Hạ, chèo thuyền Kayak và ngắm hoàng hôn vịnh biển."
+    },
+    {
+      "id": "DL-DN02",
+      "slug": "da-nang-hoi-an-ba-na",
+      "title": "Thiên Đường Miền Trung: Đà Nẵng - Cầu Vàng - Phố Cổ Hội An",
+      "region": "central",
+      "duration": "4N3Đ",
+      "price": 4490000,
+      "original_price": 5490000,
+      "seats": 100,
+      "images": [
+        "assets/images/tour-da-nang.jpg",
+        "assets/images/danang.png",
+        "assets/images/tour-hue.jpg"
+      ],
+      "departure": "TP. Hồ Chí Minh / Hà Nội (Vé máy bay)",
+      "transport": "Máy bay khứ hồi + Xe du lịch đời mới",
+      "flash_sale": 1,
+      "description": "Check-in Cầu Vàng Bà Nà Hills, dạo phố cổ Hội An thả đèn hoa đăng và tắm biển Mỹ Khê xinh đẹp."
+    },
+    {
+      "id": "DL-PQ03",
+      "slug": "phu-quoc-hon-thom-grand-world",
+      "title": "Đảo Ngọc Phú Quốc - Cáp Treo Hòn Thơm - Grand World Không Ngủ",
+      "region": "south",
+      "duration": "3N2Đ",
+      "price": 4690000,
+      "original_price": 5990000,
+      "seats": 100,
+      "images": [
+        "assets/images/tour-phu-quoc.jpg",
+        "assets/images/phuquoc.png",
+        "assets/images/tour-condao.jpg"
+      ],
+      "departure": "TP. Hồ Chí Minh / Hà Nội (Vé máy bay)",
+      "transport": "Vé máy bay + Cano vượt biển + Xe VIP",
+      "flash_sale": 1,
+      "description": "Khám phá Grand World không ngủ, đi cáp treo vượt biển 3 dây dài nhất thế giới Hòn Thơm và lặn ngắm san hô."
+    },
+    {
+      "id": "DL-DL04",
+      "slug": "da-lat-tuyen-lam-cau-dat",
+      "title": "Thành Phố Ngàn Hoa: Đà Lạt - Hồ Tuyền Lâm - Săn Mây Cầu Đất",
+      "region": "central",
+      "duration": "3N2Đ",
+      "price": 2590000,
+      "original_price": 3200000,
+      "seats": 100,
+      "images": [
+        "assets/images/dalat.png",
+        "assets/images/tour-nha-trang.jpg",
+        "assets/images/tour-tay-ninh.jpg"
+      ],
+      "departure": "TP. Hồ Chí Minh / Hà Nội",
+      "transport": "Xe Limousine phòng nằm cao cấp",
+      "flash_sale": 0,
+      "description": "Săn mây bình minh Cầu Đất, dạo hồ Tuyền Lâm mộng mơ, thưởng thức cà phê đồi và ẩm thực chợ đêm Đà Lạt."
+    },
+    {
+      "id": "DL-SP05",
+      "slug": "sapa-fansipan-cat-cat",
+      "title": "Sa Pa Mờ Sương - Chinh Phục Đỉnh Fansipan - Bản Cát Cát",
+      "region": "north",
+      "duration": "3N2Đ",
+      "price": 3190000,
+      "original_price": 3990000,
+      "seats": 100,
+      "images": [
+        "assets/images/tour-sapa.jpg",
+        "assets/images/sapa.png",
+        "assets/images/tour-mocchau.jpg"
+      ],
+      "departure": "Hà Nội (Xe Cabin Tình Yêu)",
+      "transport": "Xe Cabin cao cấp + Tàu hỏa Mường Hoa",
+      "flash_sale": 0,
+      "description": "Chạm tay vào nóc nhà Đông Dương Fansipan, khám phá bản làng Cát Cát và đèo Ô Quy Hồ tráng lệ."
+    },
+    {
+      "id": "DL-MT06",
+      "slug": "mien-tay-cai-rang-tra-su",
+      "title": "Sông Nước Miền Tây: Cần Thơ - Chợ Nổi Cái Răng - Rừng Tràm Trà Sư",
+      "region": "south",
+      "duration": "2N1Đ",
+      "price": 1690000,
+      "original_price": 2190000,
+      "seats": 100,
+      "images": [
+        "assets/images/tour-can-tho.jpg",
+        "assets/images/mientay.png",
+        "assets/images/tour-tay-ninh.jpg"
+      ],
+      "departure": "TP. Hồ Chí Minh",
+      "transport": "Xe du lịch máy lạnh + Xuồng ba lá",
+      "flash_sale": 0,
+      "description": "Khám phá nét văn hóa chợ nổi Cái Răng nhộn nhịp, len lỏi xuồng ba lá rừng tràm Trà Sư và thưởng thức trái cây miệt vườn."
+    },
+    {
+      "id": "DL-NB07",
+      "slug": "ninh-binh-trang-an-bai-dinh",
+      "title": "Danh Thắng Ninh Bình: Quần Thể Tràng An - Chùa Bái Đính - Tam Cốc",
+      "region": "north",
+      "duration": "2N1Đ",
+      "price": 1890000,
+      "original_price": 2450000,
+      "seats": 100,
+      "images": [
+        "assets/images/tour-ninh-binh.jpg",
+        "assets/images/tour-ha-long.jpg",
+        "assets/images/halong.png"
+      ],
+      "departure": "Hà Nội (Đón tận nơi phố cổ)",
+      "transport": "Xe Limousine VIP + Thuyền nan",
+      "flash_sale": 1,
+      "description": "Du ngoạn di sản thế giới Tràng An bằng thuyền nan, chiêm bái đại tự Bái Đính và ngắm non nước Tam Cốc Bích Động."
+    },
+    {
+      "id": "DL-HG08",
+      "slug": "ha-giang-dong-van-ma-pi-leng",
+      "title": "Kỳ Vĩ Cực Bắc: Hà Giang - Cao Nguyên Đá Đồng Văn - Đèo Mã Pí Lèng",
+      "region": "north",
+      "duration": "3N2Đ",
+      "price": 2890000,
+      "original_price": 3500000,
+      "seats": 100,
+      "images": [
+        "assets/images/tour-hagiang.jpg",
+        "assets/images/tour-caobang.jpg",
+        "assets/images/tour-sapa.jpg"
+      ],
+      "departure": "Hà Nội",
+      "transport": "Xe giường nằm cao cấp + Xe du lịch cung đèo",
+      "flash_sale": 0,
+      "description": "Vượt tứ đại đỉnh đèo Mã Pí Lèng, ngắm hẻm vực Tu Sản - sông Nho Quế xanh ngắt và chạm mốc Cột cờ Lũng Cú."
+    },
+    {
+      "id": "DL-CB09",
+      "slug": "cao-bang-ban-gioc-pac-bo",
+      "title": "Đông Bắc Hùng Vĩ: Cao Bằng - Thác Bản Giốc - Suối Lê Nin - Pác Bó",
+      "region": "north",
+      "duration": "3N2Đ",
+      "price": 2790000,
+      "original_price": 3400000,
+      "seats": 100,
+      "images": [
+        "assets/images/tour-caobang.jpg",
+        "assets/images/tour-hagiang.jpg",
+        "assets/images/tour-ninh-binh.jpg"
+      ],
+      "departure": "Hà Nội",
+      "transport": "Xe du lịch đời mới",
+      "flash_sale": 0,
+      "description": "Chiêm ngưỡng thác nước tự nhiên lớn nhất Đông Nam Á Bản Giốc, khám phá động Ngườm Ngao và suối Lê Nin trong vắt."
+    },
+    {
+      "id": "DL-MC10",
+      "slug": "moc-chau-doi-che-dai-yem",
+      "title": "Thảo Nguyên Mộc Châu - Đồi Chè Trái Tim - Thác Dải Yếm - Cầu Kính",
+      "region": "north",
+      "duration": "2N1Đ",
+      "price": 1590000,
+      "original_price": 2100000,
+      "seats": 100,
+      "images": [
+        "assets/images/tour-mocchau.jpg",
+        "assets/images/tour-sapa.jpg",
+        "assets/images/sapa.png"
+      ],
+      "departure": "Hà Nội",
+      "transport": "Xe Limousine đời mới",
+      "flash_sale": 1,
+      "description": "Tận hưởng không khí trong lành đồi chè Ô Long trái tim, chinh phục cầu kính tình yêu và thác Dải Yếm thơ mộng."
+    },
+    {
+      "id": "DL-HU11",
+      "slug": "hue-dai-noi-song-huong",
+      "title": "Di Sản Cố Đô Huế - Đại Nội Hoàng Cung - Ca Huế Sông Hương",
+      "region": "central",
+      "duration": "3N2Đ",
+      "price": 2990000,
+      "original_price": 3750000,
+      "seats": 100,
+      "images": [
+        "assets/images/tour-hue.jpg",
+        "assets/images/tour-da-nang.jpg",
+        "assets/images/danang.png"
+      ],
+      "departure": "Đà Nẵng / Huế / TP.HCM",
+      "transport": "Máy bay / Xe du lịch + Thuyền Rồng",
+      "flash_sale": 0,
+      "description": "Hành trình ngược dòng lịch sử triều Nguyễn: Đại Nội, lăng Khải Định, lăng Tự Đức và nghe ca Huế trên dòng Hương Giang."
+    },
+    {
+      "id": "DL-NT12",
+      "slug": "nha-trang-cam-ranh-vinwonders",
+      "title": "Vịnh Biển Thiên Đường: Nha Trang - Vịnh Cam Ranh - Đảo Khỉ - VinWonders",
+      "region": "central",
+      "duration": "4N3Đ",
+      "price": 3890000,
+      "original_price": 4790000,
+      "seats": 100,
+      "images": [
+        "assets/images/tour-nha-trang.jpg",
+        "assets/images/tour-quynhon.jpg",
+        "assets/images/tour-phuyen.jpg"
+      ],
+      "departure": "TP. Hồ Chí Minh / Hà Nội",
+      "transport": "Máy bay khứ hồi + Cano cao tốc",
+      "flash_sale": 1,
+      "description": "Tắm biển vịnh Nha Trang top vịnh đẹp nhất thế giới, vui chơi không giới hạn VinWonders Hòn Tre và lặn biển san hô."
+    },
+    {
+      "id": "DL-QN13",
+      "slug": "quy-nhon-ky-co-eo-gio",
+      "title": "Xứ Nẫu Kỳ Thú: Quy Nhơn - Kỳ Co - Eo Gió - Tháp Đôi Chăm Pa",
+      "region": "central",
+      "duration": "3N2Đ",
+      "price": 3290000,
+      "original_price": 4100000,
+      "seats": 100,
+      "images": [
+        "assets/images/tour-quynhon.jpg",
+        "assets/images/tour-phuyen.jpg",
+        "assets/images/tour-nha-trang.jpg"
+      ],
+      "departure": "TP. Hồ Chí Minh / Hà Nội",
+      "transport": "Máy bay khứ hồi + Cano lặn ngắm san hô",
+      "flash_sale": 0,
+      "description": "Đón bình minh tại Eo Gió - nơi ngắm hoàng hôn đẹp nhất Việt Nam, cano sang đảo thiên đường Kỳ Co biển xanh cát trắng."
+    },
+    {
+      "id": "DL-PY14",
+      "slug": "phu-yen-ganh-da-dia-bai-xep",
+      "title": "Hoa Vàng Trên Cỏ Xanh: Phú Yên - Gành Đá Đĩa - Bãi Xép - Vịnh Vũng Rô",
+      "region": "central",
+      "duration": "3N2Đ",
+      "price": 3190000,
+      "original_price": 3950000,
+      "seats": 100,
+      "images": [
+        "assets/images/tour-phuyen.jpg",
+        "assets/images/tour-quynhon.jpg",
+        "assets/images/tour-da-nang.jpg"
+      ],
+      "departure": "TP. Hồ Chí Minh / Hà Nội",
+      "transport": "Máy bay khứ hồi + Xe du lịch",
+      "flash_sale": 1,
+      "description": "Check-in Gành Đá Đĩa kiệt tác tổ ong đá bazan núi lửa, ngắm Bãi Xép bối cảnh phim 'Hoa vàng trên cỏ xanh' và hải đăng Đại Lãnh."
+    },
+    {
+      "id": "DL-TN15",
+      "slug": "tay-ninh-nui-ba-den",
+      "title": "Hành Hương Tâm Linh: Tây Ninh - Đỉnh Núi Bà Đen - Sun World - Tòa Thánh",
+      "region": "south",
+      "duration": "1N0Đ",
+      "price": 990000,
+      "original_price": 1350000,
+      "seats": 100,
+      "images": [
+        "assets/images/tour-tay-ninh.jpg",
+        "assets/images/mientay.png",
+        "assets/images/tour-can-tho.jpg"
+      ],
+      "departure": "TP. Hồ Chí Minh",
+      "transport": "Xe du lịch máy lạnh + Cáp treo Vân Sơn",
+      "flash_sale": 1,
+      "description": "Chinh phục nóc nhà Nam Bộ Núi Bà Đen bằng cáp treo Sun World hiện đại, chiêm bái tượng Phật Bà Tây Bổ Đà Sơn cao nhất châu Á."
+    },
+    {
+      "id": "DL-CD16",
+      "slug": "con-dao-dat-thieng-dam-trau",
+      "title": "Hành Trình Về Vùng Đất Thiêng: Côn Đảo - Nghĩa Trang Hàng Dương - Bãi Đầm Trầu",
+      "region": "south",
+      "duration": "3N2Đ",
+      "price": 5290000,
+      "original_price": 6500000,
+      "seats": 100,
+      "images": [
+        "assets/images/tour-condao.jpg",
+        "assets/images/tour-phu-quoc.jpg",
+        "assets/images/phuquoc.png"
+      ],
+      "departure": "TP. Hồ Chí Minh / Cần Thơ",
+      "transport": "Vé máy bay / Tàu cao tốc 5 sao + Xe du lịch",
+      "flash_sale": 0,
+      "description": "Viếng mộ nữ anh hùng Võ Thị Sáu tại Nghĩa trang Hàng Dương, tham quan hệ thống nhà tù Côn Đảo và thư giãn tại bãi Đầm Trầu nước ngọc."
+    }
+  ];
 
-    const insertTour = db.prepare(`
-      INSERT INTO tours (id, slug, title, region, duration, price, original_price, image, departure, transport, flash_sale, description, active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Tour du lịch chất lượng cao, trọn gói dịch vụ tiêu chuẩn Delta Travel.', 1)
-    `);
+  const upsertTour = db.prepare(`
+    INSERT INTO tours (id, slug, title, region, duration, price, original_price, image, departure, transport, flash_sale, description, itinerary_json, active, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', 1, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      slug = excluded.slug,
+      title = excluded.title,
+      region = excluded.region,
+      duration = excluded.duration,
+      price = excluded.price,
+      original_price = excluded.original_price,
+      image = excluded.image,
+      departure = excluded.departure,
+      transport = excluded.transport,
+      flash_sale = excluded.flash_sale,
+      description = excluded.description,
+      updated_at = excluded.updated_at
+  `);
 
-    const insertSchedule = db.prepare(`
-      INSERT INTO schedules (id, tour_id, departure_at, total_seats, reserved_seats, active)
-      VALUES (?, ?, ?, ?, 0, 1)
-    `);
+  const insertSchedule = db.prepare(`
+    INSERT INTO schedules (id, tour_id, departure_at, total_seats, reserved_seats, active)
+    VALUES (?, ?, ?, ?, 0, 1)
+  `);
 
-    TOURS.forEach((t, i) => {
-      insertTour.run(t[0], t[1], t[2], t[3], t[4], t[5], t[6], REMOTE + t[8], t[9], t[10], t[11]);
+  TOURS_16.forEach((t, i) => {
+    const imagesJson = JSON.stringify(t.images);
+    upsertTour.run(t.id, t.slug, t.title, t.region, t.duration, t.price, t.original_price, imagesJson, t.departure, t.transport, t.flash_sale, t.description, now);
+
+    const schedCount = db.prepare("SELECT COUNT(*) AS count FROM schedules WHERE tour_id = ?").get(t.id).count;
+    if (schedCount === 0) {
       [14 + i, 30 + i, 45 + i].forEach(days => {
         const d = new Date(Date.now() + days * 24 * 3600 * 1000);
         d.setUTCHours(2, 0, 0, 0);
-        insertSchedule.run(crypto.randomUUID(), t[0], d.toISOString(), t[7]);
+        insertSchedule.run(crypto.randomUUID(), t.id, d.toISOString(), t.seats);
       });
-    });
-  }
+    }
+  });
 }
 
 initDatabase();

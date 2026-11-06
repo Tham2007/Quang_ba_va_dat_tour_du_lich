@@ -36,6 +36,7 @@ const DEFAULT_TOURS = [
     "region": "north",
     "regionName": "Miền Bắc",
     "image": "assets/images/tour-ha-long.jpg",
+    "images": ["assets/images/tour-ha-long.jpg","assets/images/luxury-cruise-view.jpg","assets/images/halong.png","assets/images/hero-bg.png"],
     "duration": "3N2Đ",
     "daysCount": 3,
     "departure": "Hà Nội (Xe Limousine đón tận nơi)",
@@ -101,6 +102,7 @@ const DEFAULT_TOURS = [
     "region": "central",
     "regionName": "Miền Trung",
     "image": "assets/images/tour-da-nang.jpg",
+    "images": ["assets/images/tour-da-nang.jpg","assets/images/danang.png","assets/images/tour-hue.jpg"],
     "duration": "4N3Đ",
     "daysCount": 4,
     "departure": "TP. Hồ Chí Minh / Hà Nội (Vé máy bay)",
@@ -173,6 +175,7 @@ const DEFAULT_TOURS = [
     "region": "south",
     "regionName": "Miền Nam",
     "image": "assets/images/tour-phu-quoc.jpg",
+    "images": ["assets/images/tour-phu-quoc.jpg","assets/images/phuquoc.png","assets/images/tour-condao.jpg"],
     "duration": "3N2Đ",
     "daysCount": 3,
     "departure": "TP. Hồ Chí Minh / Hà Nội (Vé máy bay)",
@@ -238,6 +241,7 @@ const DEFAULT_TOURS = [
     "region": "central",
     "regionName": "Miền Trung",
     "image": "assets/images/dalat.png",
+    "images": ["assets/images/dalat.png","assets/images/tour-nha-trang.jpg","assets/images/tour-tay-ninh.jpg"],
     "duration": "3N2Đ",
     "daysCount": 3,
     "departure": "TP. Hồ Chí Minh (Xe Limousine đón)",
@@ -303,6 +307,7 @@ const DEFAULT_TOURS = [
     "region": "north",
     "regionName": "Miền Bắc",
     "image": "assets/images/tour-sapa.jpg",
+    "images": ["assets/images/tour-sapa.jpg","assets/images/sapa.png","assets/images/tour-mocchau.jpg"],
     "duration": "3N2Đ",
     "daysCount": 3,
     "departure": "Hà Nội (Xe Cabin tình yêu VIP)",
@@ -368,6 +373,7 @@ const DEFAULT_TOURS = [
     "region": "south",
     "regionName": "Miền Nam",
     "image": "assets/images/tour-can-tho.jpg",
+    "images": ["assets/images/tour-can-tho.jpg","assets/images/mientay.png","assets/images/tour-tay-ninh.jpg"],
     "duration": "2N1Đ",
     "daysCount": 2,
     "departure": "TP. Hồ Chí Minh (Xe đón tận nơi)",
@@ -425,6 +431,7 @@ const DEFAULT_TOURS = [
     "region": "north",
     "regionName": "Miền Bắc",
     "image": "assets/images/tour-ninh-binh.jpg",
+    "images": ["assets/images/tour-ninh-binh.jpg","assets/images/tour-ha-long.jpg","assets/images/halong.png"],
     "duration": "2N1Đ",
     "daysCount": 2,
     "departure": "Hà Nội (Xe Limousine đón tận nơi)",
@@ -482,6 +489,7 @@ const DEFAULT_TOURS = [
     "region": "north",
     "regionName": "Miền Bắc",
     "image": "assets/images/tour-hagiang.jpg",
+    "images": ["assets/images/tour-hagiang.jpg","assets/images/tour-caobang.jpg","assets/images/tour-sapa.jpg"],
     "duration": "3N2Đ",
     "daysCount": 3,
     "departure": "Hà Nội (Xe Cung Điện Limousine)",
@@ -546,6 +554,7 @@ const DEFAULT_TOURS = [
     "region": "north",
     "regionName": "Miền Bắc",
     "image": "assets/images/tour-caobang.jpg",
+    "images": ["assets/images/tour-caobang.jpg","assets/images/tour-hagiang.jpg","assets/images/tour-ninh-binh.jpg"],
     "duration": "3N2Đ",
     "daysCount": 3,
     "departure": "Hà Nội (Xe du lịch cao cấp)",
@@ -610,6 +619,7 @@ const DEFAULT_TOURS = [
     "region": "north",
     "regionName": "Miền Bắc",
     "image": "assets/images/tour-mocchau.jpg",
+    "images": ["assets/images/tour-mocchau.jpg","assets/images/tour-sapa.jpg","assets/images/sapa.png"],
     "duration": "2N1Đ",
     "daysCount": 2,
     "departure": "Hà Nội (Xe du lịch cao cấp)",
@@ -666,6 +676,7 @@ const DEFAULT_TOURS = [
     "region": "central",
     "regionName": "Miền Trung",
     "image": "assets/images/tour-hue.jpg",
+    "images": ["assets/images/tour-hue.jpg","assets/images/tour-da-nang.jpg","assets/images/danang.png"],
     "duration": "3N2Đ",
     "daysCount": 3,
     "departure": "Đà Nẵng / Huế (Xe du lịch VIP)",
@@ -730,6 +741,7 @@ const DEFAULT_TOURS = [
     "region": "central",
     "regionName": "Miền Trung",
     "image": "assets/images/tour-nha-trang.jpg",
+    "images": ["assets/images/tour-nha-trang.jpg","assets/images/tour-quynhon.jpg","assets/images/tour-phuyen.jpg"],
     "duration": "3N2Đ",
     "daysCount": 3,
     "departure": "TP. Hồ Chí Minh / Hà Nội (Vé máy bay / Xe VIP)",
@@ -794,6 +806,7 @@ const DEFAULT_TOURS = [
     "region": "central",
     "regionName": "Miền Trung",
     "image": "assets/images/tour-quynhon.jpg",
+    "images": ["assets/images/tour-quynhon.jpg","assets/images/tour-phuyen.jpg","assets/images/tour-nha-trang.jpg"],
     "duration": "3N2Đ",
     "daysCount": 3,
     "departure": "TP. Hồ Chí Minh / Hà Nội (Vé máy bay)",
@@ -858,6 +871,7 @@ const DEFAULT_TOURS = [
     "region": "central",
     "regionName": "Miền Trung",
     "image": "assets/images/tour-phuyen.jpg",
+    "images": ["assets/images/tour-phuyen.jpg","assets/images/tour-quynhon.jpg","assets/images/tour-da-nang.jpg"],
     "duration": "3N2Đ",
     "daysCount": 3,
     "departure": "Quy Nhơn / Tuy Hòa (Xe du lịch máy lạnh)",
@@ -921,6 +935,7 @@ const DEFAULT_TOURS = [
     "region": "south",
     "regionName": "Miền Nam",
     "image": "assets/images/tour-tay-ninh.jpg",
+    "images": ["assets/images/tour-tay-ninh.jpg","assets/images/mientay.png","assets/images/tour-can-tho.jpg"],
     "duration": "1N",
     "daysCount": 1,
     "departure": "TP. Hồ Chí Minh (Xe Limousine đón trung tâm)",
@@ -971,6 +986,7 @@ const DEFAULT_TOURS = [
     "region": "south",
     "regionName": "Miền Nam",
     "image": "assets/images/tour-condao.jpg",
+    "images": ["assets/images/tour-condao.jpg","assets/images/tour-phu-quoc.jpg","assets/images/phuquoc.png"],
     "duration": "3N2Đ",
     "daysCount": 3,
     "departure": "TP. Hồ Chí Minh / Cần Thơ (Tàu cao tốc / Máy bay)",
@@ -1317,7 +1333,22 @@ function getToursData() {
     const raw = localStorage.getItem(DELTA_STORAGE_KEYS.TOURS);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length >= DEFAULT_TOURS.length) return parsed;
+      if (Array.isArray(parsed) && parsed.length >= DEFAULT_TOURS.length) {
+        let updated = false;
+        parsed.forEach(t => {
+          if (!t.images || !t.images.length) {
+            const def = DEFAULT_TOURS.find(d => d.id === t.id);
+            if (def && def.images) {
+              t.images = def.images;
+              updated = true;
+            }
+          }
+        });
+        if (updated) {
+          localStorage.setItem(DELTA_STORAGE_KEYS.TOURS, JSON.stringify(parsed));
+        }
+        return parsed;
+      }
     }
   } catch (e) {
     console.warn("Lỗi đọc delta_tours:", e);

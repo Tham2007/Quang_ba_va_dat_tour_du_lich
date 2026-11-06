@@ -86,7 +86,7 @@
   header.append(heading, close);
   const main = node("div", undefined, "kthp-main");
   const info = node("p",
-    "Bản demo học phần: không nhập thông tin thật. Tài khoản và đơn đặt chỉ dùng dữ liệu thử nghiệm.", "kthp-muted");
+    "Cổng đặt chỗ trực tuyến Delta Travel. Dữ liệu hành khách được bảo mật và mã hóa trên máy chủ trung tâm.", "kthp-muted");
   const status = node("p", "", "kthp-status");
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");

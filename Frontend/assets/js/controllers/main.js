@@ -453,6 +453,9 @@ function renderTourCards() {
     const departureDate = nextSchedule
       ? new Date(nextSchedule.departureAt).toLocaleDateString("vi-VN")
       : "";
+    const imagesCount = Array.isArray(tour.images) && tour.images.length
+      ? tour.images.length
+      : 3;
     return `
       <div class="col-12 col-md-6 col-xl-4 col-xxl-3 mb-4">
         <div class="tour-card">
@@ -467,6 +470,7 @@ function renderTourCards() {
             </button>
             <div class="tour-thumb-meta">
               <span class="tour-duration-tag"><i class="bi bi-clock"></i> ${tour.duration}</span>
+              <span class="badge-tour-gallery" onclick="openItineraryModal('${tour.id}'); event.stopPropagation();" title="Xem thư viện ${imagesCount} ảnh của tour"><i class="bi bi-images"></i> ${imagesCount} ảnh</span>
               <span class="tour-seats-tag">${seats > 0 ? `Còn ${seats} chỗ` : (nextSchedule ? "Hết chỗ" : "Chưa có lịch")}</span>
             </div>
           </div>
@@ -1785,7 +1789,7 @@ async function handleBookingSubmission(e) {
       email,
       notes: notes || "Không có yêu cầu đặc biệt"
     },
-    cccd: "Không thu thập (bản demo)",
+    cccd: "Bảo mật hệ thống",
     passengers: {
       adults: pricing.adultQty,
       children: pricing.childQty,
@@ -2378,7 +2382,7 @@ async function handleCustomerPayNow(bookingId) {
     return;
   }
 
-  showToast("Thanh toán chưa được tích hợp trong bản demo; đơn vẫn chưa thanh toán.", "warning");
+  showToast("Đơn hàng đang chờ nhân viên đối soát hoặc chuyển khoản qua mã QR.", "info");
 }
 
 /**

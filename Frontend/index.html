@@ -144,32 +144,13 @@
   <section class="hero-3d-showcase" id="hero3DShowcase">
     <div id="home"></div>
     <div class="hero-3d-sticky">
-      <!-- 1. Chữ mờ nghệ thuật khổng lồ chuyển động parallax phía sau -->
-      <div class="hero-faded-bg-container" aria-hidden="true">
-        <div class="faded-bg-text text-track-1" id="fadedText1">
-          <span>VIETNAM</span>
-          <span>DISCOVER</span>
-          <span>VIETNAM</span>
-          <span>DISCOVER</span>
-        </div>
-        <div class="faded-bg-text text-track-2" id="fadedText2">
-          <span>DELTA TRAVEL</span>
-          <span>WANDERLUST</span>
-          <span>DELTA TRAVEL</span>
-          <span>WANDERLUST</span>
-        </div>
-        <div class="faded-bg-text text-track-3" id="fadedText3">
-          <span>HA LONG · DA NANG · PHU QUOC · SA PA · DA LAT</span>
-        </div>
-      </div>
-
-      <!-- 2. Khung vẽ Canvas chuỗi 150 hình ảnh 3D chuyển động mượt mà -->
+      <!-- 1. Khung vẽ Canvas chuỗi 150 hình ảnh 3D chuyển động mượt mà -->
       <canvas id="hero3DCanvas" class="hero-3d-canvas"></canvas>
 
-      <!-- 3. Lớp bóng mờ điện ảnh làm sâu ảnh -->
+      <!-- 2. Lớp bóng mờ điện ảnh làm sâu ảnh -->
       <div class="hero-vignette-overlay"></div>
 
-      <!-- 4. Lớp nội dung chữ nổi bật chuyển động theo từng giai đoạn cuộn chuột -->
+      <!-- 3. Lớp nội dung chữ nổi bật chuyển động theo từng giai đoạn cuộn chuột -->
       <div class="hero-3d-content">
         <!-- Giai đoạn 1 (0% - 32%): Không gian & Vũ trụ Trái Đất -->
         <div class="hero-phase-block" id="heroPhase1">
@@ -292,7 +273,12 @@
   <!-- ==========================================================================
        4. DANH SÁCH TOUR DU LỊCH NỔI BẬT & BỘ LỌC TABS
        ========================================================================== -->
-  <section class="container-fluid px-3 px-md-4 px-xl-5 my-5" id="toursSection">
+  <section class="container-fluid px-3 px-md-4 px-xl-5 my-5 position-relative overflow-hidden" id="toursSection">
+    <!-- Chữ nghệ thuật mờ khổng lồ ở khu vực dưới -->
+    <div class="section-watermark-bg" aria-hidden="true">
+      <div class="watermark-row watermark-row-1">VIETNAM DISCOVERY</div>
+      <div class="watermark-row watermark-row-2">DELTA TRAVEL LUXURY</div>
+    </div>
     <div class="section-header">
       <div class="section-tag"><i class="bi bi-stars"></i> Hành trình chọn lọc</div>
       <h2 class="section-title">Tour Du Lịch Trọn Gói Được Yêu Thích Nhất</h2>

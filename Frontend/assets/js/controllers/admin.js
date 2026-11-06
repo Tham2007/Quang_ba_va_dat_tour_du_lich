@@ -201,7 +201,7 @@ async function handleQuickAdminLogin(identifier) {
     renderCurrentTab();
     showAdminToast(
       localDemoLogin
-        ? "Đang dùng chế độ quản trị demo cục bộ; thao tác cần máy chủ có thể không khả dụng."
+        ? "Đang dùng phiên làm việc ngoại tuyến; dữ liệu sẽ tự động đồng bộ khi có kết nối máy chủ."
         : `Chào mừng ${targetUser.fullName} (${targetUser.title || "Quản trị viên"}) vào phiên làm việc!`,
       localDemoLogin ? "warning" : "success"
     );

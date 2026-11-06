@@ -39,62 +39,6 @@
   will-change: transform;
 }
 
-/* 2. LỚP CHỮ NGHỆ THUẬT MỜ KHỔNG LỒ CHUYỂN ĐỘNG PARALLAX (Z-INDEX: 3 - TRÊN CANVAS, DƯỚI NỘI DUNG) */
-.hero-faded-bg-container {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  user-select: none;
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-
-.faded-bg-text {
-  white-space: nowrap;
-  font-family: var(--font-heading, 'Montserrat', sans-serif);
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  line-height: 0.85;
-  color: rgba(255, 255, 255, 0.04);
-  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.22);
-  text-shadow: 0 0 35px rgba(255, 255, 255, 0.15);
-  will-change: transform;
-  display: flex;
-  gap: 4rem;
-}
-
-.faded-bg-text.text-track-1 {
-  font-size: clamp(4.5rem, 13vw, 15rem);
-  transform: translate3d(0, 0, 0);
-  margin-bottom: 2.5rem;
-}
-
-.faded-bg-text.text-track-2 {
-  font-size: clamp(3.5rem, 11vw, 12rem);
-  -webkit-text-stroke: 1.5px rgba(251, 191, 36, 0.32);
-  color: rgba(251, 191, 36, 0.04);
-  text-shadow: 0 0 40px rgba(245, 158, 11, 0.25);
-  transform: translate3d(-15%, 0, 0);
-  margin-bottom: 2.5rem;
-}
-
-.faded-bg-text.text-track-3 {
-  position: absolute;
-  bottom: 8%;
-  left: 50%;
-  transform: translate3d(-50%, 0, 0);
-  font-size: clamp(0.85rem, 1.8vw, 1.6rem);
-  letter-spacing: 0.38em;
-  -webkit-text-stroke: 0;
-  color: rgba(255, 255, 255, 0.35);
-  font-weight: 700;
-}
-
 /* Lớp bóng đổ điện ảnh tạo chiều sâu ánh sáng */
 .hero-vignette-overlay {
   position: absolute;
@@ -104,6 +48,35 @@
   background: 
     radial-gradient(circle at 50% 50%, transparent 45%, rgba(3, 7, 18, 0.65) 100%),
     linear-gradient(to bottom, rgba(3, 7, 18, 0.5) 0%, transparent 20%, transparent 65%, rgba(3, 7, 18, 0.95) 100%);
+}
+
+/* 2. CHỮ NGHỆ THUẬT MỜ KHỔNG LỒ Ở KHU VỰC DƯỚI (SECTION WATERMARK) */
+.section-watermark-bg {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.045;
+  white-space: nowrap;
+}
+
+.watermark-row {
+  font-family: var(--font-heading, 'Montserrat', sans-serif);
+  font-weight: 900;
+  font-size: clamp(3.5rem, 11vw, 12rem);
+  line-height: 0.9;
+  letter-spacing: 0.14em;
+  color: #0f172a;
+  text-transform: uppercase;
 }
 
 /* 3. LỚP NỘI DUNG VĂN BẢN TRÊN CÙNG (Z-INDEX: 4) */
@@ -165,10 +138,12 @@
 }
 
 .hero-3d-title span {
-  background: linear-gradient(135deg, #fef08a 0%, #f59e0b 55%, #ea580c 100%);
+  display: inline-block;
+  text-shadow: none;
+  background: linear-gradient(135deg, #fffbeb 0%, #fde047 30%, #f59e0b 70%, #d97706 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 4px 14px rgba(245, 158, 11, 0.5));
+  filter: drop-shadow(0 4px 14px rgba(245, 158, 11, 0.45));
 }
 
 .hero-3d-desc {

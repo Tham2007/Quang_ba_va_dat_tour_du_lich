@@ -38,9 +38,6 @@
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const text1 = document.getElementById("fadedText1");
-    const text2 = document.getElementById("fadedText2");
-    const text3 = document.getElementById("fadedText3");
     const phase1 = document.getElementById("heroPhase1");
     const phase2 = document.getElementById("heroPhase2");
     const phase3 = document.getElementById("heroPhase3");
@@ -188,27 +185,7 @@
         renderFrame(targetFrame);
       }
 
-      // 2. Chuyển động chữ mờ nền Parallax to lớn phía sau
-      if (text1) {
-        // Trôi sang trái
-        const xOffset1 = -(progress * 35).toFixed(2);
-        text1.style.transform = `translate3d(${xOffset1}%, 0, 0)`;
-      }
-
-      if (text2) {
-        // Trôi sang phải
-        const xOffset2 = ((progress * 35) - 15).toFixed(2);
-        text2.style.transform = `translate3d(${xOffset2}%, 0, 0)`;
-      }
-
-      if (text3) {
-        // Co giãn và trôi nhẹ theo chiều dọc
-        const yOffset3 = (progress * 40).toFixed(1);
-        const scale3 = (1 + progress * 0.08).toFixed(3);
-        text3.style.transform = `translate3d(-50%, ${yOffset3}px, 0) scale(${scale3})`;
-      }
-
-      // 3. Tự động mờ dần chuột cuộn khi cuộn về gần cuối để không chèn lên phần tìm kiếm tiếp theo
+      // 2. Tự động mờ dần chuột cuộn khi cuộn về gần cuối để không chèn lên phần tìm kiếm tiếp theo
       const scrollIndicator = document.querySelector(".hero-scroll-indicator");
       if (scrollIndicator) {
         scrollIndicator.style.opacity = progress > 0.82 ? Math.max(0, 1 - (progress - 0.82) / 0.12).toFixed(2) : "1";
