@@ -14,6 +14,7 @@ const DeltaAPI = (() => {
 
   // Cấu hình URL gốc của Backend API
   const isSameOriginApi = window.location.origin.includes(":8000") ||
+                          window.location.origin.includes(":8001") ||
                           window.location.origin.includes(":8999") ||
                           window.location.pathname.startsWith("/an-live") ||
                           (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1" && window.location.protocol.startsWith("http"));
@@ -109,6 +110,13 @@ const DeltaAPI = (() => {
    * Cập nhật chỉ báo trạng thái máy chủ trên giao diện Admin & Topbar
    */
   function updateBackendStatusBadge(online, details) {
+    const modeNotice = document.getElementById("deltaDataModeNotice");
+    if (modeNotice && details?.catalogMode === "sqlserver_read_only") {
+      modeNotice.className = "alert alert-info text-center rounded-0 mb-0";
+      modeNotice.textContent =
+        "Danh mục đang đọc từ SQL Server thật (chỉ đọc). Đăng nhập, quản trị, đặt tour và thanh toán chưa kết nối.";
+    }
+
     const badges = document.querySelectorAll(".backend-status-indicator");
     badges.forEach(badge => {
       if (online) {

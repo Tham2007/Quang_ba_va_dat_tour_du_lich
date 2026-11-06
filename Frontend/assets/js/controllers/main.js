@@ -747,8 +747,13 @@ async function searchToursFromApi(page = 1) {
     if (!AppState.destinationCounts) refreshDestinationCounts();
   }
   if (status) {
-    status.dataset.state = "";
-    status.textContent = "";
+    if (serverTours.length === 0 && DeltaAPI?.isCatalogReadOnly?.()) {
+      status.dataset.state = "empty";
+      status.textContent = "SQL Server đã kết nối nhưng hiện không có tour nào đang mở bán.";
+    } else {
+      status.dataset.state = "";
+      status.textContent = "";
+    }
   }
   renderTourCards();
 }

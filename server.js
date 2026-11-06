@@ -515,13 +515,16 @@ function createSession(res, user) {
 
 // 1. Health check
 app.get("/api/v1/health/ready", (req, res) => {
+  if (process.env.THAM_SQLSERVER_CATALOG_API_URL) {
+    return res.json({
+      status: "ok",
+      db: "SQL Server (read-only)",
+      catalogMode: "sqlserver_read_only"
+    });
+  }
+
   const row = db.prepare("SELECT COUNT(*) AS c FROM tours").get();
-  res.json({
-    status: "ok",
-    db: "connected",
-    tours: row.c,
-    catalogMode: process.env.THAM_SQLSERVER_CATALOG_API_URL ? "sqlserver_read_only" : "sqlite"
-  });
+  res.json({ status: "ok", db: "connected", tours: row.c, catalogMode: "sqlite" });
 });
 
 app.use("/api/v1/admin", (req, res, next) => {

@@ -400,6 +400,8 @@ async function runTests() {
       proxiedSchedules.status === 200 &&
       proxiedSchedules.json?.[0]?.availableSeats === 2 &&
       readOnlyHealth.json?.catalogMode === "sqlserver_read_only" &&
+      readOnlyHealth.json?.db === "SQL Server (read-only)" &&
+      readOnlyHealth.json?.tours === undefined &&
       blockedAdmin.status === 503 &&
       blockedBooking.status === 503);
 
