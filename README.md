@@ -68,8 +68,9 @@ Yêu cầu đã cài đặt **Node.js** (phiên bản 18+ hoặc mới nhất).
 2. **Khởi động bằng dòng lệnh (Terminal / PowerShell):**
    ```bash
    npm install
-   npm start
+   npm run dev
    ```
+   *(Lệnh `npm run dev` kích hoạt chế độ watch tự động reload server ngay khi chỉnh sửa file).*
 3. **Kiểm thử tự động hệ thống Node.js:**
    ```bash
    npm test
