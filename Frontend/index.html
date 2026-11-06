@@ -25,6 +25,7 @@
   <!-- Tách nhỏ file CSS theo từng thành phần giao diện -->
   <link rel="stylesheet" href="assets/css/base.css">
   <link rel="stylesheet" href="assets/css/header.css">
+  <link rel="stylesheet" href="assets/css/hero-3d.css">
   <link rel="stylesheet" href="assets/css/hero-search.css">
   <link rel="stylesheet" href="assets/css/tour-cards.css">
   <link rel="stylesheet" href="assets/css/itinerary.css">
@@ -35,9 +36,7 @@
   <link rel="stylesheet" href="assets/css/chatbot.css">
 </head>
 <body>
-  <div id="deltaDataModeNotice" class="delta-demo-notice alert alert-warning text-center rounded-0 mb-0" role="status">
-    Bản demo học phần: không nhập thông tin thật; không sử dụng để thanh toán hoặc giao dịch.
-  </div>
+  <div id="deltaDataModeNotice" style="display: none;" role="status"></div>
   <!-- ==========================================================================
        1. TOPBAR & HEADER
        ========================================================================== -->
@@ -140,48 +139,100 @@
   </header>
 
   <!-- ==========================================================================
-       2. HERO BANNER
+       2. TRẢI NGHIỆM 3D CANVAS CUỘN TRANG & CHỮ NGHỆ THUẬT PARALLAX NỀN
        ========================================================================== -->
-  <section class="hero-section" id="home">
-    <div class="hero-overlay"></div>
-    <div class="container hero-content">
-      <div class="row align-items-center">
-        <div class="col-lg-9 col-xl-8">
-          <div class="hero-badge">
+  <section class="hero-3d-showcase" id="hero3DShowcase">
+    <div id="home"></div>
+    <div class="hero-3d-sticky">
+      <!-- 1. Chữ mờ nghệ thuật khổng lồ chuyển động parallax phía sau -->
+      <div class="hero-faded-bg-container" aria-hidden="true">
+        <div class="faded-bg-text text-track-1" id="fadedText1">
+          <span>VIETNAM</span>
+          <span>DISCOVER</span>
+          <span>VIETNAM</span>
+          <span>DISCOVER</span>
+        </div>
+        <div class="faded-bg-text text-track-2" id="fadedText2">
+          <span>DELTA TRAVEL</span>
+          <span>WANDERLUST</span>
+          <span>DELTA TRAVEL</span>
+          <span>WANDERLUST</span>
+        </div>
+        <div class="faded-bg-text text-track-3" id="fadedText3">
+          <span>HA LONG · DA NANG · PHU QUOC · SA PA · DA LAT</span>
+        </div>
+      </div>
+
+      <!-- 2. Khung vẽ Canvas chuỗi 150 hình ảnh 3D chuyển động mượt mà -->
+      <canvas id="hero3DCanvas" class="hero-3d-canvas"></canvas>
+
+      <!-- 3. Lớp bóng mờ điện ảnh làm sâu ảnh -->
+      <div class="hero-vignette-overlay"></div>
+
+      <!-- 4. Lớp nội dung chữ nổi bật chuyển động theo từng giai đoạn cuộn chuột -->
+      <div class="hero-3d-content">
+        <!-- Giai đoạn 1 (0% - 32%): Không gian & Vũ trụ Trái Đất -->
+        <div class="hero-phase-block" id="heroPhase1">
+          <div class="hero-3d-badge">
             <i class="bi bi-award-fill text-warning"></i> Thương hiệu lữ hành xuất sắc nhất năm 2026
           </div>
-          <h1 class="hero-title">
+          <h1 class="hero-3d-title">
             Khám Phá Vẻ Đẹp Việt Nam Cùng <span>Delta Travel</span>
           </h1>
-          <p class="hero-description">
-            Trải nghiệm những hành trình du lịch nghỉ dưỡng trọn vẹn tại Vịnh Hạ Long, Đảo Ngọc Phú Quốc, Phố Cổ Hội An và Xứ Sở Sương Mù Sa Pa với dịch vụ chuẩn 5 sao và mức giá ưu đãi hàng đầu.
+          <p class="hero-3d-desc">
+            Từ góc nhìn bao la của vũ trụ đến kỳ quan Vịnh Hạ Long, trải nghiệm những hành trình du lịch nghỉ dưỡng trọn vẹn 5 sao với dịch vụ cao cấp và mức giá ưu đãi hàng đầu.
           </p>
-
-          <!-- Chỉ số tin cậy -->
-          <div class="hero-stats">
-            <div class="stat-item">
-              <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
-              <div>
-                <div class="stat-number">50.000+</div>
-                <p class="stat-label">Khách hàng tin chọn</p>
-              </div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-icon"><i class="bi bi-patch-check-fill"></i></div>
-              <div>
-                <div class="stat-number">100%</div>
-                <p class="stat-label">Đảm bảo an toàn</p>
-              </div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-icon"><i class="bi bi-star-fill"></i></div>
-              <div>
-                <div class="stat-number">4.95 / 5</div>
-                <p class="stat-label">Đánh giá xuất sắc</p>
-              </div>
-            </div>
+          <div class="hero-3d-actions">
+            <a href="#toursSection" class="btn-hero-3d-primary">
+              <i class="bi bi-compass"></i> Khám Phá Tour Ngay
+            </a>
+            <a href="#heroSearchForm" class="btn-hero-3d-outline">
+              <i class="bi bi-search"></i> Tìm Chuyến Đi
+            </a>
           </div>
         </div>
+
+        <!-- Giai đoạn 2 (33% - 70%): Xuyên qua tầng mây hùng vĩ -->
+        <div class="hero-phase-block" id="heroPhase2">
+          <div class="hero-3d-badge">
+            <i class="bi bi-cloud-sun-fill text-warning"></i> Kỳ quan thiên nhiên thế giới
+          </div>
+          <h2 class="hero-3d-title">
+            Băng Qua Những <span>Tầng Mây Hùng Vĩ</span>
+          </h2>
+          <p class="hero-3d-desc">
+            Đón ánh bình minh rực rỡ trên non nước hữu tình với hệ thống du thuyền 5 sao chuẩn quốc tế và hải trình độc bản.
+          </p>
+          <div class="hero-3d-actions">
+            <a href="#toursSection" class="btn-hero-3d-primary">
+              <i class="bi bi-compass"></i> Khám Phá Tour Ngay
+            </a>
+          </div>
+        </div>
+
+        <!-- Giai đoạn 3 (71% - 100%): Vịnh Hạ Long du thuyền -->
+        <div class="hero-phase-block" id="heroPhase3">
+          <div class="hero-3d-badge">
+            <i class="bi bi-geo-alt-fill text-warning"></i> Điểm đến thiên đường nghỉ dưỡng
+          </div>
+          <h2 class="hero-3d-title">
+            Chào Mừng Đến <span>Vịnh Hạ Long</span>
+          </h2>
+          <p class="hero-3d-desc">
+            Hơn 50.000 du khách đã tin chọn Delta Travel cho những kỳ nghỉ đáng nhớ nhất cuộc đời.
+          </p>
+          <div class="hero-3d-actions">
+            <a href="#toursSection" class="btn-hero-3d-primary">
+              <i class="bi bi-compass"></i> Đặt Chỗ Ngay Hôm Nay
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chỉ dẫn cuộn chuột động -->
+      <div class="hero-scroll-indicator">
+        <div class="hero-scroll-mouse"></div>
+        <span>Cuộn để khám phá</span>
       </div>
     </div>
   </section>
@@ -241,7 +292,7 @@
   <!-- ==========================================================================
        4. DANH SÁCH TOUR DU LỊCH NỔI BẬT & BỘ LỌC TABS
        ========================================================================== -->
-  <section class="container my-5" id="toursSection">
+  <section class="container-fluid px-3 px-md-4 px-xl-5 my-5" id="toursSection">
     <div class="section-header">
       <div class="section-tag"><i class="bi bi-stars"></i> Hành trình chọn lọc</div>
       <h2 class="section-title">Tour Du Lịch Trọn Gói Được Yêu Thích Nhất</h2>
@@ -249,7 +300,7 @@
     </div>
 
     <div class="row g-4 tour-catalog-layout">
-      <aside class="col-12 col-lg-3" aria-label="Bộ lọc tour">
+      <aside class="col-12 col-lg-auto tour-sidebar-col" aria-label="Bộ lọc tour">
         <div class="tour-filter-sidebar">
           <div class="tour-filter-heading">
             <h3><i class="bi bi-sliders"></i> Bộ lọc</h3>
@@ -328,7 +379,7 @@
         </div>
       </aside>
 
-      <div class="col-12 col-lg-9">
+      <div class="col-12 col-lg tour-content-col">
         <div class="tours-control-bar">
           <span class="text-muted small fw-semibold" id="tourResultCount" aria-live="polite">Đang tải tour...</span>
           <div class="tour-sort-wrapper">
@@ -1016,7 +1067,7 @@
                     <div class="col-md-6">
                       <label class="form-label small fw-bold" for="customerCCCD">Số CCCD (bắt buộc)</label>
                       <input type="text" class="form-control" id="customerCCCD" placeholder="Nhập 12 chữ số" maxlength="12" autocomplete="off" aria-describedby="identityFormatHint" pattern="[0-9]{12}" inputmode="numeric" required>
-                      <small class="text-muted" id="identityFormatHint">Số CCCD được gửi và lưu trong database của bản demo; vui lòng không nhập giấy tờ thật.</small>
+                      <small class="text-muted" id="identityFormatHint">Vui lòng nhập đúng định dạng CCCD/Hộ chiếu (9-12 chữ số) để làm thủ tục bảo hiểm và xuất vé điện tử.</small>
                     </div>
                     <div class="col-12">
                       <label class="form-label small fw-bold">Ghi chú đặc biệt (ăn chay, dị ứng, yêu cầu phòng...)</label>
@@ -1931,5 +1982,7 @@
   <script src="assets/js/controllers/chatbot.js"></script>
   <!-- Real same-origin FastAPI live bridge -->
   <script src="assets/js/services/live-api-bridge.js"></script>
+  <!-- Trải nghiệm 3D Canvas cuộn trang & chữ nghệ thuật Parallax -->
+  <script src="assets/js/controllers/hero-3d.js"></script>
 </body>
 </html>

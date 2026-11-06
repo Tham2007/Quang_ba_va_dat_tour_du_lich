@@ -454,7 +454,7 @@ function renderTourCards() {
       ? new Date(nextSchedule.departureAt).toLocaleDateString("vi-VN")
       : "";
     return `
-      <div class="col-lg-4 col-md-6 mb-4">
+      <div class="col-12 col-md-6 col-xl-4 col-xxl-3 mb-4">
         <div class="tour-card">
           <!-- Ảnh đại diện tour (Click để xem chi tiết lịch trình) -->
           <div class="tour-card-thumb" style="cursor: pointer;" onclick="openItineraryModal('${tour.id}')" title="Nhấn để xem chi tiết lịch trình tour ${tour.title}">

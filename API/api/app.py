@@ -119,7 +119,11 @@ def unknown_api(unknown_path: str):
 
 # Serve the official frontend from the repository Frontend directory
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "Frontend"
+THREE_D_DIR = Path(__file__).resolve().parents[2] / "3D Image data"
 
+if THREE_D_DIR.is_dir():
+    app.mount("/3d-frames", StaticFiles(directory=str(THREE_D_DIR)), name="three-d-frames")
+    app.mount("/3D Image data", StaticFiles(directory=str(THREE_D_DIR)), name="three-d-data")
 
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon_compat():

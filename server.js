@@ -1241,7 +1241,14 @@ app.use("/api/v1", (req, res) => {
 app.get("/favicon.ico", (req, res) => res.redirect(307, "/favicon.svg"));
 app.get("/admin", (req, res) => res.redirect(307, "/admin.html"));
 
-// 9. Phục vụ Frontend static
+// 9. Phục vụ Frontend static & Dữ liệu ảnh 3D
+const THREE_D_DIR = path.resolve(__dirname, "3D Image data");
+if (fs.existsSync(THREE_D_DIR)) {
+  app.use("/3d-frames", express.static(THREE_D_DIR, { maxAge: "1d" }));
+  app.use("/3D Image data", express.static(THREE_D_DIR, { maxAge: "1d" }));
+  app.use("/3D%20Image%20data", express.static(THREE_D_DIR, { maxAge: "1d" }));
+}
+
 if (!fs.existsSync(FRONTEND_DIR)) {
   console.error("Lỗi: Không tìm thấy thư mục Frontend tại", FRONTEND_DIR);
 } else {

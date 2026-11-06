@@ -1,0 +1,301 @@
+/* ==========================================================================
+   DELTA TRAVEL - 3D SCROLL EXPERIENCE & PARALLAX BACKGROUND TYPOGRAPHY
+   ========================================================================== */
+
+/* Khung bọc toàn bộ đường trượt cuộn 3D */
+.hero-3d-showcase {
+  position: relative;
+  width: 100%;
+  height: 240vh;
+  background-color: #030712;
+  margin-top: -85px; /* Kéo lên đỉnh phía dưới thanh navigation */
+  padding-top: 85px;
+}
+
+/* Phần cố định toàn màn hình khi người dùng cuộn */
+.hero-3d-sticky {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 1. LỚP CHỮ NGHỆ THUẬT MỜ KHỔNG LỒ CHUYỂN ĐỘNG PARALLAX (Z-INDEX: 1) */
+.hero-faded-bg-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  opacity: 0.85;
+}
+
+.faded-bg-text {
+  white-space: nowrap;
+  font-family: var(--font-heading, 'Montserrat', sans-serif);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  line-height: 0.9;
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.16);
+  text-shadow: 0 0 35px rgba(10, 77, 104, 0.35);
+  will-change: transform;
+  display: flex;
+  gap: 3rem;
+}
+
+.faded-bg-text.text-track-1 {
+  font-size: clamp(4.5rem, 13vw, 15rem);
+  transform: translate3d(0, 0, 0);
+  margin-bottom: 2rem;
+}
+
+.faded-bg-text.text-track-2 {
+  font-size: clamp(3.5rem, 11vw, 12rem);
+  -webkit-text-stroke: 1.5px rgba(245, 158, 11, 0.22);
+  text-shadow: 0 0 40px rgba(245, 158, 11, 0.25);
+  transform: translate3d(-15%, 0, 0);
+  margin-bottom: 2rem;
+}
+
+.faded-bg-text.text-track-3 {
+  position: absolute;
+  bottom: 8%;
+  left: 50%;
+  transform: translate3d(-50%, 0, 0);
+  font-size: clamp(0.9rem, 2.2vw, 1.8rem);
+  letter-spacing: 0.35em;
+  -webkit-text-stroke: 0;
+  color: rgba(255, 255, 255, 0.35);
+  font-weight: 700;
+}
+
+/* 2. LỚP CANVAS HIỂN THỊ CHUỖI ẢNH 3D (Z-INDEX: 2) */
+.hero-3d-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 2;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* Lớp bóng đổ điện ảnh tạo chiều sâu ánh sáng */
+.hero-vignette-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: 
+    radial-gradient(circle at 50% 50%, transparent 45%, rgba(3, 7, 18, 0.65) 100%),
+    linear-gradient(to bottom, rgba(3, 7, 18, 0.45) 0%, transparent 20%, transparent 65%, rgba(3, 7, 18, 0.95) 100%);
+}
+
+/* 3. LỚP NỘI DUNG VĂN BẢN TRÊN CÙNG (Z-INDEX: 4) */
+.hero-3d-content {
+  position: relative;
+  z-index: 4;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  pointer-events: none;
+  min-height: 480px;
+  display: flex;
+  align-items: center;
+}
+
+.hero-phase-block {
+  max-width: 720px;
+  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+  will-change: opacity, transform;
+}
+
+#heroPhase2,
+#heroPhase3 {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hero-3d-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 0.5rem 1.25rem;
+  border-radius: 50px;
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.hero-3d-title {
+  color: #ffffff;
+  font-family: var(--font-heading, 'Montserrat', sans-serif);
+  font-size: clamp(2.4rem, 5vw, 4.4rem);
+  font-weight: 900;
+  line-height: 1.15;
+  margin-bottom: 1.25rem;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
+}
+
+.hero-3d-title span {
+  background: linear-gradient(135deg, #38bdf8 0%, #0284c7 50%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-3d-desc {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: clamp(1rem, 1.3vw, 1.2rem);
+  line-height: 1.65;
+  margin-bottom: 2rem;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.hero-3d-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  pointer-events: auto;
+}
+
+.btn-hero-3d-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  color: #ffffff;
+  padding: 0.9rem 2rem;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 1rem;
+  border: none;
+  box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.btn-hero-3d-primary:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #38bdf8, #0369a1);
+  box-shadow: 0 12px 30px rgba(14, 165, 233, 0.55);
+  color: #ffffff;
+}
+
+.btn-hero-3d-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #ffffff;
+  padding: 0.9rem 1.8rem;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 1rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.btn-hero-3d-outline:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: #ffffff;
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+/* Chỉ dẫn cuộn chuột động ở góc dưới */
+.hero-scroll-indicator {
+  position: absolute;
+  bottom: 25px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  pointer-events: none;
+  animation: floatBounce 2.5s infinite ease-in-out;
+}
+
+.hero-scroll-mouse {
+  width: 22px;
+  height: 36px;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-radius: 15px;
+  position: relative;
+}
+
+.hero-scroll-mouse::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 8px;
+  background: #ffffff;
+  border-radius: 2px;
+  animation: scrollWheel 1.8s infinite;
+}
+
+@keyframes scrollWheel {
+  0% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, 14px); }
+}
+
+@keyframes floatBounce {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, 8px); }
+}
+
+@media (max-width: 768px) {
+  .hero-3d-showcase {
+    height: 180vh;
+  }
+  .hero-3d-title {
+    font-size: 2rem;
+  }
+  .hero-3d-content {
+    padding: 0 1.25rem;
+  }
+  .faded-bg-text.text-track-1 {
+    font-size: 4rem;
+  }
+  .faded-bg-text.text-track-2 {
+    font-size: 3rem;
+  }
+}
