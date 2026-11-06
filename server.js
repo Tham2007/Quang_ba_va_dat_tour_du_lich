@@ -1571,13 +1571,25 @@ if (!fs.existsSync(FRONTEND_DIR)) {
 
 // Khởi động Server
 const server = app.listen(PORT, HOST, () => {
-  const port = server.address().port;
+  const addr = server.address();
+  const port = addr ? addr.port : PORT;
   console.log("==================================================================");
   console.log(`  DELTA TRAVEL 2.0 (NODE.JS SERVER) ĐANG CHẠY`);
   console.log(`  Trang chủ đặt tour:  http://${HOST}:${port}/`);
   console.log(`  Cổng quản trị Admin: http://${HOST}:${port}/admin.html`);
   console.log(`  Kiểm tra hệ thống:  http://${HOST}:${port}/api/v1/health/ready`);
   console.log("==================================================================");
+});
+
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`\n❌ LỖI: Cổng ${PORT} đang bị chiếm dụng bởi tiến trình khác (server đang chạy ngầm hoặc chưa tắt).`);
+    console.error(`👉 Cách xử lý: Đóng cửa sổ terminal đang chạy server cũ, hoặc chạy cổng khác:`);
+    console.error(`   $env:PORT=8080; npm run dev (PowerShell) hoặc set PORT=8080 && npm run dev (CMD)\n`);
+  } else {
+    console.error("❌ Lỗi khởi động server:", err.message);
+  }
+  process.exit(1);
 });
 
 module.exports = { app, server, db };
