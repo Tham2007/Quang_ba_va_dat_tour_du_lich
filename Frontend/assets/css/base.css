@@ -43,6 +43,12 @@
 
   /* Typography */
   --font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Montserrat', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 105px;
 }
 
 /* Reset CSS cơ bản */

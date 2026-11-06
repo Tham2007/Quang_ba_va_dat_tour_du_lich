@@ -6,13 +6,13 @@
 .hero-3d-showcase {
   position: relative;
   width: 100%;
-  height: 240vh;
+  height: 300vh;
   background-color: #030712;
-  margin-top: -85px; /* Kéo lên đỉnh phía dưới thanh navigation */
-  padding-top: 85px;
+  margin: 0;
+  padding: 0;
 }
 
-/* Phần cố định toàn màn hình khi người dùng cuộn */
+/* Phần cố định toàn màn hình khi người dùng cuộn - ĐẢM BẢO GIỮ CỐ ĐỊNH 100% TỪ PIXEL ĐẦU TIÊN */
 .hero-3d-sticky {
   position: sticky;
   top: 0;
@@ -26,63 +26,7 @@
   justify-content: center;
 }
 
-/* 1. LỚP CHỮ NGHỆ THUẬT MỜ KHỔNG LỒ CHUYỂN ĐỘNG PARALLAX (Z-INDEX: 1) */
-.hero-faded-bg-container {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  user-select: none;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  opacity: 0.85;
-}
-
-.faded-bg-text {
-  white-space: nowrap;
-  font-family: var(--font-heading, 'Montserrat', sans-serif);
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  line-height: 0.9;
-  color: transparent;
-  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.16);
-  text-shadow: 0 0 35px rgba(10, 77, 104, 0.35);
-  will-change: transform;
-  display: flex;
-  gap: 3rem;
-}
-
-.faded-bg-text.text-track-1 {
-  font-size: clamp(4.5rem, 13vw, 15rem);
-  transform: translate3d(0, 0, 0);
-  margin-bottom: 2rem;
-}
-
-.faded-bg-text.text-track-2 {
-  font-size: clamp(3.5rem, 11vw, 12rem);
-  -webkit-text-stroke: 1.5px rgba(245, 158, 11, 0.22);
-  text-shadow: 0 0 40px rgba(245, 158, 11, 0.25);
-  transform: translate3d(-15%, 0, 0);
-  margin-bottom: 2rem;
-}
-
-.faded-bg-text.text-track-3 {
-  position: absolute;
-  bottom: 8%;
-  left: 50%;
-  transform: translate3d(-50%, 0, 0);
-  font-size: clamp(0.9rem, 2.2vw, 1.8rem);
-  letter-spacing: 0.35em;
-  -webkit-text-stroke: 0;
-  color: rgba(255, 255, 255, 0.35);
-  font-weight: 700;
-}
-
-/* 2. LỚP CANVAS HIỂN THỊ CHUỖI ẢNH 3D (Z-INDEX: 2) */
+/* 1. LỚP CANVAS HIỂN THỊ CHUỖI ẢNH 3D (Z-INDEX: 2) */
 .hero-3d-canvas {
   position: absolute;
   top: 0;
@@ -95,6 +39,62 @@
   will-change: transform;
 }
 
+/* 2. LỚP CHỮ NGHỆ THUẬT MỜ KHỔNG LỒ CHUYỂN ĐỘNG PARALLAX (Z-INDEX: 3 - TRÊN CANVAS, DƯỚI NỘI DUNG) */
+.hero-faded-bg-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.faded-bg-text {
+  white-space: nowrap;
+  font-family: var(--font-heading, 'Montserrat', sans-serif);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  line-height: 0.85;
+  color: rgba(255, 255, 255, 0.04);
+  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.22);
+  text-shadow: 0 0 35px rgba(255, 255, 255, 0.15);
+  will-change: transform;
+  display: flex;
+  gap: 4rem;
+}
+
+.faded-bg-text.text-track-1 {
+  font-size: clamp(4.5rem, 13vw, 15rem);
+  transform: translate3d(0, 0, 0);
+  margin-bottom: 2.5rem;
+}
+
+.faded-bg-text.text-track-2 {
+  font-size: clamp(3.5rem, 11vw, 12rem);
+  -webkit-text-stroke: 1.5px rgba(251, 191, 36, 0.32);
+  color: rgba(251, 191, 36, 0.04);
+  text-shadow: 0 0 40px rgba(245, 158, 11, 0.25);
+  transform: translate3d(-15%, 0, 0);
+  margin-bottom: 2.5rem;
+}
+
+.faded-bg-text.text-track-3 {
+  position: absolute;
+  bottom: 8%;
+  left: 50%;
+  transform: translate3d(-50%, 0, 0);
+  font-size: clamp(0.85rem, 1.8vw, 1.6rem);
+  letter-spacing: 0.38em;
+  -webkit-text-stroke: 0;
+  color: rgba(255, 255, 255, 0.35);
+  font-weight: 700;
+}
+
 /* Lớp bóng đổ điện ảnh tạo chiều sâu ánh sáng */
 .hero-vignette-overlay {
   position: absolute;
@@ -103,7 +103,7 @@
   pointer-events: none;
   background: 
     radial-gradient(circle at 50% 50%, transparent 45%, rgba(3, 7, 18, 0.65) 100%),
-    linear-gradient(to bottom, rgba(3, 7, 18, 0.45) 0%, transparent 20%, transparent 65%, rgba(3, 7, 18, 0.95) 100%);
+    linear-gradient(to bottom, rgba(3, 7, 18, 0.5) 0%, transparent 20%, transparent 65%, rgba(3, 7, 18, 0.95) 100%);
 }
 
 /* 3. LỚP NỘI DUNG VĂN BẢN TRÊN CÙNG (Z-INDEX: 4) */
@@ -113,7 +113,7 @@
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 110px 2rem 0 2rem;
   pointer-events: none;
   min-height: 480px;
   display: flex;
@@ -121,8 +121,8 @@
 }
 
 .hero-phase-block {
-  max-width: 720px;
-  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+  max-width: 760px;
+  transition: opacity 0.35s ease-out, transform 0.35s ease-out;
   will-change: opacity, transform;
 }
 
@@ -136,51 +136,57 @@
 .hero-3d-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  padding: 0.5rem 1.25rem;
+  gap: 0.55rem;
+  background: rgba(15, 23, 42, 0.68);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  padding: 0.5rem 1.35rem;
   border-radius: 50px;
   color: #ffffff;
-  font-size: 0.88rem;
+  font-family: var(--font-family, 'Plus Jakarta Sans', sans-serif);
+  font-size: 0.86rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  margin-bottom: 1.25rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  margin-bottom: 1.35rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 .hero-3d-title {
   color: #ffffff;
   font-family: var(--font-heading, 'Montserrat', sans-serif);
-  font-size: clamp(2.4rem, 5vw, 4.4rem);
-  font-weight: 900;
-  line-height: 1.15;
-  margin-bottom: 1.25rem;
-  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
+  font-size: clamp(2.4rem, 4.8vw, 4.2rem);
+  font-weight: 800;
+  line-height: 1.18;
+  letter-spacing: -0.015em;
+  margin-bottom: 1.35rem;
+  text-shadow: 0 4px 25px rgba(0, 0, 0, 0.85), 0 2px 4px rgba(0, 0, 0, 0.9);
 }
 
 .hero-3d-title span {
-  background: linear-gradient(135deg, #38bdf8 0%, #0284c7 50%, #f59e0b 100%);
+  background: linear-gradient(135deg, #fef08a 0%, #f59e0b 55%, #ea580c 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 4px 14px rgba(245, 158, 11, 0.5));
 }
 
 .hero-3d-desc {
-  color: rgba(255, 255, 255, 0.88);
-  font-size: clamp(1rem, 1.3vw, 1.2rem);
-  line-height: 1.65;
-  margin-bottom: 2rem;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  color: #f8fafc;
+  font-family: var(--font-family, 'Plus Jakarta Sans', sans-serif);
+  font-size: clamp(1.05rem, 1.3vw, 1.25rem);
+  font-weight: 500;
+  line-height: 1.7;
+  margin-bottom: 2.2rem;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85);
+  max-width: 640px;
 }
 
 .hero-3d-actions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 1.15rem;
   pointer-events: auto;
 }
 
@@ -188,22 +194,23 @@
   display: inline-flex;
   align-items: center;
   gap: 0.65rem;
-  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   color: #ffffff;
-  padding: 0.9rem 2rem;
+  padding: 0.95rem 2.25rem;
   border-radius: 50px;
+  font-family: var(--font-family, 'Plus Jakarta Sans', sans-serif);
   font-weight: 700;
   font-size: 1rem;
   border: none;
-  box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
-  transition: all 0.3s ease;
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.45);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   text-decoration: none;
 }
 
 .btn-hero-3d-primary:hover {
   transform: translateY(-2px);
-  background: linear-gradient(135deg, #38bdf8, #0369a1);
-  box-shadow: 0 12px 30px rgba(14, 165, 233, 0.55);
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  box-shadow: 0 12px 30px rgba(245, 158, 11, 0.6);
   color: #ffffff;
 }
 
@@ -211,27 +218,28 @@
   display: inline-flex;
   align-items: center;
   gap: 0.65rem;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: #ffffff;
-  padding: 0.9rem 1.8rem;
+  padding: 0.95rem 2rem;
   border-radius: 50px;
+  font-family: var(--font-family, 'Plus Jakarta Sans', sans-serif);
   font-weight: 700;
   font-size: 1rem;
-  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border: 1.5px solid rgba(255, 255, 255, 0.38);
   transition: all 0.3s ease;
   text-decoration: none;
 }
 
 .btn-hero-3d-outline:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.22);
   border-color: #ffffff;
   color: #ffffff;
   transform: translateY(-2px);
 }
 
-/* Chỉ dẫn cuộn chuột động ở góc dưới */
+/* Chỉ dẫn cuộn chuột động ở góc dưới - Tự động mờ dần khi cuộn về cuối */
 .hero-scroll-indicator {
   position: absolute;
   bottom: 25px;
@@ -242,19 +250,20 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.75);
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   pointer-events: none;
   animation: floatBounce 2.5s infinite ease-in-out;
+  transition: opacity 0.3s ease;
 }
 
 .hero-scroll-mouse {
   width: 22px;
   height: 36px;
-  border: 2px solid rgba(255, 255, 255, 0.7);
+  border: 2px solid rgba(255, 255, 255, 0.75);
   border-radius: 15px;
   position: relative;
 }
@@ -282,15 +291,21 @@
   50% { transform: translate(-50%, 8px); }
 }
 
+@media (max-width: 991.98px) {
+  .hero-3d-content {
+    padding-top: 80px;
+  }
+}
+
 @media (max-width: 768px) {
   .hero-3d-showcase {
-    height: 180vh;
+    height: 220vh;
   }
   .hero-3d-title {
-    font-size: 2rem;
+    font-size: 2.1rem;
   }
   .hero-3d-content {
-    padding: 0 1.25rem;
+    padding: 70px 1.25rem 0 1.25rem;
   }
   .faded-bg-text.text-track-1 {
     font-size: 4rem;

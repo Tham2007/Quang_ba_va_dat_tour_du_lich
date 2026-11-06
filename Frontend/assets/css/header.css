@@ -3,6 +3,16 @@
    Ported 100% from deltatravel-main design system (Pure CSS, HTML, JS)
    ========================================================================== */
 
+/* Header cố định phủ lớp kính Liquid Glass lên đỉnh màn hình */
+header.sticky-top {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 1020;
+}
+
 /* Topbar trên cùng */
 .topbar {
   background: #09090b;

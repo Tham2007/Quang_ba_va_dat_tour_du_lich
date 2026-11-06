@@ -181,8 +181,9 @@
       const currentScroll = -rect.top;
       const progress = Math.max(0, Math.min(1, currentScroll / totalScrollable));
 
-      // 1. Chuyển đổi khung hình 3D từ 1 đến 150
-      const targetFrame = Math.min(TOTAL_FRAMES, Math.max(1, Math.round(progress * (TOTAL_FRAMES - 1)) + 1));
+      // 1. Chuyển đổi khung hình 3D từ 1 đến 150 (Ánh xạ đến 85% tiến trình cuộn, 15% còn lại giữ nguyên khung hình 150 tuyệt đẹp)
+      const frameProgress = Math.min(1, progress / 0.85);
+      const targetFrame = Math.min(TOTAL_FRAMES, Math.max(1, Math.round(frameProgress * (TOTAL_FRAMES - 1)) + 1));
       if (targetFrame !== currentFrameIndex) {
         renderFrame(targetFrame);
       }
@@ -207,22 +208,28 @@
         text3.style.transform = `translate3d(-50%, ${yOffset3}px, 0) scale(${scale3})`;
       }
 
-      // 3. Chuyển đổi các giai đoạn chữ nổi bật phía trước
+      // 3. Tự động mờ dần chuột cuộn khi cuộn về gần cuối để không chèn lên phần tìm kiếm tiếp theo
+      const scrollIndicator = document.querySelector(".hero-scroll-indicator");
+      if (scrollIndicator) {
+        scrollIndicator.style.opacity = progress > 0.82 ? Math.max(0, 1 - (progress - 0.82) / 0.12).toFixed(2) : "1";
+      }
+
+      // 4. Chuyển đổi các giai đoạn chữ nổi bật phía trước
       if (phase1 && phase2 && phase3) {
-        if (progress < 0.32) {
+        if (progress < 0.28) {
           // Giai đoạn 1: Vũ trụ & Địa cầu
-          const p1Opacity = Math.max(0, 1 - (progress / 0.28));
+          const p1Opacity = Math.max(0, 1 - (progress / 0.24));
           phase1.style.opacity = p1Opacity;
-          phase1.style.transform = `translateY(${(-progress * 50).toFixed(1)}px)`;
+          phase1.style.transform = `translateY(${(-progress * 40).toFixed(1)}px)`;
           phase1.style.pointerEvents = p1Opacity > 0.2 ? "auto" : "none";
 
           phase2.style.opacity = 0;
           phase2.style.pointerEvents = "none";
           phase3.style.opacity = 0;
           phase3.style.pointerEvents = "none";
-        } else if (progress >= 0.32 && progress < 0.72) {
+        } else if (progress >= 0.28 && progress < 0.65) {
           // Giai đoạn 2: Vượt tầng mây
-          const localProgress = (progress - 0.32) / 0.40;
+          const localProgress = (progress - 0.28) / 0.37;
           const p2Opacity = localProgress < 0.5
             ? localProgress * 2
             : (1 - localProgress) * 2;
@@ -231,15 +238,15 @@
           phase1.style.pointerEvents = "none";
 
           phase2.style.opacity = Math.max(0, Math.min(1, p2Opacity));
-          phase2.style.transform = `translateY(${((0.5 - localProgress) * 30).toFixed(1)}px)`;
+          phase2.style.transform = `translateY(${((0.5 - localProgress) * 25).toFixed(1)}px)`;
           phase2.style.pointerEvents = p2Opacity > 0.2 ? "auto" : "none";
 
           phase3.style.opacity = 0;
           phase3.style.pointerEvents = "none";
         } else {
-          // Giai đoạn 3: Vịnh Hạ Long thiên đường
-          const localProgress = (progress - 0.72) / 0.28;
-          const p3Opacity = Math.min(1, localProgress * 1.5);
+          // Giai đoạn 3: Vịnh Hạ Long thiên đường (hiển thị trọn vẹn, giữ vững khung hình)
+          const localProgress = Math.min(1, (progress - 0.65) / 0.20);
+          const p3Opacity = Math.min(1, localProgress);
 
           phase1.style.opacity = 0;
           phase1.style.pointerEvents = "none";
@@ -247,7 +254,7 @@
           phase2.style.pointerEvents = "none";
 
           phase3.style.opacity = p3Opacity;
-          phase3.style.transform = `translateY(${((1 - localProgress) * 25).toFixed(1)}px)`;
+          phase3.style.transform = `translateY(${((1 - localProgress) * 20).toFixed(1)}px)`;
           phase3.style.pointerEvents = p3Opacity > 0.2 ? "auto" : "none";
         }
       }
@@ -271,3 +278,4 @@
     init3DHero();
   }
 })();
+
