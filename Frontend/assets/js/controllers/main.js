@@ -436,7 +436,19 @@ function renderTourCards() {
   // 5. Kết xuất HTML thẻ tour
   container.innerHTML = filtered.map(tour => {
     const isFav = wishlist.includes(tour.id);
-    const nextSchedule = Array.isArray(tour.schedules) ? tour.schedules[0] : null;
+    const schedules = Array.isArray(tour.schedules) ? tour.schedules : [];
+    const selectedDate = document.getElementById("filterDepartureDate")?.value || "";
+    const availability = document.getElementById("filterAvailability")?.value || "";
+    const nextSchedule = schedules.find(schedule => {
+      const dateMatches = !selectedDate ||
+        String(schedule.departureAt || "").slice(0, 10) === selectedDate;
+      const seatsMatch = availability === "available"
+        ? schedule.availableSeats > 0
+        : availability === "sold_out"
+          ? schedule.availableSeats <= 0
+          : true;
+      return dateMatches && seatsMatch;
+    }) || schedules.find(schedule => schedule.availableSeats > 0) || schedules[0] || null;
     const seats = nextSchedule ? nextSchedule.availableSeats : tour.availableSeats;
     const departureDate = nextSchedule
       ? new Date(nextSchedule.departureAt).toLocaleDateString("vi-VN")
@@ -553,8 +565,6 @@ function currentTourFilters(page = 1) {
     max_price: maxPrice,
     duration: document.getElementById("filterDuration")?.value || "",
     transport: document.getElementById("filterTransport")?.value || "",
-    tour_type: document.getElementById("filterTourType")?.value || "",
-    audience: document.getElementById("filterAudience")?.value || "",
     availability: document.getElementById("filterAvailability")?.value || "",
     sort_by: sortBy,
     page,
@@ -574,15 +584,6 @@ function filterLegacyApiTours(tours, filters) {
     if (filters.max_price !== undefined && tour.price > filters.max_price) return false;
     if (filters.duration && !folded(tour.duration).includes(folded(filters.duration))) return false;
     if (filters.transport && !folded(tour.transport).includes(folded(filters.transport))) return false;
-    if (filters.tour_type === "international") return false;
-    if (filters.audience) {
-      const terms = {
-        family: ["gia dinh", "tre em", "thieu nhi"],
-        couple: ["cap doi", "lang man", "tuan trang mat"],
-        friends: ["nhom ban", "ban be", "team building"]
-      }[filters.audience] || [];
-      if (!terms.some(term => text.includes(term))) return false;
-    }
     const schedules = Array.isArray(tour.schedules) ? tour.schedules : [];
     if (filters.departure_date && !schedules.some(schedule =>
       String(schedule.departureAt || "").slice(0, 10) === filters.departure_date
@@ -740,8 +741,7 @@ async function searchToursFromApi(page = 1) {
   if (page === 1 && !filters.q && filters.region === "all" &&
       !filters.destination && !filters.departure_location && !filters.departure_date &&
       filters.min_price === undefined && filters.max_price === undefined &&
-      !filters.duration && !filters.transport && !filters.tour_type &&
-      !filters.audience && !filters.availability) {
+      !filters.duration && !filters.transport && !filters.availability) {
     AppState.allTours = serverTours;
     renderDestinations();
     if (!AppState.destinationCounts) refreshDestinationCounts();
@@ -760,17 +760,24 @@ function renderActiveTourFilters() {
   const labels = [];
   if (filters.q) labels.push(`Từ khóa: ${filters.q}`);
   if (filters.destination) labels.push(`Điểm đến: ${filters.destination}`);
-  if (filters.region !== "all") labels.push(`Vùng: ${filters.region}`);
+  const regionLabels = {
+    north: "Miền Bắc",
+    central: "Miền Trung",
+    south: "Miền Nam"
+  };
+  if (filters.region !== "all") labels.push(`Khu vực: ${regionLabels[filters.region] || filters.region}`);
   if (filters.departure_location) labels.push(`Khởi hành: ${filters.departure_location}`);
   if (filters.departure_date) labels.push(`Ngày: ${filters.departure_date}`);
   if (filters.min_price !== undefined || filters.max_price !== undefined) {
-    labels.push(`Giá: ${filters.min_price ?? 0}–${filters.max_price ?? "không giới hạn"} VND`);
+    labels.push(`Giá: ${filters.min_price === undefined ? "dưới" : formatVND(filters.min_price)} – ${
+      filters.max_price === undefined ? "không giới hạn" : formatVND(filters.max_price)
+    }`);
   }
   if (filters.duration) labels.push(`Thời lượng: ${filters.duration}`);
   if (filters.transport) labels.push(`Phương tiện: ${filters.transport}`);
-  if (filters.tour_type) labels.push(`Loại tour: ${filters.tour_type}`);
-  if (filters.audience) labels.push(`Đối tượng: ${filters.audience}`);
-  if (filters.availability) labels.push(`Tình trạng: ${filters.availability}`);
+  if (filters.availability) {
+    labels.push(`Tình trạng: ${filters.availability === "available" ? "Còn chỗ" : "Hết chỗ"}`);
+  }
   summary.textContent = labels.length ? `Đang áp dụng: ${labels.join(" · ")}` : "";
 }
 

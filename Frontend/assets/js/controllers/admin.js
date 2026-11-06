@@ -53,20 +53,16 @@ const AdminState = {
 // =============================================================================
 // II. KHỞI TẠO ỨNG DỤNG KHI DOM SẴN SÀNG
 // =============================================================================
-document.addEventListener("DOMContentLoaded", () => {
-  // 1. Kiểm tra xác thực & quyền truy cập
-  checkAdminAuth();
-
-  // 2. Nạp dữ liệu từ localStorage
-  refreshAdminData();
-
-  // 3. Khởi tạo sự kiện giao diện
+document.addEventListener("DOMContentLoaded", async () => {
   initSidebarNavigation();
   initMobileSidebar();
   initAiCopilot();
   initRealtimeStorageEvents();
 
-  // 4. Render nội dung tab ban đầu
+  const isAdminAuthenticated = await checkAdminAuth();
+  if (!isAdminAuthenticated) return;
+
+  refreshAdminData();
   renderCurrentTab();
 
   // Tự động mở modal sửa tour nếu có yêu cầu (hỗ trợ điều hướng sâu)
@@ -88,26 +84,49 @@ document.addEventListener("DOMContentLoaded", () => {
 // =============================================================================
 // III. XÁC THỰC BẢO MẬT & PHÂN QUYỀN (AUTH GUARD)
 // =============================================================================
-function checkAdminAuth() {
-  const user = (typeof getCurrentUser === "function") ? getCurrentUser() : null;
+async function checkAdminAuth() {
+  let user = (typeof getCurrentUser === "function") ? getCurrentUser() : null;
   const lockScreen = document.getElementById("adminLockScreen");
   const mainWrapper = document.getElementById("adminLayoutWrapper");
-
-  if (!user || (user.role !== "ADMIN" && user.role !== "OPERATIONS")) {
+  const showLockedScreen = () => {
     if (lockScreen) lockScreen.style.display = "flex";
     if (mainWrapper) mainWrapper.style.display = "none";
     AdminState.currentUser = null;
+  };
+
+  if (!user || (user.role !== "ADMIN" && user.role !== "OPERATIONS")) {
+    showLockedScreen();
     return false;
   }
 
-  // Đã đăng nhập với quyền hợp lệ
-  AdminState.currentUser = user;
-  if (lockScreen) lockScreen.style.display = "none";
-  if (mainWrapper) mainWrapper.style.display = "flex";
+  const showAdminScreen = authenticatedUser => {
+    AdminState.currentUser = authenticatedUser;
+    if (lockScreen) lockScreen.style.display = "none";
+    if (mainWrapper) mainWrapper.style.display = "flex";
+    updateAdminProfileUI(authenticatedUser);
+    return true;
+  };
 
-  // Cập nhật thông tin admin trên Sidebar
-  updateAdminProfileUI(user);
-  return true;
+  if (typeof DeltaAPI === "undefined" || typeof DeltaAPI.getMe !== "function") {
+    return showAdminScreen(user);
+  }
+
+  const session = await DeltaAPI.getMe();
+  if (!session.success) {
+    if (session.isOffline) return showAdminScreen(user);
+    showLockedScreen();
+    showAdminToast(session.error || "Phiên đăng nhập máy chủ đã hết hạn. Vui lòng đăng nhập lại.", "error");
+    return false;
+  }
+  if (!session.data ||
+      (session.data.role !== "ADMIN" && session.data.role !== "OPERATIONS")) {
+    showLockedScreen();
+    showAdminToast("Tài khoản này không có quyền quản trị trên máy chủ.", "error");
+    return false;
+  }
+
+  user = { ...user, ...session.data };
+  return showAdminScreen(user);
 }
 
 function updateAdminProfileUI(user) {
@@ -152,8 +171,14 @@ async function handleQuickAdminLogin(identifier) {
   }
 
   if (targetUser) {
-    if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.login === "function") {
+    let localDemoLogin = typeof DeltaAPI === "undefined" || typeof DeltaAPI.login !== "function";
+    if (!localDemoLogin) {
       const loginResult = await DeltaAPI.login(targetUser.email, targetUser.password);
+      if (!loginResult.success && !loginResult.isOffline) {
+        showAdminToast(loginResult.error || "Không thể đăng nhập tài khoản quản trị trên máy chủ.", "error");
+        return;
+      }
+      localDemoLogin = !loginResult.success;
       if (loginResult.success) {
         if (loginResult.data?.role !== "ADMIN") {
           showAdminToast("Tài khoản này không có quyền quản trị trên máy chủ.", "error");
@@ -167,16 +192,19 @@ async function handleQuickAdminLogin(identifier) {
           phone: loginResult.data.phone,
           role: loginResult.data.role
         };
-      } else if (!loginResult.isOffline) {
-        showAdminToast(loginResult.error || "Không thể đăng nhập tài khoản quản trị trên máy chủ.", "error");
-        return;
       }
     }
+
     if (typeof setCurrentUser === "function") setCurrentUser(targetUser);
-    checkAdminAuth();
+    if (!await checkAdminAuth()) return;
     refreshAdminData();
     renderCurrentTab();
-    showAdminToast(`Chào mừng ${targetUser.fullName} (${targetUser.title || 'Quản trị viên'}) vào phiên làm việc!`, "success");
+    showAdminToast(
+      localDemoLogin
+        ? "Đang dùng chế độ quản trị demo cục bộ; thao tác cần máy chủ có thể không khả dụng."
+        : `Chào mừng ${targetUser.fullName} (${targetUser.title || "Quản trị viên"}) vào phiên làm việc!`,
+      localDemoLogin ? "warning" : "success"
+    );
   } else {
     showAdminToast("Không tìm thấy thông tin tài khoản thành viên. Vui lòng thử lại.", "error");
   }

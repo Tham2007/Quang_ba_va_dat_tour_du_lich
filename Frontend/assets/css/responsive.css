@@ -64,6 +64,21 @@
     margin-top: 2rem;
   }
 
+  .tour-filter-sidebar {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .tour-filter-pills {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .tour-sort-wrapper {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   /* Footer */
   .footer-delta {
     padding-top: 3.5rem;
@@ -96,15 +111,18 @@
     grid-template-columns: 1fr;
   }
 
-  .tours-control-bar {
-    flex-direction: column;
-    align-items: stretch;
+  .tour-filter-sidebar {
+    position: static;
+    max-height: none;
+    overflow: visible;
   }
 
   .tour-filter-pills {
-    justify-content: flex-start;
-    overflow-x: auto;
-    padding-bottom: 0.5rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tours-control-bar {
+    align-items: flex-start;
   }
 
   /* Payment Tabs */

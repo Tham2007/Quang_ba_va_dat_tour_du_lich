@@ -248,121 +248,106 @@
       <p class="section-subtitle">Tận hưởng dịch vụ đẳng cấp quốc tế với đội ngũ hướng dẫn viên giàu kinh nghiệm và lịch trình thiết kế tối ưu nhất.</p>
     </div>
 
-    <!-- Thanh chuyển Tab bộ lọc nhanh & Sắp xếp -->
-    <div class="tours-control-bar">
-      <div class="tour-filter-pills">
-        <button class="filter-pill active" data-region="all">
-          <i class="bi bi-grid-fill"></i> Tất cả tour
-        </button>
-        <button class="filter-pill" data-region="north">
-          Miền Bắc
-        </button>
-        <button class="filter-pill" data-region="central">
-          Miền Trung & Tây Nguyên
-        </button>
-        <button class="filter-pill" data-region="south">
-          Miền Nam & Đảo Ngọc
-        </button>
-      </div>
+    <div class="row g-4 tour-catalog-layout">
+      <aside class="col-12 col-lg-3" aria-label="Bộ lọc tour">
+        <div class="tour-filter-sidebar">
+          <div class="tour-filter-heading">
+            <h3><i class="bi bi-sliders"></i> Bộ lọc</h3>
+            <button class="btn btn-link btn-sm" type="button" id="clearTourFilters">Đặt lại</button>
+          </div>
 
-      <div class="tour-sort-wrapper">
-        <span class="text-muted small fw-semibold me-2" id="tourResultCount" aria-live="polite">Đang tải tour...</span>
-        <label for="tourSortSelect"><i class="bi bi-sort-down"></i> Sắp xếp:</label>
-        <select class="form-select form-select-sm tour-sort-select" id="tourSortSelect">
-          <option value="default">Mặc định nổi bật</option>
-          <option value="price-asc">Giá: Thấp đến cao</option>
-          <option value="price-desc">Giá: Cao đến thấp</option>
-          <option value="newest">Tour mới nhất</option>
-          <option value="departure-soonest">Ngày khởi hành gần nhất</option>
-        </select>
+          <div class="tour-filter-group">
+            <span class="form-label">Khu vực</span>
+            <div class="tour-filter-pills" role="group" aria-label="Lọc tour theo khu vực">
+              <button type="button" class="filter-pill active" data-region="all"><i class="bi bi-grid-fill"></i> Tất cả</button>
+              <button type="button" class="filter-pill" data-region="north">Miền Bắc</button>
+              <button type="button" class="filter-pill" data-region="central">Miền Trung</button>
+              <button type="button" class="filter-pill" data-region="south">Miền Nam</button>
+            </div>
+          </div>
+
+          <form id="advancedTourFilters" class="tour-advanced-filters">
+            <div class="tour-filter-fields">
+              <div class="tour-filter-group">
+                <label class="form-label" for="filterDestination">Điểm đến</label>
+                <input class="form-control" id="filterDestination" name="destination" placeholder="Ví dụ: Hạ Long">
+              </div>
+              <div class="tour-filter-group">
+                <label class="form-label" for="filterDeparture">Điểm khởi hành</label>
+                <input class="form-control" id="filterDeparture" name="departure_location" placeholder="Ví dụ: Hà Nội">
+              </div>
+              <div class="tour-filter-group">
+                <label class="form-label" for="filterDepartureDate">Ngày khởi hành</label>
+                <input class="form-control" id="filterDepartureDate" name="departure_date" type="date">
+              </div>
+              <div class="tour-filter-group">
+                <label class="form-label" for="filterPriceRange">Khoảng giá</label>
+                <select class="form-select" id="filterPriceRange" name="price_range">
+                  <option value="">Tất cả mức giá</option>
+                  <option value="under2m">Dưới 2 triệu</option>
+                  <option value="2to5m">2–5 triệu</option>
+                  <option value="5to10m">Trên 5–10 triệu</option>
+                  <option value="10to20m">Trên 10–20 triệu</option>
+                  <option value="above20m">Trên 20 triệu</option>
+                </select>
+              </div>
+              <div class="tour-filter-group">
+                <label class="form-label" for="filterDuration">Thời lượng</label>
+                <select class="form-select" id="filterDuration" name="duration">
+                  <option value="">Mọi thời lượng</option>
+                  <option value="1N0Đ">1 ngày</option>
+                  <option value="2N1Đ">2 ngày 1 đêm</option>
+                  <option value="3N2Đ">3 ngày 2 đêm</option>
+                  <option value="4N3Đ">4 ngày 3 đêm</option>
+                  <option value="5N4Đ">Từ 5 ngày trở lên</option>
+                </select>
+              </div>
+              <div class="tour-filter-group">
+                <label class="form-label" for="filterTransport">Phương tiện</label>
+                <select class="form-select" id="filterTransport" name="transport">
+                  <option value="">Mọi phương tiện</option>
+                  <option value="máy bay">Máy bay</option>
+                  <option value="xe">Xe du lịch</option>
+                  <option value="tàu hỏa">Tàu hỏa</option>
+                  <option value="du thuyền">Tàu thủy / Du thuyền</option>
+                </select>
+              </div>
+              <div class="tour-filter-group">
+                <label class="form-label" for="filterAvailability">Tình trạng chỗ</label>
+                <select class="form-select" id="filterAvailability" name="availability">
+                  <option value="">Mọi tình trạng</option>
+                  <option value="available">Còn chỗ</option>
+                  <option value="sold_out">Hết chỗ</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-delta-primary tour-filter-submit" type="submit">
+              <i class="bi bi-search"></i> Áp dụng bộ lọc
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      <div class="col-12 col-lg-9">
+        <div class="tours-control-bar">
+          <span class="text-muted small fw-semibold" id="tourResultCount" aria-live="polite">Đang tải tour...</span>
+          <div class="tour-sort-wrapper">
+            <label for="tourSortSelect"><i class="bi bi-sort-down"></i> Sắp xếp:</label>
+            <select class="form-select form-select-sm tour-sort-select" id="tourSortSelect">
+              <option value="default">Mặc định nổi bật</option>
+              <option value="price-asc">Giá: Thấp đến cao</option>
+              <option value="price-desc">Giá: Cao đến thấp</option>
+              <option value="newest">Tour mới nhất</option>
+              <option value="departure-soonest">Ngày khởi hành gần nhất</option>
+            </select>
+          </div>
+        </div>
+        <p id="tourActiveFilters" class="small text-muted mb-3" aria-live="polite"></p>
+        <div id="tourFilterStatus" class="small mb-3" role="status" aria-live="polite"></div>
+        <div class="row" id="toursContainer"></div>
+        <nav id="tourPagination" class="mt-4" aria-label="Phân trang danh sách tour"></nav>
       </div>
     </div>
-
-    <form id="advancedTourFilters" class="tour-advanced-filters mb-4">
-      <div class="row g-3">
-        <div class="col-md-6 col-lg-3">
-          <label class="form-label" for="filterDestination">Điểm đến</label>
-          <input class="form-control" id="filterDestination" name="destination" placeholder="Tên tỉnh, thành phố hoặc vùng">
-        </div>
-        <div class="col-md-6 col-lg-3">
-          <label class="form-label" for="filterDeparture">Điểm khởi hành</label>
-          <input class="form-control" id="filterDeparture" name="departure_location" placeholder="Hà Nội, TP. Hồ Chí Minh...">
-        </div>
-        <div class="col-md-6 col-lg-3">
-          <label class="form-label" for="filterDepartureDate">Ngày khởi hành</label>
-          <input class="form-control" id="filterDepartureDate" name="departure_date" type="date">
-        </div>
-        <div class="col-md-6 col-lg-3">
-          <label class="form-label" for="filterPriceRange">Khoảng giá</label>
-          <select class="form-select" id="filterPriceRange" name="price_range">
-            <option value="">Tất cả mức giá</option>
-            <option value="under2m">Dưới 2 triệu</option>
-            <option value="2to5m">2–5 triệu</option>
-            <option value="5to10m">Trên 5–10 triệu</option>
-            <option value="10to20m">Trên 10–20 triệu</option>
-            <option value="above20m">Trên 20 triệu</option>
-          </select>
-        </div>
-        <div class="col-md-6 col-lg-3">
-          <label class="form-label" for="filterDuration">Thời gian</label>
-          <select class="form-select" id="filterDuration" name="duration">
-            <option value="">Mọi thời lượng</option>
-            <option value="1N0Đ">1 ngày</option>
-            <option value="2N1Đ">2 ngày 1 đêm</option>
-            <option value="3N2Đ">3 ngày 2 đêm</option>
-            <option value="4N3Đ">4 ngày 3 đêm</option>
-            <option value="5N4Đ">Từ 5 ngày trở lên</option>
-          </select>
-        </div>
-        <div class="col-md-6 col-lg-3">
-          <label class="form-label" for="filterTransport">Phương tiện</label>
-          <select class="form-select" id="filterTransport" name="transport">
-            <option value="">Mọi phương tiện</option>
-            <option value="máy bay">Máy bay</option>
-            <option value="xe">Xe du lịch</option>
-            <option value="tàu hỏa">Tàu hỏa</option>
-            <option value="du thuyền">Tàu thủy / Du thuyền</option>
-          </select>
-        </div>
-        <div class="col-md-6 col-lg-3">
-          <label class="form-label" for="filterTourType">Loại tour</label>
-          <select class="form-select" id="filterTourType" name="tour_type">
-            <option value="">Mọi loại tour</option>
-            <option value="domestic">Trong nước</option>
-            <option value="international">Quốc tế</option>
-          </select>
-        </div>
-        <div class="col-md-6 col-lg-3">
-          <label class="form-label" for="filterAudience">Đối tượng</label>
-          <select class="form-select" id="filterAudience" name="audience">
-            <option value="">Mọi đối tượng</option>
-            <option value="family">Gia đình</option>
-            <option value="couple">Cặp đôi</option>
-            <option value="friends">Nhóm bạn</option>
-          </select>
-        </div>
-        <div class="col-md-6 col-lg-3">
-          <label class="form-label" for="filterAvailability">Tình trạng chỗ</label>
-          <select class="form-select" id="filterAvailability" name="availability">
-            <option value="">Mọi tình trạng</option>
-            <option value="available">Còn chỗ</option>
-            <option value="sold_out">Hết chỗ</option>
-          </select>
-        </div>
-      </div>
-      <div class="d-flex flex-wrap gap-2 mt-3">
-        <button class="btn btn-delta-primary" type="submit"><i class="bi bi-search"></i> Tìm kiếm</button>
-        <button class="btn btn-outline-secondary" type="button" id="clearTourFilters"><i class="bi bi-x-circle"></i> Xóa bộ lọc</button>
-      </div>
-    </form>
-    <p id="tourActiveFilters" class="small text-muted mb-3" aria-live="polite"></p>
-    <div id="tourFilterStatus" class="small mb-3" role="status" aria-live="polite"></div>
-
-    <!-- Danh sách thẻ tour được render từ main.js -->
-    <div class="row" id="toursContainer">
-      <!-- Nội dung thẻ Tour sẽ tự động nạp qua renderTourCards() trong main.js -->
-    </div>
-    <nav id="tourPagination" class="mt-4" aria-label="Phân trang danh sách tour"></nav>
   </section>
 
   <!-- ==========================================================================

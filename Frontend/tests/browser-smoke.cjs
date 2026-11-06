@@ -38,6 +38,76 @@ async function main() {
     assert((await page.locator("body").innerText()).includes("Bản demo học phần"), "Client demo banner missing");
     await page.waitForTimeout(1200);
     assert.equal(await page.evaluate(() => typeof window.renderTourCards), "function", "Tour UI controller unavailable");
+    const filterLayout = await page.evaluate(() => ({
+      sidebar: !!document.querySelector(".tour-catalog-layout > aside .tour-filter-sidebar"),
+      results: !!document.querySelector(".tour-catalog-layout #toursContainer"),
+      filterCount: document.querySelectorAll("#advancedTourFilters input, #advancedTourFilters select").length
+    }));
+    assert.deepEqual(filterLayout, { sidebar: true, results: true, filterCount: 7 },
+      "Tour filters and results must use the catalog sidebar layout");
+    const stickyFilter = await page.evaluate(() => {
+      const sidebar = document.querySelector(".tour-filter-sidebar");
+      const bounds = sidebar.getBoundingClientRect();
+      return {
+        position: getComputedStyle(sidebar).position,
+        height: bounds.height,
+        viewportHeight: window.innerHeight
+      };
+    });
+    assert.equal(stickyFilter.position, "sticky", "Tour filter sidebar must remain visible while scrolling");
+    assert(stickyFilter.height >= stickyFilter.viewportHeight * 0.8,
+      "Tour filter sidebar should fill most of the viewport");
+    await page.evaluate(() => {
+      document.documentElement.style.scrollBehavior = "auto";
+      const sidebar = document.querySelector(".tour-filter-sidebar");
+      window.scrollTo(0, window.scrollY + sidebar.getBoundingClientRect().top + 500);
+    });
+    const stickyTop = await page.locator(".tour-filter-sidebar").evaluate(el =>
+      Math.round(el.getBoundingClientRect().top)
+    );
+    assert(stickyTop <= 102, "Tour filter sidebar must stay pinned at the top while viewing results");
+    const filterMatch = await page.evaluate(() => {
+      const sample = [
+        {
+          id: "north",
+          title: "Du thuyền Hạ Long",
+          region: "north",
+          regionName: "Miền Bắc",
+          description: "Vịnh Lan Hạ",
+          departure: "Hà Nội",
+          price: 2000000,
+          duration: "3N2Đ",
+          transport: "Du thuyền",
+          schedules: [{ departureAt: "2027-01-10T09:00:00Z", availableSeats: 5 }]
+        },
+        {
+          id: "south",
+          title: "Tour Phú Quốc",
+          region: "south",
+          regionName: "Miền Nam",
+          description: "",
+          departure: "TP. Hồ Chí Minh",
+          price: 4000000,
+          duration: "3N2Đ",
+          transport: "Máy bay",
+          schedules: [{ departureAt: "2027-01-10T09:00:00Z", availableSeats: 5 }]
+        }
+      ];
+      const filters = {
+        region: "north",
+        destination: "Hạ Long",
+        departure_location: "Hà Nội",
+        departure_date: "2027-01-10",
+        min_price: 2000000,
+        max_price: 3000000,
+        duration: "3N2Đ",
+        transport: "du thuyền",
+        availability: "available",
+        sort_by: "relevance"
+      };
+      return filterLegacyApiTours(sample, filters).map(tour => tour.id);
+    });
+    assert.deepEqual(filterMatch, ["north"], "Tour search must match the selected catalog filters");
     // Require a demo page to stay a demo even if the user chooses QR.
     assert.equal(await page.evaluate(() => document.body.innerHTML.includes('cardCvv')), false, "CVV input found");
 
