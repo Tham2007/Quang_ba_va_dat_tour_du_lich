@@ -2,16 +2,59 @@
    DELTA TRAVEL - TOUR ITINERARY MODAL (itinerary.css)
    ========================================================================== */
 
-/* Modal chi tiết lịch trình */
+/* Modal chi tiết lịch trình - Liquid Glass & Auto Scroll */
 .modal-itinerary .modal-dialog {
-  max-width: 900px;
+  max-width: 920px;
+  width: 95%;
+  max-height: calc(100vh - 2.5rem);
+  margin: 1.25rem auto;
 }
 
 .modal-itinerary .modal-content {
-  border-radius: var(--radius-xl);
-  border: none;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: #ffffff;
+  box-shadow: 0 25px 60px -12px rgba(15, 23, 42, 0.35);
+  max-height: calc(100vh - 2.5rem);
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.modal-itinerary .modal-header {
+  flex-shrink: 0 !important;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #ffffff;
+  padding: 1.25rem 2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  z-index: 10;
+}
+
+.modal-itinerary .modal-body {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  max-height: calc(100vh - 210px) !important;
+  flex: 1 1 auto !important;
+  padding: 1.5rem 2rem;
+  scroll-behavior: smooth;
+}
+
+/* Thanh cuộn Liquid Glass mượt mà cho Modal Lịch Trình */
+.modal-itinerary .modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+.modal-itinerary .modal-body::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+.modal-itinerary .modal-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 6px;
+  border: 2px solid #f1f5f9;
+}
+.modal-itinerary .modal-body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .modal-itinerary .modal-header {
@@ -339,12 +382,19 @@
 
 /* Sticky Modal Footer Bar */
 .modal-itinerary-footer {
-  background: #ffffff;
-  border-top: 1px solid var(--border-color);
+  flex-shrink: 0 !important;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(226, 232, 240, 0.8);
   padding: 1rem 2rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
 }
 
 .itinerary-footer-price {

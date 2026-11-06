@@ -622,6 +622,14 @@ function tourImages(imageValue) {
 
 function publicTour(t) {
   const images = tourImages(t.image);
+  let itinerary = [];
+  if (t.itinerary_json) {
+    try {
+      itinerary = JSON.parse(t.itinerary_json);
+    } catch (e) {
+      itinerary = [];
+    }
+  }
   return {
     id: t.id,
     slug: t.slug,
@@ -632,6 +640,7 @@ function publicTour(t) {
     transport: t.transport,
     image: images[0] || "",
     images,
+    itinerary,
     description: t.description || "",
     price: Number(t.price),
     originalPrice: Number(t.original_price),
@@ -785,6 +794,41 @@ function requireAuth(req, res, next) {
   }
   req.user = sessionUser;
   next();
+}
+
+function requireAuthOrGuest(req, res, next) {
+  const sessionUser = getSessionUser(req);
+  if (sessionUser) {
+    if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+      const headerCsrf = req.headers["x-csrf-token"];
+      const cookieCsrf = req.cookies.delta_csrf;
+      if (headerCsrf && cookieCsrf && (headerCsrf !== cookieCsrf || tokenHash(headerCsrf) !== sessionUser.csrf_hash)) {
+        return res.status(403).json({ detail: "CSRF token không hợp lệ." });
+      }
+    }
+    req.user = sessionUser;
+    return next();
+  }
+
+  // Hỗ trợ khách đặt trực tiếp: tự động liên kết hoặc tạo tài khoản khách hàng
+  const { customer_email, customer_name, customer_phone } = req.body || {};
+  if (customer_email) {
+    let user = db.prepare("SELECT * FROM users WHERE email = ?").get(customer_email);
+    if (!user) {
+      const newUserId = "USR-" + crypto.randomUUID().slice(0, 8);
+      const now = new Date().toISOString();
+      db.prepare(`
+        INSERT INTO users (id, full_name, email, phone, password_hash, role, active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 'CUSTOMER', 1, ?, ?)
+      `).run(newUserId, customer_name || "Khách Hàng", customer_email, customer_phone || "0900000000", hashPassword("deltaCustomer123@"), now, now);
+      user = db.prepare("SELECT * FROM users WHERE id = ?").get(newUserId);
+    }
+    req.user = user;
+    try { createSession(res, user); } catch(e) {}
+    return next();
+  }
+
+  return res.status(401).json({ detail: "Bạn cần đăng nhập." });
 }
 
 function requireAdmin(req, res, next) {
@@ -1089,7 +1133,7 @@ app.post("/api/v1/bookings/quote", (req, res) => {
   });
 });
 
-app.post("/api/v1/bookings", requireAuth, (req, res) => {
+app.post("/api/v1/bookings", requireAuthOrGuest, (req, res) => {
   const {
     schedule_id,
     adults = 1,

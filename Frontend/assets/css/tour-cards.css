@@ -218,13 +218,85 @@
   color: var(--text-muted);
 }
 
-#tourPagination .pagination {
-  justify-content: center;
-  flex-wrap: wrap;
+/* LIQUID GLASS CENTERED PAGINATION */
+#tourPagination {
+  margin: 3.5rem 0 2rem;
+  width: 100%;
 }
 
-#tourPagination .page-link {
-  color: var(--primary-color);
+.pagination-wrapper {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100%;
+}
+
+.pagination-liquid {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border-radius: 24px !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 
+    0 12px 30px -6px rgba(15, 23, 42, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.95) inset !important;
+  margin: 0 !important;
+  list-style: none !important;
+}
+
+.pagination-liquid .page-item {
+  margin: 0 !important;
+}
+
+.pagination-liquid .page-link {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 16px !important;
+  justify-content: center !important;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #334155 !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 14px !important;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+}
+
+.pagination-liquid .page-link:hover:not(:disabled) {
+  background: rgba(2, 132, 199, 0.09) !important;
+  color: #0284c7 !important;
+  border-color: rgba(2, 132, 199, 0.25) !important;
+  transform: translateY(-2px);
+}
+
+.pagination-liquid .page-item.active .page-link {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  color: #ffffff !important;
+  border-color: #0284c7 !important;
+  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.38) !important;
+  transform: translateY(-2px);
+}
+
+.pagination-liquid .page-item.disabled .page-link {
+  color: #94a3b8 !important;
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  pointer-events: none;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
 /* TOUR CARD - APPLE LIQUID GLASS CARD */
