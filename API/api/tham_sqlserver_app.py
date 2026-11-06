@@ -76,8 +76,13 @@ def _iso_without_assumed_timezone(value):
 def _tour(row):
     price = _integer_vnd(row["GiaKhuyenNghi"])
     ident = str(row["MaTour"])
+    category = row["TenDanhMuc"]
+    category_folded = category.casefold()
+    region = next((code for code, label in (
+        ("north", "miền bắc"), ("central", "miền trung"), ("south", "miền nam")
+    ) if label in category_folded), category)
     return {"id": ident, "slug": "tour-" + ident, "title": row["TenTour"],
-            "region": row["TenDanhMuc"], "category": row["TenDanhMuc"],
+            "region": region, "category": category,
             "duration": None, "departure": None, "transport": None,
             "image": row["HinhAnhDaiDien"], "description": row["MoTaChiTiet"] or "",
             "itinerarySummary": row["LichTrinhTongQuan"],
@@ -113,18 +118,28 @@ def tours(reader: Annotated[SqlServerReader, Depends(get_reader)],
           max_price: int | None = Query(default=None, ge=0),
           region: str = Query(default="", max_length=100),
           flash: bool = False):
-    if region or flash:
-        raise HTTPException(422, "Schema chưa có region/flashSale chuẩn hóa; cần duyệt mapping.")
+    region_patterns = {
+        "north": "%Miền Bắc%",
+        "central": "%Miền Trung%",
+        "south": "%Miền Nam%"
+    }
+    if region and region not in region_patterns:
+        raise HTTPException(422, "Vùng miền không hợp lệ.")
+    if flash:
+        raise HTTPException(422, "Schema chưa có flashSale chuẩn hóa; cần duyệt mapping.")
     pattern = "%" + q.replace("[", "[[]").replace("%", "[%]").replace("_", "[_]") + "%" if q else None
+    region_pattern = region_patterns.get(region)
     rows = reader.rows("""SELECT TOP (100) t.MaTour, t.TenTour, d.TenDanhMuc,
                               t.HinhAnhDaiDien, t.MoTaChiTiet, t.LichTrinhTongQuan, t.GiaKhuyenNghi
                        FROM dbo.TOUR AS t JOIN dbo.DANHMUC AS d ON t.MaDanhMuc=d.MaDanhMuc
                        WHERE t.TrangThai=1
                          AND (:pattern IS NULL OR t.TenTour LIKE :pattern OR d.TenDanhMuc LIKE :pattern)
                          AND (:category IS NULL OR d.TenDanhMuc=:category)
+                         AND (:region_pattern IS NULL OR d.TenDanhMuc LIKE :region_pattern)
                          AND (:max_price IS NULL OR t.GiaKhuyenNghi<=:max_price)
                        ORDER BY t.MaTour""",
-                       {"pattern": pattern, "category": category or None, "max_price": max_price})
+                       {"pattern": pattern, "category": category or None,
+                        "region_pattern": region_pattern, "max_price": max_price})
     return [_tour(row) for row in rows]
 
 
@@ -207,7 +222,7 @@ def tour_itinerary(tour_id: str, reader: Annotated[SqlServerReader, Depends(get_
                          FROM dbo.LICH_TRINH_DETAIL WHERE MaTour=:tour_id
                          ORDER BY NgayThu, MaLichTrinh""", {"tour_id": ident})
     return [{"id": str(r["MaLichTrinh"]), "tourId": str(r["MaTour"]),
-             "day": int(r["NgayThu"]), "title": r["TieuDeNgay"],
+             "day": int(r["NgayThu"]), "dayNumber": int(r["NgayThu"]), "title": r["TieuDeNgay"],
              "description": r["NoiDungChiTiet"], "meals": r["BuaAn"]}
             for r in rows]
 

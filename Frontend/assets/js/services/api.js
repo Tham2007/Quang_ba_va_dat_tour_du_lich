@@ -378,6 +378,7 @@ const DeltaAPI = (() => {
     API_BASE_URL,
     isOnline: () => isBackendOnline,
     getHealthData: () => backendHealthData,
+    isCatalogReadOnly: () => backendHealthData?.catalogMode === "sqlserver_read_only",
     checkHealth,
     fetchTours,
     fetchTourById,

@@ -1308,6 +1308,11 @@ function setMinimumDepartureDate() {
  * Mở Modal Đặt tour với tour được chỉ định
  */
 async function openBookingModal(tourId) {
+  if (DeltaAPI?.isCatalogReadOnly?.()) {
+    showToast("Danh mục đang kết nối SQL Server chỉ đọc; chức năng đặt tour chưa được tích hợp.", "warning");
+    return;
+  }
+
   const normalizedTourId = String(tourId).trim().toLowerCase();
   const tour = TOURS_DATA.find(
     t => String(t.id).trim().toLowerCase() === normalizedTourId

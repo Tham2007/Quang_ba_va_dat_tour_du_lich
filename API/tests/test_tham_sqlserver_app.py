@@ -83,6 +83,7 @@ def test_catalog_bound_parameters_and_no_invented_discount(setup):
     assert response.status_code == 200
     tour = response.json()[0]
     assert tour["id"] == "7" and tour["price"] == 2500000
+    assert tour["region"] == "central" and tour["category"] == "Miền Trung"
     assert tour["originalPrice"] == 2500000 and not tour["isFlashSale"]
     assert tour["duration"] is None
     assert "Đà Nẵng" not in fake.last_sql
@@ -93,7 +94,10 @@ def test_search_escapes_wildcards_and_unsupported_filters(setup):
     client, fake = setup
     assert client.get("/api/v1/tours?q=%25_%5B").status_code == 200
     assert fake.last_params["pattern"] == "%[%][_][[]%"
-    assert client.get("/api/v1/tours?region=north").status_code == 422
+    region_response = client.get("/api/v1/tours?region=north")
+    assert region_response.status_code == 200
+    assert fake.last_params["region_pattern"] == "%Miền Bắc%"
+    assert client.get("/api/v1/tours?region=unknown").status_code == 422
     assert client.get("/api/v1/tours?flash=true").status_code == 422
 
 

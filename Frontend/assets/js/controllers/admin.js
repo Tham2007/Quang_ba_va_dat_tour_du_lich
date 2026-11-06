@@ -27,7 +27,7 @@ const AdminState = {
 
   // Tours tab filter
   tourSearch: "",
-  tourStatusFilter: "all",
+  tourStatusFilter: "ACTIVE",
   editingTourId: null,
   tourCostItems: [],
 
@@ -240,7 +240,8 @@ function refreshAdminData() {
             slug: st.slug,
             region: st.region,
             regionName: st.region === 'north' ? 'Miền Bắc' : (st.region === 'central' ? 'Miền Trung' : 'Miền Nam'),
-            image: st.image || 'assets/images/halong.png',
+            image: st.images?.[0] || st.image || 'assets/images/halong.png',
+            images: st.images || (st.image ? [st.image] : []),
             duration: st.duration,
             departure: st.departure,
             transport: st.transport,
@@ -995,30 +996,48 @@ function handleTourStatusFilter(val) {
   renderTabTours(document.getElementById("adminTabContentContainer"));
 }
 
-function handleToggleTourStatus(tourId) {
-  const tours = [...AdminState.tours];
-  const idx = tours.findIndex(t => t.id === tourId);
-  if (idx !== -1) {
-    const curStatus = tours[idx].status || "ACTIVE";
-    tours[idx].status = (curStatus === "ACTIVE") ? "INACTIVE" : "ACTIVE";
-    saveToursData(tours);
-    addAuditLog("UPDATE_TOUR", "Tour", tourId, `Thay đổi trạng thái tour ${tours[idx].title} thành ${tours[idx].status}`);
-    showAdminToast(`Đã chuyển tour ${tours[idx].id} sang trạng thái ${tours[idx].status}`, "success");
-    renderCurrentTab();
+async function handleToggleTourStatus(tourId) {
+  const tour = AdminState.tours.find(item => item.id === tourId);
+  if (!tour) return;
+
+  const status = (tour.status || "ACTIVE") === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+  if (typeof DeltaAPI !== "undefined" && DeltaAPI.adminPatchTour) {
+    const result = await DeltaAPI.adminPatchTour(tourId, { active: status === "ACTIVE" });
+    if (!result.success) {
+      showAdminToast(result.error || "Không thể cập nhật trạng thái tour trên máy chủ.", "error");
+      return;
+    }
   }
+
+  const tours = AdminState.tours.map(item => item.id === tourId ? { ...item, status } : item);
+  saveToursData(tours);
+  addAuditLog("UPDATE_TOUR", "Tour", tourId, `Thay đổi trạng thái tour ${tour.title} thành ${status}`);
+  showAdminToast(`Đã chuyển tour ${tourId} sang trạng thái ${status}`, "success");
+  renderCurrentTab();
 }
 
-function handleDeleteTour(tourId) {
+async function handleDeleteTour(tourId) {
   const tour = AdminState.tours.find(t => t.id === tourId);
   if (!tour) return;
 
-  if (confirm(`Bạn có chắc chắn muốn xóa tour "${tour.title}" (${tour.id})? Hành động này sẽ được ghi nhận vào Nhật ký kiểm toán.`)) {
-    const updated = AdminState.tours.filter(t => t.id !== tourId);
-    saveToursData(updated);
-    addAuditLog("DELETE_TOUR", "Tour", tourId, `Xóa tour "${tour.title}" khỏi catalog hệ thống`);
-    showAdminToast(`Đã xóa tour ${tourId} thành công!`, "info");
-    renderCurrentTab();
+  if (!confirm(`Bạn có chắc chắn muốn ẩn tour "${tour.title}" (${tour.id})? Tour sẽ không còn xuất hiện trong danh sách đang bán nhưng có thể xem lại ở mục Tạm ẩn.`)) return;
+
+  if (typeof DeltaAPI !== "undefined" && DeltaAPI.adminDeleteTour) {
+    const result = await DeltaAPI.adminDeleteTour(tourId);
+    if (!result.success) {
+      showAdminToast(result.error || "Không thể ẩn tour trên máy chủ.", "error");
+      return;
+    }
   }
+
+  const updated = AdminState.tours.map(item =>
+    item.id === tourId ? { ...item, status: "INACTIVE" } : item
+  );
+  AdminState.tourStatusFilter = "ACTIVE";
+  saveToursData(updated);
+  addAuditLog("DELETE_TOUR", "Tour", tourId, `Ẩn tour "${tour.title}" khỏi danh sách đang bán`);
+  showAdminToast(`Đã ẩn tour ${tourId}. Có thể xem lại trong mục Tạm ẩn.`, "success");
+  renderCurrentTab();
 }
 
 /**
@@ -1560,6 +1579,13 @@ async function handleSaveTourSubmit(e) {
     if (typeof DeltaAPI !== "undefined" && DeltaAPI.adminPatchTour) {
       const catalogUpdate = await DeltaAPI.adminPatchTour(id, {
         title: tourData.title,
+        slug: tourData.slug,
+        region: tourData.region,
+        duration: tourData.duration,
+        departure: tourData.departure,
+        transport: tourData.transport,
+        original_price: Math.max(calculatedBaseCost, 1),
+        flash_sale: tourData.isFlashSale,
         description: tourData.highlights.join("\n"),
         active: status === "ACTIVE",
         images: apiImages

@@ -59,6 +59,41 @@ function tokenHash(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
+async function proxySqlServerCatalog(req, res, endpoint, queryKeys = []) {
+  const configuredUrl = process.env.THAM_SQLSERVER_CATALOG_API_URL;
+  if (!configuredUrl) return false;
+
+  let upstreamUrl;
+  try {
+    const baseUrl = new URL(configuredUrl);
+    if (!["http:", "https:"].includes(baseUrl.protocol) || baseUrl.username || baseUrl.password) {
+      throw new TypeError("Invalid catalog API URL");
+    }
+    upstreamUrl = new URL(endpoint, `${baseUrl.origin}/`);
+    for (const key of queryKeys) {
+      const value = req.query[key];
+      if (typeof value === "string" && value !== "") upstreamUrl.searchParams.set(key, value);
+    }
+  } catch (error) {
+    console.error("Invalid SQL Server catalog API configuration.", error.name);
+    res.status(500).json({ detail: "Cấu hình API danh mục SQL Server không hợp lệ." });
+    return true;
+  }
+
+  try {
+    const response = await fetch(upstreamUrl, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(8000)
+    });
+    const data = await response.json();
+    res.status(response.status).json(data);
+  } catch (error) {
+    console.error("SQL Server catalog API request failed.", error.name);
+    res.status(503).json({ detail: "Không thể tải danh mục SQL Server chỉ đọc." });
+  }
+  return true;
+}
+
 function randomToken() {
   return crypto.randomBytes(24).toString("base64url");
 }
@@ -261,7 +296,19 @@ function initDatabase() {
 initDatabase();
 
 // Serializers
+function tourImages(imageValue) {
+  if (!imageValue) return [];
+  if (!imageValue.startsWith("[")) return [imageValue];
+
+  const images = JSON.parse(imageValue);
+  if (!Array.isArray(images) || !images.every(image => typeof image === "string")) {
+    throw new TypeError("Dữ liệu ảnh tour không hợp lệ.");
+  }
+  return images.filter(Boolean);
+}
+
 function publicTour(t) {
+  const images = tourImages(t.image);
   return {
     id: t.id,
     slug: t.slug,
@@ -270,7 +317,8 @@ function publicTour(t) {
     duration: t.duration,
     departure: t.departure,
     transport: t.transport,
-    image: t.image,
+    image: images[0] || "",
+    images,
     description: t.description || "",
     price: Number(t.price),
     originalPrice: Number(t.original_price),
@@ -468,7 +516,30 @@ function createSession(res, user) {
 // 1. Health check
 app.get("/api/v1/health/ready", (req, res) => {
   const row = db.prepare("SELECT COUNT(*) AS c FROM tours").get();
-  res.json({ status: "ok", db: "connected", tours: row.c });
+  res.json({
+    status: "ok",
+    db: "connected",
+    tours: row.c,
+    catalogMode: process.env.THAM_SQLSERVER_CATALOG_API_URL ? "sqlserver_read_only" : "sqlite"
+  });
+});
+
+app.use("/api/v1/admin", (req, res, next) => {
+  if (process.env.THAM_SQLSERVER_CATALOG_API_URL) {
+    return res.status(503).json({
+      detail: "Chế độ danh mục SQL Server chỉ đọc chưa kết nối API quản trị."
+    });
+  }
+  next();
+});
+
+app.use("/api/v1/bookings", (req, res, next) => {
+  if (process.env.THAM_SQLSERVER_CATALOG_API_URL) {
+    return res.status(503).json({
+      detail: "Chế độ danh mục SQL Server chỉ đọc chưa hỗ trợ đặt tour."
+    });
+  }
+  next();
 });
 
 // 2. Auth Routes
@@ -608,7 +679,8 @@ app.delete("/api/v1/favorites/:tour_id", requireAuth, (req, res) => {
 });
 
 // 4. Tours & Schedules
-app.get("/api/v1/tours", (req, res) => {
+app.get("/api/v1/tours", async (req, res) => {
+  if (await proxySqlServerCatalog(req, res, "/api/v1/tours", ["q", "region", "max_price"])) return;
   const { search, region, flash_sale } = req.query;
   let query = "SELECT * FROM tours WHERE active = 1";
   const params = [];
@@ -631,19 +703,38 @@ app.get("/api/v1/tours", (req, res) => {
   res.json(tours.map(publicTour));
 });
 
-app.get("/api/v1/tours/:tour_id", (req, res) => {
+app.get("/api/v1/tours/:tour_id", async (req, res) => {
+  if (await proxySqlServerCatalog(req, res, `/api/v1/tours/${encodeURIComponent(req.params.tour_id)}`)) return;
   const tour = db.prepare("SELECT * FROM tours WHERE id = ? AND active = 1").get(req.params.tour_id);
   if (!tour) return res.status(404).json({ detail: "Không tìm thấy thông tin tour." });
   res.json(publicTour(tour));
 });
 
-app.get("/api/v1/tours/:tour_id/schedules", (req, res) => {
+app.get("/api/v1/tours/:tour_id/schedules", async (req, res) => {
+  if (await proxySqlServerCatalog(req, res,
+    `/api/v1/tours/${encodeURIComponent(req.params.tour_id)}/schedules`)) return;
   const schedules = db.prepare(`
     SELECT * FROM schedules
     WHERE tour_id = ? AND active = 1 AND departure_at > datetime('now')
     ORDER BY departure_at ASC
   `).all(req.params.tour_id);
   res.json(schedules.map(publicSchedule));
+});
+
+app.get("/api/v1/tours/:tour_id/itinerary", async (req, res) => {
+  if (await proxySqlServerCatalog(req, res,
+    `/api/v1/tours/${encodeURIComponent(req.params.tour_id)}/itinerary`)) return;
+  const items = db.prepare(`
+    SELECT day_number, sequence, category, title, description, location, start_time
+    FROM itinerary_items WHERE tour_id = ? ORDER BY day_number, sequence
+  `).all(req.params.tour_id);
+  res.json(items.map(item => ({
+    dayNumber: Number(item.day_number),
+    title: item.title,
+    description: item.description,
+    location: item.location,
+    startTime: item.start_time
+  })));
 });
 
 // 5. Booking & Pricing Flow
@@ -994,13 +1085,37 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
   const t = db.prepare("SELECT * FROM tours WHERE id = ?").get(tour_id);
   if (!t) return res.status(404).json({ detail: "Không tìm thấy tour." });
 
+  const columns = {
+    title: "title",
+    slug: "slug",
+    region: "region",
+    duration: "duration",
+    departure: "departure",
+    transport: "transport",
+    description: "description",
+    price: "price",
+    original_price: "original_price",
+    flash_sale: "flash_sale",
+    active: "active",
+    image: "image",
+    images: "image"
+  };
   const fields = [];
   const params = [];
   for (const [key, val] of Object.entries(req.body || {})) {
+    if (!Object.hasOwn(columns, key)) {
+      return res.status(422).json({ detail: `Không hỗ trợ cập nhật trường "${key}".` });
+    }
     if (val !== undefined && val !== null) {
-      const col = key === "flash_sale" ? "flash_sale" : key === "original_price" ? "original_price" : key;
+      if (key === "images" &&
+          (!Array.isArray(val) || val.length > 12 ||
+           val.some(image => typeof image !== "string" || image.length > 1200))) {
+        return res.status(422).json({ detail: "Danh sách ảnh tour không hợp lệ." });
+      }
+      const col = columns[key];
       fields.push(`${col} = ?`);
-      params.push(key === "flash_sale" || key === "active" ? (val ? 1 : 0) : val);
+      params.push(key === "images" ? JSON.stringify(val) :
+        key === "flash_sale" || key === "active" ? (val ? 1 : 0) : val);
     }
   }
 

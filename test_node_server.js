@@ -41,6 +41,8 @@ async function runTests() {
 
   let passed = 0;
   let total = 0;
+  const previousCatalogUrl = process.env.THAM_SQLSERVER_CATALOG_API_URL;
+  let catalogMockServer;
 
   function assert(title, condition, extra = "") {
     total++;
@@ -267,9 +269,25 @@ async function runTests() {
     const patchTourRes = await req(`/api/v1/admin/tours/${newTourId}`, {
       method: "PATCH",
       headers: adminHeaders,
-      body: { price: 3400000, flash_sale: true }
+      body: {
+        price: 3400000,
+        flash_sale: true,
+        images: ["https://example.com/tour-cover.jpg", "https://example.com/tour-gallery.jpg"]
+      }
     });
-    assert(`PATCH /api/v1/admin/tours/${newTourId}`, patchTourRes.status === 200 && patchTourRes.json?.price === 3400000);
+    assert(`PATCH /api/v1/admin/tours/${newTourId}`,
+      patchTourRes.status === 200 &&
+      patchTourRes.json?.price === 3400000 &&
+      patchTourRes.json?.image === "https://example.com/tour-cover.jpg" &&
+      patchTourRes.json?.images?.length === 2);
+
+    const invalidTourPatchRes = await req(`/api/v1/admin/tours/${newTourId}`, {
+      method: "PATCH",
+      headers: adminHeaders,
+      body: { unknown_column: "invalid" }
+    });
+    assert(`PATCH /api/v1/admin/tours/${newTourId} rejects unsupported fields`,
+      invalidTourPatchRes.status === 422);
 
     const replaceTourDetailsRes = await req(`/api/v1/admin/tours/${newTourId}/details`, {
       method: "PUT",
@@ -320,7 +338,13 @@ async function runTests() {
       method: "DELETE",
       headers: adminHeaders
     });
-    assert(`DELETE /api/v1/admin/tours/${newTourId}`, delTourRes.status === 200);
+    const publicToursAfterDeleteRes = await req("/api/v1/tours");
+    const adminToursAfterDeleteRes = await req("/api/v1/admin/tours", { headers: adminHeaders });
+    const deletedTourAdminRecord = adminToursAfterDeleteRes.json?.find(tour => tour.id === newTourId);
+    assert(`DELETE /api/v1/admin/tours/${newTourId}`,
+      delTourRes.status === 200 &&
+      !publicToursAfterDeleteRes.json?.some(tour => tour.id === newTourId) &&
+      deletedTourAdminRecord?.active === false);
 
     // Admin confirm payment on booking
     const admConfirmPay = await req(`/api/v1/admin/bookings/${bookingId}/confirm-payment`, {
@@ -341,9 +365,52 @@ async function runTests() {
     const unknownRes = await req("/api/v1/non-existent-route");
     assert("GET /api/v1/unknown (404 guard)", unknownRes.status === 404 && unknownRes.json?.detail !== undefined);
 
+    const catalogRequests = [];
+    catalogMockServer = http.createServer((request, response) => {
+      const requestUrl = new URL(request.url, "http://127.0.0.1");
+      catalogRequests.push(requestUrl);
+      response.setHeader("Content-Type", "application/json");
+      if (requestUrl.pathname === "/api/v1/tours") {
+        response.end(JSON.stringify([{ id: "7", title: "SQL Server tour", price: 2500000 }]));
+      } else if (requestUrl.pathname === "/api/v1/tours/7/schedules") {
+        response.end(JSON.stringify([{ id: "42", tourId: "7", availableSeats: 2 }]));
+      } else {
+        response.statusCode = 404;
+        response.end(JSON.stringify({ detail: "Not found" }));
+      }
+    });
+    await new Promise(resolve => catalogMockServer.listen(0, "127.0.0.1", resolve));
+    process.env.THAM_SQLSERVER_CATALOG_API_URL =
+      `http://127.0.0.1:${catalogMockServer.address().port}`;
+
+    const proxiedTours = await req("/api/v1/tours?q=H%E1%BA%A1%20Long&region=north&max_price=3000000");
+    const proxiedSchedules = await req("/api/v1/tours/7/schedules");
+    const readOnlyHealth = await req("/api/v1/health/ready");
+    const blockedAdmin = await req("/api/v1/admin/tours", { headers: adminHeaders });
+    const blockedBooking = await req("/api/v1/bookings/quote", {
+      method: "POST",
+      body: { schedule_id: "42", adults: 1 }
+    });
+    assert("SQL Server read-only catalog proxy",
+      proxiedTours.status === 200 &&
+      proxiedTours.json?.[0]?.id === "7" &&
+      catalogRequests[0]?.searchParams.get("q") === "Hạ Long" &&
+      catalogRequests[0]?.searchParams.get("region") === "north" &&
+      catalogRequests[0]?.searchParams.get("max_price") === "3000000" &&
+      proxiedSchedules.status === 200 &&
+      proxiedSchedules.json?.[0]?.availableSeats === 2 &&
+      readOnlyHealth.json?.catalogMode === "sqlserver_read_only" &&
+      blockedAdmin.status === 503 &&
+      blockedBooking.status === 503);
+
   } catch (err) {
     console.error("Lỗi trong quá trình kiểm thử:", err);
   } finally {
+    if (previousCatalogUrl === undefined) delete process.env.THAM_SQLSERVER_CATALOG_API_URL;
+    else process.env.THAM_SQLSERVER_CATALOG_API_URL = previousCatalogUrl;
+    if (catalogMockServer?.listening) {
+      await new Promise(resolve => catalogMockServer.close(resolve));
+    }
     console.log("\n=======================================================");
     console.log(`  KẾT QUẢ: ${passed}/${total} ĐẠT (${((passed / total) * 100).toFixed(1)}%)`);
     console.log("=======================================================\n");

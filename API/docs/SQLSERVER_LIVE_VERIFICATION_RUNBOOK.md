@@ -35,6 +35,16 @@ Không chụp ảnh biến môi trường chứa credentials. Chỉ gửi lên n
 
 Trên chính máy đó, truy cập `http://127.0.0.1:8010/api/v1/health/ready` và `http://127.0.0.1:8010/docs`; kiểm tra `GET /api/v1/categories`, `GET /api/v1/tours`, tour gallery/itinerary/schedules. Chọn chuyến thật rồi `POST /api/v1/bookings/quote` để đối chiếu giá server. **Không thử API tạo đơn/thanh toán**, chúng cố ý trả 503.
 
+### Hiển thị danh mục SQL Server trên website Node.js local
+
+Từ PowerShell tại thư mục gốc repository, chạy `.\start_sqlserver_catalog.ps1`.
+Script hỏi mật khẩu kín, bật API chỉ đọc trên cổng 8010 và website Node.js trên
+cổng 8001; mật khẩu không được ghi vào source hoặc truyền trên command line.
+Dừng bằng `Ctrl+C`. Website hiện tại ở cổng 8000 vẫn chạy SQLite demo và không bị
+thay đổi. Tài khoản kiểm tra chỉ cần quyền `SELECT`; không dùng nút admin/đặt tour
+để ghi vào SQL Server. Danh mục chỉ hiển thị tour có `TrangThai=1`; nếu không có,
+website sẽ hiện danh mục rỗng thay vì tự rơi về dữ liệu demo.
+
 ## 4. Hai nhóm kiểm thử độc lập
 
 **Mock, chạy được khi chưa có DB**:
