@@ -34,6 +34,7 @@ try {
 $gateway = $null
 try {
   $env:THAM_SQLSERVER_CATALOG_API_URL = "http://127.0.0.1:8010"
+  $env:THAM_SQLSERVER_SYNC_ADMIN = "1"
   $env:HOST = "127.0.0.1"
   $env:PORT = "8001"
   $gateway = Start-Process -FilePath $python `
@@ -70,6 +71,7 @@ try {
 } finally {
   Remove-Item Env:THAM_SQLSERVER_URL -ErrorAction SilentlyContinue
   Remove-Item Env:THAM_SQLSERVER_CATALOG_API_URL -ErrorAction SilentlyContinue
+  Remove-Item Env:THAM_SQLSERVER_SYNC_ADMIN -ErrorAction SilentlyContinue
   Remove-Item Env:HOST -ErrorAction SilentlyContinue
   Remove-Item Env:PORT -ErrorAction SilentlyContinue
   if ($gateway -and -not $gateway.HasExited) {

@@ -259,8 +259,7 @@ function refreshAdminData() {
             exclusions: ['Chi phí cá nhân', 'Thuế VAT']
           };
         });
-        const existingIds = new Set(serverTours.map(t => t.id));
-        AdminState.tours = [...serverTours, ...AdminState.tours.filter(t => !existingIds.has(t.id))];
+        AdminState.tours = serverTours;
         if (AdminState.currentTab === "tours" || AdminState.currentTab === "schedules" ||
             AdminState.currentTab === "dashboard") {
           renderCurrentTab();

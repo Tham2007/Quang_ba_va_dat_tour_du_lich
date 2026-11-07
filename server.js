@@ -94,6 +94,121 @@ async function proxySqlServerCatalog(req, res, endpoint, queryKeys = []) {
   return true;
 }
 
+async function syncSqlServerCatalogToLocalDb() {
+  const configuredUrl = process.env.THAM_SQLSERVER_CATALOG_API_URL;
+  if (!configuredUrl) return { synced: 0 };
+
+  try {
+    const res = await fetch(`${configuredUrl}/api/v1/tours`);
+    if (!res.ok) return { synced: 0 };
+    const sqlTours = await res.json();
+    if (!Array.isArray(sqlTours) || sqlTours.length === 0) return { synced: 0 };
+
+    const imageMap = {
+      "1": "assets/images/luxury-cruise-view.jpg",
+      "2": "assets/images/tour-da-nang.jpg",
+      "3": "assets/images/tour-phu-quoc.jpg",
+      "4": "assets/images/tour-sapa.jpg"
+    };
+
+    const regionMap = {
+      "1": "north",
+      "2": "central",
+      "3": "south",
+      "4": "north"
+    };
+
+    const sqlIds = [];
+    const now = new Date().toISOString();
+
+    for (const st of sqlTours) {
+      const tourId = String(st.id);
+      sqlIds.push(tourId);
+
+      const title = st.title;
+      const slug = st.slug || ("tour-" + tourId);
+      const region = regionMap[tourId] || (st.region === "bac" ? "north" : st.region === "trung" ? "central" : st.region === "nam" ? "south" : "north");
+      const duration = st.itinerarySummary ? st.itinerarySummary.split("|")[0].trim() : "3N2Đ";
+      const price = Number(st.price) || 0;
+      const originalPrice = Number(st.originalPrice) || Math.round(price * 1.15);
+      const chosenImage = imageMap[tourId] || "assets/images/halong.png";
+      const imagesJson = JSON.stringify([chosenImage]);
+      const departure = st.category || "Hà Nội / TP.HCM";
+      const transport = "Xe du lịch / Máy bay";
+      const description = st.description || "";
+
+      db.prepare(`
+        INSERT INTO tours (id, slug, title, region, duration, price, original_price, image, departure, transport, flash_sale, description, itinerary_json, active, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, '[]', 1, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          slug = excluded.slug,
+          title = excluded.title,
+          region = excluded.region,
+          duration = excluded.duration,
+          price = excluded.price,
+          original_price = excluded.original_price,
+          image = excluded.image,
+          departure = excluded.departure,
+          transport = excluded.transport,
+          description = excluded.description,
+          active = 1,
+          updated_at = excluded.updated_at
+      `).run(tourId, slug, title, region, duration, price, originalPrice, imagesJson, departure, transport, description, now);
+
+      try {
+        const sRes = await fetch(`${configuredUrl}/api/v1/tours/${encodeURIComponent(tourId)}/schedules`);
+        if (sRes.ok) {
+          const schedList = await sRes.json();
+          for (const s of schedList) {
+            const sid = "SCHED-" + s.id;
+            const depAt = s.departureAt ? new Date(s.departureAt).toISOString() : now;
+            const total = Number(s.totalSeats) || 25;
+            const reserved = total - (Number(s.availableSeats) || 0);
+            const active = s.active ? 1 : 0;
+            db.prepare(`
+              INSERT INTO schedules (id, tour_id, departure_at, total_seats, reserved_seats, active)
+              VALUES (?, ?, ?, ?, ?, ?)
+              ON CONFLICT(id) DO UPDATE SET
+                tour_id = excluded.tour_id,
+                departure_at = excluded.departure_at,
+                total_seats = excluded.total_seats,
+                reserved_seats = excluded.reserved_seats,
+                active = excluded.active
+            `).run(sid, tourId, depAt, total, reserved, active);
+          }
+        }
+      } catch (e) {}
+
+      try {
+        const iRes = await fetch(`${configuredUrl}/api/v1/tours/${encodeURIComponent(tourId)}/itinerary`);
+        if (iRes.ok) {
+          const itinList = await iRes.json();
+          db.prepare("DELETE FROM itinerary_items WHERE tour_id = ?").run(tourId);
+          const insertItin = db.prepare(`
+            INSERT INTO itinerary_items (id, tour_id, day_number, sequence, category, title, description, location, start_time)
+            VALUES (?, ?, ?, ?, 'sightseeing', ?, ?, ?, '08:00')
+          `);
+          itinList.forEach((item, idx) => {
+            const dayNum = item.dayNumber || item.day || (idx + 1);
+            insertItin.run(`ITIN-${tourId}-${dayNum}-${idx + 1}`, tourId, dayNum, idx + 1, item.title || "", item.description || "", item.meals || "");
+          });
+        }
+      } catch (e) {}
+    }
+
+    if (sqlIds.length > 0) {
+      const placeholders = sqlIds.map(() => "?").join(",");
+      db.prepare(`UPDATE tours SET active = 0 WHERE id NOT IN (${placeholders})`).run(...sqlIds);
+    }
+
+    console.log(`[SQLSERVER SYNC] Đã đồng bộ thành công ${sqlTours.length} tour từ SQL Server vào hệ thống Admin & Khách hàng.`);
+    return { synced: sqlTours.length, tourIds: sqlIds };
+  } catch (err) {
+    console.error("[SQLSERVER SYNC] Lỗi đồng bộ SQL Server:", err.message);
+    return { synced: 0, error: err.message };
+  }
+}
+
 function randomToken() {
   return crypto.randomBytes(24).toString("base64url");
 }
@@ -885,7 +1000,7 @@ app.get("/api/v1/health/ready", (req, res) => {
 });
 
 app.use("/api/v1/admin", (req, res, next) => {
-  if (process.env.THAM_SQLSERVER_CATALOG_API_URL) {
+  if (process.env.THAM_SQLSERVER_CATALOG_API_URL && process.env.THAM_SQLSERVER_SYNC_ADMIN !== "1") {
     return res.status(503).json({
       detail: "Chế độ danh mục SQL Server chỉ đọc chưa kết nối API quản trị."
     });
@@ -1308,11 +1423,19 @@ app.get("/api/v1/admin/audit", requireAdmin, (req, res) => {
 });
 
 app.get("/api/v1/admin/tours", requireAdmin, (req, res) => {
-  const tours = db.prepare("SELECT * FROM tours ORDER BY id ASC").all();
+  const tours = db.prepare("SELECT * FROM tours ORDER BY active DESC, CAST(id AS INTEGER) ASC, id ASC").all();
   res.json(tours.map(t => ({
     ...publicTour(t),
     active: Boolean(t.active)
   })));
+});
+
+app.post("/api/v1/admin/sync-sqlserver", requireAdmin, async (req, res) => {
+  if (!process.env.THAM_SQLSERVER_CATALOG_API_URL) {
+    return res.status(400).json({ detail: "Chưa cấu hình THAM_SQLSERVER_CATALOG_API_URL." });
+  }
+  const result = await syncSqlServerCatalogToLocalDb();
+  res.json({ status: "ok", ...result });
 });
 
 app.get("/api/v1/admin/tours/:tour_id/details", requireAdmin, (req, res) => {
@@ -1606,6 +1729,33 @@ if (fs.existsSync(THREE_D_DIR)) {
   app.use("/3D%20Image%20data", express.static(THREE_D_DIR, { maxAge: "1d" }));
 }
 
+const SQL_TOUR_IMAGES = {
+  "korea-seoul-nami.jpg": "luxury-cruise-view.jpg",
+  "danang-bana-hoian.jpg": "tour-da-nang.jpg",
+  "phuquoc-honthom.jpg": "tour-phu-quoc.jpg",
+  "sapa-fansipan.jpg": "tour-sapa.jpg",
+  "seoul-autumn.jpg": "hero-bg.png",
+  "namsan-tower.jpg": "luxury-cruise-view.jpg",
+  "lotte-world.jpg": "hero-bg.png",
+  "cau-vang-danang.jpg": "danang.png",
+  "hoi-an-den-long.jpg": "tour-hue.jpg",
+  "son-tra-linh-ung.jpg": "tour-da-nang.jpg",
+  "sunset-town.jpg": "phuquoc.png",
+  "cap-treo-hon-thom.jpg": "tour-phu-quoc.jpg",
+  "fansipan-peak.jpg": "sapa.png",
+  "cat-cat-waterfall.jpg": "tour-sapa.jpg"
+};
+
+app.get(["/images/tours/:filename", "/images/gallery/:filename"], (req, res) => {
+  const filename = req.params.filename;
+  const mapped = SQL_TOUR_IMAGES[filename] || "halong.png";
+  const filePath = path.resolve(FRONTEND_DIR, "assets", "images", mapped);
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  res.sendFile(path.resolve(FRONTEND_DIR, "assets", "images", "halong.png"));
+});
+
 if (!fs.existsSync(FRONTEND_DIR)) {
   console.error("Lỗi: Không tìm thấy thư mục Frontend tại", FRONTEND_DIR);
 } else {
@@ -1623,6 +1773,12 @@ const server = app.listen(PORT, HOST, () => {
   console.log(`  Cổng quản trị Admin: http://${HOST}:${port}/admin.html`);
   console.log(`  Kiểm tra hệ thống:  http://${HOST}:${port}/api/v1/health/ready`);
   console.log("==================================================================");
+
+  if (process.env.THAM_SQLSERVER_CATALOG_API_URL) {
+    syncSqlServerCatalogToLocalDb().catch(err => {
+      console.error("[SQLSERVER SYNC] Startup error:", err.message);
+    });
+  }
 });
 
 server.on("error", (err) => {
