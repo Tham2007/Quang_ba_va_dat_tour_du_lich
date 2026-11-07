@@ -62,22 +62,27 @@ Server riêng hiện chỉ đọc, API ghi booking trả 503. Xem
 
 ## Hướng dẫn khởi chạy hệ thống
 
-### Cách 1: Khởi chạy bằng Node.js (Khuyên dùng - Tiện lợi & Nhanh chóng)
-Yêu cầu đã cài đặt **Node.js** (phiên bản 18+ hoặc mới nhất).
-1. **Khởi động 1 chạm:** Nhấp đúp vào tệp [`run.bat`](run.bat) ở thư mục gốc. Hệ thống sẽ tự động cài thư viện cần thiết (`npm install`) và khởi động server.
-2. **Khởi động bằng dòng lệnh (Terminal / PowerShell):**
-   ```bash
-   npm install
-   npm run dev
-   ```
-   *(Lệnh `npm run dev` kích hoạt chế độ watch tự động reload server ngay khi chỉnh sửa file).*
-3. **Kiểm thử tự động hệ thống Node.js:**
-   ```bash
-   npm test
-   ```
-* Hệ thống sẽ mở tại:
-  - **Trang chủ đặt tour trực tuyến:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
-  - **Cổng quản trị Admin:** [http://127.0.0.1:8000/admin.html](http://127.0.0.1:8000/admin.html) *(Tài khoản máy chủ: `admin@deltatravel.vn` / `delta123`; đăng nhập nhanh thành viên nhóm: mật khẩu `password123`)*
+### Cách 1: Khởi chạy website với danh mục SQL Server
+
+Trên Windows, nhấp đúp [`run.bat`](run.bat). Launcher khởi động API SQL Server
+chỉ đọc rồi chạy website tại `http://127.0.0.1:8001/`. Nhập host, database,
+tài khoản SQL khi được hỏi; mật khẩu được nhập ẩn và không được lưu. Mặc định
+host/database/tài khoản điền sẵn là các giá trị trong
+[`start_sqlserver_catalog.ps1`](start_sqlserver_catalog.ps1).
+
+Yêu cầu: Node.js, Python environment tại `API\.venv`, `pyodbc` trong environment,
+và Microsoft ODBC Driver 18 for SQL Server. Nếu chưa tạo environment, làm theo
+mục [kiểm tra database SQL Server](#kiểm-tra-database-sql-server-của-thắm).
+
+Chế độ này chỉ đọc danh mục, tour, lịch khởi hành và lịch trình từ SQL Server.
+Đăng nhập/đặt tour không được chuyển sang SQL Server; endpoint ghi đơn/thanh toán
+vẫn bị chặn. Không dùng website này để nhận giao dịch thật.
+
+### Cách 2: Khởi chạy Node.js với SQLite demo
+
+Yêu cầu **Node.js 18+**. Chạy `npm install` một lần, sau đó `npm run dev` để
+khởi động tại `http://127.0.0.1:8000/`. Chế độ này dùng SQLite local, không kết
+nối SQL Server. Chạy `npm test` để kiểm thử hệ thống Node.js.
 
 ---
 
@@ -106,7 +111,7 @@ Giữ `DELTA_ENV=development` với SQLite demo. **Không** dùng backend này c
 
 API độc lập `api.tham_sqlserver_app` hỗ trợ đọc danh mục, tour, lịch trình, ảnh, bài viết và báo giá; tạo đơn và xác nhận thanh toán **cố ý trả 503** cho đến khi nghiệp vụ/schema được duyệt. Adapter này **đã được test với Microsoft SQL Server 2022 thật** trong container CI (không phải chỉ mock); [run SQL Server đã đạt](https://github.com/Tham2007/Quang_ba_va_dat_tour_du_lich/actions/runs/41410461836). Container tự hủy sau khi test, **chưa** phải SQL Server đang chạy liên tục hay có kết nối từ Render.
 
-Xem [hướng dẫn kiểm chứng database](API/docs/SQLSERVER_LIVE_VERIFICATION_RUNBOOK.md). Tài khoản kiểm thử phải **chỉ có quyền SELECT**, credentials để trong biến môi trường, không commit hoặc gửi vào nhóm chat. Không chạy các script chứa `DROP DATABASE` trên database có dữ liệu.
+Xem [hướng dẫn kiểm chứng database](API/docs/SQLSERVER_LIVE_VERIFICATION_RUNBOOK.md). Tài khoản kiểm thử phải **chỉ có quyền SELECT**. Mật khẩu được hỏi ẩn khi chạy launcher, không commit hoặc gửi vào nhóm chat. Không chạy các script chứa `DROP DATABASE` trên database có dữ liệu.
 
 ## 🚀 Hai địa chỉ triển khai cần phân biệt (02/11/2026)
 

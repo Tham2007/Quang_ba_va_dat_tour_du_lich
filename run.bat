@@ -1,11 +1,18 @@
 @echo off
-title Delta Travel Commercial Server (npm run dev)
+title Delta Travel - SQL Server Catalog
 echo ======================================================================
-echo           DELTA TRAVEL 2.0 - MAY CHU NODE.JS (NPM RUN DEV)
+echo           DELTA TRAVEL 2.0 - SQL SERVER CATALOG
 echo ======================================================================
 echo.
 
 cd /d "%~dp0"
+
+where powershell.exe >nul 2>nul
+if %errorlevel% neq 0 (
+    echo [LOI] Khong tim thay Windows PowerShell!
+    pause
+    exit /b 1
+)
 
 where node >nul 2>nul
 if %errorlevel% neq 0 (
@@ -15,28 +22,21 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-where npm >nul 2>nul
-if %errorlevel% neq 0 (
-    echo [LOI] Khong tim thay npm tren may tinh!
+if not exist "API\.venv\Scripts\python.exe" (
+    echo [LOI] Chua co API\.venv. Xem muc SQL Server trong README.md de cai dat.
     pause
     exit /b 1
 )
 
-if not exist node_modules (
-    echo [THONG BAO] Dang cai dat thu vien Node.js (express, cors, cookie-parser)...
-    call npm install
-    if %errorlevel% neq 0 (
-        echo [LOI] Cai dat thu vien that bai!
-        pause
-        exit /b 1
-    )
-)
-
-echo [OK] Dang khoi chay he thong tai http://127.0.0.1:8000 qua lenh "npm run dev"...
-echo [OK] Che do dev tu dong tai lai (auto-reload) khi chinh sua file.
-echo [OK] Nhan Ctrl+C de dung server.
+echo [OK] Dang ket noi SQL Server va khoi chay website...
 echo.
 
-call npm run dev
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0start_sqlserver_catalog.ps1"
+set "EXIT_CODE=%ERRORLEVEL%"
 
-pause
+if not "%EXIT_CODE%"=="0" (
+    echo [LOI] Khong the khoi dong che do SQL Server. Kiem tra API, ODBC, mang va thong tin ket noi.
+    pause
+)
+
+exit /b %EXIT_CODE%
