@@ -657,7 +657,7 @@
   bottom: 0;
   width: 100vw;
   height: calc(100vh - 108px);
-  z-index: 1015;
+  z-index: 9999;
   background: #ffffff;
   color: #0f172a;
   display: flex;

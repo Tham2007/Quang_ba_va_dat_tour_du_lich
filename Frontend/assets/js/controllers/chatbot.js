@@ -326,15 +326,6 @@ function appendChatMessage(sender, rawText, suggestedTours = [], containerId = "
       </div>
     `;
   }
-                  </button>
-                </div>
-              </div>
-            </div>
-          `).join("")}
-        </div>
-      </div>
-    `;
-  }
 
   msgDiv.innerHTML = `
     ${avatarHtml}
@@ -502,8 +493,6 @@ function resetLargeChatConversation() {
       </div>
     `;
     container.innerHTML = welcomeHtml;
-  }
-}
   }
 }
 window.resetLargeChatConversation = resetLargeChatConversation;
