@@ -72,7 +72,9 @@ async function proxySqlServerCatalog(req, res, endpoint, queryKeys = []) {
     upstreamUrl = new URL(endpoint, `${baseUrl.origin}/`);
     for (const key of queryKeys) {
       const value = req.query[key];
-      if (typeof value === "string" && value !== "") upstreamUrl.searchParams.set(key, value);
+      if (typeof value === "string" && value !== "" && !(key === "region" && value === "all")) {
+        upstreamUrl.searchParams.set(key, value);
+      }
     }
   } catch (error) {
     console.error("Invalid SQL Server catalog API configuration.", error.name);
@@ -1184,7 +1186,7 @@ app.get("/api/v1/tours", async (req, res) => {
   let query = "SELECT * FROM tours WHERE active = 1";
   const params = [];
 
-  if (region) {
+  if (region && region !== "all") {
     query += " AND region = ?";
     params.push(region);
   }
@@ -1198,8 +1200,30 @@ app.get("/api/v1/tours", async (req, res) => {
     params.push(term, term, term);
   }
   query += " ORDER BY id ASC";
-  const tours = db.prepare(query).all(...params);
-  res.json(tours.map(publicTour));
+  const tours = db.prepare(query).all(...params).map(publicTour);
+  const fold = v => String(v || "").toLowerCase().normalize("NFD")
+    .replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d");
+  const q = fold(req.query.q || search);
+  const destination = fold(req.query.destination);
+  const departure = fold(req.query.departure_location);
+  const duration = fold(req.query.duration);
+  const transport = fold(req.query.transport);
+  const min = req.query.min_price == null ? null : Number(req.query.min_price);
+  const max = req.query.max_price == null ? null : Number(req.query.max_price);
+  if ((min != null && (!Number.isFinite(min) || min < 0)) ||
+      (max != null && (!Number.isFinite(max) || max < 0)))
+    return res.status(422).json({detail:"Khoảng giá không hợp lệ."});
+  res.json(tours.filter(t => {
+    const title = fold([t.title,t.description,t.region,t.departure].join(" "));
+    if (q && !title.includes(q)) return false;
+    if (destination && !title.includes(destination)) return false;
+    if (departure && !fold(t.departure).includes(departure)) return false;
+    if (duration && !fold(t.duration).includes(duration)) return false;
+    if (transport && !fold(t.transport).includes(transport)) return false;
+    if (min != null && t.price < min) return false;
+    if (max != null && t.price > max) return false;
+    return true;
+  }));
 });
 
 app.get("/api/v1/tours/:tour_id", async (req, res) => {
