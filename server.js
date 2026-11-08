@@ -336,6 +336,8 @@ function initDatabase() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
   `);
+  const addedTourCapacity = !db.prepare("PRAGMA table_info(tours)").all().some(c => c.name === "default_seats");
+  if (addedTourCapacity) db.exec("ALTER TABLE tours ADD COLUMN default_seats INTEGER NOT NULL DEFAULT 20");
 
   // Đảm bảo có tài khoản Admin mặc định
   const adminEmail = "admin@deltatravel.vn";
@@ -721,6 +723,8 @@ function initDatabase() {
     }
   });
 
+  if (addedTourCapacity) db.exec(`UPDATE tours SET default_seats = COALESCE(
+    (SELECT total_seats FROM schedules WHERE tour_id = tours.id ORDER BY departure_at LIMIT 1),20)`);
   try {
     db.exec("ALTER TABLE users ADD COLUMN avatar TEXT;");
   } catch (_) {}
@@ -764,6 +768,10 @@ function publicTour(t) {
     description: t.description || "",
     price: Number(t.price),
     originalPrice: Number(t.original_price),
+    totalSeats: Number(t.default_seats || 20),
+    availableSeats: Math.max(0, Number(db.prepare(`SELECT total_seats - reserved_seats AS remain
+      FROM schedules WHERE tour_id=? AND active=1 AND departure_at>? ORDER BY departure_at LIMIT 1`)
+      .get(t.id, new Date().toISOString())?.remain ?? 0)),
     isFlashSale: Boolean(t.flash_sale),
     updatedAt: iso(t.updated_at)
   };
@@ -1560,18 +1568,21 @@ app.post("/api/v1/admin/tours", requireAdmin, (req, res) => {
   if (!data.id || !/^DL-[A-Z0-9]{2,20}$/.test(data.id)) {
     return res.status(422).json({ detail: "Mã tour phải có định dạng DL-XXXX." });
   }
+  const capacity = data.available_seats === undefined ? 20 : data.available_seats;
+  if (!Number.isInteger(capacity) || capacity < 1 || capacity > 10000)
+    return res.status(422).json({detail:"Số chỗ mở bán không hợp lệ."});
   const existing = db.prepare("SELECT id FROM tours WHERE id = ?").get(data.id);
   if (existing) return res.status(409).json({ detail: "Mã tour đã tồn tại." });
 
   db.prepare(`
     INSERT INTO tours (
       id, slug, title, region, duration, price, original_price,
-      image, departure, transport, flash_sale, description, itinerary_json, active, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+      image, departure, transport, flash_sale, description, itinerary_json, default_seats, active, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
   `).run(
     data.id, data.slug || data.id.toLowerCase(), data.title, data.region, data.duration,
     data.price, data.original_price || data.price, data.image || "", data.departure,
-    data.transport, data.flash_sale ? 1 : 0, data.description || "", data.itinerary_json || "[]", new Date().toISOString()
+    data.transport, data.flash_sale ? 1 : 0, data.description || "", data.itinerary_json || "[]", capacity, new Date().toISOString()
   );
 
   const t = db.prepare("SELECT * FROM tours WHERE id = ?").get(data.id);
@@ -1597,7 +1608,8 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
     flash_sale: "flash_sale",
     active: "active",
     image: "image",
-    images: "image"
+    images: "image",
+    available_seats: "default_seats"
   };
   const fields = [];
   const params = [];
@@ -1618,11 +1630,31 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
     }
   }
 
+  const capacity = req.body?.available_seats;
+  if (capacity !== undefined && (!Number.isInteger(capacity) || capacity < 1 || capacity > 10000))
+    return res.status(422).json({ detail: "Số chỗ phải là số nguyên từ 1 đến 10000." });
   if (fields.length > 0) {
-    fields.push("updated_at = ?");
-    params.push(new Date().toISOString());
-    params.push(tour_id);
-    db.prepare(`UPDATE tours SET ${fields.join(", ")} WHERE id = ?`).run(...params);
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      if (capacity !== undefined) {
+        const blocked = db.prepare(`SELECT id FROM schedules WHERE tour_id=? AND departure_at>?
+          AND reserved_seats>? LIMIT 1`).get(tour_id,new Date().toISOString(),capacity);
+        if (blocked) {
+          db.exec("ROLLBACK");
+          return res.status(409).json({ detail: "Không thể giảm thấp hơn số chỗ đã giữ." });
+        }
+        db.prepare(`UPDATE schedules SET total_seats=? WHERE tour_id=? AND departure_at>?`)
+          .run(capacity,tour_id,new Date().toISOString());
+      }
+      fields.push("updated_at = ?");
+      params.push(new Date().toISOString(),tour_id);
+      db.prepare(`UPDATE tours SET ${fields.join(", ")} WHERE id=?`).run(...params);
+      db.exec("COMMIT");
+    } catch (err) {
+      db.exec("ROLLBACK");
+      console.error("Tour transaction failed:",err.message);
+      return res.status(409).json({ detail: "Không lưu được thay đổi tour." });
+    }
   }
 
   const updated = db.prepare("SELECT * FROM tours WHERE id = ?").get(tour_id);
@@ -1644,15 +1676,18 @@ app.get("/api/v1/admin/schedules", requireAdmin, (req, res) => {
 
 app.post("/api/v1/admin/schedules", requireAdmin, (req, res) => {
   const { tour_id, departure_at, total_seats = 20 } = req.body || {};
-  if (!tour_id || !departure_at) {
-    return res.status(422).json({ detail: "Thiếu thông tin lịch trình." });
-  }
-
+  const date = new Date(departure_at);
+  if (!tour_id || !departure_at || !Number.isFinite(date.getTime()) || date.getTime() <= Date.now())
+    return res.status(422).json({detail:"Ngày khởi hành phải ở tương lai."});
+  if (!Number.isInteger(total_seats) || total_seats < 1 || total_seats > 10000)
+    return res.status(422).json({detail:"Số chỗ không hợp lệ."});
+  if (!db.prepare("SELECT id FROM tours WHERE id=? AND active=1").get(tour_id))
+    return res.status(404).json({detail:"Tour không tồn tại hoặc đã ngừng bán."});
   const id = crypto.randomUUID();
   db.prepare(`
     INSERT INTO schedules (id, tour_id, departure_at, total_seats, reserved_seats, active)
     VALUES (?, ?, ?, ?, 0, 1)
-  `).run(id, tour_id, new Date(departure_at).toISOString(), total_seats);
+  `).run(id, tour_id, date.toISOString(), total_seats);
 
   const sched = db.prepare("SELECT * FROM schedules WHERE id = ?").get(id);
   audit(req.user.id, "SCHEDULE_CREATED", id);
@@ -1666,6 +1701,8 @@ app.patch("/api/v1/admin/schedules/:schedule_id", requireAdmin, (req, res) => {
 
   const { total_seats, active } = req.body || {};
   if (total_seats !== undefined) {
+    if (!Number.isInteger(total_seats) || total_seats < 1 || total_seats > 10000 || total_seats < s.reserved_seats)
+      return res.status(422).json({detail:"Số chỗ không hợp lệ hoặc ít hơn số đã giữ."});
     db.prepare("UPDATE schedules SET total_seats = ? WHERE id = ?").run(total_seats, schedule_id);
   }
   if (active !== undefined) {
