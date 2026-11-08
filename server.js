@@ -1187,6 +1187,42 @@ app.delete("/api/v1/favorites/:tour_id", requireAuth, (req, res) => {
   res.json({ status: "ok", tour_id });
 });
 
+// Expire temporary seats atomically. A pending hold must never block seats
+// forever after its advertised 15-minute validity ends.
+function expirePendingBookings() {
+  const now = new Date().toISOString();
+  const expired = db.prepare("SELECT id,schedule_id,seats_held FROM bookings WHERE status='PENDING_PAYMENT' AND expires_at<=?").all(now);
+  if (!expired.length) return 0;
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    let released = 0;
+    const mark = db.prepare("UPDATE bookings SET status='EXPIRED',updated_at=? WHERE id=? AND status='PENDING_PAYMENT' AND expires_at<=?");
+    const seats = db.prepare("UPDATE schedules SET reserved_seats=MAX(0,reserved_seats-?) WHERE id=?");
+    for (const booking of expired) {
+      const result = mark.run(now,booking.id,now);
+      if (result.changes === 1) {
+        seats.run(booking.seats_held,booking.schedule_id);
+        released += 1;
+      }
+    }
+    db.exec("COMMIT");
+    return released;
+  } catch(error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+// Lazy cleanup also covers process restarts without a timer or cron service.
+app.use(["/api/v1/bookings","/api/v1/tours","/api/v1/admin/schedules","/api/v1/admin/bookings"],(req,res,next)=>{
+  try {
+    expirePendingBookings();
+    next();
+  } catch(error) {
+    console.error("Booking expiry cleanup failed:",error.message);
+    res.status(503).json({detail:"Tạm thời không thể đối soát số chỗ giữ."});
+  }
+});
+
 // 4. Tours & Schedules
 app.get("/api/v1/tours", async (req, res) => {
   if (await proxySqlServerCatalog(req, res, "/api/v1/tours", ["q", "region", "max_price"])) return;
@@ -1266,42 +1302,6 @@ app.get("/api/v1/tours/:tour_id/itinerary", async (req, res) => {
     location: item.location,
     startTime: item.start_time
   })));
-});
-
-// Expire temporary seats atomically. A pending hold must never block seats
-// forever after its advertised 15-minute validity ends.
-function expirePendingBookings() {
-  const now = new Date().toISOString();
-  const expired = db.prepare("SELECT id,schedule_id,seats_held FROM bookings WHERE status='PENDING_PAYMENT' AND expires_at<=?").all(now);
-  if (!expired.length) return 0;
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    let released = 0;
-    const mark = db.prepare("UPDATE bookings SET status='EXPIRED',updated_at=? WHERE id=? AND status='PENDING_PAYMENT' AND expires_at<=?");
-    const seats = db.prepare("UPDATE schedules SET reserved_seats=MAX(0,reserved_seats-?) WHERE id=?");
-    for (const booking of expired) {
-      const result = mark.run(now,booking.id,now);
-      if (result.changes === 1) {
-        seats.run(booking.seats_held,booking.schedule_id);
-        released += 1;
-      }
-    }
-    db.exec("COMMIT");
-    return released;
-  } catch(error) {
-    db.exec("ROLLBACK");
-    throw error;
-  }
-}
-// Lazy cleanup also covers process restarts without a timer or cron service.
-app.use(["/api/v1/bookings","/api/v1/tours","/api/v1/admin/schedules","/api/v1/admin/bookings"],(req,res,next)=>{
-  try {
-    expirePendingBookings();
-    next();
-  } catch(error) {
-    console.error("Booking expiry cleanup failed:",error.message);
-    res.status(503).json({detail:"Tạm thời không thể đối soát số chỗ giữ."});
-  }
 });
 
 // 5. Booking & Pricing Flow
