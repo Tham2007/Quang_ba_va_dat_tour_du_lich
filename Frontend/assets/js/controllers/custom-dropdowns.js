@@ -385,6 +385,38 @@
     }
   }
 
+  function refreshAllCustomDropdowns() {
+    SELECT_IDS.forEach((id) => {
+      const selectEl = document.getElementById(id);
+      if (!selectEl) return;
+      const wrapper = document.querySelector(`.custom-select-wrapper[data-target-id="${id}"]`);
+      if (!wrapper) return;
+      const triggerText = wrapper.querySelector(".custom-select-text");
+      const currentOption = selectEl.options[selectEl.selectedIndex] || selectEl.options[0];
+      if (triggerText && currentOption) {
+        triggerText.textContent = currentOption.text;
+      }
+      const menu = wrapper.querySelector(".custom-select-menu");
+      if (menu) {
+        menu.innerHTML = "";
+        Array.from(selectEl.options).forEach((opt) => {
+          const item = document.createElement("div");
+          item.className = "custom-select-option" + (opt.selected ? " is-selected" : "");
+          item.textContent = opt.text;
+          item.dataset.value = opt.value;
+          item.addEventListener("click", () => {
+            selectEl.value = opt.value;
+            selectEl.dispatchEvent(new Event("change", { bubbles: true }));
+          });
+          menu.appendChild(item);
+        });
+      }
+    });
+  }
+
+  window.addEventListener("languageChanged", refreshAllCustomDropdowns);
+  window.refreshAllCustomDropdowns = refreshAllCustomDropdowns;
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initAllCustomControls);
   } else {
@@ -393,3 +425,4 @@
 
   window.initAllCustomControls = initAllCustomControls;
 })();
+
