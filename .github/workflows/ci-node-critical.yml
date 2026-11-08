@@ -21,11 +21,14 @@ jobs:
         run: |
           node --check server.js
           node --check tour_assistant.js
+          node --check scripts/mssql_config.js
           node --check Frontend/assets/js/controllers/admin.js
           node --check Frontend/assets/js/controllers/main.js
           node --check Frontend/assets/js/controllers/chatbot.js
           node --check Frontend/assets/js/services/api.js
       - name: HTTP E2E
-        run: npm test
+        run: |
+          npm test
+          node test_mssql_config.js
       - name: Static assets
         run: python API/scripts/check_static_assets.py Frontend
