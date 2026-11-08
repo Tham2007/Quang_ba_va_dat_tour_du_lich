@@ -172,8 +172,30 @@ async function handleQuickAdminLogin(identifier) {
     targetUser = users[0];
   }
 
+  // Fresh static demos have no seeded users. Explicitly synthesize UI-only
+  // identities ONLY when the backend has been confirmed offline.
+  if (!targetUser && /^USR-0[1-5]$/.test(identifier)) {
+    const health = typeof DeltaAPI !== "undefined" && DeltaAPI.checkHealth
+      ? await DeltaAPI.checkHealth() : { online: false };
+    if (health.online) {
+      showAdminToast("Máy chủ đang chạy. Hãy đăng nhập bằng tài khoản quản trị đã xác thực.", "warning");
+      return;
+    }
+    const demoNames = {
+      "USR-01": "Hồng Thắm", "USR-02": "Lê Văn An",
+      "USR-03": "Lê Hải Đăng", "USR-04": "Nguyễn Văn Phúc",
+      "USR-05": "Lê Văn Mạnh"
+    };
+    targetUser = {
+      id: identifier, fullName: demoNames[identifier],
+      role: "ADMIN", title: "DEMO ngoại tuyến", email: identifier + "@demo.invalid",
+      __offlineUiOnly: true
+    };
+  }
+
   if (targetUser) {
-    let localDemoLogin = typeof DeltaAPI === "undefined" || typeof DeltaAPI.login !== "function";
+    let localDemoLogin = targetUser.__offlineUiOnly === true ||
+      typeof DeltaAPI === "undefined" || typeof DeltaAPI.login !== "function";
     if (!localDemoLogin) {
       const loginResult = await DeltaAPI.login(targetUser.email, targetUser.password);
       if (!loginResult.success) {
