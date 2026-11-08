@@ -113,7 +113,9 @@ async function checkAdminAuth() {
 
   const session = await DeltaAPI.getMe();
   if (!session.success) {
-    if (session.isOffline) return showAdminScreen(user);
+    // Static file-server (no API): keep the clearly labeled UI-only demo
+    // accessible, but do not claim a server-authenticated administrator.
+    if (session.isOffline || !DeltaAPI.isOnline()) return showAdminScreen(user);
     showLockedScreen();
     showAdminToast(session.error || "Phiên đăng nhập máy chủ đã hết hạn. Vui lòng đăng nhập lại.", "error");
     return false;
