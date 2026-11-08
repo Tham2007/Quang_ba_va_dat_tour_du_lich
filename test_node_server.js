@@ -9,6 +9,7 @@ const path = require("path");
 
 const testDbPath = path.join(os.tmpdir(), `delta-node-tests-${process.pid}.db`);
 process.env.DELTA_DB_PATH = testDbPath;
+process.env.DELTA_ALLOW_DEMO_ACCOUNTS = "1"; // Explicit CI-only sample credentials
 process.env.PORT = "0";
 process.env.HOST = "127.0.0.1";
 const { app, server, db } = require("./server");

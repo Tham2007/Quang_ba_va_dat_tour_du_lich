@@ -360,10 +360,12 @@ function initDatabase() {
   const addedTourCapacity = !db.prepare("PRAGMA table_info(tours)").all().some(c => c.name === "default_seats");
   if (addedTourCapacity) db.exec("ALTER TABLE tours ADD COLUMN default_seats INTEGER NOT NULL DEFAULT 20");
 
-  // Đảm bảo có tài khoản Admin mặc định
+  const now = new Date().toISOString();
+  // Demo accounts use public teaching credentials and must never be active
+  // in a deployed instance unless explicitly opted in for isolated CI.
+  if (process.env.DELTA_ALLOW_DEMO_ACCOUNTS === "1") {
   const adminEmail = "admin@deltatravel.vn";
   const existingAdmin = db.prepare("SELECT id FROM users WHERE email = ?").get(adminEmail);
-  const now = new Date().toISOString();
   if (!existingAdmin) {
     db.prepare(`
       INSERT INTO users (id, full_name, email, phone, password_hash, role, active, created_at, updated_at)
@@ -396,6 +398,13 @@ function initDatabase() {
     if (!existing) {
       insertDemoAdmin.run(id, fullName, email, phone, hashPassword("password123"), now, now);
     }
+  }
+
+  } else {
+    // Retire accounts created by prior insecure demo seeds on persistent DBs.
+    db.prepare(`UPDATE users SET active=0
+      WHERE (id IN ('USR-01','USR-02','USR-03','USR-04','USR-05')
+         OR email='admin@deltatravel.vn') AND role='ADMIN'`).run();
   }
 
   // Đảm bảo có đủ 16 tour thương mại chuẩn toàn quốc với bộ ảnh sắc nét

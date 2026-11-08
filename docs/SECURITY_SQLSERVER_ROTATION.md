@@ -48,3 +48,12 @@ a separate restricted-time privileged account after reviewing SQL diffs and back
   `PAID` based on self-reported references.
 - Real production: blocked until persistent SQL Server write E2E and fresh
   credential rotation have evidence.
+
+## P0. Disable public demo accounts
+
+The Node demo initializes predictable admin passwords. PR #27 now requires
+`DELTA_ALLOW_DEMO_ACCOUNTS=1` for seeded admin accounts (only isolated CI).
+With this flag **unset**, it also deactivates previously seeded privileged
+sample accounts found in an existing SQLite database. Production administrators
+must be provisioned through a secure, separately reviewed process. Do not
+enable demo accounts on Render production just to make the admin panel clickable.
