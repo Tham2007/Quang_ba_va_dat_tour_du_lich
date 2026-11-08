@@ -185,11 +185,11 @@ const DeltaAPI = (() => {
   /**
    * Tạo đơn đặt chỗ mới trên Database server
    */
-  async function createBooking(bookingData) {
+  async function createBooking(bookingData, idempotencyKey = null) {
     return await request("/bookings", {
       method: "POST",
       headers: {
-        "Idempotency-Key": (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : ("IDEM-" + Date.now())
+        "Idempotency-Key": idempotencyKey || ((typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : ("IDEM-" + Date.now() + "-" + Math.random().toString(16).slice(2)))
       },
       body: bookingData
     });

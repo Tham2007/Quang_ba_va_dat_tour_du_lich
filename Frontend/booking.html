@@ -667,7 +667,11 @@
       }
     }
 
+    let bookingSubmissionInProgress = false;
+    let bookingRequestCache = null;
+
     async function submitBookingOrder() {
+      if (bookingSubmissionInProgress) return;
       const name = document.getElementById("customerFullName").value.trim();
       const phone = document.getElementById("customerPhone").value.trim();
       const email = document.getElementById("customerEmail").value.trim();
@@ -695,18 +699,30 @@
         return;
       }
 
+      // Reuse the same idempotency key on timeout retries for the same payload.
+      // If the passenger form changes, issue a new key rather than reusing an old order.
+      const payload = {
+        schedule_id: scheduleId, adults, children, infants,
+        customer_name: name, customer_phone: phone, customer_email: email,
+        note: document.getElementById("customerNotes")?.value?.trim() || ""
+      };
+      const serialized = JSON.stringify(payload);
+      if (!bookingRequestCache || bookingRequestCache.payload !== serialized) {
+        bookingRequestCache = {
+          payload: serialized,
+          key: (typeof crypto !== "undefined" && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : ("IDEM-" + Date.now() + "-" + Math.random().toString(16).slice(2))
+        };
+      }
+      bookingSubmissionInProgress = true;
+      const submitBtn = document.querySelector(".paper-btn-submit");
+      if (submitBtn) submitBtn.disabled = true;
       try {
         if (typeof DeltaAPI === "undefined" || !DeltaAPI.createBooking) {
           throw new Error("Máy chủ đặt tour chưa sẵn sàng.");
         }
-        const res = await DeltaAPI.createBooking({
-          schedule_id: scheduleId,
-          adults, children, infants,
-          customer_name: name,
-          customer_phone: phone,
-          customer_email: email,
-          note: document.getElementById("customerNotes")?.value?.trim() || ""
-        });
+        const res = await DeltaAPI.createBooking(payload, bookingRequestCache.key);
         if (!res?.success || !res.data?.id) {
           throw new Error(res?.error || "Máy chủ chưa xác nhận được đơn đặt tour.");
         }
@@ -729,6 +745,9 @@
         window.scrollTo({ top: 0, behavior: "smooth" });
       } catch (err) {
         alert("Lỗi đặt tour: " + (err.message || "Vui lòng thử lại"));
+      } finally {
+        bookingSubmissionInProgress = false;
+        if (submitBtn) submitBtn.disabled = false;
       }
     }
 
