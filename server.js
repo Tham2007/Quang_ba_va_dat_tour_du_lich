@@ -27,6 +27,31 @@ if (!fs.existsSync(path.dirname(DB_PATH))) {
 // Khởi tạo Database SQLite
 const db = new DatabaseSync(DB_PATH);
 
+// Cấu hình kết nối trực tiếp SmarterASP.NET SQL Server
+let sqlServerPool = null;
+const SQL_SERVER_CONFIG = {
+  user: process.env.DELTA_MSSQL_USER || "db_ad0b71_dattour_admin",
+  password: process.env.DELTA_MSSQL_PASSWORD || "Phamtham312007@",
+  server: process.env.DELTA_MSSQL_SERVER || "sql8020.site4now.net",
+  port: parseInt(process.env.DELTA_MSSQL_PORT || "1433", 10),
+  database: process.env.DELTA_MSSQL_DATABASE || "db_ad0b71_dattour",
+  options: {
+    encrypt: false,
+    trustServerCertificate: true,
+    connectTimeout: 8000
+  }
+};
+
+async function initDirectSqlServer() {
+  try {
+    const mssql = require("mssql");
+    sqlServerPool = await mssql.connect(SQL_SERVER_CONFIG);
+    console.log("[SQL SERVER] Đã kết nối TRỰC TIẾP thành công tới SmarterASP.NET SQL Server (sql8020.site4now.net:1433 / db_ad0b71_dattour)!");
+  } catch (err) {
+    console.warn("[SQL SERVER] Chưa thể kết nối SQL Server trực tiếp:", err.message);
+  }
+}
+
 // Helper ngày giờ ISO UTC
 function iso(d) {
   if (!d) return null;
@@ -993,7 +1018,15 @@ app.get("/api/v1/health/ready", (req, res) => {
   }
 
   const row = db.prepare("SELECT COUNT(*) AS c FROM tours").get();
-  res.json({ status: "ok", db: "connected", tours: row.c, catalogMode: "sqlite" });
+  res.json({
+    status: "ok",
+    db: sqlServerPool ? "SQL Server (sql8020.site4now.net - ONLINE)" : "connected",
+    sqlServerConnected: Boolean(sqlServerPool),
+    sqlServerHost: "sql8020.site4now.net:1433",
+    sqlServerDb: "db_ad0b71_dattour",
+    tours: row.c,
+    catalogMode: sqlServerPool ? "sqlserver_direct" : "sqlite"
+  });
 });
 
 app.use("/api/v1/admin", (req, res, next) => {
@@ -1786,6 +1819,10 @@ const server = app.listen(PORT, HOST, () => {
   console.log(`  Cổng quản trị Admin: http://${HOST}:${port}/admin.html`);
   console.log(`  Kiểm tra hệ thống:  http://${HOST}:${port}/api/v1/health/ready`);
   console.log("==================================================================");
+
+  initDirectSqlServer().catch(err => {
+    console.warn("[SQL SERVER] Background init error:", err.message);
+  });
 
   if (process.env.THAM_SQLSERVER_CATALOG_API_URL) {
     syncSqlServerCatalogToLocalDb().catch(err => {

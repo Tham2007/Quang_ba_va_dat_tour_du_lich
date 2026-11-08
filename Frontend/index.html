@@ -35,6 +35,9 @@
   <link rel="stylesheet" href="assets/css/auth.css">
   <link rel="stylesheet" href="assets/css/chatbot.css">
   <link rel="stylesheet" href="assets/css/custom-dropdowns.css">
+
+  <!-- Hệ thống Đa ngôn ngữ (VI 🇻🇳 / EN 🇬🇧) -->
+  <script src="assets/js/controllers/i18n.js"></script>
 </head>
 <body>
   <div class="delta-demo-notice" role="status" style="position:relative;z-index:9999;text-align:center;background:#fff4d7;color:#644500;padding:7px 12px;font-size:13px;font-weight:600">
@@ -53,16 +56,16 @@
           <span class="topbar-divider"></span>
           <a href="mailto:support@deltatravel.vn"><i class="bi bi-envelope-fill"></i> support@deltatravel.vn</a>
           <span class="topbar-divider"></span>
-          <span class="text-light small"><i class="bi bi-shield-check text-success"></i> Cam kết 100% bảo hiểm & giá chuẩn</span>
+          <span class="text-light small"><i class="bi bi-shield-check text-success"></i> <span data-i18n="topbar_commit">Cam kết 100% bảo hiểm & giá chuẩn</span></span>
         </div>
         <div class="d-flex align-items-center">
           <div id="topbarAuthContainer" class="d-none d-md-inline-flex align-items-center me-3"></div>
           <a href="my-bookings.html">
-            <i class="bi bi-ticket-perforated-fill text-info"></i> Tra cứu đơn đặt chỗ
+            <i class="bi bi-ticket-perforated-fill text-info"></i> <span data-i18n="topbar_track">Tra cứu đơn đặt chỗ</span>
           </a>
           <span class="topbar-divider"></span>
           <a href="javascript:void(0)" onclick="openWishlistModal()">
-            <i class="bi bi-heart-fill text-danger"></i> Yêu thích
+            <i class="bi bi-heart-fill text-danger"></i> <span data-i18n="topbar_wishlist">Yêu thích</span>
             <span class="topbar-badge wishlist-counter">0</span>
           </a>
         </div>
@@ -79,40 +82,50 @@
           </div>
           <div class="brand-text">
             <span class="brand-title">DELTA TRAVEL</span>
-            <span class="brand-subtitle">KHÁM PHÁ & NGHỈ DƯỠNG</span>
+            <span class="brand-subtitle" data-i18n="brand_sub">KHÁM PHÁ & NGHỈ DƯỠNG</span>
           </div>
         </a>
 
         <!-- Thanh Tab Liquid Glass Capsule Dock (Nằm ngang chuẩn, không bao giờ ngắt cột dọc) -->
         <div class="liquid-nav-dock d-none d-lg-inline-flex" id="liquidNavDock">
-          <a href="#home" class="liquid-nav-link active" onclick="setActiveNavLink(this)">Trang chủ</a>
-          <a href="javascript:void(0)" onclick="filterToursRegion('north', this)" class="liquid-nav-link">Miền Bắc</a>
-          <a href="javascript:void(0)" onclick="filterToursRegion('central', this)" class="liquid-nav-link">Miền Trung</a>
-          <a href="javascript:void(0)" onclick="filterToursRegion('south', this)" class="liquid-nav-link">Miền Nam</a>
-          <a href="#toursSection" onclick="filterToursRegion('all', this)" class="liquid-nav-link">Tất cả tour</a>
+          <a href="#home" class="liquid-nav-link active" onclick="setActiveNavLink(this)" data-i18n="nav_home">Trang chủ</a>
+          <a href="javascript:void(0)" onclick="filterToursRegion('north', this)" class="liquid-nav-link" data-i18n="nav_north">Miền Bắc</a>
+          <a href="javascript:void(0)" onclick="filterToursRegion('central', this)" class="liquid-nav-link" data-i18n="nav_central">Miền Trung</a>
+          <a href="javascript:void(0)" onclick="filterToursRegion('south', this)" class="liquid-nav-link" data-i18n="nav_south">Miền Nam</a>
+          <a href="#toursSection" onclick="filterToursRegion('all', this)" class="liquid-nav-link" data-i18n="nav_all_tours">Tất cả tour</a>
           <a href="my-bookings.html" class="liquid-nav-link position-relative">
-            <span>Đơn của tôi</span>
+            <span data-i18n="nav_my_bookings">Đơn của tôi</span>
             <span id="navBookingBadge" class="badge rounded-pill bg-warning text-dark ms-1 booking-counter-badge" style="font-size: 10px; display: none;">0</span>
           </a>
           <a href="javascript:void(0)" onclick="openLargeAIChat()" class="liquid-nav-link">
-            <i class="bi bi-stars text-warning"></i> Trợ lý AI
+            <i class="bi bi-stars text-warning"></i> <span data-i18n="nav_ai_assistant">Trợ lý AI</span>
           </a>
         </div>
 
-        <!-- Thao tác góc phải: Liquid User Profile Pill + Wishlist + Khám phá Tour -->
-        <div class="header-actions">
+        <!-- Thao tác góc phải: Công tắc ngôn ngữ + User Profile Pill + Wishlist + Khám phá Tour -->
+        <div class="header-actions d-flex align-items-center">
+          <!-- CÔNG TẮC CHUYỂN ĐỔI NGÔN NGỮ (VI 🇻🇳 / EN 🇬🇧) DẠNG CÔNG TẮC NẰM TRÁI ĐĂNG NHẬP -->
+          <div class="lang-switch-capsule" role="group" aria-label="Language Selector">
+            <button type="button" class="lang-switch-btn active" data-lang="vi" onclick="setAppLanguage('vi')" title="Tiếng Việt">
+              <span class="lang-flag">🇻🇳</span> <span class="lang-label">VI</span>
+            </button>
+            <button type="button" class="lang-switch-btn" data-lang="en" onclick="setAppLanguage('en')" title="English">
+              <span class="lang-flag">🇬🇧</span> <span class="lang-label">EN</span>
+            </button>
+          </div>
+
           <!-- Khu vực tài khoản người dùng (Liquid Glass Capsule) -->
           <div id="headerAuthContainer" class="d-inline-flex align-items-center"></div>
 
           <!-- Nút Yêu thích phong cách Liquid Capsule bo tròn -->
-          <button class="liquid-btn-icon d-none d-sm-inline-flex" onclick="openWishlistModal()" title="Tour yêu thích">
+          <button class="liquid-btn-icon d-none d-sm-inline-flex" onclick="openWishlistModal()" title="Tour yêu thích" data-i18n-title="topbar_wishlist">
             <i class="bi bi-heart"></i>
             <span class="liquid-icon-badge wishlist-counter">0</span>
           </button>
 
           <!-- Nút Khám phá Tour Luxury (Hiển thị từ màn hình lớn >= 1200px) -->
           <a href="#toursSection" class="btn-explore-liquid d-none d-xl-inline-flex">
-            <i class="bi bi-compass"></i> Khám phá Tour
+            <i class="bi bi-compass"></i> <span data-i18n="btn_explore">Khám phá Tour</span>
           </a>
 
           <!-- Nút menu mobile chuẩn Liquid Glass (chỉ hiển thị dưới 992px) -->
@@ -125,7 +138,20 @@
       <!-- Mobile Dropdown Nav Drawer (Chỉ mở khi click menu mobile, tuyệt đối ẩn 100% trên Desktop) -->
       <div class="glass-mobile-drawer" id="mobileDrawerMenu">
         <div class="d-flex flex-column gap-1 max-w-md mx-auto">
-          <a href="#home" class="mobile-nav-item" onclick="closeMobileMenu()">Trang chủ</a>
+          <a href="#home" class="mobile-nav-item" onclick="closeMobileMenu()" data-i18n="nav_home">Trang chủ</a>
+          <a href="javascript:void(0)" onclick="filterToursRegion('north'); closeMobileMenu();" class="mobile-nav-item" data-i18n="nav_north">Miền Bắc</a>
+          <a href="javascript:void(0)" onclick="filterToursRegion('central'); closeMobileMenu();" class="mobile-nav-item" data-i18n="nav_central">Miền Trung</a>
+          <a href="javascript:void(0)" onclick="filterToursRegion('south'); closeMobileMenu();" class="mobile-nav-item" data-i18n="nav_south">Miền Nam</a>
+          <a href="#toursSection" onclick="filterToursRegion('all'); closeMobileMenu();" class="mobile-nav-item" data-i18n="nav_all_tours">Tất cả tour</a>
+          <a href="my-bookings.html" class="mobile-nav-item d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-ticket-perforated me-2 text-primary"></i> <span data-i18n="nav_my_bookings">Đơn của tôi</span></span>
+            <span id="navBookingBadgeMobile" class="badge bg-warning text-dark" style="display: none;">0</span>
+          </a>
+          <a href="javascript:void(0)" onclick="openLargeAIChat(); closeMobileMenu();" class="mobile-nav-item text-dark fw-bold">
+            <i class="bi bi-stars text-warning me-2"></i> <span data-i18n="nav_ai_assistant">Trợ lý AI Concierge</span>
+          </a>
+        </div>
+      </div>
           <a href="javascript:void(0)" onclick="filterToursRegion('north'); closeMobileMenu();" class="mobile-nav-item">Miền Bắc</a>
           <a href="javascript:void(0)" onclick="filterToursRegion('central'); closeMobileMenu();" class="mobile-nav-item">Miền Trung</a>
           <a href="javascript:void(0)" onclick="filterToursRegion('south'); closeMobileMenu();" class="mobile-nav-item">Miền Nam</a>
@@ -231,34 +257,34 @@
         <div class="row g-3 align-items-end">
           <!-- Từ khóa -->
           <div class="col-lg-4 col-md-6">
-            <label class="form-label"><i class="bi bi-search"></i> Bạn muốn đi đâu?</label>
+            <label class="form-label"><i class="bi bi-search"></i> <span data-i18n="search_destination_label">BẠN MUỐN ĐI ĐÂU?</span></label>
             <div class="search-input-group">
-              <input type="text" class="form-control" id="heroKeyword" placeholder="Nhập tên tour, Hạ Long, Phú Quốc...">
+              <input type="text" class="form-control" id="heroKeyword" placeholder="Nhập tên tour, Hạ Long, Phú Quốc..." data-i18n-placeholder="search_destination_placeholder">
             </div>
           </div>
 
           <!-- Vùng miền -->
           <div class="col-lg-3 col-md-6">
-            <label class="form-label"><i class="bi bi-geo-alt"></i> Khu vực / Vùng miền</label>
+            <label class="form-label"><i class="bi bi-geo-alt"></i> <span data-i18n="search_region_label">KHU VỰC / VÙNG MIỀN</span></label>
             <div class="search-input-group">
               <select class="form-select" id="heroRegion">
-                <option value="all">Tất cả vùng miền</option>
-                <option value="north">Miền Bắc (Hạ Long, Sa Pa...)</option>
-                <option value="central">Miền Trung (Đà Nẵng, Hội An, Đà Lạt...)</option>
-                <option value="south">Miền Nam (Phú Quốc, Miền Tây...)</option>
+                <option value="all" data-i18n="search_region_all">Tất cả vùng miền</option>
+                <option value="north" data-i18n="search_region_north">Miền Bắc (Hạ Long, Sa Pa...)</option>
+                <option value="central" data-i18n="search_region_central">Miền Trung (Đà Nẵng, Hội An, Đà Lạt...)</option>
+                <option value="south" data-i18n="search_region_south">Miền Nam (Phú Quốc, Miền Tây...)</option>
               </select>
             </div>
           </div>
 
           <!-- Mức ngân sách -->
           <div class="col-lg-3 col-md-6">
-            <label class="form-label"><i class="bi bi-cash-stack"></i> Mức ngân sách</label>
+            <label class="form-label"><i class="bi bi-cash-stack"></i> <span data-i18n="search_budget_label">MỨC NGÂN SÁCH</span></label>
             <div class="search-input-group">
               <select class="form-select" id="heroPrice">
-                <option value="all">Tất cả mức giá</option>
-                <option value="under3m">Dưới 3.000.000 đ</option>
-                <option value="3to5m">Từ 3.000.000 - 5.000.000 đ</option>
-                <option value="above5m">Trên 5.000.000 đ</option>
+                <option value="all" data-i18n="search_budget_all">Tất cả mức giá</option>
+                <option value="under3m" data-i18n="search_budget_under3m">Dưới 3.000.000 đ</option>
+                <option value="3to5m" data-i18n="search_budget_3to5m">Từ 3.000.000 - 5.000.000 đ</option>
+                <option value="above5m" data-i18n="search_budget_above5m">Trên 5.000.000 đ</option>
               </select>
             </div>
           </div>
@@ -266,7 +292,7 @@
           <!-- Nút tìm kiếm -->
           <div class="col-lg-2 col-md-6">
             <button type="submit" class="btn-search-submit">
-              <i class="bi bi-search"></i> Tìm kiếm
+              <i class="bi bi-search"></i> <span data-i18n="search_btn_submit">Tìm kiếm</span>
             </button>
           </div>
         </div>
@@ -988,17 +1014,17 @@
           <ul class="nav itinerary-nav-tabs" id="itineraryTabs" role="tablist">
             <li class="nav-item">
               <button class="nav-link active" id="timeline-tab" data-bs-toggle="tab" data-bs-target="#tabTimeline" type="button" role="tab">
-                <i class="bi bi-calendar3-week"></i> Lịch Trình Từng Ngày
+                <i class="bi bi-calendar3-week"></i> <span data-i18n="itinerary_tab_daily">Lịch Trình Từng Ngày</span>
               </button>
             </li>
             <li class="nav-item">
               <button class="nav-link" id="inclusions-tab" data-bs-toggle="tab" data-bs-target="#tabInclusions" type="button" role="tab">
-                <i class="bi bi-check-all"></i> Dịch Vụ Bao Gồm
+                <i class="bi bi-check-all"></i> <span data-i18n="itinerary_tab_inclusions">Dịch Vụ Bao Gồm</span>
               </button>
             </li>
             <li class="nav-item">
               <button class="nav-link" id="terms-tab" data-bs-toggle="tab" data-bs-target="#tabTerms" type="button" role="tab">
-                <i class="bi bi-shield-check"></i> Chính Sách Hoàn Hủy
+                <i class="bi bi-shield-check"></i> <span data-i18n="itinerary_tab_terms">Chính Sách Hoàn Hủy</span>
               </button>
             </li>
           </ul>
@@ -1016,7 +1042,7 @@
               <div class="row g-3">
                 <div class="col-md-6">
                   <div class="policy-box">
-                    <h5 class="policy-box-title included"><i class="bi bi-check-circle-fill"></i> Giá Tour Bao Gồm</h5>
+                    <h5 class="policy-box-title included"><i class="bi bi-check-circle-fill"></i> <span data-i18n="itinerary_included_title">Giá Tour Bao Gồm</span></h5>
                     <ul class="policy-list included" id="itineraryInclusions">
                       <!-- Render bằng JS -->
                     </ul>
@@ -1036,7 +1062,7 @@
             <!-- Tab 3: Chính sách hoàn hủy -->
             <div class="tab-pane fade" id="tabTerms" role="tabpanel">
               <div class="policy-box">
-                <h5 class="fw-bold mb-3 text-primary"><i class="bi bi-info-circle-fill"></i> Quy định hoàn / đổi vé tour</h5>
+                <h5 class="fw-bold mb-3 text-primary"><i class="bi bi-info-circle-fill"></i> <span data-i18n="itinerary_terms_title">Quy định hoàn / đổi vé tour</span></h5>
                 <ul class="policy-list">
                   <li><i class="bi bi-dot text-primary fs-4"></i> Hủy tour trước 15 ngày khởi hành: Miễn phí 100% chi phí hủy.</li>
                   <li><i class="bi bi-dot text-primary fs-4"></i> Hủy tour từ 07 - 14 ngày trước khởi hành: Tính phí 30% giá tour.</li>
@@ -1052,11 +1078,11 @@
         <!-- Sticky Footer Bar trong Modal -->
         <div class="modal-itinerary-footer">
           <div class="itinerary-footer-price">
-            <span class="label">Giá trọn gói khuyến mãi:</span>
+            <span class="label" data-i18n="itinerary_package_price">Giá trọn gói khuyến mãi:</span>
             <span class="val" id="itineraryPrice">3.890.000 đ</span>
           </div>
           <button class="btn btn-delta-accent btn-lg" id="itineraryBookBtn">
-            <i class="bi bi-cart-check-fill"></i> Đặt tour này ngay
+            <i class="bi bi-cart-check-fill"></i> <span data-i18n="itinerary_book_now">Đặt tour này ngay</span>
           </button>
         </div>
       </div>
@@ -1931,22 +1957,22 @@
     <header class="ai-fullscreen-header">
       <div class="d-flex align-items-center gap-3">
         <div class="ai-fullscreen-logo-badge">
-          <i class="bi bi-robot"></i>
+          <i class="bi bi-stars"></i>
         </div>
         <div>
           <div class="d-flex align-items-center gap-2">
-            <h1 class="ai-fullscreen-title">Trợ Lý AI Concierge 5 Sao</h1>
-            <span class="ai-fullscreen-tag">DELTA TRAVEL INTELLIGENCE</span>
+            <h1 class="ai-fullscreen-title" data-i18n="ai_title">Trợ Lý AI Concierge 5 Sao</h1>
+            <span class="ai-fullscreen-tag" data-i18n="ai_badge">DELTA CONCIERGE</span>
           </div>
-          <p class="ai-fullscreen-sub">Tư vấn hành trình cá nhân hóa, cập nhật thời tiết & hỗ trợ đặt chỗ trực tiếp</p>
+          <p class="ai-fullscreen-sub" data-i18n="ai_sub">Tư vấn hành trình cá nhân hóa, cập nhật thời tiết & hỗ trợ đặt chỗ trực tiếp</p>
         </div>
       </div>
       <div class="d-flex align-items-center gap-2">
         <button type="button" class="btn-ai-paper-action" onclick="resetLargeChatConversation()" title="Làm mới cuộc trò chuyện">
-          <i class="bi bi-arrow-clockwise"></i> Làm mới
+          <i class="bi bi-arrow-clockwise"></i> <span data-i18n="ai_btn_reset">Làm mới</span>
         </button>
-        <button type="button" class="btn-ai-paper-close" onclick="closeLargeAIChat()" title="Đóng toàn màn hình (Esc)">
-          <i class="bi bi-x-lg"></i> Đóng toàn màn hình
+        <button type="button" class="btn-ai-paper-close" onclick="closeLargeAIChat()" title="Đóng (Esc)">
+          <i class="bi bi-x-lg"></i> <span data-i18n="ai_btn_close">Đóng</span>
         </button>
       </div>
     </header>
@@ -1956,7 +1982,7 @@
       <!-- Cột trái: Gợi ý câu hỏi -->
       <aside class="ai-fullscreen-sidebar">
         <div class="ai-sidebar-section-title">
-          <i class="bi bi-compass"></i> GỢI Ý CÂU HỎI THỊNH HÀNH
+          <i class="bi bi-compass"></i> <span data-i18n="ai_section_topics">GỢI Ý CÂU HỎI THỊNH HÀNH</span>
         </div>
         <div class="ai-topics-list">
           <button type="button" class="ai-topic-card" onclick="sendLargeAIMessage('Tư vấn cho tôi tour du thuyền Vịnh Hạ Long 5 sao')">
@@ -1982,8 +2008,8 @@
         </div>
 
         <div class="ai-sidebar-footer">
-          <div class="small fw-bold">Tổng đài 24/7: <a href="tel:19008899" class="text-dark fw-bold text-decoration-none">1900 8899</a></div>
-          <div class="text-muted small" style="font-size: 11px;">Giá vé & chỗ trống đồng bộ theo thời gian thực</div>
+          <div class="small fw-bold"><span data-i18n="ai_hotline">Tổng đài 24/7:</span> <a href="tel:19008899" class="text-dark fw-bold text-decoration-none">1900 8899</a></div>
+          <div class="text-muted small" style="font-size: 11px;" data-i18n="ai_live_sync">Giá vé & chỗ trống đồng bộ theo thời gian thực</div>
         </div>
       </aside>
 
@@ -1992,7 +2018,7 @@
         <div class="ai-chat-messages-container" id="largeAIChatMessages">
           <!-- Initial Welcome Message -->
           <div class="chat-msg bot">
-            <div class="chat-msg-avatar" title="Delta AI"><i class="bi bi-robot"></i></div>
+            <div class="chat-msg-avatar" title="Delta Concierge"><i class="bi bi-stars text-warning"></i></div>
             <div class="chat-msg-bubble">
               <div>
                 <strong>Kính chào Quý khách! 👋</strong> Tôi là Trợ lý AI Concierge của Delta Travel. Tôi có thể hỗ trợ bạn:
@@ -2011,9 +2037,9 @@
         <!-- Input Bar ở dưới cùng -->
         <div class="ai-chat-input-bar">
           <div class="ai-input-wrapper">
-            <input type="text" id="largeAIChatInput" class="ai-paper-input" placeholder="Hỏi AI bất kỳ điều gì: 'Tìm tour Hạ Long 3 ngày', 'Tour đi Đà Lạt cho 2 người'...">
+            <input type="text" id="largeAIChatInput" class="ai-paper-input" placeholder="Hỏi AI bất kỳ điều gì: 'Tìm tour Hạ Long 3 ngày', 'Tour đi Đà Lạt cho 2 người'..." data-i18n-placeholder="ai_input_placeholder">
             <button class="ai-paper-send-btn" id="largeAIChatSendBtn" onclick="handleLargeSendMessage()">
-              <i class="bi bi-send-fill me-1"></i> Gửi
+              <i class="bi bi-send-fill me-1"></i> <span data-i18n="ai_btn_send">Gửi</span>
             </button>
           </div>
         </div>

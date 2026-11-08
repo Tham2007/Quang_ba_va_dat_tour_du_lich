@@ -121,6 +121,12 @@ function setActiveNavLink(element) {
   const links = document.querySelectorAll(".liquid-nav-link");
   links.forEach(l => l.classList.remove("active"));
   if (element) element.classList.add("active");
+  if (typeof closeLargeAIChat === "function") {
+    const fullscreenEl = document.getElementById("largeAIChatFullscreen");
+    if (fullscreenEl && fullscreenEl.style.display !== "none") {
+      closeLargeAIChat();
+    }
+  }
 }
 
 function toggleMobileMenu() {
@@ -487,23 +493,40 @@ function renderTourCards() {
     }) || schedules.find(schedule => schedule.availableSeats > 0) || schedules[0] || null;
     const seats = nextSchedule ? nextSchedule.availableSeats : tour.availableSeats;
     const departureDate = nextSchedule
-      ? new Date(nextSchedule.departureAt).toLocaleDateString("vi-VN")
+      ? new Date(nextSchedule.departureAt).toLocaleDateString(typeof getAppLanguage === "function" && getAppLanguage() === "en" ? "en-US" : "vi-VN")
       : "";
+
+    const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
+    const durationDisplay = isEn
+      ? String(tour.duration || "").replace(/N/g, "D").replace(/Đ/g, "N")
+      : tour.duration;
+    const badgeText = tour.badge === "FLASH SALE"
+      ? (typeof t === "function" ? t("card_flashsale") : "FLASH SALE")
+      : (typeof t === "function" ? t("card_featured") : (tour.badge || "TOUR NỔI BẬT"));
+    const seatsText = seats > 0
+      ? (typeof t === "function" ? t("card_left_seats", { n: seats }) : `Còn ${seats} chỗ`)
+      : (nextSchedule ? (typeof t === "function" ? t("card_sold_out") : "Hết chỗ") : "---");
+    const pickupLabel = typeof t === "function" ? t("card_pickup") : "Điểm đón:";
+    const departureLabel = typeof t === "function" ? t("card_departure") : "Khởi hành:";
+    const priceUnit = typeof t === "function" ? t("card_per_guest") : "/ khách";
+    const viewItineraryText = typeof t === "function" ? t("card_view_itinerary") : "Xem lịch trình";
+    const bookNowText = typeof t === "function" ? t("card_book_now") : "Đặt ngay";
+
     return `
       <div class="col-12 col-md-6 col-xl-4 col-xxl-3 mb-4">
         <div class="tour-card">
           <!-- Ảnh đại diện tour (Click để xem chi tiết lịch trình) -->
-          <div class="tour-card-thumb" style="cursor: pointer;" onclick="openItineraryModal('${tour.id}')" title="Nhấn để xem chi tiết lịch trình tour ${tour.title}">
+          <div class="tour-card-thumb" style="cursor: pointer;" onclick="openItineraryModal('${tour.id}')" title="${viewItineraryText}: ${tour.title}">
             <img src="${tour.image}" alt="${tour.title}" loading="lazy" onerror="this.onerror=null; this.src='assets/images/halong.png';">
             <div class="tour-badge-group">
-              <span class="badge-tour badge-tour-popular">${tour.badge || "TOUR NỔI BẬT"}</span>
+              <span class="badge-tour badge-tour-popular">${badgeText}</span>
             </div>
-            <button class="btn-wishlist ${isFav ? 'active' : ''}" onclick="toggleWishlist('${tour.id}', event)" title="Thêm vào yêu thích">
+            <button class="btn-wishlist ${isFav ? 'active' : ''}" onclick="toggleWishlist('${tour.id}', event)" title="Yêu thích">
               <i class="bi ${isFav ? 'bi-heart-fill' : 'bi-heart'}"></i>
             </button>
             <div class="tour-thumb-meta">
-              <span class="tour-duration-tag"><i class="bi bi-clock"></i> ${tour.duration}</span>
-              <span class="tour-seats-tag">${seats > 0 ? `Còn ${seats} chỗ` : (nextSchedule ? "Hết chỗ" : "Chưa có lịch")}</span>
+              <span class="tour-duration-tag"><i class="bi bi-clock"></i> ${durationDisplay}</span>
+              <span class="tour-seats-tag">${seatsText}</span>
             </div>
           </div>
 
@@ -514,15 +537,15 @@ function renderTourCards() {
               <span class="tour-region"><i class="bi bi-geo-alt"></i> ${tour.regionName}</span>
             </div>
 
-            <h3 class="tour-title" style="cursor: pointer;" onclick="openItineraryModal('${tour.id}')" title="Xem chi tiết: ${tour.title}">${tour.title}</h3>
+            <h3 class="tour-title" style="cursor: pointer;" onclick="openItineraryModal('${tour.id}')" title="${viewItineraryText}: ${tour.title}">${tour.title}</h3>
 
             <!-- Thông số tóm tắt -->
             <div class="tour-specs">
-              <div class="tour-spec-item" title="Khởi hành từ: ${tour.departure}">
+              <div class="tour-spec-item" title="${pickupLabel} ${tour.departure}">
                 <i class="bi bi-geo-fill"></i>
-                <span>Điểm đón: ${tour.departure}</span>
+                <span>${pickupLabel} ${tour.departure}</span>
               </div>
-              ${departureDate ? `<div class="tour-spec-item"><i class="bi bi-calendar-event"></i><span>Khởi hành: ${departureDate}</span></div>` : ""}
+              ${departureDate ? `<div class="tour-spec-item"><i class="bi bi-calendar-event"></i><span>${departureLabel} ${departureDate}</span></div>` : ""}
               <div class="tour-spec-item">
                 <i class="bi bi-bus-front-fill"></i>
                 <span>${tour.transport}</span>
@@ -533,17 +556,17 @@ function renderTourCards() {
             <div class="tour-price-box">
               <div class="tour-price-current">
                 ${formatVND(tour.price)}
-                <span class="tour-price-unit">/ khách</span>
+                <span class="tour-price-unit">${priceUnit}</span>
               </div>
             </div>
 
             <!-- Nút thao tác -->
             <div class="tour-card-actions">
               <button class="btn-tour-detail" onclick="openItineraryModal('${tour.id}')">
-                <i class="bi bi-calendar4-week"></i> Xem lịch trình
+                <i class="bi bi-calendar4-week"></i> ${viewItineraryText}
               </button>
               <button class="btn-tour-book" onclick="openBookingModal('${tour.id}')">
-                <i class="bi bi-cart-check-fill"></i> Đặt ngay
+                <i class="bi bi-cart-check-fill"></i> ${bookNowText}
               </button>
             </div>
           </div>
@@ -2457,3 +2480,29 @@ function closeModal(modalId) {
     bootstrap.Modal.getInstance(el)?.hide();
   }
 }
+
+// Xử lý tham số URL (?ai=open hoặc ?region=...) khi người dùng điều hướng từ trang khác
+document.addEventListener("DOMContentLoaded", () => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("ai") === "open") {
+      setTimeout(() => {
+        if (typeof openLargeAIChat === "function") openLargeAIChat();
+      }, 350);
+    }
+    const reg = params.get("region");
+    if (reg) {
+      setTimeout(() => {
+        const tab = document.querySelector(`.liquid-nav-link[onclick*="'${reg}'"]`);
+        if (tab && typeof filterToursRegion === "function") filterToursRegion(reg, tab);
+      }, 450);
+    }
+  } catch (err) {
+    console.warn("URL params check error:", err);
+  }
+});
+
+// Lắng nghe sự kiện chuyển đổi ngôn ngữ
+window.addEventListener("languageChanged", () => {
+  if (typeof renderTourCards === "function") renderTourCards();
+});
