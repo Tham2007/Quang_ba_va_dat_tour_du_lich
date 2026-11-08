@@ -2,17 +2,8 @@ const sql = require('mssql');
 const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 
-const config = {
-  user: 'db_ad0b71_dattour_admin',
-  password: 'Phamtham312007@',
-  server: 'sql8020.site4now.net',
-  port: 1433,
-  database: 'db_ad0b71_dattour',
-  options: {
-    encrypt: false,
-    trustServerCertificate: true
-  }
-};
+const { requireSqlServerConfig } = require("./mssql_config");
+const config = requireSqlServerConfig();
 
 async function seedData() {
   const localDb = new DatabaseSync(path.resolve(__dirname, '../API/delta_dev.db'));

@@ -29,24 +29,18 @@ const db = new DatabaseSync(DB_PATH);
 
 // Cấu hình kết nối trực tiếp SmarterASP.NET SQL Server
 let sqlServerPool = null;
-const SQL_SERVER_CONFIG = {
-  user: process.env.DELTA_MSSQL_USER || "db_ad0b71_dattour_admin",
-  password: process.env.DELTA_MSSQL_PASSWORD || "Phamtham312007@",
-  server: process.env.DELTA_MSSQL_SERVER || "sql8020.site4now.net",
-  port: parseInt(process.env.DELTA_MSSQL_PORT || "1433", 10),
-  database: process.env.DELTA_MSSQL_DATABASE || "db_ad0b71_dattour",
-  options: {
-    encrypt: false,
-    trustServerCertificate: true,
-    connectTimeout: 8000
-  }
-};
+const { getSqlServerConfig } = require("./scripts/mssql_config");
 
 async function initDirectSqlServer() {
   try {
+    const config = getSqlServerConfig();
+    if (!config) {
+      console.log("[SQL SERVER] Connection not configured (DELTA_MSSQL_* variables missing).");
+      return;
+    }
     const mssql = require("mssql");
-    sqlServerPool = await mssql.connect(SQL_SERVER_CONFIG);
-    console.log("[SQL SERVER] Đã kết nối TRỰC TIẾP thành công tới SmarterASP.NET SQL Server (sql8020.site4now.net:1433 / db_ad0b71_dattour)!");
+    sqlServerPool = await mssql.connect(config);
+    console.log("[SQL SERVER] Database connection established.");
   } catch (err) {
     console.warn("[SQL SERVER] Chưa thể kết nối SQL Server trực tiếp:", err.message);
   }
@@ -1020,10 +1014,10 @@ app.get("/api/v1/health/ready", (req, res) => {
   const row = db.prepare("SELECT COUNT(*) AS c FROM tours").get();
   res.json({
     status: "ok",
-    db: sqlServerPool ? "SQL Server (sql8020.site4now.net - ONLINE)" : "connected",
+    db: sqlServerPool ? "SQL Server (connected)" : "connected",
     sqlServerConnected: Boolean(sqlServerPool),
-    sqlServerHost: "sql8020.site4now.net:1433",
-    sqlServerDb: "db_ad0b71_dattour",
+    sqlServerHost: sqlServerPool ? "configured" : null,
+    sqlServerDb: sqlServerPool ? "configured" : null,
     tours: row.c,
     catalogMode: sqlServerPool ? "sqlserver_direct" : "sqlite"
   });
