@@ -236,6 +236,33 @@ async function runTests() {
       "X-CSRF-Token": admCsrf
     };
 
+
+    const pastDeparture=await req("/api/v1/admin/schedules",{
+      method:"POST",headers:adminHeaders,body:{
+        tour_id:firstTour.id,
+        departure_at:new Date(Date.now()-86400000).toISOString(),total_seats:9
+      }
+    });
+    assert("Reject departure date already in the past",pastDeparture.status===422);
+    const changedCapacity=await req("/api/v1/admin/tours/"+firstTour.id,{
+      method:"PATCH",headers:adminHeaders,body:{available_seats:120}
+    });
+    const readbackCapacity=await req("/api/v1/tours/"+firstTour.id);
+    const readbackSchedules=await req("/api/v1/tours/"+firstTour.id+"/schedules");
+    assert("Persist tour capacity and synchronize future schedules",
+      changedCapacity.status===200 &&
+      readbackCapacity.json?.totalSeats===120 &&
+      readbackSchedules.json?.every(s=>s.totalSeats===120));
+    const invalidCapacity=await req("/api/v1/admin/tours/"+firstTour.id,{
+      method:"PATCH",headers:adminHeaders,body:{available_seats:-10}
+    });
+    assert("Reject negative tour capacity",invalidCapacity.status===422);
+    const filteredDestination=await req("/api/v1/tours?destination=%C4%90%C3%A0%20N%E1%BA%B5ng&region=all");
+    assert("Destination-only search returns matching tour",
+      filteredDestination.status===200 &&
+      filteredDestination.json?.some(x=>x.title.includes("Đà Nẵng")) &&
+      filteredDestination.json?.every(x=>x.title.includes("Đà Nẵng")));
+
     const metricsRes = await req("/api/v1/admin/metrics", { headers: adminHeaders });
     assert("GET /api/v1/admin/metrics", metricsRes.status === 200 && metricsRes.json?.tours > 0);
 
