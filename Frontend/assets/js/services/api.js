@@ -376,10 +376,10 @@ const DeltaAPI = (() => {
     });
   }
 
-  async function assistantChat(message) {
+  async function assistantChat(message, contextTourId = null) {
     return await request("/assistant/chat", {
       method: "POST",
-      body: { message }
+      body: { message, contextTourId }
     });
   }
 
