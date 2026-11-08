@@ -53,7 +53,7 @@
         </div>
         <div class="d-flex align-items-center">
           <div id="topbarAuthContainer" class="d-none d-md-inline-flex align-items-center me-3"></div>
-          <a href="javascript:void(0)" onclick="openMyBookingsModal()">
+          <a href="my-bookings.html">
             <i class="bi bi-ticket-perforated-fill text-info"></i> Tra cứu đơn đặt chỗ
           </a>
           <span class="topbar-divider"></span>
@@ -86,11 +86,11 @@
           <a href="javascript:void(0)" onclick="filterToursRegion('central', this)" class="liquid-nav-link">Miền Trung</a>
           <a href="javascript:void(0)" onclick="filterToursRegion('south', this)" class="liquid-nav-link">Miền Nam</a>
           <a href="#toursSection" onclick="filterToursRegion('all', this)" class="liquid-nav-link">Tất cả tour</a>
-          <a href="javascript:void(0)" onclick="openMyBookingsModal()" class="liquid-nav-link position-relative">
+          <a href="my-bookings.html" class="liquid-nav-link position-relative">
             <span>Đơn của tôi</span>
             <span id="navBookingBadge" class="badge rounded-pill bg-warning text-dark ms-1 booking-counter-badge" style="font-size: 10px; display: none;">0</span>
           </a>
-          <a href="javascript:void(0)" onclick="openChatbot()" class="liquid-nav-link">
+          <a href="javascript:void(0)" onclick="openLargeAIChat()" class="liquid-nav-link">
             <i class="bi bi-stars text-warning"></i> Trợ lý AI
           </a>
         </div>
@@ -126,11 +126,11 @@
           <a href="javascript:void(0)" onclick="filterToursRegion('central'); closeMobileMenu();" class="mobile-nav-item">Miền Trung</a>
           <a href="javascript:void(0)" onclick="filterToursRegion('south'); closeMobileMenu();" class="mobile-nav-item">Miền Nam</a>
           <a href="#toursSection" onclick="filterToursRegion('all'); closeMobileMenu();" class="mobile-nav-item">Tất cả tour</a>
-          <a href="javascript:void(0)" onclick="openMyBookingsModal(); closeMobileMenu();" class="mobile-nav-item d-flex justify-content-between align-items-center">
+          <a href="my-bookings.html" class="mobile-nav-item d-flex justify-content-between align-items-center">
             <span><i class="bi bi-ticket-perforated me-2 text-primary"></i> Đơn của tôi</span>
             <span id="navBookingBadgeMobile" class="badge bg-warning text-dark" style="display: none;">0</span>
           </a>
-          <a href="javascript:void(0)" onclick="openChatbot(); closeMobileMenu();" class="mobile-nav-item text-dark fw-bold">
+          <a href="javascript:void(0)" onclick="openLargeAIChat(); closeMobileMenu();" class="mobile-nav-item text-dark fw-bold">
             <i class="bi bi-stars text-warning me-2"></i> Trợ lý AI Concierge
           </a>
         </div>
@@ -903,7 +903,7 @@
         <div class="col-lg-3 col-md-6 mb-4">
           <h5>Chính Sách & Hỗ Trợ</h5>
           <ul class="footer-links">
-            <li><a href="javascript:void(0)" onclick="openMyBookingsModal()"><i class="bi bi-chevron-right"></i> Tra Cứu Vé Đã Đặt</a></li>
+            <li><a href="my-bookings.html"><i class="bi bi-chevron-right"></i> Tra Cứu Vé Đã Đặt</a></li>
             <li><a href="#faq"><i class="bi bi-chevron-right"></i> Điều Khoản Dịch Vụ</a></li>
             <li><a href="#faq"><i class="bi bi-chevron-right"></i> Chính Sách Hoàn Hủy</a></li>
             <li><a href="#whyChooseUs"><i class="bi bi-chevron-right"></i> Bảo Hiểm Du Lịch</a></li>
@@ -1912,6 +1912,108 @@
     <button class="floating-btn floating-top" id="backToTopBtn" title="Cuộn lên đầu trang">
       <i class="bi bi-arrow-up"></i>
     </button>
+  </div>
+
+  <!-- ==========================================================================
+       KHUNG CHAT TRỢ LÝ AI LỚN (LARGE AI CONCIERGE MODAL)
+       Khi click "Trợ lý AI" trên thanh Tab / Menu sẽ mở khung chat rộng lớn
+       ========================================================================== -->
+  <div class="modal fade" id="largeAIChatModal" tabindex="-1" aria-labelledby="largeAIChatModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+      <div class="modal-content border-0 shadow-2xl rounded-4 overflow-hidden" style="min-height: 75vh; height: 85vh;">
+        <!-- Header -->
+        <div class="modal-header bg-dark text-white p-3 px-4 d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center gap-3">
+            <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+              <i class="bi bi-robot fs-4"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold text-white mb-0" id="largeAIChatModalLabel">
+                Trợ Lý AI Concierge 5 Sao <span class="badge bg-warning text-dark ms-2 fw-bold" style="font-size: 11px;">DELTA INTELLIGENCE</span>
+              </h5>
+              <div class="text-white-50 small" style="font-size: 12px;">
+                <i class="bi bi-circle-fill text-success" style="font-size: 7px;"></i> Tư vấn điểm đến, lộ trình chi tiết & hỗ trợ đặt tour tức thì
+              </div>
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-3" onclick="resetLargeChatConversation()">
+              <i class="bi bi-arrow-clockwise"></i> Làm mới
+            </button>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+          </div>
+        </div>
+
+        <!-- Body: 2 cột (Trái: Chủ đề gợi ý, Phải: Khung chat rộng) -->
+        <div class="modal-body p-0 d-flex flex-column flex-lg-row h-100">
+          <!-- Cột trái: Chủ đề & Câu hỏi hot -->
+          <div class="col-12 col-lg-4 col-xl-3 border-end bg-light p-3 d-flex flex-column gap-2 overflow-y-auto">
+            <div class="fw-bold text-dark small text-uppercase mb-1" style="letter-spacing: 0.05em;">
+              <i class="bi bi-fire text-danger me-1"></i> Gợi ý câu hỏi hot
+            </div>
+            <button type="button" class="btn btn-white text-start border rounded-3 p-2.5 shadow-xs large-ai-topic-btn" onclick="sendLargeAIMessage('Tư vấn cho tôi tour du thuyền Vịnh Hạ Long 5 sao')">
+              <div class="fw-bold text-dark small">🏖️ Tour Du Thuyền Hạ Long 5*</div>
+              <div class="text-muted" style="font-size: 11px;">Trọn gói nghỉ dưỡng, chèo kayak Lan Hạ</div>
+            </button>
+            <button type="button" class="btn btn-white text-start border rounded-3 p-2.5 shadow-xs large-ai-topic-btn" onclick="sendLargeAIMessage('Gợi ý hành trình Đà Nẵng - Cầu Vàng - Hội An cho gia đình')">
+              <div class="fw-bold text-dark small">🏮 Đà Nẵng - Cầu Vàng - Hội An</div>
+              <div class="text-muted" style="font-size: 11px;">Vé cáp treo Bà Nà & Phố cổ Hội An</div>
+            </button>
+            <button type="button" class="btn btn-white text-start border rounded-3 p-2.5 shadow-xs large-ai-topic-btn" onclick="sendLargeAIMessage('Có những tour nào dưới 3 triệu đồng đi cuối tuần?')">
+              <div class="fw-bold text-dark small">💰 Tour giá rẻ dưới 3 triệu</div>
+              <div class="text-muted" style="font-size: 11px;">Nghỉ dưỡng cuối tuần tiết kiệm</div>
+            </button>
+            <button type="button" class="btn btn-white text-start border rounded-3 p-2.5 shadow-xs large-ai-topic-btn" onclick="sendLargeAIMessage('Tư vấn đi Đà Lạt săn mây và ngắm hoa')">
+              <div class="fw-bold text-dark small">🌸 Săn mây & Check-in Đà Lạt</div>
+              <div class="text-muted" style="font-size: 11px;">Xe Limousine phòng nằm, khách sạn view đẹp</div>
+            </button>
+            <button type="button" class="btn btn-white text-start border rounded-3 p-2.5 shadow-xs large-ai-topic-btn" onclick="sendLargeAIMessage('Chính sách hoàn hủy và bảo hiểm của Delta Travel thế nào?')">
+              <div class="fw-bold text-dark small">📜 Chính sách hoàn hủy & Bảo hiểm</div>
+              <div class="text-muted" style="font-size: 11px;">Cam kết 100% đổi ngày & hoàn tiền linh hoạt</div>
+            </button>
+
+            <div class="mt-auto pt-3 border-top">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-telephone-fill text-warning"></i>
+                <div class="small fw-bold">Tổng đài 24/7: 1900 8899</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cột phải: Dòng tin nhắn & Input -->
+          <div class="col-12 col-lg-8 col-xl-9 d-flex flex-column h-100 bg-white">
+            <div class="flex-1 p-3 p-md-4 overflow-y-auto" id="largeAIChatMessages" style="min-height: 400px; max-height: calc(85vh - 160px);">
+              <!-- Lời chào đầu từ AI -->
+              <div class="chat-msg bot">
+                <div class="chat-msg-avatar" title="Delta AI"><i class="bi bi-robot"></i></div>
+                <div class="chat-msg-bubble">
+                  <div>
+                    <strong>Xin chào Quý khách! 👋</strong> Tôi là Trợ lý AI Concierge của Delta Travel. Tôi có thể giúp bạn:
+                    <ul class="mb-2 mt-1 ps-3">
+                      <li>Gợi ý hành trình phù hợp theo sở thích (biển đảo, vùng núi, tâm linh, nghỉ dưỡng).</li>
+                      <li>Tra cứu giá vé, thời tiết và kinh nghiệm du lịch thực tế.</li>
+                      <li><strong>Hiển thị trực tiếp các tour phù hợp để bạn bấm đặt giữ chỗ ngay trong câu chuyện.</strong></li>
+                    </ul>
+                    Bạn đang muốn lên kế hoạch đi đâu hay cần tìm tour cho bao nhiêu người?
+                  </div>
+                  <span class="chat-msg-time">Hôm nay</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Thanh nhập tin nhắn bên dưới -->
+            <div class="p-3 border-top bg-light">
+              <div class="input-group">
+                <input type="text" id="largeAIChatInput" class="form-control paper-control border-end-0 py-2.5" placeholder="Hỏi AI bất kỳ điều gì: 'Tìm tour Hạ Long 3 ngày', 'Tour đi Đà Lạt cho 2 người'...">
+                <button class="btn btn-dark px-4 fw-bold" id="largeAIChatSendBtn" onclick="handleLargeSendMessage()">
+                  <i class="bi bi-send-fill me-1"></i> Gửi
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- BONG BÓNG CHATBOT AI & CỬA SỔ CHAT TRỰC TUYẾN -->
