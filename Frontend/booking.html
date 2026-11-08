@@ -573,16 +573,11 @@
           }
         }
 
-        if (!tour) {
-          // Fallback danh mục mặc định
-          tour = {
-            id: tourId,
-            title: "Tour Du Thuyền 5 Sao Vịnh Hạ Long – Vịnh Lan Hạ",
-            duration: "3N2Đ",
-            transport: "Du thuyền 5* + Limousine VIP",
-            price: 3890000,
-            image: "assets/images/halong.png"
-          };
+        if (!tour || String(tour.id) !== tourId) {
+          const button=document.querySelector(".paper-btn-submit");
+          if (button) button.disabled=true;
+          document.getElementById("tourTitleDisplay").textContent="Không thể xác minh tour từ máy chủ.";
+          return;
         }
 
         currentTour = tour;
@@ -614,25 +609,26 @@
           }
         }
 
-        if (schedules.length === 0) {
-          // Tạo 3 lịch khởi hành gần nhất
-          schedules = [7, 14, 21].map((d, i) => {
-            const date = new Date(Date.now() + d * 86400000);
-            return {
-              id: `SCHED-${tourId}-${i+1}`,
-              departureAt: date.toISOString(),
-              availableSeats: 25 - i * 4
-            };
-          });
+        currentSchedules=schedules.filter(x => typeof x?.id==="string" &&
+          new Date(x.departureAt).getTime()>Date.now() &&
+          x.active!==false && Number(x.availableSeats)>0);
+        select.replaceChildren();
+        if (!currentSchedules.length) {
+          select.add(new Option("Chưa có lịch mở bán được xác nhận",""));
+          select.disabled=true;
+          return;
         }
-
-        currentSchedules = schedules;
-        select.innerHTML = schedules.map(s => {
-          const dStr = new Date(s.departureAt).toLocaleDateString("vi-VN");
-          return `<option value="${s.id}">${dStr} · Còn ${s.availableSeats} chỗ</option>`;
-        }).join("");
-      } catch (err) {
-        select.innerHTML = `<option value="DEFAULT">Khởi hành thứ 7 hàng tuần</option>`;
+        select.disabled=false;
+        for (const item of currentSchedules) {
+          const d=new Date(item.departureAt).toLocaleDateString("vi-VN");
+          select.add(new Option(d+" · Còn "+Number(item.availableSeats)+" chỗ",item.id));
+        }
+      } catch(err) {
+        console.error("Không tải được lịch khởi hành:",err);
+        currentSchedules=[];
+        select.replaceChildren();
+        select.add(new Option("Không thể xác minh lịch khởi hành",""));
+        select.disabled=true;
       }
     }
 
@@ -645,26 +641,23 @@
       const totalGuests = adults + children + infants;
       document.getElementById("guestCountDisplay").textContent = `${totalGuests} khách (${adults} lớn, ${children} trẻ)`;
 
-      // Tính tổng tiền: Người lớn 100%, trẻ em 75%, em bé miễn phí
-      const rawTotal = (adults * currentTour.price) + (children * currentTour.price * 0.75);
+      // Preview uses the same 100/75/10 rates as the backend.
+      const unit=Number(currentTour.price)||0;
+      const rawTotal=adults*unit+children*Math.floor((unit*75+50)/100)+
+        infants*Math.floor((unit*10+50)/100);
       const finalTotal = Math.max(0, rawTotal - discountAmount);
 
       document.getElementById("totalPriceDisplay").textContent = formatVND(finalTotal);
     }
 
     function applyVoucher() {
-      const input = document.getElementById("voucherCodeInput");
-      const code = (input?.value || "").trim().toUpperCase();
-      const alertEl = document.getElementById("voucherAlert");
-
-      if (code === "DELTA10" || code === "VIPTOUR") {
-        discountAmount = 200000;
-        alertEl.style.display = "block";
-        alertEl.textContent = `Áp dụng thành công mã ${code}: Giảm 200.000 đ!`;
-        recalcPrice();
-      } else if (code !== "") {
-        alert("Mã ưu đãi không hợp lệ hoặc đã hết hạn.");
+      discountAmount=0;
+      const el=document.getElementById("voucherAlert");
+      if (el) {
+        el.style.display="block";
+        el.textContent="Mã khuyến mãi chưa hỗ trợ ở bản thử nghiệm.";
       }
+      recalcPrice();
     }
 
     let bookingSubmissionInProgress = false;
@@ -737,9 +730,9 @@
         successBox.style.display = "block";
 
         document.getElementById("receiptRef").textContent = `#${booking.reference || booking.id}`;
-        document.getElementById("receiptTourTitle").textContent = currentTour.title;
+        document.getElementById("receiptTourTitle").textContent = booking.tourTitle || currentTour.title;
         document.getElementById("receiptCustomer").textContent = `${name} (${phone})`;
-        document.getElementById("receiptTotal").textContent = formatVND(booking.totalPrice || ((adults * currentTour.price) + (children * currentTour.price * 0.75)));
+        document.getElementById("receiptTotal").textContent = formatVND(booking.totalPrice);
         document.getElementById("receiptTransferNote").textContent = `${booking.reference || booking.id} ${phone}`;
 
         window.scrollTo({ top: 0, behavior: "smooth" });
