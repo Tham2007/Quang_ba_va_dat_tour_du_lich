@@ -627,49 +627,39 @@
         return;
       }
 
-      const payload = {
-        scheduleId: scheduleId || "DEFAULT",
-        tourId: currentTour.id,
-        tourTitle: currentTour.title,
-        customerName: name,
-        customerPhone: phone,
-        customerEmail: email,
-        adults: adults,
-        children: children,
-        infants: infants,
-        seats: adults + children + infants,
-        pickupLocation: document.getElementById("pickupLocationInput")?.value || "",
-        specialRequests: document.getElementById("customerNotes")?.value || ""
-      };
+      if (!scheduleId) {
+        alert("Vui lòng chọn lịch khởi hành hợp lệ từ máy chủ.");
+        return;
+      }
+      if (!/^0[35789][0-9]{8}$/.test(phone) || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+        alert("Số điện thoại hoặc email không hợp lệ.");
+        return;
+      }
+      if (!Number.isInteger(adults) || adults < 1 || !Number.isInteger(children) || children < 0 ||
+          !Number.isInteger(infants) || infants < 0 || adults + children + infants > 20) {
+        alert("Số hành khách không hợp lệ.");
+        return;
+      }
 
       try {
-        let booking = null;
-        if (typeof DeltaAPI !== "undefined" && DeltaAPI.createBooking) {
-          const res = await DeltaAPI.createBooking(payload);
-          if (res && res.success && res.data) {
-            booking = res.data;
-          }
+        if (typeof DeltaAPI === "undefined" || !DeltaAPI.createBooking) {
+          throw new Error("Máy chủ đặt tour chưa sẵn sàng.");
         }
-
-        if (!booking) {
-          // Fallback tạo mã đơn
-          const rand = Math.floor(100000 + Math.random() * 900000);
-          booking = {
-            id: `BK${rand}`,
-            reference: `BK${rand}`,
-            tourTitle: currentTour.title,
-            customerName: name,
-            customerPhone: phone,
-            totalPrice: Math.max(0, ((adults * currentTour.price) + (children * currentTour.price * 0.75)) - discountAmount),
-            status: "PENDING_PAYMENT",
-            createdAt: new Date().toISOString()
-          };
+        const res = await DeltaAPI.createBooking({
+          schedule_id: scheduleId,
+          adults, children, infants,
+          customer_name: name,
+          customer_phone: phone,
+          customer_email: email,
+          note: document.getElementById("customerNotes")?.value?.trim() || ""
+        });
+        if (!res?.success || !res.data?.id) {
+          throw new Error(res?.error || "Máy chủ chưa xác nhận được đơn đặt tour.");
         }
-
-        // Lưu vào localStorage
-        const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
-        local.unshift(booking);
-        localStorage.setItem("delta_customer_bookings", JSON.stringify(local));
+        const booking = res.data;
+        if (booking.paid || (booking.status !== "PENDING_PAYMENT" && booking.status !== "PENDING_DEMO")) {
+          throw new Error("Trạng thái đơn không khớp quy trình giữ chỗ thử nghiệm.");
+        }
 
         // Hiển thị phiếu xác nhận giữ chỗ
         document.getElementById("bookingFormWrapper").style.display = "none";
