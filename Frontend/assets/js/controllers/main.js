@@ -1743,7 +1743,7 @@ async function handleBookingSubmission(e) {
       email,
       notes: notes || "Không có yêu cầu đặc biệt"
     },
-    cccd: "Bảo mật hệ thống",
+    cccd: "Không thu thập (bản demo)",
     passengers: {
       adults: pricing.adultQty,
       children: pricing.childQty,
