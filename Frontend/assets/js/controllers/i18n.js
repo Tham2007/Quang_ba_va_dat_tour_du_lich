@@ -103,7 +103,36 @@ const DELTA_TRANSLATIONS = {
     sort_price_asc: "Giá: Thấp đến Cao",
     sort_price_desc: "Giá: Cao đến Thấp",
     sort_duration: "Thời lượng: Ngắn đến Dài",
+    sort_newest: "Tour mới nhất",
+    sort_departure_soonest: "Ngày khởi hành gần nhất",
+    tag_cruise: "Du thuyền 5*",
+    support_title: "Tư vấn viên 24/7",
+    support_sub: "Hỗ trợ miễn phí hành trình",
+    support_chat: "Chat với tư vấn viên",
+    commit_title: "Cam kết Delta Travel",
+    commit_1: "100% Giá chuẩn niêm yết",
+    commit_2: "Bảo hiểm du lịch toàn diện",
+    commit_3: "Khách sạn & Du thuyền cao cấp",
+    commit_4: "Đổi ngày khởi hành linh hoạt",
     showing_tours: "Hiển thị",
+
+    // Tên 16 Tour Du Lịch Toàn Quốc
+    tour_title_DL_HL01: "Tour Du Thuyền 5 Sao Vịnh Hạ Long - Vịnh Lan Hạ",
+    tour_title_DL_DN02: "Thiên Đường Miền Trung: Đà Nẵng - Cầu Vàng - Phố Cổ Hội An",
+    tour_title_DL_PQ03: "Đảo Ngọc Phú Quốc - Cáp Treo Hòn Thơm - Grand World",
+    tour_title_DL_DL04: "Thành Phố Ngàn Hoa: Đà Lạt Mộng Mơ - Đồi Chè Cầu Đất",
+    tour_title_DL_SP05: "Sa Pa Mờ Sương: Chinh Phục Nóc Nhà Fansipan - Bản Cát Cát",
+    tour_title_DL_MT06: "Sông Nước Miền Tây: Cần Thơ Chợ Nổi Cái Răng - Trà Sư",
+    tour_title_DL_NB07: "Tuyệt Tác Non Nước: Ninh Bình - Tràng An - Chùa Bái Đính - Hang Múa",
+    tour_title_DL_HG08: "Huyền Thoại Đá Sỏi: Hà Giang - Đèo Mã Pí Lèng - Du Thuyền Sông Nho Quế",
+    tour_title_DL_CB09: "Vùng Biên Ải Hùng Vĩ: Cao Bằng - Thác Bản Giốc - Động Ngườm Ngao",
+    tour_title_DL_MC10: "Thảo Nguyên Mộc Châu: Đồi Chè Trái Tim - Thác Dải Yếm - Cầu Kính Bạch Long",
+    tour_title_DL_HU11: "Hoàng Triều Cố Đô: Huế - Đại Nội Hoàng Cung - Ca Huế Sông Hương",
+    tour_title_DL_NT12: "Vịnh Ngọc Biển Xanh: Nha Trang - Vịnh San Hô - Đảo Điệp Sơn - Tắm Khoáng",
+    tour_title_DL_QN13: "Xứ Nẫu Biển Nhớ: Quy Nhơn - Kỳ Co - Eo Gió - Hòn Khô Hoang Sơ",
+    tour_title_DL_PY14: "Xứ Sở Hoa Vàng Cỏ Xanh: Phú Yên - Ghềnh Đá Đĩa - Mũi Điện Đón Bình Minh",
+    tour_title_DL_TN15: "Đỉnh Thiêng Nam Bộ: Tây Ninh - Cáp Treo Đỉnh Núi Bà Đen - Tòa Thánh",
+    tour_title_DL_CD16: "Biển Trời Huyền Thoại: Côn Đảo - Nghĩa Trang Hàng Dương - Bãi Đầm Trầu",
 
     // Tour Cards
     card_featured: "TOUR NỔI BẬT",
@@ -268,7 +297,36 @@ const DELTA_TRANSLATIONS = {
     sort_price_asc: "Price: Low to High",
     sort_price_desc: "Price: High to Low",
     sort_duration: "Duration: Short to Long",
+    sort_newest: "Newest Tours",
+    sort_departure_soonest: "Soonest Departure",
+    tag_cruise: "5* Cruise",
+    support_title: "24/7 Travel Advisor",
+    support_sub: "Free personalized journey support",
+    support_chat: "Chat with travel advisor",
+    commit_title: "Delta Travel Commitments",
+    commit_1: "100% Official Listed Prices",
+    commit_2: "Comprehensive Travel Insurance",
+    commit_3: "Premium Hotels & Cruises",
+    commit_4: "Flexible Departure Rescheduling",
     showing_tours: "Showing",
+
+    // 16 Tour Titles
+    tour_title_DL_HL01: "5-Star Luxury Cruise: Ha Long Bay - Lan Ha Bay",
+    tour_title_DL_DN02: "Central Vietnam Paradise: Da Nang - Golden Bridge - Hoi An Ancient Town",
+    tour_title_DL_PQ03: "Pearl Island Phu Quoc: Hon Thom Cable Car - Grand World",
+    tour_title_DL_DL04: "City of Eternal Flowers: Da Lat - Tuyen Lam Lake - Cloud Hunting",
+    tour_title_DL_SP05: "Misty Sa Pa: Fansipan Peak Conquer - Cat Cat Village",
+    tour_title_DL_MT06: "Mekong Delta Waterways: Can Tho Floating Market - Tra Su Forest",
+    tour_title_DL_NB07: "Majestic Landscapes: Ninh Binh - Trang An - Bai Dinh Pagoda - Mua Cave",
+    tour_title_DL_HG08: "Northern Wonder: Ha Giang - Dong Van Karst Plateau - Ma Pi Leng Pass",
+    tour_title_DL_CB09: "Majestic Northeast: Cao Bang - Ban Gioc Waterfall - Pac Bo",
+    tour_title_DL_MC10: "Moc Chau Plateau: Heart-Shaped Tea Hills - Dai Yem Falls - Glass Bridge",
+    tour_title_DL_HU11: "Ancient Imperial Citadel: Hue - Imperial Palace - Perfume River",
+    tour_title_DL_NT12: "Azure Pearl Bay: Nha Trang - Coral Bay - Diep Son Island - Mineral Springs",
+    tour_title_DL_QN13: "Coastal Paradise: Quy Nhon - Ky Co Beach - Eo Gio - Hon Kho",
+    tour_title_DL_PY14: "Land of Yellow Flowers: Phu Yen - Da Dia Reef - Dai Lanh Cape Sunrise",
+    tour_title_DL_TN15: "Sacred Southern Peak: Tay Ninh - Ba Den Mountain Cable Car - Holy See",
+    tour_title_DL_CD16: "Sacred Haven: Con Dao - Hang Duong Memorial - Dam Trau Beach",
 
     // Tour Cards
     card_featured: "FEATURED TOUR",
@@ -396,8 +454,12 @@ function setAppLanguage(lang) {
   window.dispatchEvent(new CustomEvent("languageChanged", { detail: { lang } }));
 
   // 7. Đồng bộ lại tour cards nếu đang ở trang chủ
-  if (typeof renderTourCards === "function" && typeof AppState !== "undefined" && Array.isArray(AppState.filteredTours)) {
-    renderTourCards(AppState.filteredTours);
+  if (typeof renderTourCards === "function") {
+    try {
+      renderTourCards();
+    } catch (e) {
+      console.warn("Lỗi khi re-render tour cards:", e);
+    }
   }
 }
 

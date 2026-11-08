@@ -453,22 +453,24 @@ function renderTourCards() {
   // 3. Hiển thị số lượng kết quả
   if (countEl) {
     const total = AppState.serverCatalog ? AppState.serverTotal : filtered.length;
-    countEl.textContent = `Hiển thị ${filtered.length} / ${total} tour`;
+    const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
+    countEl.textContent = isEn ? `Showing ${filtered.length} / ${total} tours` : `Hiển thị ${filtered.length} / ${total} tour`;
   }
   renderActiveTourFilters();
   renderTourPagination();
 
   // 4. Nếu không tìm thấy tour phù hợp
   if (filtered.length === 0) {
+    const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
     container.innerHTML = `
       <div class="col-12 py-5 text-center">
         <div class="mb-3">
           <i class="bi bi-search text-muted" style="font-size: 3.5rem;"></i>
         </div>
-        <h4 class="fw-bold text-muted">Không tìm thấy tour phù hợp</h4>
-        <p class="text-muted">Vui lòng thử thay đổi từ khóa hoặc điều chỉnh lại bộ lọc tìm kiếm.</p>
+        <h4 class="fw-bold text-muted">${isEn ? "No matching tours found" : "Không tìm thấy tour phù hợp"}</h4>
+        <p class="text-muted">${isEn ? "Please try different keywords or adjust filters." : "Vui lòng thử thay đổi từ khóa hoặc điều chỉnh lại bộ lọc tìm kiếm."}</p>
         <button class="btn btn-delta-primary mt-2" onclick="resetAllFilters()">
-          <i class="bi bi-arrow-clockwise"></i> Đặt lại bộ lọc
+          <i class="bi bi-arrow-clockwise"></i> ${isEn ? "Reset Filters" : "Đặt lại bộ lọc"}
         </button>
       </div>
     `;
@@ -497,6 +499,33 @@ function renderTourCards() {
       : "";
 
     const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
+    const tourTitleKey = "tour_title_" + String(tour.id || "").replace(/[^a-zA-Z0-9]/g, "_");
+    const displayTitle = (isEn && typeof t === "function" && t(tourTitleKey) !== tourTitleKey)
+      ? t(tourTitleKey)
+      : tour.title;
+    const displayRegion = isEn
+      ? (tour.region === "north" ? "Northern" : (tour.region === "central" ? "Central" : (tour.region === "south" ? "Southern" : tour.regionName)))
+      : tour.regionName;
+    const displayTransport = isEn
+      ? String(tour.transport || "")
+          .replace(/Du thuyền 5\*/g, "5* Cruise")
+          .replace(/Limousine VIP/g, "VIP Limousine")
+          .replace(/Máy bay khứ hồi/g, "Roundtrip Flight")
+          .replace(/Xe du lịch đời mới/g, "Modern Tourist Bus")
+          .replace(/Tàu cao tốc 5 sao/g, "5-Star Express Boat")
+          .replace(/Vé máy bay/g, "Flight Ticket")
+          .replace(/Xe giường nằm cao cấp/g, "Luxury Sleeper Coach")
+          .replace(/Xe du lịch cung đèo/g, "Mountain Coach")
+      : tour.transport;
+    const displayPickup = isEn
+      ? String(tour.departure || "")
+          .replace(/Hà Nội/g, "Hanoi")
+          .replace(/TP\. Hồ Chí Minh/g, "Ho Chi Minh City")
+          .replace(/Cần Thơ/g, "Can Tho")
+          .replace(/Xe Limousine đón tận nơi/g, "Door-to-door Limousine")
+          .replace(/Vé máy bay/g, "Flight Ticket")
+      : tour.departure;
+
     const durationDisplay = isEn
       ? String(tour.duration || "").replace(/N/g, "D").replace(/Đ/g, "N")
       : tour.duration;
@@ -516,8 +545,8 @@ function renderTourCards() {
       <div class="col-12 col-md-6 col-xl-4 col-xxl-3 mb-4">
         <div class="tour-card">
           <!-- Ảnh đại diện tour (Click để xem chi tiết lịch trình) -->
-          <div class="tour-card-thumb" style="cursor: pointer;" onclick="openItineraryModal('${tour.id}')" title="${viewItineraryText}: ${tour.title}">
-            <img src="${tour.image}" alt="${tour.title}" loading="lazy" onerror="this.onerror=null; this.src='assets/images/halong.png';">
+          <div class="tour-card-thumb" style="cursor: pointer;" onclick="openItineraryModal('${tour.id}')" title="${viewItineraryText}: ${displayTitle}">
+            <img src="${tour.image}" alt="${displayTitle}" loading="lazy" onerror="this.onerror=null; this.src='assets/images/halong.png';">
             <div class="tour-badge-group">
               <span class="badge-tour badge-tour-popular">${badgeText}</span>
             </div>
@@ -534,21 +563,21 @@ function renderTourCards() {
           <div class="tour-card-body">
             <div class="tour-code-row">
               <span class="tour-code">${tour.id}</span>
-              <span class="tour-region"><i class="bi bi-geo-alt"></i> ${tour.regionName}</span>
+              <span class="tour-region"><i class="bi bi-geo-alt"></i> ${displayRegion}</span>
             </div>
 
-            <h3 class="tour-title" style="cursor: pointer;" onclick="openItineraryModal('${tour.id}')" title="${viewItineraryText}: ${tour.title}">${tour.title}</h3>
+            <h3 class="tour-title" style="cursor: pointer;" onclick="openItineraryModal('${tour.id}')" title="${viewItineraryText}: ${displayTitle}">${displayTitle}</h3>
 
             <!-- Thông số tóm tắt -->
             <div class="tour-specs">
-              <div class="tour-spec-item" title="${pickupLabel} ${tour.departure}">
+              <div class="tour-spec-item" title="${pickupLabel} ${displayPickup}">
                 <i class="bi bi-geo-fill"></i>
-                <span>${pickupLabel} ${tour.departure}</span>
+                <span>${pickupLabel} ${displayPickup}</span>
               </div>
               ${departureDate ? `<div class="tour-spec-item"><i class="bi bi-calendar-event"></i><span>${departureLabel} ${departureDate}</span></div>` : ""}
               <div class="tour-spec-item">
                 <i class="bi bi-bus-front-fill"></i>
-                <span>${tour.transport}</span>
+                <span>${displayTransport}</span>
               </div>
             </div>
 
@@ -807,29 +836,34 @@ async function searchToursFromApi(page = 1) {
 function renderActiveTourFilters() {
   const summary = document.getElementById("tourActiveFilters");
   if (!summary) return;
+  const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
   const filters = currentTourFilters(AppState.currentPage);
   const labels = [];
-  if (filters.q) labels.push(`Từ khóa: ${filters.q}`);
-  if (filters.destination) labels.push(`Điểm đến: ${filters.destination}`);
-  const regionLabels = {
+  if (filters.q) labels.push((isEn ? "Keyword: " : "Từ khóa: ") + filters.q);
+  if (filters.destination) labels.push((isEn ? "Destination: " : "Điểm đến: ") + filters.destination);
+  const regionLabels = isEn ? {
+    north: "North",
+    central: "Central",
+    south: "South"
+  } : {
     north: "Miền Bắc",
     central: "Miền Trung",
     south: "Miền Nam"
   };
-  if (filters.region !== "all") labels.push(`Khu vực: ${regionLabels[filters.region] || filters.region}`);
-  if (filters.departure_location) labels.push(`Khởi hành: ${filters.departure_location}`);
-  if (filters.departure_date) labels.push(`Ngày: ${filters.departure_date}`);
+  if (filters.region !== "all") labels.push((isEn ? "Region: " : "Khu vực: ") + (regionLabels[filters.region] || filters.region));
+  if (filters.departure_location) labels.push((isEn ? "Departure: " : "Khởi hành: ") + filters.departure_location);
+  if (filters.departure_date) labels.push((isEn ? "Date: " : "Ngày: ") + filters.departure_date);
   if (filters.min_price !== undefined || filters.max_price !== undefined) {
-    labels.push(`Giá: ${filters.min_price === undefined ? "dưới" : formatVND(filters.min_price)} – ${
-      filters.max_price === undefined ? "không giới hạn" : formatVND(filters.max_price)
+    labels.push(`${isEn ? "Price: " : "Giá: "}${filters.min_price === undefined ? (isEn ? "under " : "dưới ") : formatVND(filters.min_price)} – ${
+      filters.max_price === undefined ? (isEn ? "unlimited" : "không giới hạn") : formatVND(filters.max_price)
     }`);
   }
-  if (filters.duration) labels.push(`Thời lượng: ${filters.duration}`);
-  if (filters.transport) labels.push(`Phương tiện: ${filters.transport}`);
+  if (filters.duration) labels.push((isEn ? "Duration: " : "Thời lượng: ") + (isEn ? String(filters.duration).replace(/N/g, "D").replace(/Đ/g, "N") : filters.duration));
+  if (filters.transport) labels.push((isEn ? "Transport: " : "Phương tiện: ") + filters.transport);
   if (filters.availability) {
-    labels.push(`Tình trạng: ${filters.availability === "available" ? "Còn chỗ" : "Hết chỗ"}`);
+    labels.push((isEn ? "Status: " : "Tình trạng: ") + (filters.availability === "available" ? (isEn ? "Available" : "Còn chỗ") : (isEn ? "Sold Out" : "Hết chỗ")));
   }
-  summary.textContent = labels.length ? `Đang áp dụng: ${labels.join(" · ")}` : "";
+  summary.textContent = labels.length ? `${isEn ? "Active Filters: " : "Đang áp dụng: "}${labels.join(" · ")}` : "";
 }
 
 function renderTourPagination() {
@@ -1105,13 +1139,19 @@ async function openItineraryModal(tourId) {
   }
 
   // 1. Điền thông tin cơ bản
+  const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
+  const tourTitleKey = "tour_title_" + String(tour.id || "").replace(/[^a-zA-Z0-9]/g, "_");
+  const displayTitle = (isEn && typeof t === "function" && t(tourTitleKey) !== tourTitleKey)
+    ? t(tourTitleKey)
+    : tour.title;
+
   const titleEl = document.getElementById("itineraryModalTitle");
-  if (titleEl) titleEl.textContent = tour.title;
+  if (titleEl) titleEl.textContent = displayTitle;
 
   const heroImg = document.getElementById("itineraryHeroImg");
   if (heroImg) {
     heroImg.src = tour.image || "assets/images/halong.png";
-    heroImg.alt = tour.title;
+    heroImg.alt = displayTitle;
     heroImg.onerror = () => { heroImg.src = "assets/images/halong.png"; };
   }
   const gallery = document.getElementById("itineraryGallery");
