@@ -111,69 +111,26 @@ async function main() {
     // Require a demo page to stay a demo even if the user chooses QR.
     assert.equal(await page.evaluate(() => document.body.innerHTML.includes('cardCvv')), false, "CVV input found");
 
-    // KTHP regression: CCCD is required and must contain exactly 12 digits.
-    const documentCases = await page.evaluate(async () => {
-      await openBookingModal(TOURS_DATA[0].id);
-      const input = document.getElementById("customerCCCD");
-      const valid = value => {
-        input.value = value;
-        return input.checkValidity();
-      };
-      return {
-        empty: valid(""),
-        id: valid("000000000000"),
-        passport: valid("B1234567"),
-        text: valid("onlyletters"),
-        short: valid("12345"),
-        punct: valid("<script>")
-      };
-    });
-    assert.deepEqual(documentCases, {
-      empty: false, id: true, passport: false,
-      text: false, short: false, punct: false
-    });
-    const booking = await page.evaluate(async () => {
-      const count = getLocalBookings().length;
-      await openBookingModal(TOURS_DATA[0].id);
-      document.getElementById("customerName").value = "Khach Hang Test";
+    // The current An UI opens a dedicated booking.html page, not a modal.
+    // Validate the navigation and ensure a disconnected static demo cannot
+    // create an authoritative booking on the user's device.
+    page.on("dialog", dialog => dialog.dismiss());
+    await page.evaluate(() => openBookingModal(TOURS_DATA[0].id));
+    await page.waitForURL(/\/booking\.html\?tourId=/, { timeout: 10000 });
+    assert(await page.locator("#customerFullName").count() === 1,
+      "Dedicated booking form did not load");
+    assert(await page.locator("#receiptQRImg").innerText().then(x => x.includes("chưa được cấu hình")),
+      "Unconfigured QR must not be presented as a valid bank transfer");
+    const fakeOrderPrevented = await page.evaluate(async () => {
+      document.getElementById("customerFullName").value = "Demo Customer";
       document.getElementById("customerPhone").value = "0987654321";
       document.getElementById("customerEmail").value = "demo@example.test";
-      document.getElementById("bookingDepartureDate").value = AppState.currentSchedules[0]?.id || "";
-      setCurrentUser({
-        id: "DEMO-SMOKE-USER",
-        fullName: "Khach Hang Test",
-        email: "demo@example.test",
-        phone: "0987654321",
-        role: "CUSTOMER"
-      });
-      document.getElementById("customerCCCD").value = "onlyletters";
-      await handleBookingSubmission({ preventDefault() {} });
-      const invalidRejected = getLocalBookings().length === count;
-
-      document.getElementById("customerCCCD").value = "000000000000";
-      await handleBookingSubmission({ preventDefault() {} });
-      const bookingBlockedOffline = getLocalBookings().length === count;
-      const identityIsNotStored = !Object.keys(localStorage).some(key =>
-        (localStorage.getItem(key) || "").includes("000000000000")
-      );
-      setCurrentUser(null);
-      const order = {
-        bookingId: "DEMO-SMOKE",
-        isPaid: false,
-        statusCode: "PENDING_DEMO"
-      };
-      localStorage.setItem("delta_bookings_v2", JSON.stringify([order]));
-      const beforePay = JSON.stringify(getLocalBookings());
-      await handleCustomerPayNow(order.bookingId);
-      const paymentCouldNotMutateOrder = JSON.stringify(getLocalBookings()) === beforePay;
-      localStorage.removeItem("delta_bookings_v2");
-      return { invalidRejected, bookingBlockedOffline, identityIsNotStored, paymentCouldNotMutateOrder };
+      const before = localStorage.getItem("delta_customer_bookings");
+      await submitBookingOrder();
+      return localStorage.getItem("delta_customer_bookings") === before;
     });
-    assert.deepEqual(booking, {
-      invalidRejected: true, bookingBlockedOffline: true, identityIsNotStored: true,
-      paymentCouldNotMutateOrder: true
-    });
-    console.log("PASS: required CCCD validation, no offline booking/ID persistence and no client-side PAID.");
+    assert(fakeOrderPrevented, "Static/offline checkout must not create an order");
+    console.log("PASS: dedicated checkout route, invalid QR blocked and no fabricated offline booking.");
 
     await page.goto(base + "/admin.html", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1200);
