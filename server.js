@@ -936,39 +936,9 @@ function requireAuth(req, res, next) {
   next();
 }
 
-function requireAuthOrGuest(req, res, next) {
-  const sessionUser = getSessionUser(req);
-  if (sessionUser) {
-    if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
-      const headerCsrf = req.headers["x-csrf-token"];
-      const cookieCsrf = req.cookies.delta_csrf;
-      if (headerCsrf && cookieCsrf && (headerCsrf !== cookieCsrf || tokenHash(headerCsrf) !== sessionUser.csrf_hash)) {
-        return res.status(403).json({ detail: "CSRF token không hợp lệ." });
-      }
-    }
-    req.user = sessionUser;
-    return next();
-  }
-
-  // Hỗ trợ khách đặt trực tiếp: tự động liên kết hoặc tạo tài khoản khách hàng
-  const { customer_email, customer_name, customer_phone } = req.body || {};
-  if (customer_email) {
-    let user = db.prepare("SELECT * FROM users WHERE email = ?").get(customer_email);
-    if (!user) {
-      const newUserId = "USR-" + crypto.randomUUID().slice(0, 8);
-      const now = new Date().toISOString();
-      db.prepare(`
-        INSERT INTO users (id, full_name, email, phone, password_hash, role, active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 'CUSTOMER', 1, ?, ?)
-      `).run(newUserId, customer_name || "Khách Hàng", customer_email, customer_phone || "0900000000", hashPassword("deltaCustomer123@"), now, now);
-      user = db.prepare("SELECT * FROM users WHERE id = ?").get(newUserId);
-    }
-    req.user = user;
-    try { createSession(res, user); } catch(e) {}
-    return next();
-  }
-
-  return res.status(401).json({ detail: "Bạn cần đăng nhập." });
+// Booking must never adopt an existing account by an unverified email address.
+function requireAuthOrGuest(req,res,next) {
+  return requireAuth(req,res,next);
 }
 
 function requireAdmin(req, res, next) {
@@ -1386,29 +1356,24 @@ app.get("/api/v1/bookings/:booking_id", requireAuth, (req, res) => {
   res.json(bookingDict(b));
 });
 
-app.post("/api/v1/bookings/:booking_id/pay", requireAuth, (req, res) => {
-  const { reference } = req.body || {};
-  if (!reference || reference.trim().length < 8) {
-    return res.status(422).json({ detail: "Mã giao dịch / UNC tối thiểu 8 ký tự." });
-  }
-
-  const b = db.prepare("SELECT * FROM bookings WHERE id = ? AND user_id = ?").get(req.params.booking_id, req.user.id);
-  if (!b) return res.status(404).json({ detail: "Đơn đặt không tồn tại." });
-
-  // Kiểm tra trùng mã thanh toán
-  const dup = db.prepare("SELECT id FROM bookings WHERE payment_evidence = ? AND id != ?").get(reference.trim(), b.id);
-  if (dup) return res.status(409).json({ detail: "Mã giao dịch đã được sử dụng cho đơn khác." });
-
-  const now = new Date().toISOString();
-  db.prepare(`
-    UPDATE bookings
-    SET status = 'PAID', payment_evidence = ?, payment_confirmed_at = ?, updated_at = ?
-    WHERE id = ?
-  `).run(reference.trim(), now, now, b.id);
-
-  const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(b.id);
-  audit(req.user.id, "PAYMENT_SUBMITTED", b.id, { reference: reference.trim() });
-  res.json(bookingDict(updated));
+// A customer-provided bank reference is NOT proof of payment.
+app.post("/api/v1/bookings/:booking_id/pay", requireAuth, (req,res) => {
+  const ref = typeof req.body?.reference === "string" ? req.body.reference.trim() : "";
+  if (ref.length < 8 || ref.length > 120)
+    return res.status(422).json({detail:"Mã tham chiếu thanh toán phải có 8-120 ký tự."});
+  const b=db.prepare("SELECT * FROM bookings WHERE id=? AND user_id=?")
+    .get(req.params.booking_id,req.user.id);
+  if (!b) return res.status(404).json({detail:"Không tìm thấy đơn."});
+  if (b.status !== "PENDING_PAYMENT")
+    return res.status(409).json({detail:"Trạng thái đơn không cho phép gửi tham chiếu."});
+  const reused=db.prepare("SELECT id FROM bookings WHERE payment_evidence=? AND id<>?")
+    .get(ref,b.id);
+  if (reused) return res.status(409).json({detail:"Mã tham chiếu đã được dùng."});
+  db.prepare("UPDATE bookings SET payment_evidence=?,updated_at=? WHERE id=?")
+    .run(ref,new Date().toISOString(),b.id);
+  audit(req.user.id,"PAYMENT_EVIDENCE_SUBMITTED",b.id,{reference:ref});
+  return res.json({...bookingDict(db.prepare("SELECT * FROM bookings WHERE id=?").get(b.id)),
+    paymentNotice:"Đã ghi nhận mã tham chiếu, chưa xác nhận tiền đã đến ngân hàng."});
 });
 
 app.post("/api/v1/bookings/:booking_id/cancel", requireAuth, (req, res) => {
@@ -1748,23 +1713,10 @@ app.get("/api/v1/admin/bookings", requireAdmin, (req, res) => {
   })));
 });
 
-app.post("/api/v1/admin/bookings/:booking_id/confirm-payment", requireAdmin, (req, res) => {
-  const { booking_id } = req.params;
-  const { reference } = req.body || {};
-  const b = db.prepare("SELECT * FROM bookings WHERE id = ?").get(booking_id);
-  if (!b) return res.status(404).json({ detail: "Không tìm thấy đơn." });
-
-  const ref = (reference || b.payment_evidence || ("ADM-CONFIRM-" + Date.now())).trim();
-  const now = new Date().toISOString();
-
-  db.prepare(`
-    UPDATE bookings SET status = 'PAID', payment_evidence = ?, payment_confirmed_at = ?, updated_at = ?
-    WHERE id = ?
-  `).run(ref, now, now, booking_id);
-
-  const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(booking_id);
-  audit(req.user.id, "PAYMENT_MANUALLY_VERIFIED", booking_id, { proofReference: ref });
-  res.json(bookingDict(updated));
+// Financial confirmation requires independent bank reconciliation. Do not
+// turn arbitrary text into PAID, even if the caller has the ADMIN role.
+app.post("/api/v1/admin/bookings/:booking_id/confirm-payment",requireAdmin,(req,res)=>{
+  res.status(503).json({detail:"Chưa tích hợp đối soát ngân hàng độc lập; không thể xác nhận đã thanh toán."});
 });
 
 // 7. Verified, context-aware catalogue assistant; no fabricated prices or payments.
