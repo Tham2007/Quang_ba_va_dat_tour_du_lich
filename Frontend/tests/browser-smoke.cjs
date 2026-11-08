@@ -121,6 +121,15 @@ async function main() {
       "Dedicated booking form did not load");
     assert(await page.locator("#receiptQRImg").innerText().then(x => x.includes("chưa được cấu hình")),
       "Unconfigured QR must not be presented as a valid bank transfer");
+    // No server connection means no invented tour price or departure dates.
+    await page.waitForFunction(() =>
+      document.getElementById("tourTitleDisplay")?.textContent?.includes("Không thể xác minh") ||
+      (document.getElementById("bookingScheduleSelect")?.disabled === true), {timeout:10000});
+    const offlineSchedule = await page.locator("#bookingScheduleSelect").evaluate(el => ({
+      disabled:el.disabled,values:Array.from(el.options).map(o=>o.value)
+    }));
+    assert(offlineSchedule.disabled && offlineSchedule.values.every(v=>!v),
+      "Offline checkout must not create fake schedule options.");
     const fakeOrderPrevented = await page.evaluate(async () => {
       document.getElementById("customerFullName").value = "Demo Customer";
       document.getElementById("customerPhone").value = "0987654321";

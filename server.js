@@ -1023,12 +1023,14 @@ app.get("/api/v1/health/ready", (req, res) => {
   const row = db.prepare("SELECT COUNT(*) AS c FROM tours").get();
   res.json({
     status: "ok",
-    db: sqlServerPool ? "SQL Server (connected)" : "connected",
+    db: "SQLite (local demo; this API does not persist bookings to SQL Server)",
     sqlServerConnected: Boolean(sqlServerPool),
     sqlServerHost: sqlServerPool ? "configured" : null,
     sqlServerDb: sqlServerPool ? "configured" : null,
     tours: row.c,
-    catalogMode: sqlServerPool ? "sqlserver_direct" : "sqlite"
+    bookingStorage: "sqlite_demo",
+    bookingSqlServerWritable: false,
+    catalogMode: "sqlite"
   });
 });
 
