@@ -166,6 +166,42 @@ async function runTests() {
     );
     const bookingId = bookRes.json?.id;
 
+    const identicalRetry = await req("/api/v1/bookings", {
+      method: "POST", headers: { ...authHeaders, "Idempotency-Key": idemKey },
+      body: {
+        schedule_id: scheduleId, adults: 2, children: 1, infants: 0,
+        customer_name: "Khách Hàng Vip Pro", customer_phone: newPhone,
+        customer_email: testEmail, note: "Đặt tour từ Nodejs Test"
+      }
+    });
+    assert("Same key and payload returns same booking",
+      identicalRetry.status === 200 && identicalRetry.json?.id === bookingId);
+    const changedRetry = await req("/api/v1/bookings", {
+      method: "POST", headers: { ...authHeaders, "Idempotency-Key": idemKey },
+      body: {
+        schedule_id: scheduleId, adults: 1, children: 0, infants: 0,
+        customer_name: "Khách Hàng Vip Pro", customer_phone: newPhone,
+        customer_email: testEmail
+      }
+    });
+    assert("Same key with changed payload is rejected",changedRetry.status === 409);
+    const invalidQuote = await req("/api/v1/bookings/quote", {
+      method:"POST",body:{schedule_id:scheduleId,adults:1,children:-2,infants:0}
+    });
+    assert("Negative passengers rejected in quote",invalidQuote.status === 422);
+    const invalidBooking = await req("/api/v1/bookings", {
+      method:"POST",headers:{...authHeaders,"Idempotency-Key":crypto.randomUUID()},
+      body:{schedule_id:scheduleId,adults:1,children:-2,infants:0,
+        customer_name:"Khách Hàng Vip Pro",customer_phone:newPhone,customer_email:testEmail}
+    });
+    assert("Negative passengers rejected in server booking",invalidBooking.status === 422);
+    const oversizeBooking = await req("/api/v1/bookings", {
+      method:"POST",headers:{...authHeaders,"Idempotency-Key":crypto.randomUUID()},
+      body:{schedule_id:scheduleId,adults:21,children:0,infants:0,
+        customer_name:"Khách Hàng Vip Pro",customer_phone:newPhone,customer_email:testEmail}
+    });
+    assert("More than 20 passengers rejected",oversizeBooking.status === 422);
+
     // 10. List user bookings & details
     const myBookings = await req("/api/v1/bookings", { headers: authHeaders });
     assert("GET /api/v1/bookings", myBookings.status === 200 && myBookings.json?.some(b => b.id === bookingId));

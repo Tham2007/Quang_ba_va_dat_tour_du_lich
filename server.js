@@ -1275,14 +1275,24 @@ function calculateTotals(unitPrice, adults, children = 0, infants = 0) {
   return unitPrice * adults + childPrice * children + infantPrice * infants;
 }
 
+function validPassengerCounts(adults,children,infants) {
+  return Number.isInteger(adults) && adults >= 1 && adults <= 20 &&
+    Number.isInteger(children) && children >= 0 && children <= 20 &&
+    Number.isInteger(infants) && infants >= 0 && infants <= 20 &&
+    adults + children + infants <= 20;
+}
+
 app.post("/api/v1/bookings/quote", (req, res) => {
   const { schedule_id, adults, children = 0, infants = 0 } = req.body || {};
-  if (!schedule_id || !adults || adults < 1) {
-    return res.status(422).json({ detail: "Thông tin tính giá không hợp lệ." });
+  if (typeof schedule_id !== "string" || !schedule_id ||
+      !validPassengerCounts(adults,children,infants)) {
+    return res.status(422).json({ detail: "Số lượng khách không hợp lệ (1 đến 20, phải có người lớn)." });
   }
 
   const sched = db.prepare("SELECT * FROM schedules WHERE id = ? AND active = 1").get(schedule_id);
   if (!sched) return res.status(404).json({ detail: "Lịch khởi hành không tồn tại." });
+  if (new Date(sched.departure_at).getTime() <= Date.now())
+    return res.status(409).json({detail:"Lịch khởi hành đã qua."});
 
   const tour = db.prepare("SELECT * FROM tours WHERE id = ? AND active = 1").get(sched.tour_id);
   if (!tour) return res.status(404).json({ detail: "Tour không tồn tại." });
@@ -1317,22 +1327,34 @@ app.post("/api/v1/bookings", requireAuthOrGuest, (req, res) => {
   } = req.body || {};
 
   const idemKey = req.headers["idempotency-key"];
-  if (!idemKey) {
-    return res.status(422).json({ detail: "Yêu cầu cung cấp khóa Idempotency-Key." });
+  if (typeof idemKey !== "string" || idemKey.length < 8 || idemKey.length > 150) {
+    return res.status(422).json({ detail: "Khóa Idempotency-Key không hợp lệ." });
   }
-
-  // Kiểm tra trùng Idempotency-Key của user
+  if (!validPassengerCounts(adults, children, infants)) {
+    return res.status(422).json({ detail: "Số hành khách phải là số nguyên, có ít nhất một người lớn và tối đa 20 người." });
+  }
+  if (typeof schedule_id !== "string" || !schedule_id ||
+      typeof customer_name !== "string" || !customer_name.trim() || customer_name.length > 150 ||
+      typeof customer_phone !== "string" || !/^0[35789][0-9]{8}$/.test(customer_phone) ||
+      typeof customer_email !== "string" || customer_email.length > 254 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer_email) ||
+      typeof note !== "string" || note.length > 2000) {
+    return res.status(422).json({ detail: "Thông tin đặt chỗ không hợp lệ." });
+  }
+  const payloadFingerprint = crypto.createHash("sha256")
+    .update(JSON.stringify(req.body)).digest("hex");
+  // A retry with the same key must carry precisely the same payload.
   const existingBooking = db.prepare("SELECT * FROM bookings WHERE user_id = ? AND idempotency_key = ?").get(req.user.id, idemKey);
   if (existingBooking) {
+    if (existingBooking.payload_fingerprint !== payloadFingerprint)
+      return res.status(409).json({detail:"Khóa gửi lại đơn đã được dùng cho dữ liệu khác."});
     return res.status(200).json(bookingDict(existingBooking));
-  }
-
-  if (!schedule_id || !customer_name || !customer_phone || !customer_email) {
-    return res.status(422).json({ detail: "Vui lòng nhập đầy đủ thông tin đặt chỗ." });
   }
 
   const sched = db.prepare("SELECT * FROM schedules WHERE id = ? AND active = 1").get(schedule_id);
   if (!sched) return res.status(404).json({ detail: "Lịch khởi hành không hợp lệ." });
+  if (new Date(sched.departure_at).getTime() <= Date.now())
+    return res.status(409).json({detail:"Không thể đặt tour đã khởi hành."});
 
   const tour = db.prepare("SELECT * FROM tours WHERE id = ? AND active = 1").get(sched.tour_id);
   if (!tour) return res.status(404).json({ detail: "Tour không tồn tại." });
@@ -1348,8 +1370,6 @@ app.post("/api/v1/bookings", requireAuthOrGuest, (req, res) => {
   const totalPrice = calculateTotals(tour.price, adults, children, infants);
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 phút giữ chỗ
   const now = new Date().toISOString();
-  const payloadFingerprint = crypto.createHash("sha256").update(JSON.stringify(req.body)).digest("hex");
-
   // Transaction lưu booking & giữ chỗ
   db.exec("BEGIN");
   try {
