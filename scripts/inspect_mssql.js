@@ -1,16 +1,7 @@
 const sql = require('mssql');
 
-const config = {
-  user: 'db_ad0b71_dattour_admin',
-  password: 'Phamtham312007@',
-  server: 'sql8020.site4now.net',
-  port: 1433,
-  database: 'db_ad0b71_dattour',
-  options: {
-    encrypt: false,
-    trustServerCertificate: true
-  }
-};
+const { requireSqlServerConfig } = require("./mssql_config");
+const config = requireSqlServerConfig();
 
 async function checkCols() {
   const pool = await sql.connect(config);

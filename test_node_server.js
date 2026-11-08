@@ -9,6 +9,7 @@ const path = require("path");
 
 const testDbPath = path.join(os.tmpdir(), `delta-node-tests-${process.pid}.db`);
 process.env.DELTA_DB_PATH = testDbPath;
+process.env.DELTA_ALLOW_DEMO_ACCOUNTS = "1"; // Explicit CI-only sample credentials
 process.env.PORT = "0";
 process.env.HOST = "127.0.0.1";
 const { app, server, db } = require("./server");
@@ -165,6 +166,42 @@ async function runTests() {
     );
     const bookingId = bookRes.json?.id;
 
+    const identicalRetry = await req("/api/v1/bookings", {
+      method: "POST", headers: { ...authHeaders, "Idempotency-Key": idemKey },
+      body: {
+        schedule_id: scheduleId, adults: 2, children: 1, infants: 0,
+        customer_name: "Khách Hàng Vip Pro", customer_phone: newPhone,
+        customer_email: testEmail, note: "Đặt tour từ Nodejs Test"
+      }
+    });
+    assert("Same key and payload returns same booking",
+      identicalRetry.status === 200 && identicalRetry.json?.id === bookingId);
+    const changedRetry = await req("/api/v1/bookings", {
+      method: "POST", headers: { ...authHeaders, "Idempotency-Key": idemKey },
+      body: {
+        schedule_id: scheduleId, adults: 1, children: 0, infants: 0,
+        customer_name: "Khách Hàng Vip Pro", customer_phone: newPhone,
+        customer_email: testEmail
+      }
+    });
+    assert("Same key with changed payload is rejected",changedRetry.status === 409);
+    const invalidQuote = await req("/api/v1/bookings/quote", {
+      method:"POST",body:{schedule_id:scheduleId,adults:1,children:-2,infants:0}
+    });
+    assert("Negative passengers rejected in quote",invalidQuote.status === 422);
+    const invalidBooking = await req("/api/v1/bookings", {
+      method:"POST",headers:{...authHeaders,"Idempotency-Key":crypto.randomUUID()},
+      body:{schedule_id:scheduleId,adults:1,children:-2,infants:0,
+        customer_name:"Khách Hàng Vip Pro",customer_phone:newPhone,customer_email:testEmail}
+    });
+    assert("Negative passengers rejected in server booking",invalidBooking.status === 422);
+    const oversizeBooking = await req("/api/v1/bookings", {
+      method:"POST",headers:{...authHeaders,"Idempotency-Key":crypto.randomUUID()},
+      body:{schedule_id:scheduleId,adults:21,children:0,infants:0,
+        customer_name:"Khách Hàng Vip Pro",customer_phone:newPhone,customer_email:testEmail}
+    });
+    assert("More than 20 passengers rejected",oversizeBooking.status === 422);
+
     // 10. List user bookings & details
     const myBookings = await req("/api/v1/bookings", { headers: authHeaders });
     assert("GET /api/v1/bookings", myBookings.status === 200 && myBookings.json?.some(b => b.id === bookingId));
@@ -179,7 +216,30 @@ async function runTests() {
       headers: authHeaders,
       body: { reference: payRef }
     });
-    assert(`POST /api/v1/bookings/${bookingId}/pay`, payRes.status === 200 && payRes.json?.status === "PAID");
+    assert(`POST /api/v1/bookings/${bookingId}/pay`, payRes.status === 200 && payRes.json?.status === "PENDING_PAYMENT" && payRes.json?.paid === false);
+
+    // A 15-minute hold must actually expire, release inventory, and never
+    // allow an expired order to transition into paid or cancelled twice.
+    const beforeExpiry = await req("/api/v1/tours/"+firstTour.id+"/schedules");
+    const seatsBeforeExpiry = beforeExpiry.json.find(x=>x.id===scheduleId).availableSeats;
+    db.prepare("UPDATE bookings SET expires_at=? WHERE id=?")
+      .run(new Date(Date.now()-60000).toISOString(),bookingId);
+    const afterExpiry = await req("/api/v1/tours/"+firstTour.id+"/schedules");
+    const seatsAfterExpiry = afterExpiry.json.find(x=>x.id===scheduleId).availableSeats;
+    const expiredBooking = await req("/api/v1/bookings/"+bookingId,{headers:authHeaders});
+    assert("Expired hold releases exactly three seats once",
+      seatsAfterExpiry-seatsBeforeExpiry===3 && expiredBooking.json?.status==="EXPIRED");
+    const secondRefresh=await req("/api/v1/tours/"+firstTour.id+"/schedules");
+    assert("Expiry cleanup is idempotent",
+      secondRefresh.json.find(x=>x.id===scheduleId).availableSeats===seatsAfterExpiry);
+    const cancelledExpired=await req("/api/v1/bookings/"+bookingId+"/cancel",{
+      method:"POST",headers:authHeaders,body:{reason:"Too late"}
+    });
+    assert("Expired booking cannot be cancelled twice",cancelledExpired.status===409);
+    const paidExpired=await req("/api/v1/bookings/"+bookingId+"/pay",{
+      method:"POST",headers:authHeaders,body:{reference:"REF-EXPIRED-123"}
+    });
+    assert("Expired booking cannot accept payment reference",paidExpired.status===409);
 
     // 12. Create & cancel 2nd booking
     const idemKey2 = crypto.randomUUID();
@@ -235,6 +295,33 @@ async function runTests() {
       "Cookie": `delta_session=${admSession}; delta_csrf=${admCsrf}`,
       "X-CSRF-Token": admCsrf
     };
+
+
+    const pastDeparture=await req("/api/v1/admin/schedules",{
+      method:"POST",headers:adminHeaders,body:{
+        tour_id:firstTour.id,
+        departure_at:new Date(Date.now()-86400000).toISOString(),total_seats:9
+      }
+    });
+    assert("Reject departure date already in the past",pastDeparture.status===422);
+    const changedCapacity=await req("/api/v1/admin/tours/"+firstTour.id,{
+      method:"PATCH",headers:adminHeaders,body:{available_seats:120}
+    });
+    const readbackCapacity=await req("/api/v1/tours/"+firstTour.id);
+    const readbackSchedules=await req("/api/v1/tours/"+firstTour.id+"/schedules");
+    assert("Persist tour capacity and synchronize future schedules",
+      changedCapacity.status===200 &&
+      readbackCapacity.json?.totalSeats===120 &&
+      readbackSchedules.json?.every(s=>s.totalSeats===120));
+    const invalidCapacity=await req("/api/v1/admin/tours/"+firstTour.id,{
+      method:"PATCH",headers:adminHeaders,body:{available_seats:-10}
+    });
+    assert("Reject negative tour capacity",invalidCapacity.status===422);
+    const filteredDestination=await req("/api/v1/tours?destination=%C4%90%C3%A0%20N%E1%BA%B5ng&region=all");
+    assert("Destination-only search returns matching tour",
+      filteredDestination.status===200 &&
+      filteredDestination.json?.some(x=>x.title.includes("Đà Nẵng")) &&
+      filteredDestination.json?.every(x=>x.title.includes("Đà Nẵng")));
 
     const metricsRes = await req("/api/v1/admin/metrics", { headers: adminHeaders });
     assert("GET /api/v1/admin/metrics", metricsRes.status === 200 && metricsRes.json?.tours > 0);
@@ -352,7 +439,7 @@ async function runTests() {
       headers: adminHeaders,
       body: { reference: "ADM_VERIFY_" + Date.now() }
     });
-    assert(`POST /api/v1/admin/bookings/${bookingId}/confirm-payment`, admConfirmPay.status === 200 && admConfirmPay.json?.status === "PAID");
+    assert(`POST /api/v1/admin/bookings/${bookingId}/confirm-payment`, admConfirmPay.status === 503);
 
     // 14. Assistant Chat
     const chatRes = await req("/api/v1/assistant/chat", {

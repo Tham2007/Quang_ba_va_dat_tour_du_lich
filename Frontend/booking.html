@@ -529,9 +529,9 @@
 
       <!-- Khung VietQR thanh toán -->
       <div id="receiptQRBox" class="border rounded-3 p-4 mx-auto mb-4 bg-white" style="max-width: 400px;">
-        <h6 class="fw-bold mb-2">Quét mã VietQR chuyển khoản</h6>
-        <div class="small text-muted mb-3">Mở ứng dụng ngân hàng và quét mã để thanh toán tự động:</div>
-        <img id="receiptQRImg" src="assets/images/bank_qr_demo.png" alt="QR Code" style="width: 220px; height: 220px; object-fit: contain;" class="border p-2 rounded-2 mx-auto d-block">
+        <h6 class="fw-bold mb-2">Thông tin thanh toán chưa xác thực</h6>
+        <div class="small text-danger mb-3">Bản học phần chưa có tài khoản ngân hàng và giao dịch được xác thực. Không thực hiện chuyển khoản.</div>
+        <div id="receiptQRImg" class="border rounded-2 bg-light p-4 mx-auto text-muted" style="max-width:260px">Mã VietQR chưa được cấu hình. Không quét thanh toán.</div>
         <div class="small text-muted mt-2">Nội dung chuyển khoản: <strong id="receiptTransferNote" class="text-dark">...</strong></div>
       </div>
 
@@ -573,16 +573,17 @@
           }
         }
 
-        if (!tour) {
-          // Fallback danh mục mặc định
-          tour = {
-            id: tourId,
-            title: "Tour Du Thuyền 5 Sao Vịnh Hạ Long – Vịnh Lan Hạ",
-            duration: "3N2Đ",
-            transport: "Du thuyền 5* + Limousine VIP",
-            price: 3890000,
-            image: "assets/images/halong.png"
-          };
+        if (!tour || String(tour.id) !== tourId) {
+          const button=document.querySelector(".paper-btn-submit");
+          if (button) button.disabled=true;
+          document.getElementById("tourTitleDisplay").textContent="Không thể xác minh tour từ máy chủ.";
+          const select=document.getElementById("bookingScheduleSelect");
+          if (select) {
+            select.replaceChildren();
+            select.add(new Option("Không thể xác minh lịch khởi hành",""));
+            select.disabled=true;
+          }
+          return;
         }
 
         currentTour = tour;
@@ -614,25 +615,26 @@
           }
         }
 
-        if (schedules.length === 0) {
-          // Tạo 3 lịch khởi hành gần nhất
-          schedules = [7, 14, 21].map((d, i) => {
-            const date = new Date(Date.now() + d * 86400000);
-            return {
-              id: `SCHED-${tourId}-${i+1}`,
-              departureAt: date.toISOString(),
-              availableSeats: 25 - i * 4
-            };
-          });
+        currentSchedules=schedules.filter(x => typeof x?.id==="string" &&
+          new Date(x.departureAt).getTime()>Date.now() &&
+          x.active!==false && Number(x.availableSeats)>0);
+        select.replaceChildren();
+        if (!currentSchedules.length) {
+          select.add(new Option("Chưa có lịch mở bán được xác nhận",""));
+          select.disabled=true;
+          return;
         }
-
-        currentSchedules = schedules;
-        select.innerHTML = schedules.map(s => {
-          const dStr = new Date(s.departureAt).toLocaleDateString("vi-VN");
-          return `<option value="${s.id}">${dStr} · Còn ${s.availableSeats} chỗ</option>`;
-        }).join("");
-      } catch (err) {
-        select.innerHTML = `<option value="DEFAULT">Khởi hành thứ 7 hàng tuần</option>`;
+        select.disabled=false;
+        for (const item of currentSchedules) {
+          const d=new Date(item.departureAt).toLocaleDateString("vi-VN");
+          select.add(new Option(d+" · Còn "+Number(item.availableSeats)+" chỗ",item.id));
+        }
+      } catch(err) {
+        console.error("Không tải được lịch khởi hành:",err);
+        currentSchedules=[];
+        select.replaceChildren();
+        select.add(new Option("Không thể xác minh lịch khởi hành",""));
+        select.disabled=true;
       }
     }
 
@@ -645,29 +647,30 @@
       const totalGuests = adults + children + infants;
       document.getElementById("guestCountDisplay").textContent = `${totalGuests} khách (${adults} lớn, ${children} trẻ)`;
 
-      // Tính tổng tiền: Người lớn 100%, trẻ em 75%, em bé miễn phí
-      const rawTotal = (adults * currentTour.price) + (children * currentTour.price * 0.75);
+      // Preview uses the same 100/75/10 rates as the backend.
+      const unit=Number(currentTour.price)||0;
+      const rawTotal=adults*unit+children*Math.floor((unit*75+50)/100)+
+        infants*Math.floor((unit*10+50)/100);
       const finalTotal = Math.max(0, rawTotal - discountAmount);
 
       document.getElementById("totalPriceDisplay").textContent = formatVND(finalTotal);
     }
 
     function applyVoucher() {
-      const input = document.getElementById("voucherCodeInput");
-      const code = (input?.value || "").trim().toUpperCase();
-      const alertEl = document.getElementById("voucherAlert");
-
-      if (code === "DELTA10" || code === "VIPTOUR") {
-        discountAmount = 200000;
-        alertEl.style.display = "block";
-        alertEl.textContent = `Áp dụng thành công mã ${code}: Giảm 200.000 đ!`;
-        recalcPrice();
-      } else if (code !== "") {
-        alert("Mã ưu đãi không hợp lệ hoặc đã hết hạn.");
+      discountAmount=0;
+      const el=document.getElementById("voucherAlert");
+      if (el) {
+        el.style.display="block";
+        el.textContent="Mã khuyến mãi chưa hỗ trợ ở bản thử nghiệm.";
       }
+      recalcPrice();
     }
 
+    let bookingSubmissionInProgress = false;
+    let bookingRequestCache = null;
+
     async function submitBookingOrder() {
+      if (bookingSubmissionInProgress) return;
       const name = document.getElementById("customerFullName").value.trim();
       const phone = document.getElementById("customerPhone").value.trim();
       const email = document.getElementById("customerEmail").value.trim();
@@ -681,49 +684,51 @@
         return;
       }
 
+      if (!scheduleId) {
+        alert("Vui lòng chọn lịch khởi hành hợp lệ từ máy chủ.");
+        return;
+      }
+      if (!/^0[35789][0-9]{8}$/.test(phone) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        alert("Số điện thoại hoặc email không hợp lệ.");
+        return;
+      }
+      if (!Number.isInteger(adults) || adults < 1 || !Number.isInteger(children) || children < 0 ||
+          !Number.isInteger(infants) || infants < 0 || adults + children + infants > 20) {
+        alert("Số hành khách không hợp lệ.");
+        return;
+      }
+
+      // Reuse the same idempotency key on timeout retries for the same payload.
+      // If the passenger form changes, issue a new key rather than reusing an old order.
       const payload = {
-        scheduleId: scheduleId || "DEFAULT",
-        tourId: currentTour.id,
-        tourTitle: currentTour.title,
-        customerName: name,
-        customerPhone: phone,
-        customerEmail: email,
-        adults: adults,
-        children: children,
-        infants: infants,
-        seats: adults + children + infants,
-        pickupLocation: document.getElementById("pickupLocationInput")?.value || "",
-        specialRequests: document.getElementById("customerNotes")?.value || ""
+        schedule_id: scheduleId, adults, children, infants,
+        customer_name: name, customer_phone: phone, customer_email: email,
+        note: document.getElementById("customerNotes")?.value?.trim() || ""
       };
-
+      const serialized = JSON.stringify(payload);
+      if (!bookingRequestCache || bookingRequestCache.payload !== serialized) {
+        bookingRequestCache = {
+          payload: serialized,
+          key: (typeof crypto !== "undefined" && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : ("IDEM-" + Date.now() + "-" + Math.random().toString(16).slice(2))
+        };
+      }
+      bookingSubmissionInProgress = true;
+      const submitBtn = document.querySelector(".paper-btn-submit");
+      if (submitBtn) submitBtn.disabled = true;
       try {
-        let booking = null;
-        if (typeof DeltaAPI !== "undefined" && DeltaAPI.createBooking) {
-          const res = await DeltaAPI.createBooking(payload);
-          if (res && res.success && res.data) {
-            booking = res.data;
-          }
+        if (typeof DeltaAPI === "undefined" || !DeltaAPI.createBooking) {
+          throw new Error("Máy chủ đặt tour chưa sẵn sàng.");
         }
-
-        if (!booking) {
-          // Fallback tạo mã đơn
-          const rand = Math.floor(100000 + Math.random() * 900000);
-          booking = {
-            id: `BK${rand}`,
-            reference: `BK${rand}`,
-            tourTitle: currentTour.title,
-            customerName: name,
-            customerPhone: phone,
-            totalPrice: Math.max(0, ((adults * currentTour.price) + (children * currentTour.price * 0.75)) - discountAmount),
-            status: "PENDING_PAYMENT",
-            createdAt: new Date().toISOString()
-          };
+        const res = await DeltaAPI.createBooking(payload, bookingRequestCache.key);
+        if (!res?.success || !res.data?.id) {
+          throw new Error(res?.error || "Máy chủ chưa xác nhận được đơn đặt tour.");
         }
-
-        // Lưu vào localStorage
-        const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
-        local.unshift(booking);
-        localStorage.setItem("delta_customer_bookings", JSON.stringify(local));
+        const booking = res.data;
+        if (booking.paid || (booking.status !== "PENDING_PAYMENT" && booking.status !== "PENDING_DEMO")) {
+          throw new Error("Trạng thái đơn không khớp quy trình giữ chỗ thử nghiệm.");
+        }
 
         // Hiển thị phiếu xác nhận giữ chỗ
         document.getElementById("bookingFormWrapper").style.display = "none";
@@ -731,14 +736,17 @@
         successBox.style.display = "block";
 
         document.getElementById("receiptRef").textContent = `#${booking.reference || booking.id}`;
-        document.getElementById("receiptTourTitle").textContent = currentTour.title;
+        document.getElementById("receiptTourTitle").textContent = booking.tourTitle || currentTour.title;
         document.getElementById("receiptCustomer").textContent = `${name} (${phone})`;
-        document.getElementById("receiptTotal").textContent = formatVND(booking.totalPrice || ((adults * currentTour.price) + (children * currentTour.price * 0.75)));
+        document.getElementById("receiptTotal").textContent = formatVND(booking.totalPrice);
         document.getElementById("receiptTransferNote").textContent = `${booking.reference || booking.id} ${phone}`;
 
         window.scrollTo({ top: 0, behavior: "smooth" });
       } catch (err) {
         alert("Lỗi đặt tour: " + (err.message || "Vui lòng thử lại"));
+      } finally {
+        bookingSubmissionInProgress = false;
+        if (submitBtn) submitBtn.disabled = false;
       }
     }
 
@@ -765,7 +773,7 @@
   </script>
 
   <!-- Kết nối API & Auth -->
-  <script src="assets/js/services/api.js"></script>
+  
   <script src="assets/js/controllers/auth.js"></script>
 </body>
 </html>

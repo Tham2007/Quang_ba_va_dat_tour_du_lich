@@ -10,6 +10,8 @@
  */
 
 let chatHistory = [];
+let currentContextTourId = null;
+let assistantCanBook = true;
 let isChatbotOpen = false;
 let isAILoading = false;
 
@@ -20,12 +22,14 @@ async function callAIAPI(userMessage) {
   if (typeof DeltaAPI === "undefined" || !DeltaAPI.assistantChat) {
     throw new Error("Dịch vụ tư vấn du lịch chưa sẵn sàng.");
   }
-  const result = await DeltaAPI.assistantChat(userMessage);
+  const result = await DeltaAPI.assistantChat(userMessage, currentContextTourId);
   if (!result.success || !result.data?.answer) {
     throw new Error(result.error || "Không nhận được phản hồi từ máy chủ.");
   }
   
   const botReply = result.data.answer;
+  currentContextTourId = result.data.contextTourId || null;
+  assistantCanBook = result.data.canBook !== false;
   const suggestedTours = result.data.suggestedTours || [];
 
   chatHistory.push({
@@ -300,28 +304,28 @@ function appendChatMessage(sender, rawText, suggestedTours = [], containerId = "
           <i class="bi bi-compass-fill text-warning me-1"></i> ${suggestedTitle}
         </div>
         <div class="row g-2">
-          ${suggestedTours.map(t => `
+          ${suggestedTours.map(t => { const safeTitle = escapeHTML(t.title || ""); const safeId = /^[a-z0-9_-]+$/i.test(String(t.id)) ? String(t.id) : ""; const safeImage = /^assets\/images\/[a-z0-9_./-]+$/i.test(String(t.image || "")) ? t.image : "assets/images/halong.png"; return `
             <div class="col-12 col-sm-6">
               <div class="chat-tour-card p-2 rounded-3 border bg-white shadow-xs">
                 <div class="d-flex gap-2">
-                  <img src="${t.image || 'assets/images/halong.png'}" style="width: 60px; height: 50px; object-fit: cover; border-radius: 6px;" alt="${t.title}" onerror="this.src='assets/images/halong.png'">
+                  <img src="${safeImage}" style="width: 60px; height: 50px; object-fit: cover; border-radius: 6px;" alt="${safeTitle}" onerror="this.src='assets/images/halong.png'">
                   <div class="flex-1 min-w-0" style="overflow: hidden;">
-                    <div class="fw-bold text-dark small text-truncate" title="${t.title}">${t.title}</div>
-                    <div class="text-muted" style="font-size: 11px;"><i class="bi bi-clock"></i> ${t.duration || '3N2Đ'}</div>
+                    <div class="fw-bold text-dark small text-truncate" title="${safeTitle}">${safeTitle}</div>
+                    <div class="text-muted" style="font-size: 11px;"><i class="bi bi-clock"></i> ${escapeHTML(t.duration || "Chưa rõ")}</div>
                     <div class="text-danger fw-bold small">${Number(t.price).toLocaleString("vi-VN")} đ</div>
                   </div>
                 </div>
                 <div class="d-flex gap-1 mt-2">
-                  <a href="booking.html?tourId=${encodeURIComponent(t.id)}" class="btn btn-dark btn-sm w-100 fw-bold py-1" style="font-size: 11px;">
-                    <i class="bi bi-cart-check"></i> ${bookNowText}
-                  </a>
-                  <button type="button" onclick="openItineraryModal('${t.id}')" class="btn btn-outline-dark btn-sm w-100 py-1" style="font-size: 11px;">
+                  ${assistantCanBook && safeId
+                    ? `<a href="booking.html?tourId=${encodeURIComponent(safeId)}" class="btn btn-dark btn-sm w-100 fw-bold py-1" style="font-size: 11px;"><i class="bi bi-cart-check"></i> ${bookNowText} (demo)</a>`
+                    : `<span class="small text-muted">SQL Server read-only, chưa hỗ trợ đặt tour.</span>`}
+                  <button type="button" onclick="openItineraryModal('${safeId}')" class="btn btn-outline-dark btn-sm w-100 py-1" style="font-size: 11px;">
                     ${itineraryText}
                   </button>
                 </div>
               </div>
             </div>
-          `).join("")}
+          `; }).join("")}
         </div>
       </div>
     `;
@@ -435,6 +439,7 @@ function toggleSendButtonState(isLoading, isLarge = false) {
 
 function resetChatConversation() {
   chatHistory = [];
+  currentContextTourId = null;
   const container = document.getElementById("chatbotMessages");
   if (container) {
     const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
@@ -456,6 +461,7 @@ function resetChatConversation() {
 
 function resetLargeChatConversation() {
   chatHistory = [];
+  currentContextTourId = null;
   const container = document.getElementById("largeAIChatMessages");
   if (container) {
     const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";

@@ -1,18 +1,7 @@
 const sql = require('mssql');
 
-const config = {
-  user: 'db_ad0b71_dattour_admin',
-  password: 'Phamtham312007@',
-  server: 'sql8020.site4now.net',
-  port: 1433,
-  database: 'db_ad0b71_dattour',
-  options: {
-    encrypt: false,
-    trustServerCertificate: true,
-    connectTimeout: 15000,
-    requestTimeout: 15000
-  }
-};
+const { requireSqlServerConfig } = require("./mssql_config");
+const config = requireSqlServerConfig();
 
 async function inspectSchema() {
   let pool;

@@ -113,7 +113,9 @@ async function checkAdminAuth() {
 
   const session = await DeltaAPI.getMe();
   if (!session.success) {
-    if (session.isOffline) return showAdminScreen(user);
+    // Only an independently confirmed offline server enables UI-only demo.
+    const health = await DeltaAPI.checkHealth();
+    if (!health.online) return showAdminScreen(user);
     showLockedScreen();
     showAdminToast(session.error || "Phiên đăng nhập máy chủ đã hết hạn. Vui lòng đăng nhập lại.", "error");
     return false;
@@ -170,13 +172,38 @@ async function handleQuickAdminLogin(identifier) {
     targetUser = users[0];
   }
 
+  // Fresh static demos have no seeded users. Explicitly synthesize UI-only
+  // identities ONLY when the backend has been confirmed offline.
+  if (!targetUser && /^USR-0[1-5]$/.test(identifier)) {
+    const health = typeof DeltaAPI !== "undefined" && DeltaAPI.checkHealth
+      ? await DeltaAPI.checkHealth() : { online: false };
+    if (health.online) {
+      showAdminToast("Máy chủ đang chạy. Hãy đăng nhập bằng tài khoản quản trị đã xác thực.", "warning");
+      return;
+    }
+    const demoNames = {
+      "USR-01": "Hồng Thắm", "USR-02": "Lê Văn An",
+      "USR-03": "Lê Hải Đăng", "USR-04": "Nguyễn Văn Phúc",
+      "USR-05": "Lê Văn Mạnh"
+    };
+    targetUser = {
+      id: identifier, fullName: demoNames[identifier],
+      role: "ADMIN", title: "DEMO ngoại tuyến", email: identifier + "@demo.invalid",
+      __offlineUiOnly: true
+    };
+  }
+
   if (targetUser) {
-    let localDemoLogin = typeof DeltaAPI === "undefined" || typeof DeltaAPI.login !== "function";
+    let localDemoLogin = targetUser.__offlineUiOnly === true ||
+      typeof DeltaAPI === "undefined" || typeof DeltaAPI.login !== "function";
     if (!localDemoLogin) {
       const loginResult = await DeltaAPI.login(targetUser.email, targetUser.password);
-      if (!loginResult.success && !loginResult.isOffline) {
-        showAdminToast(loginResult.error || "Không thể đăng nhập tài khoản quản trị trên máy chủ.", "error");
-        return;
+      if (!loginResult.success) {
+        const health=await DeltaAPI.checkHealth();
+        if (health.online) {
+          showAdminToast(loginResult.error || "Đăng nhập tài khoản quản trị không hợp lệ.", "error");
+          return;
+        }
       }
       localDemoLogin = !loginResult.success;
       if (loginResult.success) {
@@ -201,7 +228,7 @@ async function handleQuickAdminLogin(identifier) {
     renderCurrentTab();
     showAdminToast(
       localDemoLogin
-        ? "Đang dùng phiên làm việc ngoại tuyến; dữ liệu sẽ tự động đồng bộ khi có kết nối máy chủ."
+        ? "Đây là phiên quản trị demo ngoại tuyến; thay đổi không được xác nhận trên database."
         : `Chào mừng ${targetUser.fullName} (${targetUser.title || "Quản trị viên"}) vào phiên làm việc!`,
       localDemoLogin ? "warning" : "success"
     );
@@ -230,7 +257,7 @@ function refreshAdminData() {
   // Đồng bộ hai chiều với Backend API nếu máy chủ đang trực tuyến
   if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.adminGetTours === "function") {
     DeltaAPI.adminGetTours().then(res => {
-      if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res && res.success && Array.isArray(res.data) && Array.isArray(res.data)) {
         const serverTours = res.data.map(st => {
           let itinerary = [];
           try { itinerary = JSON.parse(st.itineraryJson || '[]'); } catch (e) {}
@@ -250,7 +277,8 @@ function refreshAdminData() {
             rating: 5.0,
             reviewsCount: 100,
             badge: st.isFlashSale ? 'Ưu đãi' : '',
-            availableSeats: 20,
+            totalSeats: Number(st.totalSeats ?? 20),
+            availableSeats: Number(st.availableSeats ?? 0),
             status: st.active ? 'ACTIVE' : 'INACTIVE',
             itinerary: itinerary.length > 0 ? itinerary : [
               { day: 1, title: 'Khám phá điểm đến', morning: 'Khởi hành', afternoon: 'Tham quan', evening: 'Nghỉ ngơi' }
@@ -1112,7 +1140,7 @@ function openTourModal(tourId = null) {
   document.getElementById("formTourPrice").value = tour ? tour.price : "";
   document.getElementById("formTourDeparture").value = tour ? (tour.departure || "") : "Hà Nội / TP.HCM";
   document.getElementById("formTourTransport").value = tour ? (tour.transport || "") : "Xe du lịch đời mới / Máy bay";
-  document.getElementById("formTourSeats").value = tour ? (tour.availableSeats || 20) : 25;
+  document.getElementById("formTourSeats").value = tour ? (tour.totalSeats ?? 20) : 25;
   document.getElementById("formTourStatus").value = tour ? (tour.status || "ACTIVE") : "ACTIVE";
   
   const badgeInput = document.getElementById("formTourBadge");
@@ -1469,7 +1497,11 @@ async function handleSaveTourSubmit(e) {
   const calculatedBaseCost = costItems.reduce((sum, item) => sum + item.amount_per_person, 0);
   const departure = document.getElementById("formTourDeparture").value.trim();
   const transport = document.getElementById("formTourTransport").value.trim();
-  const availableSeats = Number(document.getElementById("formTourSeats").value) || 20;
+  const availableSeats = Number(document.getElementById("formTourSeats").value);
+  if (!Number.isInteger(availableSeats) || availableSeats < 1 || availableSeats > 10000) {
+    showAdminToast("Số chỗ mở bán phải từ 1 đến 10000.", "error");
+    return;
+  }
   const status = document.getElementById("formTourStatus").value;
   const badge = document.getElementById("formTourBadge")?.value.trim() || "";
   const image = document.getElementById("formTourImage").value.trim() || "assets/images/halong.png";
@@ -1562,6 +1594,7 @@ async function handleSaveTourSubmit(e) {
     badge: badge || (originalPrice > price ? "Ưu đãi Delta" : ""),
     isFlashSale: false,
     availableSeats,
+    totalSeats: availableSeats,
     status,
     countryCode: "VN",
     highlights,
@@ -1587,7 +1620,8 @@ async function handleSaveTourSubmit(e) {
         flash_sale: tourData.isFlashSale,
         description: tourData.highlights.join("\n"),
         active: status === "ACTIVE",
-        images: apiImages
+        images: apiImages,
+        available_seats: availableSeats
       });
       if (!catalogUpdate.success) {
         showAdminToast(catalogUpdate.error || "Không thể cập nhật tour trên máy chủ.", "error");
@@ -1608,6 +1642,7 @@ async function handleSaveTourSubmit(e) {
         price: tourData.price,
         original_price: Math.max(calculatedBaseCost, 1),
         images: apiImages,
+        available_seats: availableSeats,
         description: tourData.highlights.join("\n")
       });
       if (!created.success) {
@@ -1820,10 +1855,14 @@ function openScheduleModal(scheduleId = null) {
     `).join("");
   }
 
-  const defaultDate = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 16);
+  const toLocalInput = value => {
+    const d = new Date(value);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+  };
+  const defaultDate = toLocalInput(Date.now() + 7 * 24 * 3600 * 1000);
   document.getElementById("scheduleModalTitle").textContent = sch ? "Chỉnh Sửa Lịch Khởi Hành" : "Thêm Lịch Khởi Hành Mới";
   document.getElementById("formSchId").value = sch ? sch.id : ("SCH-" + Date.now().toString().slice(-4));
-  document.getElementById("formSchDate").value = sch ? sch.departureAt.slice(0, 16) : defaultDate;
+  document.getElementById("formSchDate").value = sch ? toLocalInput(sch.departureAt) : defaultDate;
   document.getElementById("formSchSeats").value = sch ? sch.totalSeats : 30;
   const tour = AdminState.tours.find(item => item.id === (sch?.tourId || selectTour?.value));
   if (selectTour) selectTour.disabled = Boolean(sch);
@@ -1843,8 +1882,21 @@ async function handleSaveScheduleSubmit(e) {
   const id = document.getElementById("formSchId").value.trim();
   const tourId = document.getElementById("formSchTourId").value;
   const departureAt = document.getElementById("formSchDate").value;
-  const totalSeats = Number(document.getElementById("formSchSeats").value) || 30;
+  const totalSeats = Number(document.getElementById("formSchSeats").value);
   const status = document.getElementById("formSchStatus").value;
+  const date = new Date(departureAt);
+  if (!Number.isFinite(date.getTime()) || date.getTime() <= Date.now()) {
+    showAdminToast("Ngày khởi hành phải ở tương lai.", "error");
+    return;
+  }
+  if (!Number.isInteger(totalSeats) || totalSeats < 1 || totalSeats > 10000) {
+    showAdminToast("Số chỗ mở bán không hợp lệ.", "error");
+    return;
+  }
+  if (typeof DeltaAPI === "undefined" || !DeltaAPI.isOnline()) {
+    showAdminToast("Không thể lưu vì API đang ngoại tuyến. Dữ liệu demo chưa được đồng bộ.", "error");
+    return;
+  }
 
   const tour = AdminState.tours.find(t => t.id === tourId);
   const tourTitle = tour ? tour.title : tourId;
@@ -1862,7 +1914,7 @@ async function handleSaveScheduleSubmit(e) {
     status
   };
 
-  if (typeof DeltaAPI !== "undefined" && DeltaAPI.isOnline()) {
+  {
     let response;
     try {
       response = idx !== -1

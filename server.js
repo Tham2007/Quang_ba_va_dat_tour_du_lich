@@ -29,24 +29,18 @@ const db = new DatabaseSync(DB_PATH);
 
 // Cấu hình kết nối trực tiếp SmarterASP.NET SQL Server
 let sqlServerPool = null;
-const SQL_SERVER_CONFIG = {
-  user: process.env.DELTA_MSSQL_USER || "db_ad0b71_dattour_admin",
-  password: process.env.DELTA_MSSQL_PASSWORD || "Phamtham312007@",
-  server: process.env.DELTA_MSSQL_SERVER || "sql8020.site4now.net",
-  port: parseInt(process.env.DELTA_MSSQL_PORT || "1433", 10),
-  database: process.env.DELTA_MSSQL_DATABASE || "db_ad0b71_dattour",
-  options: {
-    encrypt: false,
-    trustServerCertificate: true,
-    connectTimeout: 8000
-  }
-};
+const { getSqlServerConfig } = require("./scripts/mssql_config");
 
 async function initDirectSqlServer() {
   try {
+    const config = getSqlServerConfig();
+    if (!config) {
+      console.log("[SQL SERVER] Connection not configured (DELTA_MSSQL_* variables missing).");
+      return;
+    }
     const mssql = require("mssql");
-    sqlServerPool = await mssql.connect(SQL_SERVER_CONFIG);
-    console.log("[SQL SERVER] Đã kết nối TRỰC TIẾP thành công tới SmarterASP.NET SQL Server (sql8020.site4now.net:1433 / db_ad0b71_dattour)!");
+    sqlServerPool = await mssql.connect(config);
+    console.log("[SQL SERVER] Database connection established.");
   } catch (err) {
     console.warn("[SQL SERVER] Chưa thể kết nối SQL Server trực tiếp:", err.message);
   }
@@ -97,7 +91,9 @@ async function proxySqlServerCatalog(req, res, endpoint, queryKeys = []) {
     upstreamUrl = new URL(endpoint, `${baseUrl.origin}/`);
     for (const key of queryKeys) {
       const value = req.query[key];
-      if (typeof value === "string" && value !== "") upstreamUrl.searchParams.set(key, value);
+      if (typeof value === "string" && value !== "" && !(key === "region" && value === "all")) {
+        upstreamUrl.searchParams.set(key, value);
+      }
     }
   } catch (error) {
     console.error("Invalid SQL Server catalog API configuration.", error.name);
@@ -361,11 +357,15 @@ function initDatabase() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
   `);
+  const addedTourCapacity = !db.prepare("PRAGMA table_info(tours)").all().some(c => c.name === "default_seats");
+  if (addedTourCapacity) db.exec("ALTER TABLE tours ADD COLUMN default_seats INTEGER NOT NULL DEFAULT 20");
 
-  // Đảm bảo có tài khoản Admin mặc định
+  const now = new Date().toISOString();
+  // Demo accounts use public teaching credentials and must never be active
+  // in a deployed instance unless explicitly opted in for isolated CI.
+  if (process.env.DELTA_ALLOW_DEMO_ACCOUNTS === "1") {
   const adminEmail = "admin@deltatravel.vn";
   const existingAdmin = db.prepare("SELECT id FROM users WHERE email = ?").get(adminEmail);
-  const now = new Date().toISOString();
   if (!existingAdmin) {
     db.prepare(`
       INSERT INTO users (id, full_name, email, phone, password_hash, role, active, created_at, updated_at)
@@ -398,6 +398,13 @@ function initDatabase() {
     if (!existing) {
       insertDemoAdmin.run(id, fullName, email, phone, hashPassword("password123"), now, now);
     }
+  }
+
+  } else {
+    // Retire accounts created by prior insecure demo seeds on persistent DBs.
+    db.prepare(`UPDATE users SET active=0
+      WHERE (id IN ('USR-01','USR-02','USR-03','USR-04','USR-05')
+         OR email='admin@deltatravel.vn') AND role='ADMIN'`).run();
   }
 
   // Đảm bảo có đủ 16 tour thương mại chuẩn toàn quốc với bộ ảnh sắc nét
@@ -746,6 +753,8 @@ function initDatabase() {
     }
   });
 
+  if (addedTourCapacity) db.exec(`UPDATE tours SET default_seats = COALESCE(
+    (SELECT total_seats FROM schedules WHERE tour_id = tours.id ORDER BY departure_at LIMIT 1),20)`);
   try {
     db.exec("ALTER TABLE users ADD COLUMN avatar TEXT;");
   } catch (_) {}
@@ -789,6 +798,10 @@ function publicTour(t) {
     description: t.description || "",
     price: Number(t.price),
     originalPrice: Number(t.original_price),
+    totalSeats: Number(t.default_seats || 20),
+    availableSeats: Math.max(0, Number(db.prepare(`SELECT total_seats - reserved_seats AS remain
+      FROM schedules WHERE tour_id=? AND active=1 AND departure_at>? ORDER BY departure_at LIMIT 1`)
+      .get(t.id, new Date().toISOString())?.remain ?? 0)),
     isFlashSale: Boolean(t.flash_sale),
     updatedAt: iso(t.updated_at)
   };
@@ -868,6 +881,8 @@ function bookingDict(b) {
     scheduleId: b.schedule_id,
     tourTitle: b.tour_title,
     customerName: b.customer_name,
+    customerPhone: b.customer_phone,
+    customerEmail: b.customer_email,
     adults: Number(b.adults),
     children: Number(b.children),
     infants: Number(b.infants),
@@ -875,7 +890,7 @@ function bookingDict(b) {
     unitPrice: Number(b.unit_price),
     totalPrice: Number(b.total_price),
     status: b.status,
-    paid: ["PAID", "CONFIRMED", "COMPLETED"].includes(b.status),
+    paid: Boolean(b.payment_confirmed_at) && ["PAID", "CONFIRMED", "COMPLETED"].includes(b.status),
     paymentEvidence: b.payment_evidence || null,
     paymentConfirmedAt: b.payment_confirmed_at ? iso(b.payment_confirmed_at) : null,
     expiresAt: iso(b.expires_at),
@@ -951,39 +966,9 @@ function requireAuth(req, res, next) {
   next();
 }
 
-function requireAuthOrGuest(req, res, next) {
-  const sessionUser = getSessionUser(req);
-  if (sessionUser) {
-    if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
-      const headerCsrf = req.headers["x-csrf-token"];
-      const cookieCsrf = req.cookies.delta_csrf;
-      if (headerCsrf && cookieCsrf && (headerCsrf !== cookieCsrf || tokenHash(headerCsrf) !== sessionUser.csrf_hash)) {
-        return res.status(403).json({ detail: "CSRF token không hợp lệ." });
-      }
-    }
-    req.user = sessionUser;
-    return next();
-  }
-
-  // Hỗ trợ khách đặt trực tiếp: tự động liên kết hoặc tạo tài khoản khách hàng
-  const { customer_email, customer_name, customer_phone } = req.body || {};
-  if (customer_email) {
-    let user = db.prepare("SELECT * FROM users WHERE email = ?").get(customer_email);
-    if (!user) {
-      const newUserId = "USR-" + crypto.randomUUID().slice(0, 8);
-      const now = new Date().toISOString();
-      db.prepare(`
-        INSERT INTO users (id, full_name, email, phone, password_hash, role, active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 'CUSTOMER', 1, ?, ?)
-      `).run(newUserId, customer_name || "Khách Hàng", customer_email, customer_phone || "0900000000", hashPassword("deltaCustomer123@"), now, now);
-      user = db.prepare("SELECT * FROM users WHERE id = ?").get(newUserId);
-    }
-    req.user = user;
-    try { createSession(res, user); } catch(e) {}
-    return next();
-  }
-
-  return res.status(401).json({ detail: "Bạn cần đăng nhập." });
+// Booking must never adopt an existing account by an unverified email address.
+function requireAuthOrGuest(req,res,next) {
+  return requireAuth(req,res,next);
 }
 
 function requireAdmin(req, res, next) {
@@ -1038,12 +1023,14 @@ app.get("/api/v1/health/ready", (req, res) => {
   const row = db.prepare("SELECT COUNT(*) AS c FROM tours").get();
   res.json({
     status: "ok",
-    db: sqlServerPool ? "SQL Server (sql8020.site4now.net - ONLINE)" : "connected",
+    db: "SQLite (local demo; this API does not persist bookings to SQL Server)",
     sqlServerConnected: Boolean(sqlServerPool),
-    sqlServerHost: "sql8020.site4now.net:1433",
-    sqlServerDb: "db_ad0b71_dattour",
+    sqlServerHost: sqlServerPool ? "configured" : null,
+    sqlServerDb: sqlServerPool ? "configured" : null,
     tours: row.c,
-    catalogMode: sqlServerPool ? "sqlserver_direct" : "sqlite"
+    bookingStorage: "sqlite_demo",
+    bookingSqlServerWritable: false,
+    catalogMode: "sqlite"
   });
 });
 
@@ -1202,6 +1189,42 @@ app.delete("/api/v1/favorites/:tour_id", requireAuth, (req, res) => {
   res.json({ status: "ok", tour_id });
 });
 
+// Expire temporary seats atomically. A pending hold must never block seats
+// forever after its advertised 15-minute validity ends.
+function expirePendingBookings() {
+  const now = new Date().toISOString();
+  const expired = db.prepare("SELECT id,schedule_id,seats_held FROM bookings WHERE status='PENDING_PAYMENT' AND expires_at<=?").all(now);
+  if (!expired.length) return 0;
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    let released = 0;
+    const mark = db.prepare("UPDATE bookings SET status='EXPIRED',updated_at=? WHERE id=? AND status='PENDING_PAYMENT' AND expires_at<=?");
+    const seats = db.prepare("UPDATE schedules SET reserved_seats=MAX(0,reserved_seats-?) WHERE id=?");
+    for (const booking of expired) {
+      const result = mark.run(now,booking.id,now);
+      if (result.changes === 1) {
+        seats.run(booking.seats_held,booking.schedule_id);
+        released += 1;
+      }
+    }
+    db.exec("COMMIT");
+    return released;
+  } catch(error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+// Lazy cleanup also covers process restarts without a timer or cron service.
+app.use(["/api/v1/bookings","/api/v1/tours","/api/v1/admin/schedules","/api/v1/admin/bookings"],(req,res,next)=>{
+  try {
+    expirePendingBookings();
+    next();
+  } catch(error) {
+    console.error("Booking expiry cleanup failed:",error.message);
+    res.status(503).json({detail:"Tạm thời không thể đối soát số chỗ giữ."});
+  }
+});
+
 // 4. Tours & Schedules
 app.get("/api/v1/tours", async (req, res) => {
   if (await proxySqlServerCatalog(req, res, "/api/v1/tours", ["q", "region", "max_price"])) return;
@@ -1209,7 +1232,7 @@ app.get("/api/v1/tours", async (req, res) => {
   let query = "SELECT * FROM tours WHERE active = 1";
   const params = [];
 
-  if (region) {
+  if (region && region !== "all") {
     query += " AND region = ?";
     params.push(region);
   }
@@ -1223,8 +1246,30 @@ app.get("/api/v1/tours", async (req, res) => {
     params.push(term, term, term);
   }
   query += " ORDER BY id ASC";
-  const tours = db.prepare(query).all(...params);
-  res.json(tours.map(publicTour));
+  const tours = db.prepare(query).all(...params).map(publicTour);
+  const fold = v => String(v || "").toLowerCase().normalize("NFD")
+    .replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d");
+  const q = fold(req.query.q || search);
+  const destination = fold(req.query.destination);
+  const departure = fold(req.query.departure_location);
+  const duration = fold(req.query.duration);
+  const transport = fold(req.query.transport);
+  const min = req.query.min_price == null ? null : Number(req.query.min_price);
+  const max = req.query.max_price == null ? null : Number(req.query.max_price);
+  if ((min != null && (!Number.isFinite(min) || min < 0)) ||
+      (max != null && (!Number.isFinite(max) || max < 0)))
+    return res.status(422).json({detail:"Khoảng giá không hợp lệ."});
+  res.json(tours.filter(t => {
+    const title = fold([t.title,t.description,t.region,t.departure].join(" "));
+    if (q && !title.includes(q)) return false;
+    if (destination && !fold(t.title).includes(destination)) return false;
+    if (departure && !fold(t.departure).includes(departure)) return false;
+    if (duration && !fold(t.duration).includes(duration)) return false;
+    if (transport && !fold(t.transport).includes(transport)) return false;
+    if (min != null && t.price < min) return false;
+    if (max != null && t.price > max) return false;
+    return true;
+  }));
 });
 
 app.get("/api/v1/tours/:tour_id", async (req, res) => {
@@ -1268,14 +1313,24 @@ function calculateTotals(unitPrice, adults, children = 0, infants = 0) {
   return unitPrice * adults + childPrice * children + infantPrice * infants;
 }
 
+function validPassengerCounts(adults,children,infants) {
+  return Number.isInteger(adults) && adults >= 1 && adults <= 20 &&
+    Number.isInteger(children) && children >= 0 && children <= 20 &&
+    Number.isInteger(infants) && infants >= 0 && infants <= 20 &&
+    adults + children + infants <= 20;
+}
+
 app.post("/api/v1/bookings/quote", (req, res) => {
   const { schedule_id, adults, children = 0, infants = 0 } = req.body || {};
-  if (!schedule_id || !adults || adults < 1) {
-    return res.status(422).json({ detail: "Thông tin tính giá không hợp lệ." });
+  if (typeof schedule_id !== "string" || !schedule_id ||
+      !validPassengerCounts(adults,children,infants)) {
+    return res.status(422).json({ detail: "Số lượng khách không hợp lệ (1 đến 20, phải có người lớn)." });
   }
 
   const sched = db.prepare("SELECT * FROM schedules WHERE id = ? AND active = 1").get(schedule_id);
   if (!sched) return res.status(404).json({ detail: "Lịch khởi hành không tồn tại." });
+  if (new Date(sched.departure_at).getTime() <= Date.now())
+    return res.status(409).json({detail:"Lịch khởi hành đã qua."});
 
   const tour = db.prepare("SELECT * FROM tours WHERE id = ? AND active = 1").get(sched.tour_id);
   if (!tour) return res.status(404).json({ detail: "Tour không tồn tại." });
@@ -1310,22 +1365,34 @@ app.post("/api/v1/bookings", requireAuthOrGuest, (req, res) => {
   } = req.body || {};
 
   const idemKey = req.headers["idempotency-key"];
-  if (!idemKey) {
-    return res.status(422).json({ detail: "Yêu cầu cung cấp khóa Idempotency-Key." });
+  if (typeof idemKey !== "string" || idemKey.length < 8 || idemKey.length > 150) {
+    return res.status(422).json({ detail: "Khóa Idempotency-Key không hợp lệ." });
   }
-
-  // Kiểm tra trùng Idempotency-Key của user
+  if (!validPassengerCounts(adults, children, infants)) {
+    return res.status(422).json({ detail: "Số hành khách phải là số nguyên, có ít nhất một người lớn và tối đa 20 người." });
+  }
+  if (typeof schedule_id !== "string" || !schedule_id ||
+      typeof customer_name !== "string" || !customer_name.trim() || customer_name.length > 150 ||
+      typeof customer_phone !== "string" || !/^0[35789][0-9]{8}$/.test(customer_phone) ||
+      typeof customer_email !== "string" || customer_email.length > 254 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer_email) ||
+      typeof note !== "string" || note.length > 2000) {
+    return res.status(422).json({ detail: "Thông tin đặt chỗ không hợp lệ." });
+  }
+  const payloadFingerprint = crypto.createHash("sha256")
+    .update(JSON.stringify(req.body)).digest("hex");
+  // A retry with the same key must carry precisely the same payload.
   const existingBooking = db.prepare("SELECT * FROM bookings WHERE user_id = ? AND idempotency_key = ?").get(req.user.id, idemKey);
   if (existingBooking) {
+    if (existingBooking.payload_fingerprint !== payloadFingerprint)
+      return res.status(409).json({detail:"Khóa gửi lại đơn đã được dùng cho dữ liệu khác."});
     return res.status(200).json(bookingDict(existingBooking));
-  }
-
-  if (!schedule_id || !customer_name || !customer_phone || !customer_email) {
-    return res.status(422).json({ detail: "Vui lòng nhập đầy đủ thông tin đặt chỗ." });
   }
 
   const sched = db.prepare("SELECT * FROM schedules WHERE id = ? AND active = 1").get(schedule_id);
   if (!sched) return res.status(404).json({ detail: "Lịch khởi hành không hợp lệ." });
+  if (new Date(sched.departure_at).getTime() <= Date.now())
+    return res.status(409).json({detail:"Không thể đặt tour đã khởi hành."});
 
   const tour = db.prepare("SELECT * FROM tours WHERE id = ? AND active = 1").get(sched.tour_id);
   if (!tour) return res.status(404).json({ detail: "Tour không tồn tại." });
@@ -1337,12 +1404,10 @@ app.post("/api/v1/bookings", requireAuthOrGuest, (req, res) => {
   }
 
   const bookingId = crypto.randomUUID();
-  const ref = "BK" + Date.now().toString().slice(-8) + crypto.randomInt(10, 99);
+  const ref = "BK" + Date.now().toString(36).toUpperCase() + crypto.randomBytes(5).toString("hex").toUpperCase();
   const totalPrice = calculateTotals(tour.price, adults, children, infants);
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 phút giữ chỗ
   const now = new Date().toISOString();
-  const payloadFingerprint = crypto.createHash("sha256").update(JSON.stringify(req.body)).digest("hex");
-
   // Transaction lưu booking & giữ chỗ
   db.exec("BEGIN");
   try {
@@ -1387,29 +1452,24 @@ app.get("/api/v1/bookings/:booking_id", requireAuth, (req, res) => {
   res.json(bookingDict(b));
 });
 
-app.post("/api/v1/bookings/:booking_id/pay", requireAuth, (req, res) => {
-  const { reference } = req.body || {};
-  if (!reference || reference.trim().length < 8) {
-    return res.status(422).json({ detail: "Mã giao dịch / UNC tối thiểu 8 ký tự." });
-  }
-
-  const b = db.prepare("SELECT * FROM bookings WHERE id = ? AND user_id = ?").get(req.params.booking_id, req.user.id);
-  if (!b) return res.status(404).json({ detail: "Đơn đặt không tồn tại." });
-
-  // Kiểm tra trùng mã thanh toán
-  const dup = db.prepare("SELECT id FROM bookings WHERE payment_evidence = ? AND id != ?").get(reference.trim(), b.id);
-  if (dup) return res.status(409).json({ detail: "Mã giao dịch đã được sử dụng cho đơn khác." });
-
-  const now = new Date().toISOString();
-  db.prepare(`
-    UPDATE bookings
-    SET status = 'PAID', payment_evidence = ?, payment_confirmed_at = ?, updated_at = ?
-    WHERE id = ?
-  `).run(reference.trim(), now, now, b.id);
-
-  const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(b.id);
-  audit(req.user.id, "PAYMENT_SUBMITTED", b.id, { reference: reference.trim() });
-  res.json(bookingDict(updated));
+// A customer-provided bank reference is NOT proof of payment.
+app.post("/api/v1/bookings/:booking_id/pay", requireAuth, (req,res) => {
+  const ref = typeof req.body?.reference === "string" ? req.body.reference.trim() : "";
+  if (ref.length < 8 || ref.length > 120)
+    return res.status(422).json({detail:"Mã tham chiếu thanh toán phải có 8-120 ký tự."});
+  const b=db.prepare("SELECT * FROM bookings WHERE id=? AND user_id=?")
+    .get(req.params.booking_id,req.user.id);
+  if (!b) return res.status(404).json({detail:"Không tìm thấy đơn."});
+  if (b.status !== "PENDING_PAYMENT")
+    return res.status(409).json({detail:"Trạng thái đơn không cho phép gửi tham chiếu."});
+  const reused=db.prepare("SELECT id FROM bookings WHERE payment_evidence=? AND id<>?")
+    .get(ref,b.id);
+  if (reused) return res.status(409).json({detail:"Mã tham chiếu đã được dùng."});
+  db.prepare("UPDATE bookings SET payment_evidence=?,updated_at=? WHERE id=?")
+    .run(ref,new Date().toISOString(),b.id);
+  audit(req.user.id,"PAYMENT_EVIDENCE_SUBMITTED",b.id,{reference:ref});
+  return res.json({...bookingDict(db.prepare("SELECT * FROM bookings WHERE id=?").get(b.id)),
+    paymentNotice:"Đã ghi nhận mã tham chiếu, chưa xác nhận tiền đã đến ngân hàng."});
 });
 
 app.post("/api/v1/bookings/:booking_id/cancel", requireAuth, (req, res) => {
@@ -1417,7 +1477,7 @@ app.post("/api/v1/bookings/:booking_id/cancel", requireAuth, (req, res) => {
   const b = db.prepare("SELECT * FROM bookings WHERE id = ? AND user_id = ?").get(req.params.booking_id, req.user.id);
   if (!b) return res.status(404).json({ detail: "Đơn không tồn tại." });
 
-  if (["CANCELLED", "COMPLETED"].includes(b.status)) {
+  if (["CANCELLED", "COMPLETED", "EXPIRED"].includes(b.status)) {
     return res.status(409).json({ detail: "Đơn này không thể hủy." });
   }
 
@@ -1593,18 +1653,21 @@ app.post("/api/v1/admin/tours", requireAdmin, (req, res) => {
   if (!data.id || !/^DL-[A-Z0-9]{2,20}$/.test(data.id)) {
     return res.status(422).json({ detail: "Mã tour phải có định dạng DL-XXXX." });
   }
+  const capacity = data.available_seats === undefined ? 20 : data.available_seats;
+  if (!Number.isInteger(capacity) || capacity < 1 || capacity > 10000)
+    return res.status(422).json({detail:"Số chỗ mở bán không hợp lệ."});
   const existing = db.prepare("SELECT id FROM tours WHERE id = ?").get(data.id);
   if (existing) return res.status(409).json({ detail: "Mã tour đã tồn tại." });
 
   db.prepare(`
     INSERT INTO tours (
       id, slug, title, region, duration, price, original_price,
-      image, departure, transport, flash_sale, description, itinerary_json, active, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+      image, departure, transport, flash_sale, description, itinerary_json, default_seats, active, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
   `).run(
     data.id, data.slug || data.id.toLowerCase(), data.title, data.region, data.duration,
     data.price, data.original_price || data.price, data.image || "", data.departure,
-    data.transport, data.flash_sale ? 1 : 0, data.description || "", data.itinerary_json || "[]", new Date().toISOString()
+    data.transport, data.flash_sale ? 1 : 0, data.description || "", data.itinerary_json || "[]", capacity, new Date().toISOString()
   );
 
   const t = db.prepare("SELECT * FROM tours WHERE id = ?").get(data.id);
@@ -1630,7 +1693,8 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
     flash_sale: "flash_sale",
     active: "active",
     image: "image",
-    images: "image"
+    images: "image",
+    available_seats: "default_seats"
   };
   const fields = [];
   const params = [];
@@ -1651,11 +1715,31 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
     }
   }
 
+  const capacity = req.body?.available_seats;
+  if (capacity !== undefined && (!Number.isInteger(capacity) || capacity < 1 || capacity > 10000))
+    return res.status(422).json({ detail: "Số chỗ phải là số nguyên từ 1 đến 10000." });
   if (fields.length > 0) {
-    fields.push("updated_at = ?");
-    params.push(new Date().toISOString());
-    params.push(tour_id);
-    db.prepare(`UPDATE tours SET ${fields.join(", ")} WHERE id = ?`).run(...params);
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      if (capacity !== undefined) {
+        const blocked = db.prepare(`SELECT id FROM schedules WHERE tour_id=? AND departure_at>?
+          AND reserved_seats>? LIMIT 1`).get(tour_id,new Date().toISOString(),capacity);
+        if (blocked) {
+          db.exec("ROLLBACK");
+          return res.status(409).json({ detail: "Không thể giảm thấp hơn số chỗ đã giữ." });
+        }
+        db.prepare(`UPDATE schedules SET total_seats=? WHERE tour_id=? AND departure_at>?`)
+          .run(capacity,tour_id,new Date().toISOString());
+      }
+      fields.push("updated_at = ?");
+      params.push(new Date().toISOString(),tour_id);
+      db.prepare(`UPDATE tours SET ${fields.join(", ")} WHERE id=?`).run(...params);
+      db.exec("COMMIT");
+    } catch (err) {
+      db.exec("ROLLBACK");
+      console.error("Tour transaction failed:",err.message);
+      return res.status(409).json({ detail: "Không lưu được thay đổi tour." });
+    }
   }
 
   const updated = db.prepare("SELECT * FROM tours WHERE id = ?").get(tour_id);
@@ -1677,15 +1761,18 @@ app.get("/api/v1/admin/schedules", requireAdmin, (req, res) => {
 
 app.post("/api/v1/admin/schedules", requireAdmin, (req, res) => {
   const { tour_id, departure_at, total_seats = 20 } = req.body || {};
-  if (!tour_id || !departure_at) {
-    return res.status(422).json({ detail: "Thiếu thông tin lịch trình." });
-  }
-
+  const date = new Date(departure_at);
+  if (!tour_id || !departure_at || !Number.isFinite(date.getTime()) || date.getTime() <= Date.now())
+    return res.status(422).json({detail:"Ngày khởi hành phải ở tương lai."});
+  if (!Number.isInteger(total_seats) || total_seats < 1 || total_seats > 10000)
+    return res.status(422).json({detail:"Số chỗ không hợp lệ."});
+  if (!db.prepare("SELECT id FROM tours WHERE id=? AND active=1").get(tour_id))
+    return res.status(404).json({detail:"Tour không tồn tại hoặc đã ngừng bán."});
   const id = crypto.randomUUID();
   db.prepare(`
     INSERT INTO schedules (id, tour_id, departure_at, total_seats, reserved_seats, active)
     VALUES (?, ?, ?, ?, 0, 1)
-  `).run(id, tour_id, new Date(departure_at).toISOString(), total_seats);
+  `).run(id, tour_id, date.toISOString(), total_seats);
 
   const sched = db.prepare("SELECT * FROM schedules WHERE id = ?").get(id);
   audit(req.user.id, "SCHEDULE_CREATED", id);
@@ -1699,6 +1786,8 @@ app.patch("/api/v1/admin/schedules/:schedule_id", requireAdmin, (req, res) => {
 
   const { total_seats, active } = req.body || {};
   if (total_seats !== undefined) {
+    if (!Number.isInteger(total_seats) || total_seats < 1 || total_seats > 10000 || total_seats < s.reserved_seats)
+      return res.status(422).json({detail:"Số chỗ không hợp lệ hoặc ít hơn số đã giữ."});
     db.prepare("UPDATE schedules SET total_seats = ? WHERE id = ?").run(total_seats, schedule_id);
   }
   if (active !== undefined) {
@@ -1720,79 +1809,15 @@ app.get("/api/v1/admin/bookings", requireAdmin, (req, res) => {
   })));
 });
 
-app.post("/api/v1/admin/bookings/:booking_id/confirm-payment", requireAdmin, (req, res) => {
-  const { booking_id } = req.params;
-  const { reference } = req.body || {};
-  const b = db.prepare("SELECT * FROM bookings WHERE id = ?").get(booking_id);
-  if (!b) return res.status(404).json({ detail: "Không tìm thấy đơn." });
-
-  const ref = (reference || b.payment_evidence || ("ADM-CONFIRM-" + Date.now())).trim();
-  const now = new Date().toISOString();
-
-  db.prepare(`
-    UPDATE bookings SET status = 'PAID', payment_evidence = ?, payment_confirmed_at = ?, updated_at = ?
-    WHERE id = ?
-  `).run(ref, now, now, booking_id);
-
-  const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(booking_id);
-  audit(req.user.id, "PAYMENT_MANUALLY_VERIFIED", booking_id, { proofReference: ref });
-  res.json(bookingDict(updated));
+// Financial confirmation requires independent bank reconciliation. Do not
+// turn arbitrary text into PAID, even if the caller has the ADMIN role.
+app.post("/api/v1/admin/bookings/:booking_id/confirm-payment",requireAdmin,(req,res)=>{
+  res.status(503).json({detail:"Chưa tích hợp đối soát ngân hàng độc lập; không thể xác nhận đã thanh toán."});
 });
 
-// 7. AI Assistant - Huấn luyện đúng trọng tâm, chuyên sâu Delta Travel & gợi ý tour tương tác
-app.post("/api/v1/assistant/chat", (req, res) => {
-  const rawMsg = ((req.body && req.body.message) || "").trim();
-  const message = rawMsg.toLowerCase();
-  let answer = "";
-  let suggestedTours = [];
-
-  if (message.includes("giá") || message.includes("bao nhiêu") || message.includes("price") || message.includes("chi phí")) {
-    const sample = db.prepare("SELECT * FROM tours WHERE active = 1 ORDER BY price ASC LIMIT 4").all();
-    suggestedTours = sample.map(publicTour);
-    answer = "Giá niêm yết hiện tại: " + sample.map(t => `${t.title}: ${Number(t.price).toLocaleString("vi-VN")} VND`).join("; ") + ". Toàn bộ giá tour đã bao gồm bảo hiểm 100%, khách sạn và xe đưa đón đời mới. Quý khách có thể bấm 'Đặt ngay' ở các tour dưới đây:";
-  } else if (message.includes("hạ long") || message.includes("ha long") || message.includes("lan hạ") || message.includes("du thuyền")) {
-    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Hạ Long%' OR title LIKE '%Lan Hạ%' OR transport LIKE '%Du thuyền%') LIMIT 3").all();
-    suggestedTours = matched.map(publicTour);
-    answer = "Vịnh Hạ Long - kỳ quan thiên nhiên thế giới với hàng ngàn hòn đảo kỳ vĩ. Delta Travel mang đến hành trình du thuyền 5 sao chuẩn quốc tế (3N2Đ): chèo thuyền kayak vịnh Lan Hạ, khám phá hang Sửng Sốt, tắm biển Ti Tốp và thưởng thức tiệc hải sản tươi ngon. Bạn có thể xem lịch trình hoặc đặt ngay bên dưới:";
-  } else if (message.includes("đà nẵng") || message.includes("da nang") || message.includes("hội an") || message.includes("hoi an") || message.includes("bà nà") || message.includes("cầu vàng")) {
-    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Đà Nẵng%' OR title LIKE '%Hội An%' OR region = 'central') LIMIT 3").all();
-    suggestedTours = matched.map(publicTour);
-    answer = "Hành trình Miền Trung di sản: Đà Nẵng - Cầu Vàng Bà Nà Hills - Phố cổ Hội An (4N3Đ) trọn gói vé máy bay khứ hồi và khách sạn 4 sao biển Mỹ Khê. Bạn sẽ được check-in Cầu Vàng trên mây và thả đèn hoa đăng lung linh bên sông Hoài. Dưới đây là các tour tốt nhất:";
-  } else if (message.includes("phú quốc") || message.includes("phu quoc") || message.includes("biển") || message.includes("đảo")) {
-    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Phú Quốc%' OR title LIKE '%Côn Đảo%') LIMIT 3").all();
-    suggestedTours = matched.map(publicTour);
-    answer = "Thiên đường biển đảo Phú Quốc đang bước vào mùa nắng đẹp nhất năm. Delta Travel thiết kế hải trình 4N3Đ trọn gói: cáp treo Hòn Thơm vượt biển, lặn ngắm san hô cano cao tốc 4 đảo, thành phố không ngủ Grand World và nghỉ dưỡng resort sát biển. Gợi ý hành trình phù hợp cho bạn:";
-  } else if (message.includes("đà lạt") || message.includes("da lat") || message.includes("săn mây") || message.includes("hoa")) {
-    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND title LIKE '%Đà Lạt%' LIMIT 2").all();
-    suggestedTours = matched.map(publicTour);
-    answer = "Thành phố mộng mơ Đà Lạt khí hậu mát mẻ 18-20°C quanh năm. Tour 3N2Đ của Delta Travel đưa đón bằng xe Limousine phòng nằm cao cấp: săn mây Cầu Đất lúc bình minh, hồ Tuyền Lâm, ga xe lửa cổ và đồi hoa cẩm tú cầu. Bạn hãy tham khảo và giữ chỗ sớm nhé:";
-  } else if (message.includes("sa pa") || message.includes("sapa") || message.includes("fansipan") || message.includes("núi")) {
-    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Sa Pa%' OR title LIKE '%Hà Giang%') LIMIT 2").all();
-    suggestedTours = matched.map(publicTour);
-    answer = "Vùng cao Tây Bắc Sa Pa & Đỉnh Fansipan 3.143m - nóc nhà Đông Dương hùng vĩ. Xe Limousine đón trả tận nơi tại Hà Nội, khách sạn view thung lũng Mường Hoa thơ mộng và trải nghiệm văn hóa bản Cát Cát độc đáo:";
-  } else if (message.includes("côn đảo") || message.includes("con dao") || message.includes("cô sáu")) {
-    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND title LIKE '%Côn Đảo%' LIMIT 2").all();
-    suggestedTours = matched.map(publicTour);
-    answer = "Về miền đất thiêng Côn Đảo: Viếng Nghĩa trang Hàng Dương và mộ Cô Sáu lúc nửa đêm, tham quan hệ thống di tích lịch sử và tắm biển Bãi Đầm Trầu hoang sơ tuyệt mỹ. Vé máy bay khứ hồi và tàu cao tốc chuẩn 5 sao:";
-  } else if (message.includes("hủy") || message.includes("hoàn tiền") || message.includes("cancel") || message.includes("đổi ngày")) {
-    answer = "Chính sách của Delta Travel cam kết minh bạch và linh hoạt: Đơn chưa thanh toán có thể hủy trực tuyến trên website khi còn hơn 72 giờ trước giờ khởi hành. Đơn đã thanh toán được hỗ trợ bảo lưu hoặc đổi ngày khởi hành miễn phí 01 lần. Đội ngũ chăm sóc khách hàng trực 24/7 qua Hotline 1900 8899.";
-  } else if (message.includes("tour") || message.includes("đi đâu") || message.includes("địa điểm") || message.includes("gợi ý") || message.includes("tư vấn")) {
-    const sample = db.prepare("SELECT * FROM tours WHERE active = 1 ORDER BY RANDOM() LIMIT 3").all();
-    suggestedTours = sample.map(publicTour);
-    answer = "Delta Travel hiện có 16 hành trình du lịch 5 sao tiêu biểu khắp 3 miền: Vịnh Hạ Long, Đà Nẵng, Phú Quốc, Sa Pa, Đà Lạt và Côn Đảo với lịch khởi hành liên tục hàng tuần. Dưới đây là những hành trình được du khách đánh giá cao nhất hôm nay:";
-  } else {
-    const sample = db.prepare("SELECT * FROM tours WHERE active = 1 AND flash_sale = 1 LIMIT 2").all();
-    suggestedTours = sample.map(publicTour);
-    answer = "Chào Quý khách! Tôi là Trợ lý AI Concierge độc quyền của Delta Travel. Tôi có thể giải đáp chi tiết về giá vé, lộ trình, kinh nghiệm điểm đến và gợi ý tour trực tiếp cho bạn đặt ngay trên cuộc trò chuyện. Quý khách muốn khám phá vùng miền hay điểm đến nào?";
-  }
-
-  res.json({
-    answer,
-    suggestedTours,
-    mode: "smart_concierge",
-    source: "Delta Travel AI Database"
-  });
-});
+// 7. Verified, context-aware catalogue assistant; no fabricated prices or payments.
+const { createTourAssistant } = require("./tour_assistant");
+app.post("/api/v1/assistant/chat", createTourAssistant({db, publicTour}));
 
 // 8. Catch-all guard cho API
 app.use("/api/v1", (req, res) => {

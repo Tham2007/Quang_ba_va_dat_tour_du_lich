@@ -614,7 +614,7 @@ function currentTourFilters(page = 1) {
     "10to20m": [10000001, 20000000],
     above20m: [20000001, undefined]
   };
-  const [rangeMin, rangeMax] = ranges[priceRange] || [];
+
   const quickRange = document.getElementById("heroPrice")?.value || "all";
   const quickBounds = {
     under3m: [undefined, 2999999],
@@ -650,8 +650,8 @@ function currentTourFilters(page = 1) {
 function filterLegacyApiTours(tours, filters) {
   const folded = value => normalizeDestinationText(value);
   const filtered = tours.filter(tour => {
-    const text = folded([tour.title, tour.description, tour.regionName].join(" "));
-    if (filters.region !== "all" && tour.region !== filters.region) return false;
+    const text = folded([tour.title, tour.description, tour.regionName, tour.departure, tour.duration].join(" "));
+    if (filters.region && filters.region !== "all" && tour.region !== filters.region) return false;
     if (filters.q && !text.includes(folded(filters.q))) return false;
     if (filters.destination && !text.includes(folded(filters.destination))) return false;
     if (filters.departure_location && !folded(tour.departure).includes(folded(filters.departure_location))) return false;
@@ -1806,7 +1806,7 @@ async function handleBookingSubmission(e) {
       email,
       notes: notes || "Không có yêu cầu đặc biệt"
     },
-    cccd: "Bảo mật hệ thống",
+    cccd: "Không thu thập (bản demo)",
     passengers: {
       adults: pricing.adultQty,
       children: pricing.childQty,

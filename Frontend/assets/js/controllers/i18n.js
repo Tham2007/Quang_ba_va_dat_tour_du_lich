@@ -159,7 +159,7 @@ const DELTA_TRANSLATIONS = {
     ai_btn_send: "Gửi",
     ai_welcome_title: "Kính chào Quý khách! 👋",
     ai_welcome_body: "Tôi là Trợ lý AI Concierge của Delta Travel. Tôi có thể hỗ trợ bạn tìm kiếm các hành trình nghỉ dưỡng 5 sao, cung cấp chi tiết thời tiết, lộ trình và đề xuất tour để bạn bấm đặt giữ chỗ ngay trong hội thoại.",
-    ai_suggested_tours_title: "Tour nổi bật có thể đặt ngay:",
+    ai_suggested_tours_title: "Các tour tra cứu từ danh mục:",
 
     // User Profile Modal
     profile_title: "Hồ sơ cá nhân",
@@ -174,9 +174,9 @@ const DELTA_TRANSLATIONS = {
     profile_btn_save: "Lưu Thay Đổi",
 
     // My Bookings Page
-    mb_official_tag: "PHIẾU ĐIỆN TỬ CHÍNH THỨC",
+    mb_official_tag: "PHIẾU ĐIỆN TỬ THỬ NGHIỆM",
     mb_title: "Quản Lý Đơn Đặt Tour & Tra Cứu Chuyến Đi",
-    mb_sub: "Theo dõi tiến độ duyệt chỗ, thanh toán trực tuyến và in phiếu giữ chỗ chính thức chuẩn giấy.",
+    mb_sub: "Theo dõi trạng thái từ máy chủ và in phiếu giữ chỗ thử nghiệm, không phải xác nhận thanh toán.",
     mb_btn_print: "In toàn bộ danh sách",
     mb_search_placeholder: "Nhập mã đơn (BK.../DL...), SĐT hoặc tên tour...",
     mb_tab_all: "Tất cả đơn",
@@ -353,7 +353,7 @@ const DELTA_TRANSLATIONS = {
     ai_btn_send: "Send",
     ai_welcome_title: "Welcome to Delta Travel! 👋",
     ai_welcome_body: "I am your 5-Star AI Concierge. I can help you explore premium resort packages across Vietnam, provide weather forecasts, detailed daily schedules, and interactive booking cards to reserve seats immediately.",
-    ai_suggested_tours_title: "Curated tours available for instant booking:",
+    ai_suggested_tours_title: "Tours from the verified catalogue:",
 
     // User Profile Modal
     profile_title: "User Profile",
@@ -368,9 +368,9 @@ const DELTA_TRANSLATIONS = {
     profile_btn_save: "Save Changes",
 
     // My Bookings Page
-    mb_official_tag: "OFFICIAL ELECTRONIC VOUCHER",
+    mb_official_tag: "DEMO BOOKING VOUCHER",
     mb_title: "Manage Bookings & Trip Tracker",
-    mb_sub: "Track booking status, complete secure online payment, and print official paper-standard vouchers.",
+    mb_sub: "Track server-confirmed booking status and print a demo voucher, not proof of payment.",
     mb_btn_print: "Print All Vouchers",
     mb_search_placeholder: "Search by booking code (BK...), phone or tour title...",
     mb_tab_all: "All Bookings",

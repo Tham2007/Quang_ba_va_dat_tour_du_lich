@@ -1,16 +1,7 @@
 const sql = require('mssql');
 
-const config = {
-  user: 'db_ad0b71_dattour_admin',
-  password: 'Phamtham312007@',
-  server: 'sql8020.site4now.net',
-  port: 1433,
-  database: 'db_ad0b71_dattour',
-  options: {
-    encrypt: false,
-    trustServerCertificate: true
-  }
-};
+const { requireSqlServerConfig } = require("./mssql_config");
+const config = requireSqlServerConfig();
 
 const DDL_STATEMENTS = [
   // 1. users
@@ -133,7 +124,7 @@ const DDL_STATEMENTS = [
 ];
 
 async function setupTables() {
-  console.log('Connecting to SQL Server at sql8020.site4now.net...');
+  console.log('Connecting to SQL Server...');
   const pool = await sql.connect(config);
   console.log('Connected successfully!');
 
