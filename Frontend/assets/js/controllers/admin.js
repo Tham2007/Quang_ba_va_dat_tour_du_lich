@@ -113,9 +113,9 @@ async function checkAdminAuth() {
 
   const session = await DeltaAPI.getMe();
   if (!session.success) {
-    // Static file-server (no API): keep the clearly labeled UI-only demo
-    // accessible, but do not claim a server-authenticated administrator.
-    if (session.isOffline || !DeltaAPI.isOnline()) return showAdminScreen(user);
+    // Only an independently confirmed offline server enables UI-only demo.
+    const health = await DeltaAPI.checkHealth();
+    if (!health.online) return showAdminScreen(user);
     showLockedScreen();
     showAdminToast(session.error || "Phiên đăng nhập máy chủ đã hết hạn. Vui lòng đăng nhập lại.", "error");
     return false;
@@ -176,9 +176,12 @@ async function handleQuickAdminLogin(identifier) {
     let localDemoLogin = typeof DeltaAPI === "undefined" || typeof DeltaAPI.login !== "function";
     if (!localDemoLogin) {
       const loginResult = await DeltaAPI.login(targetUser.email, targetUser.password);
-      if (!loginResult.success && !loginResult.isOffline) {
-        showAdminToast(loginResult.error || "Không thể đăng nhập tài khoản quản trị trên máy chủ.", "error");
-        return;
+      if (!loginResult.success) {
+        const health=await DeltaAPI.checkHealth();
+        if (health.online) {
+          showAdminToast(loginResult.error || "Đăng nhập tài khoản quản trị không hợp lệ.", "error");
+          return;
+        }
       }
       localDemoLogin = !loginResult.success;
       if (loginResult.success) {
@@ -203,7 +206,7 @@ async function handleQuickAdminLogin(identifier) {
     renderCurrentTab();
     showAdminToast(
       localDemoLogin
-        ? "Đang dùng phiên làm việc ngoại tuyến; dữ liệu sẽ tự động đồng bộ khi có kết nối máy chủ."
+        ? "Đây là phiên quản trị demo ngoại tuyến; thay đổi không được xác nhận trên database."
         : `Chào mừng ${targetUser.fullName} (${targetUser.title || "Quản trị viên"}) vào phiên làm việc!`,
       localDemoLogin ? "warning" : "success"
     );
