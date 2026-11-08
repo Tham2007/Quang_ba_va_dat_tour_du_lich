@@ -375,44 +375,91 @@
   text-decoration: underline;
 }
 
-/* 4. Modal Thông Tin Tài Khoản (Profile Modal) */
+/* 4. Modal Thông Tin Tài Khoản (Profile Modal - Pure White Paper Theme) */
 .profile-card-header {
-  background: linear-gradient(135deg, #0a4d68 0%, #05bfdb 100%);
-  color: #ffffff;
-  padding: 2rem 1.5rem 1.5rem;
+  background: #ffffff;
+  color: #000000;
+  padding: 2.25rem 1.5rem 1.25rem;
   text-align: center;
   position: relative;
+  border-bottom: 2px solid #000000;
+}
+
+.profile-card-header .btn-close {
+  filter: none !important;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.profile-card-header .btn-close:hover {
+  opacity: 1;
+}
+
+.profile-avatar-wrapper {
+  position: relative;
+  display: inline-block;
+  margin: 0 auto 0.75rem;
 }
 
 .profile-avatar-large {
-  width: 76px;
-  height: 76px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
-  background: #ffffff;
-  color: var(--primary-color);
+  background: #000000;
+  color: #ffffff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
+  font-size: 1.85rem;
   font-weight: 800;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-  margin-bottom: 0.75rem;
-  border: 3px solid rgba(255, 255, 255, 0.6);
+  margin-bottom: 0.5rem;
+  border: 2px solid #000000;
+  overflow: hidden;
+}
+
+.profile-avatar-large img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.avatar-upload-badge {
+  position: absolute;
+  bottom: 6px;
+  right: -2px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #000000;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.avatar-upload-badge:hover {
+  transform: scale(1.1);
+  background: #333333;
 }
 
 .profile-stats-row {
   display: flex;
-  background: var(--bg-light);
-  border-radius: var(--radius-md);
-  padding: 0.75rem 0.5rem;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 0.85rem 0.5rem;
   margin: 1.25rem 0;
-  border: 1px solid var(--border-color);
+  border: 1px solid #000000;
 }
 
 .profile-stat-box {
   flex: 1;
   text-align: center;
-  border-right: 1px solid var(--border-color);
+  border-right: 1px solid #e5e7eb;
 }
 
 .profile-stat-box:last-child {
@@ -420,15 +467,59 @@
 }
 
 .profile-stat-box .stat-val {
-  font-size: 1.2rem;
+  font-size: 1.25rem;
   font-weight: 800;
-  color: var(--primary-color);
+  color: #000000 !important;
 }
 
 .profile-stat-box .stat-lbl {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: #555555;
   text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  margin-top: 0.2rem;
+}
+
+/* Tab Navigation in Profile */
+#profilePills .nav-link {
+  color: #000000;
+  border: 1px solid #000000;
+  border-radius: 6px;
+  margin: 0 4px;
+  background: #ffffff;
   font-weight: 600;
-  margin-top: 0.15rem;
+}
+
+#profilePills .nav-link.active {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+}
+
+#userProfileModal .form-control {
+  border: 1px solid #000000;
+  border-radius: 6px;
+  color: #000000;
+  font-weight: 500;
+}
+
+#userProfileModal .form-control:focus {
+  border-color: #000000;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.15);
+}
+
+#userProfileModal .btn-delta-primary {
+  background: #000000;
+  border: 1px solid #000000;
+  color: #ffffff;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 0.65rem 1rem;
+  transition: all 0.2s ease;
+}
+
+#userProfileModal .btn-delta-primary:hover {
+  background: #222222;
+  color: #ffffff;
 }

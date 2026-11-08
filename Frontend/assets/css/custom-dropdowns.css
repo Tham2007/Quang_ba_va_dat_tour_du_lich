@@ -1,0 +1,354 @@
+/* ==========================================================================
+   DELTA TRAVEL - LUXURY CUSTOM DROPDOWNS & DATE PICKER (custom-dropdowns.css)
+   Thuần nền trắng chữ đen như trên giấy, không dùng menu xanh mặc định của OS
+   ========================================================================== */
+
+/* 1. Custom Select Dropdown Wrapper */
+.custom-select-wrapper {
+  position: relative;
+  width: 100%;
+  user-select: none;
+}
+
+.custom-select-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: #ffffff;
+  color: #000000;
+  border: 1.5px solid #000000;
+  border-radius: 8px;
+  padding: 0.65rem 0.95rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.custom-select-trigger:hover {
+  background: #fafafa;
+  border-color: #000000;
+}
+
+.custom-select-trigger:focus,
+.custom-select-wrapper.is-open .custom-select-trigger {
+  border-color: #000000;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.15);
+  background: #ffffff;
+}
+
+.custom-select-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #000000;
+}
+
+.custom-select-caret {
+  font-size: 0.85rem;
+  color: #000000;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.custom-select-wrapper.is-open .custom-select-caret {
+  transform: rotate(180deg);
+}
+
+/* 2. Custom Select Floating Menu */
+.custom-select-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1.5px solid #000000;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+  z-index: 1050;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 0.35rem;
+  display: none;
+  animation: customSelectFadeIn 0.18s ease-out;
+}
+
+@keyframes customSelectFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.custom-select-wrapper.is-open .custom-select-menu {
+  display: block;
+}
+
+.custom-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #111111;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.custom-select-option:hover {
+  background: #f4f4f5;
+  color: #000000;
+  font-weight: 700;
+}
+
+.custom-select-option.is-selected {
+  background: #000000;
+  color: #ffffff !important;
+  font-weight: 700;
+}
+
+.custom-select-option.is-selected .option-check {
+  display: inline-block;
+  color: #ffffff;
+}
+
+.option-check {
+  display: none;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+/* 3. Custom Datepicker Styles */
+.custom-datepicker-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.custom-datepicker-input {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: #ffffff;
+  color: #000000;
+  border: 1.5px solid #000000;
+  border-radius: 8px;
+  padding: 0.65rem 0.95rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.custom-datepicker-input:hover {
+  background: #fafafa;
+}
+
+.custom-datepicker-input:focus,
+.custom-datepicker-wrapper.is-open .custom-datepicker-input {
+  border-color: #000000;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.15);
+}
+
+.datepicker-display-text {
+  flex: 1;
+  color: #000000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.datepicker-display-text.is-placeholder {
+  color: #666666;
+  font-weight: 500;
+}
+
+.btn-clear-date {
+  background: none;
+  border: none;
+  color: #999999;
+  padding: 0;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.btn-clear-date:hover {
+  color: #000000;
+}
+
+/* 4. Custom Floating Calendar Popover */
+.custom-calendar-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 300px;
+  max-width: 100vw;
+  background: #ffffff;
+  border: 2px solid #000000;
+  border-radius: 10px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.2);
+  z-index: 1060;
+  padding: 1rem;
+  display: none;
+  animation: customSelectFadeIn 0.2s ease-out;
+}
+
+.custom-datepicker-wrapper.is-open .custom-calendar-popover {
+  display: block;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.calendar-title {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #000000;
+  letter-spacing: 0.02em;
+}
+
+.btn-cal-nav {
+  background: #ffffff;
+  border: 1px solid #000000;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #000000;
+  font-size: 0.8rem;
+  transition: background-color 0.15s ease;
+}
+
+.btn-cal-nav:hover {
+  background: #f4f4f5;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #555555;
+  margin-bottom: 0.5rem;
+}
+
+.cal-weekend {
+  color: #dc2626 !important;
+}
+
+.calendar-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.cal-day-cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.86rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: #ffffff;
+  color: #000000;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cal-day-cell:hover:not(.is-disabled):not(.is-empty) {
+  background: #f4f4f5;
+  border-color: #000000;
+}
+
+.cal-day-cell.is-today {
+  border-color: #000000;
+  font-weight: 800;
+}
+
+.cal-day-cell.is-selected {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+  font-weight: 800;
+}
+
+.cal-day-cell.is-disabled {
+  color: #cccccc;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.cal-day-cell.is-empty {
+  cursor: default;
+  pointer-events: none;
+}
+
+.calendar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.85rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.btn-cal-today {
+  background: #ffffff;
+  border: 1px solid #000000;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+  color: #000000;
+  transition: background-color 0.15s ease;
+}
+
+.btn-cal-today:hover {
+  background: #f4f4f5;
+}
+
+.btn-cal-close {
+  background: #000000;
+  border: 1px solid #000000;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+  color: #ffffff;
+  transition: background-color 0.15s ease;
+}
+
+.btn-cal-close:hover {
+  background: #262626;
+}

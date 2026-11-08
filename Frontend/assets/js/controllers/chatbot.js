@@ -94,22 +94,47 @@ function initChatbotUI() {
 }
 
 /**
- * MỞ KHUNG CHAT AI LỚN (Khi người dùng click Trợ lý AI trên Header / Thanh Tab)
+ * MỞ KHUNG CHAT AI LỚN TOÀN MÀN HÌNH (Khi người dùng click Trợ lý AI trên Header / Thanh Tab)
+ * Thuần nền trắng chữ đen như trên giấy, không lưu lịch sử, dùng avatar thực.
  */
 function openLargeAIChat() {
-  const modalEl = document.getElementById("largeAIChatModal");
-  if (!modalEl) {
-    // Dự phòng mở khung chat nhỏ nếu không tìm thấy modal lớn
-    toggleChatbotWindow(true);
+  const fullscreenEl = document.getElementById("largeAIChatFullscreen");
+  if (fullscreenEl) {
+    fullscreenEl.style.display = "flex";
+    document.body.style.overflow = "hidden";
+    // Không ghi lịch sử AI - khởi tạo sạch mới mỗi lần mở
+    resetLargeChatConversation();
+    setTimeout(() => {
+      document.getElementById("largeAIChatInput")?.focus();
+      scrollChatToBottom("largeAIChatMessages");
+    }, 100);
     return;
   }
-  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-  modal.show();
-  setTimeout(() => {
-    document.getElementById("largeAIChatInput")?.focus();
-    scrollChatToBottom("largeAIChatMessages");
-  }, 250);
+  // Dự phòng mở khung chat nhỏ nếu không tìm thấy view lớn
+  toggleChatbotWindow(true);
 }
+
+/**
+ * Đóng khung chat AI toàn màn hình
+ */
+function closeLargeAIChat() {
+  const fullscreenEl = document.getElementById("largeAIChatFullscreen");
+  if (fullscreenEl) {
+    fullscreenEl.style.display = "none";
+    document.body.style.overflow = "";
+  }
+}
+window.closeLargeAIChat = closeLargeAIChat;
+
+// Lắng nghe phím ESC để đóng nhanh khung chat toàn màn hình
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    const fullscreenEl = document.getElementById("largeAIChatFullscreen");
+    if (fullscreenEl && fullscreenEl.style.display === "flex") {
+      closeLargeAIChat();
+    }
+  }
+});
 
 /**
  * Ẩn / Hiện Cửa sổ Chatbot Nhỏ Ở Góc
@@ -222,9 +247,24 @@ function appendChatMessage(sender, rawText, suggestedTours = [], containerId = "
 
   const formattedHtml = (sender === "bot") ? formatAIMessage(rawText) : escapeHTML(rawText);
 
-  const avatarHtml = (sender === "bot")
-    ? `<div class="chat-msg-avatar" title="Delta AI"><i class="bi bi-robot"></i></div>`
-    : `<div class="chat-msg-avatar" title="Bạn"><i class="bi bi-person-fill"></i></div>`;
+  let avatarHtml = "";
+  if (sender === "bot") {
+    avatarHtml = `<div class="chat-msg-avatar" title="Delta AI"><i class="bi bi-robot"></i></div>`;
+  } else {
+    // Lấy thông tin tài khoản thực tế của người dùng để hiển thị avatar
+    const currentUser = (typeof getCurrentUser === "function") ? getCurrentUser() : null;
+    if (currentUser && currentUser.avatar) {
+      avatarHtml = `<img src="${currentUser.avatar}" alt="${currentUser.fullName || 'Bạn'}" class="chat-msg-avatar-real" title="${currentUser.fullName || 'Bạn'}">`;
+    } else if (currentUser && currentUser.fullName) {
+      const names = currentUser.fullName.trim().split(" ");
+      const initials = names.length > 1
+        ? (names[0][0] + names[names.length - 1][0]).toUpperCase()
+        : names[0].substring(0, 2).toUpperCase();
+      avatarHtml = `<div class="chat-msg-avatar" title="${currentUser.fullName}">${initials}</div>`;
+    } else {
+      avatarHtml = `<div class="chat-msg-avatar" title="Bạn"><i class="bi bi-person-fill"></i></div>`;
+    }
+  }
 
   // Thẻ tour tương tác đặt ngay
   let toursHtml = "";
@@ -391,8 +431,16 @@ function resetLargeChatConversation() {
       <div class="chat-msg bot">
         <div class="chat-msg-avatar" title="Delta AI"><i class="bi bi-robot"></i></div>
         <div class="chat-msg-bubble">
-          <div>Xin chào Quý khách! Tôi là Trợ lý AI Concierge 5 sao của Delta Travel. Bạn muốn tìm tour hay điểm đến nào hôm nay?</div>
-          <span class="chat-msg-time">Vừa xong</span>
+          <div>
+            <strong>Kính chào Quý khách! 👋</strong> Tôi là Trợ lý AI Concierge của Delta Travel. Tôi có thể hỗ trợ bạn:
+            <ul class="mb-2 mt-1 ps-3">
+              <li>Tìm kiếm và so sánh các gói tour nghỉ dưỡng cao cấp khắp 3 miền Việt Nam.</li>
+              <li>Cung cấp lộ trình từng ngày, thời tiết, kinh nghiệm ăn uống & check-in thực tế.</li>
+              <li><strong>Gợi ý thẻ tour tương tác để bạn bấm xem lịch trình hoặc Đặt giữ chỗ tức thì ngay trong hội thoại.</strong></li>
+            </ul>
+            Bạn đang có kế hoạch đi đâu hay muốn tìm tour cho mấy người?
+          </div>
+          <span class="chat-msg-time">Trợ lý Delta AI</span>
         </div>
       </div>
     `;

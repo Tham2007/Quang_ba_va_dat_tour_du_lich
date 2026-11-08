@@ -17,97 +17,13 @@ const AUTH_STORAGE_KEYS = {
   CURRENT_USER: "delta_current_user_v2"
 };
 
-// Danh sách tài khoản của 5 thành viên nhóm phát triển Delta Travel
-const DEFAULT_DEMO_USERS = [
-  {
-    id: "USR-01",
-    fullName: "Hồng Thắm",
-    email: "hongtham@deltatravel.vn",
-    phone: "0901112233",
-    password: "password123",
-    role: "ADMIN",
-    title: "Trưởng nhóm",
-    createdAt: "01/10/2026"
-  },
-  {
-    id: "USR-02",
-    fullName: "Lê Văn An",
-    email: "an.levan@gmail.com",
-    phone: "0987654321",
-    password: "password123",
-    role: "ADMIN",
-    title: "Thành viên nhóm",
-    createdAt: "15/10/2026"
-  },
-  {
-    id: "USR-03",
-    fullName: "Lê Hải Đăng",
-    email: "haidang@deltatravel.vn",
-    phone: "0902223344",
-    password: "password123",
-    role: "ADMIN",
-    title: "Thành viên nhóm",
-    createdAt: "01/10/2026"
-  },
-  {
-    id: "USR-04",
-    fullName: "Nguyễn Phúc",
-    email: "nguyenphuc@deltatravel.vn",
-    phone: "0903334455",
-    password: "password123",
-    role: "ADMIN",
-    title: "Thành viên nhóm",
-    createdAt: "01/10/2026"
-  },
-  {
-    id: "USR-05",
-    fullName: "Mạnh Lê",
-    email: "manhle@deltatravel.vn",
-    phone: "0905556677",
-    password: "password123",
-    role: "ADMIN",
-    title: "Thành viên nhóm",
-    createdAt: "01/10/2026"
-  },
-  {
-    id: "USR-ADMIN",
-    fullName: "Ban Quản Trị Nhóm",
-    email: "admin@deltatravel.vn",
-    phone: "0900009999",
-    password: "admin123456",
-    role: "ADMIN",
-    title: "Nhóm Dự Án",
-    createdAt: "01/10/2026"
-  }
-];
-
-/**
- * Lấy danh sách tài khoản đã đăng ký từ localStorage
- */
+// Danh sách lưu trữ local tạm thời (nếu có)
 function getAllUsers() {
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEYS.USERS);
-    let users = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(users) || users.length === 0) {
-      users = [...DEFAULT_DEMO_USERS];
-      localStorage.setItem(AUTH_STORAGE_KEYS.USERS, JSON.stringify(users));
-      return users;
-    }
-    let changed = false;
-    DEFAULT_DEMO_USERS.forEach(demo => {
-      const idx = users.findIndex(u => u.email === demo.email);
-      if (idx === -1) {
-        users.push(demo);
-        changed = true;
-      }
-    });
-    if (changed) {
-      localStorage.setItem(AUTH_STORAGE_KEYS.USERS, JSON.stringify(users));
-    }
-    return users;
+    return raw ? JSON.parse(raw) : [];
   } catch (e) {
-    console.error("Lỗi đọc danh sách users:", e);
-    return [...DEFAULT_DEMO_USERS];
+    return [];
   }
 }
 
@@ -119,7 +35,7 @@ function saveUsers(users) {
 }
 
 /**
- * Lấy tài khoản đang đăng nhập hiện tại
+ * Lấy tài khoản đang đăng nhập hiện tại từ LocalStorage
  */
 function getCurrentUser() {
   try {
@@ -143,14 +59,74 @@ function setCurrentUser(user) {
   syncUserWithBookingForm();
 }
 
+/**
+ * ĐỒNG BỘ TÀI KHOẢN THỰC TẾ VỚI CƠ SỞ DỮ LIỆU SQLITE / BACKEND API
+ * Tuyệt đối không dùng dữ liệu giả mạo!
+ */
+async function syncCurrentSessionUser() {
+  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.getSession === "function") {
+    try {
+      const res = await DeltaAPI.getSession();
+      if (res && res.authenticated && res.user) {
+        const u = res.user;
+        const realUser = {
+          id: u.id,
+          fullName: u.fullName,
+          email: u.email,
+          phone: u.phone,
+          role: u.role || "CUSTOMER",
+          avatar: u.avatar || null,
+          createdAt: u.createdAt || null,
+          totalBookings: typeof u.totalBookings === "number" ? u.totalBookings : 0
+        };
+        localStorage.setItem(AUTH_STORAGE_KEYS.CURRENT_USER, JSON.stringify(realUser));
+        renderAuthHeader();
+        syncUserWithBookingForm();
+        return realUser;
+      } else {
+        // Kiểm tra xem có phiên hợp lệ qua DeltaAPI.getMe() không
+        const meRes = await DeltaAPI.getMe();
+        if (meRes && meRes.success && meRes.data) {
+          const u = meRes.data;
+          const realUser = {
+            id: u.id,
+            fullName: u.fullName,
+            email: u.email,
+            phone: u.phone,
+            role: u.role || "CUSTOMER",
+            avatar: u.avatar || null,
+            createdAt: u.createdAt || null,
+            totalBookings: typeof u.totalBookings === "number" ? u.totalBookings : 0
+          };
+          localStorage.setItem(AUTH_STORAGE_KEYS.CURRENT_USER, JSON.stringify(realUser));
+          renderAuthHeader();
+          syncUserWithBookingForm();
+          return realUser;
+        } else {
+          // Chưa đăng nhập trên backend
+          localStorage.removeItem(AUTH_STORAGE_KEYS.CURRENT_USER);
+          renderAuthHeader();
+          syncUserWithBookingForm();
+          return null;
+        }
+      }
+    } catch (err) {
+      console.warn("Lỗi đồng bộ phiên tài khoản:", err);
+    }
+  }
+  renderAuthHeader();
+  syncUserWithBookingForm();
+  return getCurrentUser();
+}
+
 // =============================================================================
 // II. KHỞI TẠO GIAO DIỆN KHI TRANG TẢI
 // =============================================================================
 document.addEventListener("DOMContentLoaded", () => {
-  getAllUsers(); // Đảm bảo khởi tạo demo user
   renderAuthHeader();
   initAuthEventListeners();
   hookBookingModalForAutoFill();
+  syncCurrentSessionUser();
 });
 
 /**
@@ -598,17 +574,41 @@ function handleUserLogout() {
 }
 
 // =============================================================================
-// V. MODAL THÔNG TIN TÀI KHOẢN (PROFILE MODAL)
+// V. MODAL THÔNG TIN TÀI KHOẢN (PROFILE MODAL - KẾT NỐI API THỰC TẾ)
 // =============================================================================
-function openUserProfileModal() {
-  const user = getCurrentUser();
+async function openUserProfileModal() {
+  let user = getCurrentUser();
+
+  // Truy vấn dữ liệu mới nhất trực tiếp từ Backend API SQLite
+  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.getMe === "function") {
+    try {
+      const meRes = await DeltaAPI.getMe();
+      if (meRes && meRes.success && meRes.data) {
+        const u = meRes.data;
+        user = {
+          id: u.id,
+          fullName: u.fullName,
+          email: u.email,
+          phone: u.phone,
+          role: u.role || "CUSTOMER",
+          avatar: u.avatar || null,
+          createdAt: u.createdAt || null,
+          totalBookings: typeof u.totalBookings === "number" ? u.totalBookings : 0
+        };
+        setCurrentUser(user);
+      }
+    } catch (e) {
+      console.warn("Không thể tải thông tin mới nhất từ máy chủ:", e);
+    }
+  }
+
   if (!user) {
     openAuthModal("login");
     return;
   }
 
-  // Cập nhật thông tin vào modal Profile
-  const names = user.fullName.trim().split(" ");
+  // Tách chữ cái đầu làm avatar nếu chưa có ảnh
+  const names = (user.fullName || "Khách Hàng").trim().split(" ");
   const initials = names.length > 1
     ? (names[0][0] + names[names.length - 1][0]).toUpperCase()
     : names[0].substring(0, 2).toUpperCase();
@@ -618,6 +618,7 @@ function openUserProfileModal() {
   const emailEl = document.getElementById("profileEmail");
   const phoneEl = document.getElementById("profilePhone");
   const createdEl = document.getElementById("profileCreatedAt");
+  const rankEl = document.getElementById("profileMemberRank");
   const totalBookingsEl = document.getElementById("profileTotalBookings");
 
   if (avatarEl) {
@@ -630,19 +631,36 @@ function openUserProfileModal() {
   if (nameEl) nameEl.textContent = user.fullName;
   if (emailEl) emailEl.textContent = user.email;
   if (phoneEl) phoneEl.textContent = user.phone;
-  if (createdEl) createdEl.textContent = user.createdAt || "15/10/2026";
 
-  // Đếm số lượng đơn hàng của user này trong delta_bookings
-  try {
-    const bookings = JSON.parse(localStorage.getItem("delta_bookings_v2")) || [];
-    const userBookings = bookings.filter(b => 
-      b.customer?.email?.toLowerCase() === user.email.toLowerCase() ||
-      b.customer?.phone === user.phone ||
-      b.userId === user.id
-    );
-    if (totalBookingsEl) totalBookingsEl.textContent = userBookings.length;
-  } catch (e) {
-    if (totalBookingsEl) totalBookingsEl.textContent = "0";
+  // Ngày tạo tài khoản thực tế từ database
+  if (createdEl) {
+    if (user.createdAt) {
+      const d = new Date(user.createdAt);
+      if (!isNaN(d.getTime())) {
+        createdEl.textContent = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+      } else {
+        createdEl.textContent = String(user.createdAt);
+      }
+    } else {
+      createdEl.textContent = "--/--/----";
+    }
+  }
+
+  // Số lượng đơn hàng thực tế
+  const total = typeof user.totalBookings === "number" ? user.totalBookings : 0;
+  if (totalBookingsEl) totalBookingsEl.textContent = total;
+
+  // Hạng thành viên tính toán theo dữ liệu thực tế
+  if (rankEl) {
+    if (user.role === "ADMIN") {
+      rankEl.textContent = "Ban Quản Trị";
+    } else if (total >= 5) {
+      rankEl.textContent = "Hạng Vàng";
+    } else if (total >= 2) {
+      rankEl.textContent = "Hạng Bạc";
+    } else {
+      rankEl.textContent = "Thành viên mới";
+    }
   }
 
   // Điền sẵn vào form sửa thông tin
@@ -662,6 +680,7 @@ function openUserProfileModal() {
 
 /**
  * Xử lý tải lên và đổi ảnh đại diện (Avatar) cho người dùng
+ * Lưu trữ ảnh đại diện vào cơ sở dữ liệu SQLite
  */
 function handleUserAvatarUpload(e) {
   const file = e.target.files?.[0];
@@ -676,11 +695,11 @@ function handleUserAvatarUpload(e) {
   reader.onload = function(evt) {
     const rawBase64 = evt.target.result;
     
-    // Nén ảnh nhỏ gọn qua HTML Canvas (~250x250)
+    // Nén ảnh nhỏ gọn qua HTML Canvas (~220x220)
     const img = new Image();
-    img.onload = function() {
+    img.onload = async function() {
       const canvas = document.createElement("canvas");
-      const MAX_SIZE = 250;
+      const MAX_SIZE = 220;
       let width = img.width;
       let height = img.height;
       if (width > height) {
@@ -704,26 +723,30 @@ function handleUserAvatarUpload(e) {
       if (!user) return;
       user.avatar = optimizedBase64;
 
-      // Lưu trữ phiên đăng nhập hiện tại
-      localStorage.setItem("delta_current_user_v2", JSON.stringify(user));
-
-      // Cập nhật trong danh sách toàn bộ users
-      const users = getAllUsers();
-      const idx = users.findIndex(u => u.id === user.id || u.email.toLowerCase() === user.email.toLowerCase());
-      if (idx !== -1) {
-        users[idx].avatar = optimizedBase64;
-        localStorage.setItem("delta_users_v2", JSON.stringify(users));
+      // Cập nhật ảnh đại diện lên SQLite Backend API
+      if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.updateProfile === "function") {
+        try {
+          const apiRes = await DeltaAPI.updateProfile(user.fullName, user.phone, optimizedBase64);
+          if (apiRes && apiRes.success && apiRes.data) {
+            user.avatar = apiRes.data.avatar || optimizedBase64;
+          }
+        } catch (err) {
+          console.warn("Lỗi lưu avatar lên server:", err);
+        }
       }
+
+      // Lưu trữ phiên đăng nhập
+      setCurrentUser(user);
 
       // Cập nhật giao diện modal và header
       const avatarEl = document.getElementById("profileAvatar");
       if (avatarEl) {
-        avatarEl.innerHTML = `<img src="${optimizedBase64}" alt="${user.fullName}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+        avatarEl.innerHTML = `<img src="${user.avatar}" alt="${user.fullName}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
       }
       renderAuthHeader();
 
       if (typeof showToast === "function") {
-        showToast("Cập nhật ảnh đại diện thành công!", "success");
+        showToast("Cập nhật ảnh đại diện thành công vào tài khoản!", "success");
       }
     };
     img.src = rawBase64;
@@ -732,7 +755,7 @@ function handleUserAvatarUpload(e) {
 }
 
 /**
- * Cập nhật thông tin Họ tên, SĐT của tài khoản
+ * Cập nhật thông tin Họ tên, SĐT của tài khoản vào database
  */
 async function handleProfileUpdate(e) {
   e.preventDefault();
@@ -743,7 +766,7 @@ async function handleProfileUpdate(e) {
   const newPhone = document.getElementById("profileEditPhone")?.value.trim();
 
   if (!newName || newName.length < 2) {
-    alert("Vui lòng nhập họ và tên hợp lệ.");
+    alert("Vui lòng nhập họ và tên hợp lệ (tối thiểu 2 ký tự).");
     return;
   }
 
@@ -753,59 +776,36 @@ async function handleProfileUpdate(e) {
     return;
   }
 
-  const isBackendAccount = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id);
-  let updatedProfile = null;
-  if (isBackendAccount) {
-    if (typeof DeltaAPI === "undefined" || typeof DeltaAPI.updateProfile !== "function") {
-      showToast("Không thể kết nối dịch vụ cập nhật hồ sơ.", "error");
-      return;
-    }
-    if (!DeltaAPI.isOnline()) {
-      const health = await DeltaAPI.checkHealth();
-      if (!health.online) {
-        showToast("Không thể cập nhật hồ sơ khi máy chủ không kết nối.", "error");
-        return;
+  // Luôn cập nhật trực tiếp qua API cơ sở dữ liệu
+  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.updateProfile === "function") {
+    const res = await DeltaAPI.updateProfile(newName, newPhone, user.avatar);
+    if (!res.success) {
+      if (typeof showToast === "function") {
+        showToast(res.error || "Không thể cập nhật hồ sơ trên máy chủ.", "error");
+      } else {
+        alert(res.error || "Không thể cập nhật hồ sơ.");
       }
-    }
-    const response = await DeltaAPI.updateProfile(newName, newPhone);
-    if (!response.success || !response.data) {
-      showToast(response.error || "Không thể cập nhật hồ sơ trên máy chủ.", "error");
       return;
     }
-    updatedProfile = response.data;
+    user.fullName = res.data.fullName || newName;
+    user.phone = res.data.phone || newPhone;
+  } else {
+    user.fullName = newName;
+    user.phone = newPhone;
   }
 
-  const users = getAllUsers();
-  // Kiểm tra trùng số điện thoại trong bộ nhớ local cho tài khoản demo.
-  if (!isBackendAccount && newPhone !== user.phone) {
-    const exists = users.some(u => u.phone === newPhone && u.id !== user.id);
-    if (exists) {
-      alert("Số điện thoại này đã được sử dụng bởi tài khoản khác.");
-      return;
-    }
-  }
+  setCurrentUser(user);
+  openUserProfileModal();
 
-  const userIndex = users.findIndex(u => u.id === user.id);
-  if (userIndex !== -1) {
-    users[userIndex].fullName = updatedProfile?.fullName || newName;
-    users[userIndex].phone = updatedProfile?.phone || newPhone;
-    saveUsers(users);
-
-    user.fullName = users[userIndex].fullName;
-    user.phone = users[userIndex].phone;
-    setCurrentUser(user);
-
-    openUserProfileModal(); // Tải lại modal
-    if (typeof showToast === "function") {
-      showToast("Cập nhật thông tin tài khoản thành công!", "success");
-    }
+  if (typeof showToast === "function") {
+    showToast("Cập nhật thông tin tài khoản thành công!", "success");
   }
 }
 
 /**
  * Đổi mật khẩu trong hồ sơ cá nhân
  */
-function handleChangePassword(e) {
+async function handleChangePassword(e) {
   e.preventDefault();
   const user = getCurrentUser();
   if (!user) return;
@@ -813,11 +813,6 @@ function handleChangePassword(e) {
   const currentPass = document.getElementById("profileCurrentPass")?.value;
   const newPass = document.getElementById("profileNewPass")?.value;
   const confirmNewPass = document.getElementById("profileConfirmNewPass")?.value;
-
-  if (currentPass !== user.password) {
-    alert("Mật khẩu hiện tại không chính xác!");
-    return;
-  }
 
   if (!newPass || newPass.length < 6) {
     alert("Mật khẩu mới phải có tối thiểu 6 ký tự!");
@@ -829,19 +824,22 @@ function handleChangePassword(e) {
     return;
   }
 
-  const users = getAllUsers();
-  const userIndex = users.findIndex(u => u.id === user.id);
-  if (userIndex !== -1) {
-    users[userIndex].password = newPass;
-    saveUsers(users);
-
-    user.password = newPass;
-    setCurrentUser(user);
-
-    document.getElementById("changePasswordForm")?.reset();
-    if (typeof showToast === "function") {
-      showToast("Đổi mật khẩu thành công!", "success");
+  // Đổi mật khẩu qua API Backend
+  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.changePassword === "function") {
+    const res = await DeltaAPI.changePassword(currentPass, newPass);
+    if (!res.success) {
+      if (typeof showToast === "function") {
+        showToast(res.error || "Mật khẩu hiện tại không chính xác.", "error");
+      } else {
+        alert(res.error || "Mật khẩu hiện tại không chính xác.");
+      }
+      return;
     }
+  }
+
+  document.getElementById("changePasswordForm")?.reset();
+  if (typeof showToast === "function") {
+    showToast("Đổi mật khẩu thành công!", "success");
   }
 }
 

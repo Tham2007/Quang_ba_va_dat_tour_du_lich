@@ -224,6 +224,7 @@ function initDatabase() {
       password_hash TEXT NOT NULL,
       role TEXT DEFAULT 'CUSTOMER',
       active INTEGER DEFAULT 1,
+      avatar TEXT DEFAULT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
@@ -719,6 +720,10 @@ function initDatabase() {
       });
     }
   });
+
+  try {
+    db.exec("ALTER TABLE users ADD COLUMN avatar TEXT;");
+  } catch (_) {}
 }
 
 initDatabase();
@@ -812,12 +817,21 @@ function publicSchedule(s) {
 }
 
 function userDict(u) {
+  let totalBookings = 0;
+  try {
+    const row = db.prepare("SELECT COUNT(*) AS c FROM bookings WHERE user_id = ?").get(u.id);
+    if (row && typeof row.c === "number") totalBookings = row.c;
+  } catch (_) {}
+
   return {
     id: u.id,
     fullName: u.full_name,
     email: u.email,
     phone: u.phone,
     role: u.role,
+    avatar: u.avatar || null,
+    createdAt: u.created_at || null,
+    totalBookings: totalBookings,
     active: Boolean(u.active)
   };
 }
@@ -861,7 +875,8 @@ app.use(cors({
   credentials: true
 }));
 app.use(cookieParser());
-app.use(express.json());
+app.use(express.json({ limit: "15mb" }));
+app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 
 // Security headers
 app.use((req, res, next) => {
@@ -1081,7 +1096,7 @@ app.get("/api/v1/auth/session", (req, res) => {
 });
 
 app.patch("/api/v1/auth/profile", requireAuth, (req, res) => {
-  const { full_name, phone } = req.body || {};
+  const { full_name, phone, avatar } = req.body || {};
   if (phone && !/^0[35789]\d{8}$/.test(phone)) {
     return res.status(422).json({ detail: "Số điện thoại không hợp lệ." });
   }
@@ -1092,10 +1107,11 @@ app.patch("/api/v1/auth/profile", requireAuth, (req, res) => {
 
   const newName = full_name ? full_name.trim() : req.user.full_name;
   const newPhone = phone ? phone.trim() : req.user.phone;
+  const newAvatar = (typeof avatar !== "undefined") ? avatar : (req.user.avatar || null);
 
   db.prepare(`
-    UPDATE users SET full_name = ?, phone = ?, updated_at = ? WHERE id = ?
-  `).run(newName, newPhone, new Date().toISOString(), req.user.id);
+    UPDATE users SET full_name = ?, phone = ?, avatar = ?, updated_at = ? WHERE id = ?
+  `).run(newName, newPhone, newAvatar, new Date().toISOString(), req.user.id);
 
   const updated = db.prepare("SELECT * FROM users WHERE id = ?").get(req.user.id);
   audit(req.user.id, "PROFILE_UPDATED", req.user.id);

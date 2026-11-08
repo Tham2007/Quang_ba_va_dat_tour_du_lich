@@ -948,10 +948,22 @@ function resetAllFilters() {
   const advancedFilters = document.getElementById("advancedTourFilters");
 
   if (kwInput) kwInput.value = "";
-  if (regionSelect) regionSelect.value = "all";
-  if (priceSelect) priceSelect.value = "all";
-  if (sortSelect) sortSelect.value = "default";
-  if (advancedFilters) advancedFilters.reset();
+  if (regionSelect) {
+    regionSelect.value = "all";
+    regionSelect.dispatchEvent(new Event("change"));
+  }
+  if (priceSelect) {
+    priceSelect.value = "all";
+    priceSelect.dispatchEvent(new Event("change"));
+  }
+  if (sortSelect) {
+    sortSelect.value = "default";
+    sortSelect.dispatchEvent(new Event("change"));
+  }
+  if (advancedFilters) {
+    advancedFilters.reset();
+    advancedFilters.querySelectorAll("select, input").forEach(el => el.dispatchEvent(new Event("change")));
+  }
 
   document.querySelectorAll(".filter-pill").forEach(p => {
     p.classList.toggle("active", p.dataset.region === "all");

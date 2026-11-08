@@ -34,6 +34,7 @@
   <link rel="stylesheet" href="assets/css/responsive.css">
   <link rel="stylesheet" href="assets/css/auth.css">
   <link rel="stylesheet" href="assets/css/chatbot.css">
+  <link rel="stylesheet" href="assets/css/custom-dropdowns.css">
 </head>
 <body>
   <div id="deltaDataModeNotice" style="display: none;" role="status"></div>
@@ -1806,36 +1807,36 @@
     </div>
   </div>
 
-  <!-- MODAL 7: HỒ SƠ & THÔNG TIN TÀI KHOẢN (USER PROFILE MODAL) -->
+  <!-- MODAL 7: HỒ SƠ & THÔNG TIN TÀI KHOẢN (USER PROFILE MODAL - NỀN TRẮNG CHỮ ĐEN THỰC TẾ) -->
   <div class="modal fade" id="userProfileModal" tabindex="-1" aria-labelledby="userProfileModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content border-0 rounded-4 overflow-hidden shadow-lg">
-        <div class="profile-card-header text-center">
-          <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Close"></button>
+      <div class="modal-content border-0 rounded-4 overflow-hidden shadow-2xl bg-white" style="border: 2px solid #000000 !important;">
+        <div class="profile-card-header text-center position-relative">
+          <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Close"></button>
           <div class="profile-avatar-wrapper position-relative d-inline-block mx-auto mb-2">
-            <div class="profile-avatar-large" id="profileAvatar">NA</div>
+            <div class="profile-avatar-large" id="profileAvatar">--</div>
             <label for="userAvatarInput" class="avatar-upload-badge" title="Tải ảnh đại diện từ thiết bị">
               <i class="bi bi-camera-fill"></i>
               <input type="file" id="userAvatarInput" accept="image/*" style="display: none;" onchange="handleUserAvatarUpload(event)">
             </label>
           </div>
-          <h5 class="fw-bold text-white mb-1" id="profileFullName">Lê Văn An</h5>
-          <p class="text-white-50 small mb-0" id="profileEmail">an.levan@gmail.com</p>
+          <h5 class="fw-bold text-dark mb-1" id="profileFullName">Đang tải...</h5>
+          <p class="text-muted small mb-0" id="profileEmail">--</p>
         </div>
 
-        <div class="modal-body p-4">
-          <!-- Chỉ số thống kê -->
+        <div class="modal-body p-4 bg-white">
+          <!-- Chỉ số thống kê kết nối trực tiếp cơ sở dữ liệu SQLite thực tế -->
           <div class="profile-stats-row">
             <div class="profile-stat-box">
               <div class="stat-val" id="profileTotalBookings">0</div>
               <div class="stat-lbl">Đơn đã đặt</div>
             </div>
             <div class="profile-stat-box">
-              <div class="stat-val text-warning">VIP 1</div>
-              <div class="stat-lbl">Hạng thành viên</div>
+              <div class="stat-val" id="profileMemberRank">Thành viên</div>
+              <div class="stat-lbl">Hạng tài khoản</div>
             </div>
             <div class="profile-stat-box">
-              <div class="stat-val text-info" id="profileCreatedAt">15/10/2026</div>
+              <div class="stat-val" id="profileCreatedAt">--/--/----</div>
               <div class="stat-lbl">Ngày tham gia</div>
             </div>
           </div>
@@ -1859,16 +1860,16 @@
             <div class="tab-pane fade show active" id="pill-info" role="tabpanel">
               <form id="profileEditForm">
                 <div class="mb-3">
-                  <label class="form-label small fw-bold text-muted">Họ và tên</label>
-                  <input type="text" class="form-control" id="profileEditName" required>
+                  <label class="form-label small fw-bold text-dark">Họ và tên</label>
+                  <input type="text" class="form-control" id="profileEditName" required placeholder="Họ và tên thực tế">
                 </div>
                 <div class="mb-3">
-                  <label class="form-label small fw-bold text-muted">Số điện thoại</label>
-                  <input type="tel" class="form-control" id="profileEditPhone" required>
+                  <label class="form-label small fw-bold text-dark">Số điện thoại</label>
+                  <input type="tel" class="form-control" id="profileEditPhone" required placeholder="Số điện thoại thực tế">
                 </div>
                 <div class="mb-3">
-                  <label class="form-label small fw-bold text-muted">Email (Định danh tài khoản)</label>
-                  <input type="email" class="form-control bg-light" id="profileEmailDisplay" disabled>
+                  <label class="form-label small fw-bold text-dark">Email (Định danh tài khoản không đổi)</label>
+                  <input type="email" class="form-control bg-light text-dark fw-bold" id="profileEmailDisplay" disabled>
                 </div>
                 <button type="submit" class="btn btn-delta-primary w-100">
                   <i class="bi bi-check2-circle me-1"></i> Lưu Thay Đổi
@@ -1880,18 +1881,18 @@
             <div class="tab-pane fade" id="pill-password" role="tabpanel">
               <form id="changePasswordForm">
                 <div class="mb-3">
-                  <label class="form-label small fw-bold text-muted">Mật khẩu hiện tại</label>
+                  <label class="form-label small fw-bold text-dark">Mật khẩu hiện tại</label>
                   <input type="password" class="form-control" id="profileCurrentPass" required>
                 </div>
                 <div class="mb-3">
-                  <label class="form-label small fw-bold text-muted">Mật khẩu mới (tối thiểu 6 ký tự)</label>
+                  <label class="form-label small fw-bold text-dark">Mật khẩu mới (tối thiểu 6 ký tự)</label>
                   <input type="password" class="form-control" id="profileNewPass" required>
                 </div>
                 <div class="mb-3">
-                  <label class="form-label small fw-bold text-muted">Xác nhận mật khẩu mới</label>
+                  <label class="form-label small fw-bold text-dark">Xác nhận mật khẩu mới</label>
                   <input type="password" class="form-control" id="profileConfirmNewPass" required>
                 </div>
-                <button type="submit" class="btn btn-outline-danger w-100">
+                <button type="submit" class="btn btn-dark w-100 fw-bold">
                   <i class="bi bi-shield-check me-1"></i> Cập Nhật Mật Khẩu
                 </button>
               </form>
@@ -1917,103 +1918,104 @@
   <!-- ==========================================================================
        KHUNG CHAT TRỢ LÝ AI LỚN (LARGE AI CONCIERGE MODAL)
        Khi click "Trợ lý AI" trên thanh Tab / Menu sẽ mở khung chat rộng lớn
+       ==========================================================================
+       KHUNG CHAT AI CONCIERGE TOÀN MÀN HÌNH - PURE WHITE & BLACK PAPER THEME
+       Khi click "Trợ lý AI" trên thanh Tab / Menu sẽ mở toàn màn hình (Full Screen),
+       thuần nền trắng chữ đen như trên giấy, không lưu lịch sử, dùng avatar thực của user.
        ========================================================================== -->
-  <div class="modal fade" id="largeAIChatModal" tabindex="-1" aria-labelledby="largeAIChatModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-      <div class="modal-content border-0 shadow-2xl rounded-4 overflow-hidden" style="min-height: 75vh; height: 85vh;">
-        <!-- Header -->
-        <div class="modal-header bg-dark text-white p-3 px-4 d-flex justify-content-between align-items-center">
-          <div class="d-flex align-items-center gap-3">
-            <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
-              <i class="bi bi-robot fs-4"></i>
-            </div>
-            <div>
-              <h5 class="modal-title fw-bold text-white mb-0" id="largeAIChatModalLabel">
-                Trợ Lý AI Concierge 5 Sao <span class="badge bg-warning text-dark ms-2 fw-bold" style="font-size: 11px;">DELTA INTELLIGENCE</span>
-              </h5>
-              <div class="text-white-50 small" style="font-size: 12px;">
-                <i class="bi bi-circle-fill text-success" style="font-size: 7px;"></i> Tư vấn điểm đến, lộ trình chi tiết & hỗ trợ đặt tour tức thì
-              </div>
-            </div>
-          </div>
-          <div class="d-flex align-items-center gap-2">
-            <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-3" onclick="resetLargeChatConversation()">
-              <i class="bi bi-arrow-clockwise"></i> Làm mới
-            </button>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
-          </div>
+  <div id="largeAIChatFullscreen" class="ai-concierge-fullscreen-overlay" style="display: none;" role="dialog" aria-modal="true" aria-label="Trợ lý AI Concierge Toàn Màn Hình">
+    <!-- Top Header Bar -->
+    <header class="ai-fullscreen-header">
+      <div class="d-flex align-items-center gap-3">
+        <div class="ai-fullscreen-logo-badge">
+          <i class="bi bi-robot"></i>
         </div>
-
-        <!-- Body: 2 cột (Trái: Chủ đề gợi ý, Phải: Khung chat rộng) -->
-        <div class="modal-body p-0 d-flex flex-column flex-lg-row h-100">
-          <!-- Cột trái: Chủ đề & Câu hỏi hot -->
-          <div class="col-12 col-lg-4 col-xl-3 border-end bg-light p-3 d-flex flex-column gap-2 overflow-y-auto">
-            <div class="fw-bold text-dark small text-uppercase mb-1" style="letter-spacing: 0.05em;">
-              <i class="bi bi-fire text-danger me-1"></i> Gợi ý câu hỏi hot
-            </div>
-            <button type="button" class="btn btn-white text-start border rounded-3 p-2.5 shadow-xs large-ai-topic-btn" onclick="sendLargeAIMessage('Tư vấn cho tôi tour du thuyền Vịnh Hạ Long 5 sao')">
-              <div class="fw-bold text-dark small">🏖️ Tour Du Thuyền Hạ Long 5*</div>
-              <div class="text-muted" style="font-size: 11px;">Trọn gói nghỉ dưỡng, chèo kayak Lan Hạ</div>
-            </button>
-            <button type="button" class="btn btn-white text-start border rounded-3 p-2.5 shadow-xs large-ai-topic-btn" onclick="sendLargeAIMessage('Gợi ý hành trình Đà Nẵng - Cầu Vàng - Hội An cho gia đình')">
-              <div class="fw-bold text-dark small">🏮 Đà Nẵng - Cầu Vàng - Hội An</div>
-              <div class="text-muted" style="font-size: 11px;">Vé cáp treo Bà Nà & Phố cổ Hội An</div>
-            </button>
-            <button type="button" class="btn btn-white text-start border rounded-3 p-2.5 shadow-xs large-ai-topic-btn" onclick="sendLargeAIMessage('Có những tour nào dưới 3 triệu đồng đi cuối tuần?')">
-              <div class="fw-bold text-dark small">💰 Tour giá rẻ dưới 3 triệu</div>
-              <div class="text-muted" style="font-size: 11px;">Nghỉ dưỡng cuối tuần tiết kiệm</div>
-            </button>
-            <button type="button" class="btn btn-white text-start border rounded-3 p-2.5 shadow-xs large-ai-topic-btn" onclick="sendLargeAIMessage('Tư vấn đi Đà Lạt săn mây và ngắm hoa')">
-              <div class="fw-bold text-dark small">🌸 Săn mây & Check-in Đà Lạt</div>
-              <div class="text-muted" style="font-size: 11px;">Xe Limousine phòng nằm, khách sạn view đẹp</div>
-            </button>
-            <button type="button" class="btn btn-white text-start border rounded-3 p-2.5 shadow-xs large-ai-topic-btn" onclick="sendLargeAIMessage('Chính sách hoàn hủy và bảo hiểm của Delta Travel thế nào?')">
-              <div class="fw-bold text-dark small">📜 Chính sách hoàn hủy & Bảo hiểm</div>
-              <div class="text-muted" style="font-size: 11px;">Cam kết 100% đổi ngày & hoàn tiền linh hoạt</div>
-            </button>
-
-            <div class="mt-auto pt-3 border-top">
-              <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-telephone-fill text-warning"></i>
-                <div class="small fw-bold">Tổng đài 24/7: 1900 8899</div>
-              </div>
-            </div>
+        <div>
+          <div class="d-flex align-items-center gap-2">
+            <h1 class="ai-fullscreen-title">Trợ Lý AI Concierge 5 Sao</h1>
+            <span class="ai-fullscreen-tag">DELTA TRAVEL INTELLIGENCE</span>
           </div>
-
-          <!-- Cột phải: Dòng tin nhắn & Input -->
-          <div class="col-12 col-lg-8 col-xl-9 d-flex flex-column h-100 bg-white">
-            <div class="flex-1 p-3 p-md-4 overflow-y-auto" id="largeAIChatMessages" style="min-height: 400px; max-height: calc(85vh - 160px);">
-              <!-- Lời chào đầu từ AI -->
-              <div class="chat-msg bot">
-                <div class="chat-msg-avatar" title="Delta AI"><i class="bi bi-robot"></i></div>
-                <div class="chat-msg-bubble">
-                  <div>
-                    <strong>Xin chào Quý khách! 👋</strong> Tôi là Trợ lý AI Concierge của Delta Travel. Tôi có thể giúp bạn:
-                    <ul class="mb-2 mt-1 ps-3">
-                      <li>Gợi ý hành trình phù hợp theo sở thích (biển đảo, vùng núi, tâm linh, nghỉ dưỡng).</li>
-                      <li>Tra cứu giá vé, thời tiết và kinh nghiệm du lịch thực tế.</li>
-                      <li><strong>Hiển thị trực tiếp các tour phù hợp để bạn bấm đặt giữ chỗ ngay trong câu chuyện.</strong></li>
-                    </ul>
-                    Bạn đang muốn lên kế hoạch đi đâu hay cần tìm tour cho bao nhiêu người?
-                  </div>
-                  <span class="chat-msg-time">Hôm nay</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Thanh nhập tin nhắn bên dưới -->
-            <div class="p-3 border-top bg-light">
-              <div class="input-group">
-                <input type="text" id="largeAIChatInput" class="form-control paper-control border-end-0 py-2.5" placeholder="Hỏi AI bất kỳ điều gì: 'Tìm tour Hạ Long 3 ngày', 'Tour đi Đà Lạt cho 2 người'...">
-                <button class="btn btn-dark px-4 fw-bold" id="largeAIChatSendBtn" onclick="handleLargeSendMessage()">
-                  <i class="bi bi-send-fill me-1"></i> Gửi
-                </button>
-              </div>
-            </div>
-          </div>
+          <p class="ai-fullscreen-sub">Tư vấn hành trình cá nhân hóa, cập nhật thời tiết & hỗ trợ đặt chỗ trực tiếp</p>
         </div>
       </div>
-    </div>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn-ai-paper-action" onclick="resetLargeChatConversation()" title="Làm mới cuộc trò chuyện">
+          <i class="bi bi-arrow-clockwise"></i> Làm mới
+        </button>
+        <button type="button" class="btn-ai-paper-close" onclick="closeLargeAIChat()" title="Đóng toàn màn hình (Esc)">
+          <i class="bi bi-x-lg"></i> Đóng toàn màn hình
+        </button>
+      </div>
+    </header>
+
+    <!-- Fullscreen Workspace: 2 Panels (Left: Suggestions, Right: Chat) -->
+    <main class="ai-fullscreen-body">
+      <!-- Cột trái: Gợi ý câu hỏi -->
+      <aside class="ai-fullscreen-sidebar">
+        <div class="ai-sidebar-section-title">
+          <i class="bi bi-compass"></i> GỢI Ý CÂU HỎI THỊNH HÀNH
+        </div>
+        <div class="ai-topics-list">
+          <button type="button" class="ai-topic-card" onclick="sendLargeAIMessage('Tư vấn cho tôi tour du thuyền Vịnh Hạ Long 5 sao')">
+            <div class="ai-topic-title">Tour Du Thuyền Hạ Long 5*</div>
+            <div class="ai-topic-desc">Trọn gói nghỉ dưỡng, chèo kayak Lan Hạ</div>
+          </button>
+          <button type="button" class="ai-topic-card" onclick="sendLargeAIMessage('Gợi ý hành trình Đà Nẵng - Cầu Vàng - Hội An cho gia đình')">
+            <div class="ai-topic-title">Đà Nẵng - Cầu Vàng - Hội An</div>
+            <div class="ai-topic-desc">Vé cáp treo Bà Nà & Phố cổ Hội An</div>
+          </button>
+          <button type="button" class="ai-topic-card" onclick="sendLargeAIMessage('Có những tour nào dưới 3 triệu đồng đi cuối tuần?')">
+            <div class="ai-topic-title">Tour giá tốt dưới 3 triệu</div>
+            <div class="ai-topic-desc">Nghỉ dưỡng cuối tuần tiết kiệm</div>
+          </button>
+          <button type="button" class="ai-topic-card" onclick="sendLargeAIMessage('Tư vấn đi Đà Lạt săn mây và ngắm hoa')">
+            <div class="ai-topic-title">Săn mây & Check-in Đà Lạt</div>
+            <div class="ai-topic-desc">Xe Limousine phòng nằm, khách sạn view đẹp</div>
+          </button>
+          <button type="button" class="ai-topic-card" onclick="sendLargeAIMessage('Chính sách hoàn hủy và bảo hiểm của Delta Travel thế nào?')">
+            <div class="ai-topic-title">Chính sách hoàn hủy & Bảo hiểm</div>
+            <div class="ai-topic-desc">Cam kết 100% đổi ngày & hoàn tiền linh hoạt</div>
+          </button>
+        </div>
+
+        <div class="ai-sidebar-footer">
+          <div class="small fw-bold">Tổng đài 24/7: <a href="tel:19008899" class="text-dark fw-bold text-decoration-none">1900 8899</a></div>
+          <div class="text-muted small" style="font-size: 11px;">Giá vé & chỗ trống đồng bộ theo thời gian thực</div>
+        </div>
+      </aside>
+
+      <!-- Cột phải: Khung hội thoại AI & Thanh nhập tin nhắn -->
+      <section class="ai-fullscreen-main">
+        <div class="ai-chat-messages-container" id="largeAIChatMessages">
+          <!-- Initial Welcome Message -->
+          <div class="chat-msg bot">
+            <div class="chat-msg-avatar" title="Delta AI"><i class="bi bi-robot"></i></div>
+            <div class="chat-msg-bubble">
+              <div>
+                <strong>Kính chào Quý khách! 👋</strong> Tôi là Trợ lý AI Concierge của Delta Travel. Tôi có thể hỗ trợ bạn:
+                <ul class="mb-2 mt-1 ps-3">
+                  <li>Tìm kiếm và so sánh các gói tour nghỉ dưỡng cao cấp khắp 3 miền Việt Nam.</li>
+                  <li>Cung cấp lộ trình từng ngày, thời tiết, kinh nghiệm ăn uống & check-in thực tế.</li>
+                  <li><strong>Gợi ý thẻ tour tương tác để bạn bấm xem lịch trình hoặc Đặt giữ chỗ tức thì ngay trong hội thoại.</strong></li>
+                </ul>
+                Bạn đang có kế hoạch đi đâu hay muốn tìm tour cho mấy người?
+              </div>
+              <span class="chat-msg-time">Trợ lý Delta AI</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Input Bar ở dưới cùng -->
+        <div class="ai-chat-input-bar">
+          <div class="ai-input-wrapper">
+            <input type="text" id="largeAIChatInput" class="ai-paper-input" placeholder="Hỏi AI bất kỳ điều gì: 'Tìm tour Hạ Long 3 ngày', 'Tour đi Đà Lạt cho 2 người'...">
+            <button class="ai-paper-send-btn" id="largeAIChatSendBtn" onclick="handleLargeSendMessage()">
+              <i class="bi bi-send-fill me-1"></i> Gửi
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
   </div>
 
   <!-- BONG BÓNG CHATBOT AI & CỬA SỔ CHAT TRỰC TUYẾN -->
@@ -2103,6 +2105,9 @@
 
   <!-- Bộ điều khiển xử lý logic sự kiện & tính tiền -->
   <script src="assets/js/controllers/main.js"></script>
+
+  <!-- Bộ điều khiển Custom Dropdowns & Date Picker giấy tối giản -->
+  <script src="assets/js/controllers/custom-dropdowns.js"></script>
 
   <!-- Hệ thống Đăng ký, Đăng nhập & Quản lý Tài khoản -->
   <script src="assets/js/controllers/auth.js"></script>
