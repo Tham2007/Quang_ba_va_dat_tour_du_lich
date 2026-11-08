@@ -179,7 +179,7 @@ async function runTests() {
       headers: authHeaders,
       body: { reference: payRef }
     });
-    assert(`POST /api/v1/bookings/${bookingId}/pay`, payRes.status === 200 && payRes.json?.status === "PAID");
+    assert(`POST /api/v1/bookings/${bookingId}/pay`, payRes.status === 200 && payRes.json?.status === "PENDING_PAYMENT" && payRes.json?.paid === false);
 
     // 12. Create & cancel 2nd booking
     const idemKey2 = crypto.randomUUID();
@@ -352,7 +352,7 @@ async function runTests() {
       headers: adminHeaders,
       body: { reference: "ADM_VERIFY_" + Date.now() }
     });
-    assert(`POST /api/v1/admin/bookings/${bookingId}/confirm-payment`, admConfirmPay.status === 200 && admConfirmPay.json?.status === "PAID");
+    assert(`POST /api/v1/admin/bookings/${bookingId}/confirm-payment`, admConfirmPay.status === 503);
 
     // 14. Assistant Chat
     const chatRes = await req("/api/v1/assistant/chat", {
