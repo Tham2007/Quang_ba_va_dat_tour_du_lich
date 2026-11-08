@@ -853,6 +853,8 @@ function bookingDict(b) {
     scheduleId: b.schedule_id,
     tourTitle: b.tour_title,
     customerName: b.customer_name,
+    customerPhone: b.customer_phone,
+    customerEmail: b.customer_email,
     adults: Number(b.adults),
     children: Number(b.children),
     infants: Number(b.infants),

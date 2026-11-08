@@ -315,9 +315,9 @@
       <!-- Header tài liệu -->
       <div class="paper-sheet-header d-flex flex-wrap justify-content-between align-items-end gap-3">
         <div>
-          <div class="text-uppercase fw-bold text-muted small" style="letter-spacing: 0.15em;">PHIẾU ĐIỆN TỬ CHÍNH THỨC</div>
+          <div class="text-uppercase fw-bold text-muted small" style="letter-spacing: 0.15em;">PHIẾU ĐIỆN TỬ THỬ NGHIỆM</div>
           <h1 class="paper-sheet-title">Quản Lý Đơn Đặt Tour & Tra Cứu Chuyến Đi</h1>
-          <p class="paper-sheet-sub mb-0">Theo dõi tiến độ duyệt chỗ, thanh toán trực tuyến và in phiếu giữ chỗ chính thức chuẩn giấy.</p>
+          <p class="paper-sheet-sub mb-0">Theo dõi tiến độ duyệt chỗ, thanh toán trực tuyến và in phiếu giữ chỗ thử nghiệm, chỉ có giá trị khi máy chủ xác nhận.</p>
         </div>
         <div class="no-print">
           <button class="paper-btn-print" onclick="window.print()">
@@ -366,34 +366,26 @@
     }
 
     async function loadBookings() {
-      const container = document.getElementById("bookingsListContainer");
+      const container=document.getElementById("bookingsListContainer");
       try {
-        let bookings = [];
-        // 1. Thử lấy từ Backend API
-        if (typeof DeltaAPI !== "undefined" && DeltaAPI.fetchMyBookings) {
-          const res = await DeltaAPI.fetchMyBookings();
-          if (res && res.success && Array.isArray(res.data)) {
-            bookings = res.data;
-          }
-        }
-        
-        // 2. Dự phòng thêm đơn hàng từ localStorage
-        const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
-        const mergedMap = new Map();
-        [...bookings, ...local].forEach(b => {
-          const key = b.id || b.bookingId || b.reference;
-          if (key && !mergedMap.has(key)) {
-            mergedMap.set(key, b);
-          }
-        });
-        allBookings = Array.from(mergedMap.values());
+        if (typeof DeltaAPI === "undefined" || !DeltaAPI.fetchMyBookings)
+          throw new Error("API đơn đặt tour chưa sẵn sàng.");
+        const res=await DeltaAPI.fetchMyBookings();
+        if (!res?.success || !Array.isArray(res.data))
+          throw new Error(res?.error || "Máy chủ chưa xác nhận danh sách đơn.");
+        allBookings=res.data;
         renderBookings();
-      } catch (err) {
-        console.warn("Lỗi tải đơn hàng:", err);
-        const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
-        allBookings = local;
-        renderBookings();
+      } catch(error) {
+        allBookings=[];
+        if (container) container.textContent="Không thể tải đơn từ máy chủ: "+error.message+
+          ". Đơn lưu trên trình duyệt không phải xác nhận đặt chỗ.";
       }
+    }
+
+    function escapeBookingText(value) {
+      return String(value ?? "").replace(/[&<>"']/g,c=>({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+      }[c]));
     }
 
     function renderBookings() {
@@ -432,32 +424,25 @@
       }
 
       container.innerHTML = filtered.map(b => {
-        const id = b.id || b.bookingId || b.reference;
-        const ref = b.reference || b.bookingId || id;
-        const tourTitle = b.tourTitle || "Tour Du Lịch Delta Travel 5 Sao";
-        const customerName = b.customerName || b.customer?.fullName || "Khách Hàng";
-        const customerPhone = b.customerPhone || b.customer?.phone || "Chưa cập nhật";
+        const id = String(b.id || b.bookingId || b.reference || "");
+        if (!/^[A-Za-z0-9_-]+$/.test(id)) return "";
+        const ref = escapeBookingText(b.reference || b.bookingId || id);
+        const tourTitle = escapeBookingText(b.tourTitle || "Tour chưa xác định");
+        const customerName = escapeBookingText(b.customerName || b.customer?.fullName || "Khách Hàng");
+        const customerPhone = escapeBookingText(b.customerPhone || b.customer?.phone || "Chưa cập nhật");
         const guests = b.seats || ((b.adults || 1) + (b.children || 0) + (b.infants || 0));
         const totalPrice = b.totalPrice || b.pricing?.totalPrice || 0;
         const status = b.status || b.statusCode || "PENDING_PAYMENT";
         const createdDate = b.createdAt ? new Date(b.createdAt).toLocaleDateString("vi-VN") : "Hôm nay";
 
-        let stampClass = "stamp-paid";
-        let stampText = "ĐÃ THANH TOÁN";
-        let isPending = false;
-        let isCancelled = false;
-
-        if (status === "PENDING_PAYMENT" || status === "PENDING_DEMO" || !b.paid) {
-          stampClass = "stamp-pending";
-          stampText = "CHỜ THANH TOÁN";
-          isPending = true;
+        let stampClass="stamp-pending", stampText="CHỜ XÁC NHẬN";
+        let isPending=true, isCancelled=false;
+        if (status === "CANCELLED") {
+          stampClass="stamp-cancelled"; stampText="ĐÃ HỦY ĐƠN"; isPending=false; isCancelled=true;
+        } else if (b.paid === true && ["PAID","CONFIRMED","COMPLETED"].includes(status)) {
+          stampClass="stamp-paid"; stampText="THANH TOÁN ĐÃ XÁC NHẬN"; isPending=false;
         } else if (status === "CONFIRMED") {
-          stampClass = "stamp-paid";
-          stampText = "ĐÃ DUYỆT GIỮ CHỖ";
-        } else if (status === "CANCELLED") {
-          stampClass = "stamp-cancelled";
-          stampText = "ĐÃ HỦY ĐƠN";
-          isCancelled = true;
+          stampClass="stamp-pending"; stampText="GIỮ CHỖ ĐÃ DUYỆT"; isPending=false;
         }
 
         return `
@@ -498,11 +483,7 @@
                 <div class="fs-4 fw-black text-dark mb-3">${formatVND(totalPrice)}</div>
                 
                 <div class="d-flex flex-wrap gap-2 justify-content-lg-end no-print">
-                  ${isPending ? `
-                    <a href="booking.html?bookingId=${encodeURIComponent(id)}" class="paper-btn-pay">
-                      <i class="bi bi-credit-card-2-front"></i> Thanh toán ngay
-                    </a>
-                  ` : ""}
+                  ${isPending ? '<span class="small text-muted">Chưa hỗ trợ thanh toán trực tuyến</span>' : ""}
                   
                   <button type="button" class="paper-btn-print" onclick="printSingleTicket('${id}')">
                     <i class="bi bi-printer"></i> In phiếu vé
@@ -522,27 +503,35 @@
     }
 
     function printSingleTicket(id) {
-      window.print();
+      const ticket=document.getElementById("ticket-"+id);
+      if (!ticket) return alert("Không tìm thấy đơn trên trang.");
+      const win=window.open("","_blank");
+      if (!win) return alert("Trình duyệt đã chặn cửa sổ in. Vui lòng cho phép popup.");
+      win.document.open();
+      win.document.write('<!doctype html><html lang="vi"><head><meta charset="utf-8">'+
+        '<title>Phiếu đặt tour thử nghiệm</title><style>@page{size:A4;margin:18mm}body{font:14px Arial,sans-serif;color:#20242c}'+
+        '.paper-ticket-pass{border:1px solid #aaa;padding:22px;border-radius:8px}'+
+        '.no-print,button{display:none!important}.ticket-meta-label{color:#666;font-size:12px}'+
+        '.ticket-meta-val{font-weight:bold;margin-bottom:10px}.paper-stamp{font-weight:bold}'+
+        'h4{font-size:18px}</style></head><body><h2>DELTA TRAVEL</h2>'+
+        '<p>Phiếu xác nhận giữ chỗ thử nghiệm. Không phải hóa đơn hoặc xác nhận đã thanh toán.</p>'+
+        ticket.outerHTML+'</body></html>');
+      win.document.close();
+      win.focus();
+      win.print(); // Choose Save as PDF in the native print dialog.
     }
 
     async function cancelBookingAction(id) {
-      if (!confirm("Quý khách có chắc chắn muốn hủy đơn đặt tour này?")) return;
+      if (!confirm("Bạn chắc chắn muốn hủy đơn này?")) return;
       try {
-        if (typeof DeltaAPI !== "undefined" && DeltaAPI.cancelBooking) {
-          await DeltaAPI.cancelBooking(id, "Khách hàng yêu cầu hủy trực tuyến");
-        }
-        // Cập nhật local
-        allBookings = allBookings.map(b => {
-          if ((b.id || b.bookingId || b.reference) === id) {
-            return { ...b, status: "CANCELLED", statusCode: "CANCELLED" };
-          }
-          return b;
-        });
-        localStorage.setItem("delta_customer_bookings", JSON.stringify(allBookings));
-        renderBookings();
-        alert("Đã hủy đơn đặt tour thành công.");
-      } catch (err) {
-        alert("Lỗi hủy đơn: " + (err.message || "Vui lòng liên hệ tổng đài 1900 8899"));
+        if (!DeltaAPI?.cancelBooking) throw new Error("API hủy đơn không sẵn sàng.");
+        const result=await DeltaAPI.cancelBooking(id,"Khách hàng yêu cầu hủy");
+        if (!result?.success || result.data?.status !== "CANCELLED")
+          throw new Error(result?.error || "Máy chủ chưa xác nhận hủy đơn.");
+        await loadBookings();
+        alert("Đơn đã được máy chủ xác nhận hủy.");
+      } catch(error) {
+        alert("Chưa thể hủy đơn: "+error.message);
       }
     }
 
