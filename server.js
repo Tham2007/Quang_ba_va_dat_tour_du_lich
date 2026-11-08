@@ -1186,7 +1186,7 @@ app.get("/api/v1/tours", async (req, res) => {
   res.json(tours.filter(t => {
     const title = fold([t.title,t.description,t.region,t.departure].join(" "));
     if (q && !title.includes(q)) return false;
-    if (destination && !title.includes(destination)) return false;
+    if (destination && !fold(t.title).includes(destination)) return false;
     if (departure && !fold(t.departure).includes(departure)) return false;
     if (duration && !fold(t.duration).includes(duration)) return false;
     if (transport && !fold(t.transport).includes(transport)) return false;
