@@ -11,15 +11,12 @@
   const FRAME_PREFIX = "ezgif-frame-";
   const FRAME_EXT = ".png";
 
-  // Danh sách các đường dẫn dự phòng để tìm ảnh 3D
-  const BASE_URLS = [
-    "/3d-frames/",
-    "/3D%20Image%20data/",
-    "3D%20Image%20data/",
-    "../3D%20Image%20data/"
-  ];
-
-  let activeBaseUrl = BASE_URLS[0];
+  // Full animation is enabled only when the deployment explicitly serves
+  // all 150 frames. All other environments use a bundled first-frame poster
+  // without probing non-existent paths or issuing 150 broken HTTP requests.
+  const configuredBase = window.DELTA_HERO_FRAMES_BASE;
+  const activeBaseUrl = (typeof configuredBase === "string" &&
+    /^\/[a-z0-9/_-]+\/$/i.test(configuredBase)) ? configuredBase : null;
   const images = [];
   const loadedFlags = new Array(TOTAL_FRAMES + 1).fill(false);
   let currentFrameIndex = 1;
@@ -102,23 +99,17 @@
       }
     }
 
-    // Kiểm tra và xác định URL cơ sở nào đang hoạt động
-    const probe = new Image();
-    probe.onload = () => {
-      startPreloading();
+    // Always load a local, explicitly bundled poster. No network probing.
+    const poster = new Image();
+    poster.onload = () => {
+      images[1] = poster;
+      loadedFlags[1] = true;
+      isCanvasReady = true;
+      resizeCanvas();
+      renderFrame(1);
     };
-    probe.onerror = () => {
-      // Thử URL tiếp theo nếu URL đầu thất bại
-      for (let i = 1; i < BASE_URLS.length; i++) {
-        const nextProbe = new Image();
-        nextProbe.onload = () => {
-          activeBaseUrl = BASE_URLS[i];
-          startPreloading();
-        };
-        nextProbe.src = getFrameUrl(1, BASE_URLS[i]);
-      }
-    };
-    probe.src = getFrameUrl(1);
+    poster.src = "assets/images/hero-3d-poster.png";
+    if (activeBaseUrl) startPreloading();
 
     function startPreloading() {
       // Tải khung hình đầu tiên để vẽ ngay
