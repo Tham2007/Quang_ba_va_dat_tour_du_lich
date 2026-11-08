@@ -218,6 +218,29 @@ async function runTests() {
     });
     assert(`POST /api/v1/bookings/${bookingId}/pay`, payRes.status === 200 && payRes.json?.status === "PENDING_PAYMENT" && payRes.json?.paid === false);
 
+    // A 15-minute hold must actually expire, release inventory, and never
+    // allow an expired order to transition into paid or cancelled twice.
+    const beforeExpiry = await req("/api/v1/tours/"+firstTour.id+"/schedules");
+    const seatsBeforeExpiry = beforeExpiry.json.find(x=>x.id===scheduleId).availableSeats;
+    db.prepare("UPDATE bookings SET expires_at=? WHERE id=?")
+      .run(new Date(Date.now()-60000).toISOString(),bookingId);
+    const afterExpiry = await req("/api/v1/tours/"+firstTour.id+"/schedules");
+    const seatsAfterExpiry = afterExpiry.json.find(x=>x.id===scheduleId).availableSeats;
+    const expiredBooking = await req("/api/v1/bookings/"+bookingId,{headers:authHeaders});
+    assert("Expired hold releases exactly three seats once",
+      seatsAfterExpiry-seatsBeforeExpiry===3 && expiredBooking.json?.status==="EXPIRED");
+    const secondRefresh=await req("/api/v1/tours/"+firstTour.id+"/schedules");
+    assert("Expiry cleanup is idempotent",
+      secondRefresh.json.find(x=>x.id===scheduleId).availableSeats===seatsAfterExpiry);
+    const cancelledExpired=await req("/api/v1/bookings/"+bookingId+"/cancel",{
+      method:"POST",headers:authHeaders,body:{reason:"Too late"}
+    });
+    assert("Expired booking cannot be cancelled twice",cancelledExpired.status===409);
+    const paidExpired=await req("/api/v1/bookings/"+bookingId+"/pay",{
+      method:"POST",headers:authHeaders,body:{reference:"REF-EXPIRED-123"}
+    });
+    assert("Expired booking cannot accept payment reference",paidExpired.status===409);
+
     // 12. Create & cancel 2nd booking
     const idemKey2 = crypto.randomUUID();
     const book2Res = await req("/api/v1/bookings", {
