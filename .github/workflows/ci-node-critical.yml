@@ -1,0 +1,31 @@
+name: Node critical regression
+on:
+  push:
+    branches: [main, 'fix/**']
+    paths: ['server.js', 'tour_assistant.js', 'test_node_server.js', 'Frontend/**', '.github/workflows/ci-node-critical.yml']
+  pull_request:
+    paths: ['server.js', 'tour_assistant.js', 'test_node_server.js', 'Frontend/**', '.github/workflows/ci-node-critical.yml']
+jobs:
+  node:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install packages
+        run: npm ci
+      - name: Syntax check
+        run: |
+          node --check server.js
+          node --check tour_assistant.js
+          node --check Frontend/assets/js/controllers/admin.js
+          node --check Frontend/assets/js/controllers/main.js
+          node --check Frontend/assets/js/controllers/chatbot.js
+          node --check Frontend/assets/js/services/api.js
+      - name: HTTP E2E
+        run: npm test
+      - name: Static assets
+        run: python API/scripts/check_static_assets.py Frontend
