@@ -3,43 +3,43 @@
    ========================================================================== */
 
 :root {
-  /* Bảng màu nhận diện thương hiệu biển đảo & du lịch cao cấp */
-  --primary-color: #0a4d68;        /* Xanh dương đại dương sâu */
-  --primary-hover: #083b50;
-  --secondary-color: #088395;      /* Xanh ngọc lam nhiệt đới */
-  --secondary-light: #05bfdb;
-  --accent-color: #ff6b35;         /* Cam hoàng hôn rực rỡ */
-  --accent-hover: #e85923;
+  /* Bảng màu tối giản sang trọng chuẩn Google (Pure White, Deep Black) */
+  --primary-color: #000000;        /* Đen tuyền sắc nét */
+  --primary-hover: #1e293b;
+  --secondary-color: #0f172a;      /* Obsidian Black */
+  --secondary-light: #334155;
+  --accent-color: #000000;         /* Điểm nhấn đen tối giản */
+  --accent-hover: #1e293b;
   --gold-color: #f59e0b;           /* Vàng ánh kim đánh giá sao */
   --danger-color: #ef4444;
   --success-color: #10b981;
   --warning-color: #f59e0b;
   --info-color: #3b82f6;
 
-  /* Màu nền & chữ */
-  --bg-main: #f8fafc;
+  /* Màu nền & chữ thuần trắng đen Google */
+  --bg-main: #ffffff;
   --bg-card: #ffffff;
-  --bg-light: #f1f5f9;
-  --bg-dark: #0f172a;
-  --text-main: #1e293b;
-  --text-muted: #64748b;
-  --text-light: #94a3b8;
+  --bg-light: #f8fafc;
+  --bg-dark: #ffffff;
+  --text-main: #000000;
+  --text-muted: #475569;
+  --text-light: #64748b;
   --border-color: #e2e8f0;
 
-  /* Bóng đổ cao cấp (Elevation Shadow) */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  --shadow-colored: 0 10px 25px -5px rgba(10, 77, 104, 0.25);
+  /* Bóng đổ cao cấp Google Soft Elevation */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+  --shadow-lg: 0 12px 28px -4px rgba(0, 0, 0, 0.06), 0 4px 8px -2px rgba(0, 0, 0, 0.02);
+  --shadow-xl: 0 20px 40px -8px rgba(0, 0, 0, 0.08), 0 8px 16px -4px rgba(0, 0, 0, 0.03);
+  --shadow-colored: 0 8px 24px -4px rgba(0, 0, 0, 0.12);
 
-  /* Bo góc & Chuyển động */
+  /* Bo góc & Chuyển động mượt mà chuẩn Google */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 18px;
   --radius-xl: 24px;
   --radius-full: 9999px;
-  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Typography */
   --font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;

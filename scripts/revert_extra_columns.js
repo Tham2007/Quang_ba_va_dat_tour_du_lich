@@ -61,3 +61,4 @@ async function dropExtraColumns() {
 }
 
 dropExtraColumns().catch(console.error);
+

@@ -1,0 +1,741 @@
+/* ==========================================================================
+   DELTA TRAVEL - GOOGLE MINIMAL DESIGN SYSTEM (google-minimal.css)
+   Inspired by Google Team USA Showcase (https://sports.withgoogle.com/teamusa/)
+   Pure White Background, Crisp Deep Black Typography, Silky Smooth Motion
+   ========================================================================== */
+
+:root {
+  /* Google Pure Monochrome Palette */
+  --g-white: #ffffff;
+  --g-offwhite: #fafafa;
+  --g-surface: #f8fafc;
+  --g-border: #e2e8f0;
+  --g-border-light: #f1f5f9;
+  --g-border-strong: #000000;
+  
+  --g-black: #000000;
+  --g-text-dark: #0f172a;
+  --g-text-body: #1e293b;
+  --g-text-secondary: #475569;
+  --g-text-muted: #64748b;
+  --g-text-subtle: #94a3b8;
+
+  /* Google Brand Motion Easing */
+  --ease-google: cubic-bezier(0.2, 0, 0, 1);
+  --ease-bounce: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Google Soft Ambient Elevations */
+  --g-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --g-shadow-sm: 0 2px 8px -1px rgba(0, 0, 0, 0.05);
+  --g-shadow-md: 0 10px 25px -4px rgba(0, 0, 0, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+  --g-shadow-lg: 0 20px 40px -8px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+  --g-shadow-hover: 0 24px 50px -10px rgba(0, 0, 0, 0.12), 0 6px 16px -2px rgba(0, 0, 0, 0.04);
+}
+
+/* ==========================================================================
+   GLOBAL PURE WHITE BACKGROUND & DEEP BLACK TEXT
+   ========================================================================== */
+html, body {
+  background-color: var(--g-white) !important;
+  color: var(--g-text-dark) !important;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: #000000;
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   1. TOPBAR & NAVBAR - PURE WHITE CRYSTAL GLASS
+   ========================================================================== */
+.topbar,
+header.sticky-top.hero-transparent .topbar {
+  background: var(--g-white) !important;
+  border-bottom: 1px solid var(--g-border) !important;
+  color: var(--g-text-secondary) !important;
+  transition: all 0.35s var(--ease-google) !important;
+}
+
+.topbar a,
+header.sticky-top.hero-transparent .topbar a {
+  color: var(--g-text-body) !important;
+  font-weight: 600;
+  transition: color 0.2s var(--ease-google), transform 0.2s var(--ease-google);
+}
+
+.topbar a:hover,
+header.sticky-top.hero-transparent .topbar a:hover {
+  color: var(--g-black) !important;
+  transform: translateY(-1px);
+}
+
+.topbar-divider,
+header.sticky-top.hero-transparent .topbar-divider {
+  background-color: var(--g-border) !important;
+}
+
+.navbar-delta,
+header.sticky-top.hero-transparent .navbar-delta {
+  background: rgba(255, 255, 255, 0.94) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border-bottom: 1px solid var(--g-border) !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03) !important;
+  transition: all 0.4s var(--ease-bounce) !important;
+}
+
+/* Brand Logo Typography */
+.brand-title,
+header.sticky-top.hero-transparent .brand-title {
+  color: var(--g-black) !important;
+  text-shadow: none !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.05em !important;
+}
+
+.brand-subtitle,
+header.sticky-top.hero-transparent .brand-subtitle {
+  color: var(--g-text-muted) !important;
+  text-shadow: none !important;
+  font-weight: 700 !important;
+}
+
+.brand-icon-crystal,
+header.sticky-top.hero-transparent .brand-icon-crystal {
+  background: var(--g-white) !important;
+  border: 1px solid var(--g-border) !important;
+  box-shadow: var(--g-shadow-xs) !important;
+}
+
+/* Navigation Capsule Dock */
+.liquid-nav-dock,
+header.sticky-top.hero-transparent .liquid-nav-dock {
+  background: var(--g-white) !important;
+  border: 1px solid var(--g-border) !important;
+  box-shadow: var(--g-shadow-sm) !important;
+  border-radius: 9999px !important;
+}
+
+.liquid-nav-link,
+header.sticky-top.hero-transparent .liquid-nav-link {
+  color: var(--g-text-secondary) !important;
+  font-weight: 600 !important;
+  border-radius: 9999px !important;
+  transition: all 0.25s var(--ease-bounce) !important;
+}
+
+.liquid-nav-link:hover,
+header.sticky-top.hero-transparent .liquid-nav-link:hover {
+  color: var(--g-black) !important;
+  background: var(--g-border-light) !important;
+  transform: translateY(-1px);
+}
+
+.liquid-nav-link.active,
+header.sticky-top.hero-transparent .liquid-nav-link.active {
+  background: var(--g-black) !important;
+  color: var(--g-white) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18) !important;
+  transform: scale(1.02);
+}
+
+/* Language Switch Capsule (VI / EN) */
+.lang-switch-capsule {
+  background: var(--g-white) !important;
+  border: 1px solid var(--g-border) !important;
+  box-shadow: var(--g-shadow-xs) !important;
+}
+
+.lang-switch-btn {
+  color: var(--g-text-secondary) !important;
+  font-weight: 700 !important;
+  transition: all 0.2s var(--ease-google) !important;
+}
+
+.lang-switch-btn.active {
+  background: var(--g-black) !important;
+  color: var(--g-white) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* User Account & Wishlist Pills */
+.liquid-user-glass,
+header.sticky-top.hero-transparent .liquid-user-glass,
+.liquid-btn-icon,
+header.sticky-top.hero-transparent .liquid-btn-icon {
+  background: var(--g-white) !important;
+  border: 1px solid var(--g-border) !important;
+  color: var(--g-text-dark) !important;
+  box-shadow: var(--g-shadow-xs) !important;
+  transition: all 0.25s var(--ease-bounce) !important;
+}
+
+.liquid-user-glass span,
+header.sticky-top.hero-transparent .liquid-user-glass span {
+  color: var(--g-text-dark) !important;
+}
+
+.liquid-user-glass:hover,
+.liquid-btn-icon:hover {
+  background: var(--g-white) !important;
+  border-color: var(--g-black) !important;
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: var(--g-shadow-sm) !important;
+}
+
+/* Primary CTA Button: Khám phá Tour */
+.btn-explore-liquid,
+header.sticky-top.hero-transparent .btn-explore-liquid {
+  background: var(--g-black) !important;
+  color: var(--g-white) !important;
+  border: 1.5px solid var(--g-black) !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.3s var(--ease-bounce) !important;
+}
+
+.btn-explore-liquid:hover,
+header.sticky-top.hero-transparent .btn-explore-liquid:hover {
+  background: #18181b !important;
+  color: var(--g-white) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24) !important;
+}
+
+.btn-explore-liquid:active {
+  transform: scale(0.96) !important;
+}
+
+/* ==========================================================================
+   2. HERO 3D SHOWCASE - LUMINOUS WHITE GOOGLE SHOWCASE
+   ========================================================================== */
+.hero-3d-showcase {
+  background-color: var(--g-white) !important;
+  position: relative;
+}
+
+.hero-vignette-overlay {
+  background: 
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.05) 30%, rgba(255, 255, 255, 0.85) 75%, #ffffff 100%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.45) 0%, transparent 20%, transparent 60%, #ffffff 100%) !important;
+}
+
+.hero-3d-badge {
+  background: var(--g-white) !important;
+  border: 1px solid var(--g-border) !important;
+  color: var(--g-black) !important;
+  box-shadow: var(--g-shadow-sm) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
+}
+
+.hero-3d-title {
+  color: var(--g-black) !important;
+  text-shadow: none !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.hero-3d-title span {
+  background: linear-gradient(135deg, #000000 0%, #1e293b 60%, #0f172a 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  filter: none !important;
+}
+
+.hero-3d-desc {
+  color: var(--g-text-secondary) !important;
+  text-shadow: none !important;
+  font-weight: 500 !important;
+  line-height: 1.7 !important;
+}
+
+/* Hero Action Buttons */
+.btn-hero-3d-primary {
+  background: var(--g-black) !important;
+  color: var(--g-white) !important;
+  border: 1.5px solid var(--g-black) !important;
+  border-radius: 9999px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.3s var(--ease-bounce) !important;
+}
+
+.btn-hero-3d-primary:hover {
+  background: #18181b !important;
+  color: var(--g-white) !important;
+  transform: translateY(-3px) scale(1.02) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25) !important;
+}
+
+.btn-hero-3d-primary:active {
+  transform: scale(0.96) !important;
+}
+
+.btn-hero-3d-outline {
+  background: var(--g-white) !important;
+  color: var(--g-black) !important;
+  border: 1.5px solid var(--g-black) !important;
+  border-radius: 9999px !important;
+  font-weight: 700 !important;
+  box-shadow: var(--g-shadow-xs) !important;
+  transition: all 0.3s var(--ease-bounce) !important;
+}
+
+.btn-hero-3d-outline:hover {
+  background: var(--g-black) !important;
+  color: var(--g-white) !important;
+  transform: translateY(-3px) scale(1.02) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18) !important;
+}
+
+.btn-hero-3d-outline:active {
+  transform: scale(0.96) !important;
+}
+
+.hero-scroll-indicator {
+  color: var(--g-text-dark) !important;
+}
+
+.hero-scroll-mouse {
+  border-color: var(--g-text-dark) !important;
+}
+
+.hero-scroll-mouse::after {
+  background: var(--g-text-dark) !important;
+}
+
+/* ==========================================================================
+   3. HERO SEARCH BOX - PURE WHITE CARD
+   ========================================================================== */
+.search-box-card {
+  background: var(--g-white) !important;
+  border: 1px solid var(--g-border) !important;
+  border-radius: 24px !important;
+  box-shadow: var(--g-shadow-md) !important;
+  transition: all 0.4s var(--ease-bounce) !important;
+}
+
+.search-box-card:hover {
+  box-shadow: var(--g-shadow-lg) !important;
+}
+
+.search-field-label {
+  color: var(--g-text-dark) !important;
+  font-weight: 700 !important;
+}
+
+.search-field-input,
+.search-field-select {
+  background: var(--g-white) !important;
+  border: 1.5px solid var(--g-border) !important;
+  color: var(--g-text-dark) !important;
+  border-radius: 14px !important;
+  transition: all 0.25s var(--ease-google) !important;
+}
+
+.search-field-input:focus,
+.search-field-select:focus {
+  border-color: var(--g-black) !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+.btn-search-hero {
+  background: var(--g-black) !important;
+  color: var(--g-white) !important;
+  border: none !important;
+  border-radius: 14px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.3s var(--ease-bounce) !important;
+}
+
+.btn-search-hero:hover {
+  background: #18181b !important;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* ==========================================================================
+   4. TOUR CATALOG & CARDS - BUTTERY SMOOTH LIFT ANIMATIONS
+   ========================================================================== */
+.tour-card {
+  background: var(--g-white) !important;
+  border: 1px solid var(--g-border) !important;
+  border-radius: 20px !important;
+  box-shadow: var(--g-shadow-sm) !important;
+  transition: transform 0.45s var(--ease-bounce), box-shadow 0.45s var(--ease-bounce), border-color 0.3s ease !important;
+}
+
+.tour-card:hover {
+  transform: translateY(-8px) scale(1.008) !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: var(--g-shadow-hover) !important;
+}
+
+.tour-card-thumb img {
+  transition: transform 0.65s var(--ease-bounce) !important;
+}
+
+.tour-card:hover .tour-card-thumb img {
+  transform: scale(1.07) !important;
+}
+
+/* High Contrast Black & White Badges */
+.badge-tour {
+  background: var(--g-black) !important;
+  color: var(--g-white) !important;
+  font-weight: 700 !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+.badge-tour-sale {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border: 1px solid #ffffff !important;
+}
+
+.tour-badge-duration,
+.tour-seats-tag {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: var(--g-black) !important;
+  font-weight: 700 !important;
+  border: 1px solid var(--g-border) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+}
+
+.tour-title {
+  color: var(--g-black) !important;
+  font-weight: 800 !important;
+  transition: color 0.2s var(--ease-google);
+}
+
+.tour-title:hover {
+  color: #18181b !important;
+}
+
+.tour-code {
+  background: var(--g-border-light) !important;
+  color: var(--g-text-dark) !important;
+  border: 1px solid var(--g-border) !important;
+}
+
+.tour-price-current {
+  color: var(--g-black) !important;
+  font-weight: 900 !important;
+}
+
+/* Card CTA Buttons */
+.btn-tour-book {
+  background: var(--g-black) !important;
+  color: var(--g-white) !important;
+  border: 1.5px solid var(--g-black) !important;
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12) !important;
+  transition: all 0.25s var(--ease-bounce) !important;
+}
+
+.btn-tour-book:hover {
+  background: #18181b !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2) !important;
+}
+
+.btn-tour-book:active {
+  transform: scale(0.96) !important;
+}
+
+.btn-tour-detail {
+  background: var(--g-white) !important;
+  color: var(--g-black) !important;
+  border: 1.5px solid var(--g-black) !important;
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  transition: all 0.25s var(--ease-bounce) !important;
+}
+
+.btn-tour-detail:hover {
+  background: var(--g-border-light) !important;
+  color: var(--g-black) !important;
+  transform: translateY(-2px);
+}
+
+.btn-tour-detail:active {
+  transform: scale(0.96) !important;
+}
+
+/* ==========================================================================
+   5. FILTER SIDEBAR & PILLS
+   ========================================================================== */
+.tour-filter-sidebar {
+  background: var(--g-white) !important;
+  border: 1px solid var(--g-border) !important;
+  border-radius: 20px !important;
+  box-shadow: var(--g-shadow-sm) !important;
+}
+
+.filter-pill {
+  background: var(--g-white) !important;
+  border: 1px solid var(--g-border) !important;
+  color: var(--g-text-body) !important;
+  border-radius: 9999px !important;
+  font-weight: 600 !important;
+  transition: all 0.25s var(--ease-bounce) !important;
+}
+
+.filter-pill:hover {
+  background: var(--g-border-light) !important;
+  border-color: var(--g-black) !important;
+  color: var(--g-black) !important;
+  transform: translateY(-1px);
+}
+
+.filter-pill.active {
+  background: var(--g-black) !important;
+  color: var(--g-white) !important;
+  border-color: var(--g-black) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16) !important;
+}
+
+.quick-tag-chip {
+  background: var(--g-white) !important;
+  border: 1px solid var(--g-border) !important;
+  color: var(--g-text-body) !important;
+  border-radius: 9999px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s var(--ease-google) !important;
+}
+
+.quick-tag-chip:hover {
+  background: var(--g-black) !important;
+  color: var(--g-white) !important;
+  border-color: var(--g-black) !important;
+}
+
+/* ==========================================================================
+   6. CONTENT SECTIONS - FEATURE CARDS & BLOG & REVIEWS
+   ========================================================================== */
+section,
+.section-padding,
+.tours-catalog-section,
+.destinations-section,
+.features-section,
+.testimonials-section,
+.articles-section,
+.faq-section {
+  background-color: var(--g-white) !important;
+}
+
+.section-tag-pill {
+  background: var(--g-white) !important;
+  border: 1px solid var(--g-border) !important;
+  color: var(--g-black) !important;
+  box-shadow: var(--g-shadow-xs) !important;
+  font-weight: 700 !important;
+}
+
+.section-title {
+  color: var(--g-black) !important;
+  font-weight: 900 !important;
+}
+
+.section-desc {
+  color: var(--g-text-secondary) !important;
+}
+
+.feature-card,
+.dest-card,
+.testimonial-card,
+.article-card,
+.faq-item {
+  background: var(--g-white) !important;
+  border: 1px solid var(--g-border) !important;
+  border-radius: 20px !important;
+  box-shadow: var(--g-shadow-xs) !important;
+  transition: transform 0.4s var(--ease-bounce), box-shadow 0.4s var(--ease-bounce), border-color 0.3s ease !important;
+}
+
+.feature-card:hover,
+.testimonial-card:hover,
+.article-card:hover {
+  transform: translateY(-6px) scale(1.01) !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: var(--g-shadow-hover) !important;
+}
+
+.feature-icon-wrap {
+  background: var(--g-border-light) !important;
+  color: var(--g-black) !important;
+  border: 1px solid var(--g-border) !important;
+  transition: all 0.35s var(--ease-bounce) !important;
+}
+
+.feature-card:hover .feature-icon-wrap {
+  background: var(--g-black) !important;
+  color: var(--g-white) !important;
+  transform: scale(1.08) !important;
+}
+
+.feature-title,
+.article-title {
+  color: var(--g-black) !important;
+  font-weight: 800 !important;
+}
+
+/* ==========================================================================
+   7. FOOTER - PURE WHITE PAPER AESTHETIC
+   ========================================================================== */
+.footer-delta {
+  background: var(--g-white) !important;
+  color: var(--g-text-body) !important;
+  border-top: 1px solid var(--g-border) !important;
+  padding-top: 4.5rem !important;
+}
+
+.footer-delta .brand-title {
+  color: var(--g-black) !important;
+  text-shadow: none !important;
+}
+
+.footer-delta .brand-subtitle {
+  color: var(--g-text-muted) !important;
+}
+
+.footer-delta p,
+.footer-delta .footer-brand-desc,
+.footer-delta .text-muted {
+  color: var(--g-text-secondary) !important;
+}
+
+.footer-delta h5 {
+  color: var(--g-black) !important;
+  font-weight: 800 !important;
+}
+
+.footer-delta h5::after {
+  background: var(--g-black) !important;
+}
+
+.footer-links a {
+  color: var(--g-text-secondary) !important;
+  transition: all 0.2s var(--ease-google) !important;
+}
+
+.footer-links a:hover {
+  color: var(--g-black) !important;
+  transform: translateX(4px) !important;
+}
+
+.footer-contact-list li,
+.footer-contact-list li span {
+  color: var(--g-text-secondary) !important;
+}
+
+.footer-bottom {
+  border-top: 1px solid var(--g-border-light) !important;
+  color: var(--g-text-muted) !important;
+  background: var(--g-white) !important;
+}
+
+/* ==========================================================================
+   8. AI CONCIERGE & CHATBOT - PURE WHITE WITH DEEP BLACK BUBBLES
+   ========================================================================== */
+.chatbot-panel,
+.ai-modal-content,
+.ai-sidebar-drawer {
+  background: var(--g-white) !important;
+  border: 1px solid var(--g-border) !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.2) !important;
+  color: var(--g-text-dark) !important;
+}
+
+.chatbot-header,
+.ai-modal-header {
+  background: var(--g-white) !important;
+  border-bottom: 1px solid var(--g-border) !important;
+  color: var(--g-black) !important;
+}
+
+.chatbot-title,
+.ai-modal-title {
+  color: var(--g-black) !important;
+  font-weight: 800 !important;
+}
+
+.chat-msg.user .chat-msg-bubble {
+  background: var(--g-black) !important;
+  color: var(--g-white) !important;
+  border: 1px solid var(--g-black) !important;
+  border-radius: 18px 18px 4px 18px !important;
+  box-shadow: var(--g-shadow-xs) !important;
+}
+
+.chat-msg.bot .chat-msg-bubble {
+  background: var(--g-surface) !important;
+  color: var(--g-text-dark) !important;
+  border: 1px solid var(--g-border) !important;
+  border-radius: 18px 18px 18px 4px !important;
+  box-shadow: var(--g-shadow-xs) !important;
+}
+
+.chatbot-footer,
+.ai-sidebar-footer {
+  background: var(--g-white) !important;
+  border-top: 1px solid var(--g-border) !important;
+}
+
+.chatbot-btn {
+  background: var(--g-black) !important;
+  color: var(--g-white) !important;
+  border: 2px solid var(--g-white) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
+  transition: all 0.3s var(--ease-bounce) !important;
+}
+
+.chatbot-btn:hover {
+  transform: scale(1.08) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35) !important;
+}
+
+.chatbot-pulse-ring {
+  border-color: var(--g-black) !important;
+}
+
+.chatbot-invite-pill {
+  background: var(--g-white) !important;
+  color: var(--g-black) !important;
+  border: 1px solid var(--g-border) !important;
+  box-shadow: var(--g-shadow-sm) !important;
+  font-weight: 700 !important;
+}
+
+/* ==========================================================================
+   9. GOOGLE FLUID SCROLL-TRIGGERED REVEAL ANIMATIONS
+   ========================================================================== */
+.google-fade-up {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s var(--ease-google), transform 0.7s var(--ease-google);
+  will-change: opacity, transform;
+}
+
+.google-fade-up.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger delay classes */
+.delay-1 { transition-delay: 0.08s; }
+.delay-2 { transition-delay: 0.16s; }
+.delay-3 { transition-delay: 0.24s; }
+.delay-4 { transition-delay: 0.32s; }
+.delay-5 { transition-delay: 0.40s; }

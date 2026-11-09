@@ -15,55 +15,53 @@ header.sticky-top {
 }
 
 /* ════════════════════════════════════════════════════════════
-   HERO 3D TRANSPARENT NAVBAR MODE
-   Khi người dùng đang xem Hero 3D Showcase:
-   - Toàn bộ Navbar & Topbar hoàn toàn trong suốt không che mất ảnh 3D
-   - Chữ logo chuyển thành màu trắng sắc nét, bóng đổ sang trọng
-   - Thanh Tab Capsule và Nút chuyển sang phong cách kính pha lê đêm (Dark Crystal Glass)
-   - Khi cuộn qua hết Hero 3D sẽ chuyển động mượt mà về Liquid Glass trắng
+   HERO 3D NAVBAR MODE (GOOGLE PURE WHITE LUXURY GLASS)
+   - Giữ nền kính trắng tinh khiết, chữ đen sắc nét cao cấp
+   - Logo DELTA TRAVEL đen tuyền, thanh Tab Capsule trắng viền mỏng
+   - Chuyển động mượt mà Google Standard Easing
    ════════════════════════════════════════════════════════════ */
 header.sticky-top.hero-transparent .topbar {
-  background: transparent !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
-  color: rgba(255, 255, 255, 0.8) !important;
+  background: #ffffff !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  color: #4b5563 !important;
 }
 
 header.sticky-top.hero-transparent .topbar a {
-  color: rgba(255, 255, 255, 0.88) !important;
+  color: #1f2937 !important;
 }
 
 header.sticky-top.hero-transparent .topbar a:hover {
-  color: #f59e0b !important;
+  color: #000000 !important;
 }
 
 header.sticky-top.hero-transparent .topbar-divider {
-  background-color: rgba(255, 255, 255, 0.22) !important;
+  background-color: #e5e7eb !important;
 }
 
 header.sticky-top.hero-transparent .navbar-delta {
-  background: transparent !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border-bottom: 1px solid transparent !important;
-  box-shadow: none !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03) !important;
 }
 
 header.sticky-top.hero-transparent .brand-title {
-  color: #ffffff !important;
-  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.85);
+  color: #000000 !important;
+  text-shadow: none !important;
 }
 
 header.sticky-top.hero-transparent .brand-subtitle {
-  color: rgba(255, 255, 255, 0.8) !important;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+  color: #64748b !important;
+  text-shadow: none !important;
 }
 
 header.sticky-top.hero-transparent .brand-icon-crystal {
   background: #ffffff !important;
   border-radius: 11px !important;
   overflow: hidden !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.5) !important;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
   padding: 0 !important;
 }
 
@@ -72,67 +70,62 @@ header.sticky-top.hero-transparent .brand-logo-img {
 }
 
 header.sticky-top.hero-transparent .liquid-nav-dock {
-  background: rgba(15, 23, 42, 0.45) !important;
-  backdrop-filter: blur(20px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.22) !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.25) !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
 }
 
 header.sticky-top.hero-transparent .liquid-nav-link {
-  color: rgba(255, 255, 255, 0.88) !important;
+  color: #374151 !important;
 }
 
 header.sticky-top.hero-transparent .liquid-nav-link:hover {
-  color: #ffffff !important;
-  background: rgba(255, 255, 255, 0.16) !important;
+  color: #000000 !important;
+  background: #f1f5f9 !important;
 }
 
 header.sticky-top.hero-transparent .liquid-nav-link.active {
   color: #ffffff !important;
-  background: rgba(255, 255, 255, 0.26) !important;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35) !important;
+  background: #000000 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18) !important;
 }
 
 header.sticky-top.hero-transparent .liquid-user-glass {
-  background: rgba(15, 23, 42, 0.45) !important;
-  backdrop-filter: blur(20px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.22) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
-  color: #ffffff !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  color: #000000 !important;
 }
 
 header.sticky-top.hero-transparent .liquid-user-glass span {
-  color: #ffffff !important;
+  color: #000000 !important;
 }
 
 header.sticky-top.hero-transparent .liquid-btn-icon {
-  background: rgba(15, 23, 42, 0.45) !important;
-  backdrop-filter: blur(20px) !important;
-  -webkit-backdrop-filter: blur(20px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.22) !important;
-  color: #ffffff !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #000000 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
 }
 
 header.sticky-top.hero-transparent .btn-explore-liquid {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.95) 0%, rgba(217, 119, 6, 0.95) 100%) !important;
+  background: #000000 !important;
   color: #ffffff !important;
-  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.45) !important;
+  border: 1.5px solid #000000 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
 }
 
-/* Topbar trên cùng */
+/* Topbar trên cùng - Pure White Chữ Đen */
 .topbar {
-  background: #09090b;
-  color: #a1a1aa;
+  background: #ffffff;
+  color: #4b5563;
   font-size: 0.82rem;
   padding: 0.4rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .topbar a {
-  color: #e4e4e7;
+  color: #1f2937;
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -141,14 +134,14 @@ header.sticky-top.hero-transparent .btn-explore-liquid {
 }
 
 .topbar a:hover {
-  color: #f59e0b;
+  color: #000000;
 }
 
 .topbar-divider {
   display: inline-block;
   width: 1px;
   height: 12px;
-  background-color: rgba(255, 255, 255, 0.18);
+  background-color: #e5e7eb;
   margin: 0 0.75rem;
   vertical-align: middle;
 }
@@ -344,18 +337,16 @@ header.sticky-top.hero-transparent .btn-explore-liquid {
 .liquid-nav-link:hover {
   color: #000000 !important;
   font-weight: 700;
-  background: rgba(255, 255, 255, 0.7);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  background: #f1f5f9;
+  transform: translateY(-1px);
 }
 
 .liquid-nav-link.active {
-  color: #000000 !important;
-  font-weight: 800;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow:
-    0 2px 10px -1px rgba(0, 0, 0, 0.08),
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    inset 0 1px 1.5px #ffffff;
+  color: #ffffff !important;
+  font-weight: 700;
+  background: #000000 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18) !important;
+  border-radius: 9999px !important;
 }
 
 /* Đốm ngọc hổ phách biểu thị tab đang kích hoạt (Amber bead indicator) */

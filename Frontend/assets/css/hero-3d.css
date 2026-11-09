@@ -2,17 +2,17 @@
    DELTA TRAVEL - 3D SCROLL EXPERIENCE & PARALLAX BACKGROUND TYPOGRAPHY
    ========================================================================== */
 
-/* Khung bọc toàn bộ đường trượt cuộn 3D */
+/* Khung bọc toàn bộ đường trượt cuộn 3D - GOOGLE PURE WHITE */
 .hero-3d-showcase {
   position: relative;
   width: 100%;
   height: 300vh;
-  background-color: #030712;
+  background-color: #ffffff;
   margin: 0;
   padding: 0;
 }
 
-/* Phần cố định toàn màn hình khi người dùng cuộn - ĐẢM BẢO GIỮ CỐ ĐỊNH 100% TỪ PIXEL ĐẦU TIÊN */
+/* Phần cố định toàn màn hình khi người dùng cuộn */
 .hero-3d-sticky {
   position: sticky;
   top: 0;
@@ -24,6 +24,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  background-color: #ffffff;
 }
 
 /* 1. LỚP CANVAS HIỂN THỊ CHUỖI ẢNH 3D (Z-INDEX: 2) */
@@ -39,15 +40,15 @@
   will-change: transform;
 }
 
-/* Lớp bóng đổ điện ảnh tạo chiều sâu ánh sáng */
+/* Lớp ánh sáng trắng mờ Google Showcase tạo chiều sâu */
 .hero-vignette-overlay {
   position: absolute;
   inset: 0;
   z-index: 3;
   pointer-events: none;
   background: 
-    radial-gradient(circle at 50% 50%, transparent 45%, rgba(3, 7, 18, 0.65) 100%),
-    linear-gradient(to bottom, rgba(3, 7, 18, 0.5) 0%, transparent 20%, transparent 65%, rgba(3, 7, 18, 0.95) 100%);
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.05) 30%, rgba(255, 255, 255, 0.85) 75%, #ffffff 100%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.45) 0%, transparent 20%, transparent 60%, #ffffff 100%);
 }
 
 /* 2. CHỮ NGHỆ THUẬT MỜ KHỔNG LỒ ĐÃ ĐƯỢC XÓA THEO YÊU CẦU */
@@ -87,50 +88,48 @@
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
-  background: rgba(15, 23, 42, 0.68);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   padding: 0.5rem 1.35rem;
   border-radius: 50px;
-  color: #ffffff;
+  color: #000000;
   font-family: var(--font-family, 'Plus Jakarta Sans', sans-serif);
   font-size: 0.86rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   margin-bottom: 1.35rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
 }
 
 .hero-3d-title {
-  color: #ffffff;
+  color: #000000;
   font-family: var(--font-heading, 'Montserrat', sans-serif);
   font-size: clamp(2.4rem, 4.8vw, 4.2rem);
-  font-weight: 800;
-  line-height: 1.18;
-  letter-spacing: -0.015em;
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
   margin-bottom: 1.35rem;
-  text-shadow: 0 4px 25px rgba(0, 0, 0, 0.85), 0 2px 4px rgba(0, 0, 0, 0.9);
+  text-shadow: none;
 }
 
 .hero-3d-title span {
   display: inline-block;
   text-shadow: none;
-  background: linear-gradient(135deg, #fffbeb 0%, #fde047 30%, #f59e0b 70%, #d97706 100%);
+  background: linear-gradient(135deg, #000000 0%, #1e293b 60%, #0f172a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 4px 14px rgba(245, 158, 11, 0.45));
+  filter: none;
 }
 
 .hero-3d-desc {
-  color: #f8fafc;
+  color: #334155;
   font-family: var(--font-family, 'Plus Jakarta Sans', sans-serif);
   font-size: clamp(1.05rem, 1.3vw, 1.25rem);
   font-weight: 500;
   line-height: 1.7;
   margin-bottom: 2.2rem;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85);
+  text-shadow: none;
   max-width: 640px;
 }
 
@@ -146,52 +145,60 @@
   display: inline-flex;
   align-items: center;
   gap: 0.65rem;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: #000000;
   color: #ffffff;
   padding: 0.95rem 2.25rem;
   border-radius: 50px;
   font-family: var(--font-family, 'Plus Jakarta Sans', sans-serif);
   font-weight: 700;
   font-size: 1rem;
-  border: none;
-  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.45);
+  border: 1.5px solid #000000;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   text-decoration: none;
 }
 
 .btn-hero-3d-primary:hover {
   transform: translateY(-2px);
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  box-shadow: 0 12px 30px rgba(245, 158, 11, 0.6);
+  background: #18181b;
   color: #ffffff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);
+}
+
+.btn-hero-3d-primary:active {
+  transform: scale(0.96);
 }
 
 .btn-hero-3d-outline {
   display: inline-flex;
   align-items: center;
   gap: 0.65rem;
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  color: #ffffff;
+  background: #ffffff;
+  color: #000000;
   padding: 0.95rem 2rem;
   border-radius: 50px;
   font-family: var(--font-family, 'Plus Jakarta Sans', sans-serif);
   font-weight: 700;
   font-size: 1rem;
-  border: 1.5px solid rgba(255, 255, 255, 0.38);
+  border: 1.5px solid #000000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
   text-decoration: none;
 }
 
 .btn-hero-3d-outline:hover {
-  background: rgba(255, 255, 255, 0.22);
-  border-color: #ffffff;
+  background: #000000;
+  border-color: #000000;
   color: #ffffff;
   transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
 }
 
-/* Chỉ dẫn cuộn chuột động ở góc dưới - Tự động mờ dần khi cuộn về cuối */
+.btn-hero-3d-outline:active {
+  transform: scale(0.96);
+}
+
+/* Chỉ dẫn cuộn chuột động ở góc dưới */
 .hero-scroll-indicator {
   position: absolute;
   bottom: 25px;
@@ -202,9 +209,9 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  color: rgba(255, 255, 255, 0.75);
+  color: #0f172a;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   pointer-events: none;
@@ -215,7 +222,7 @@
 .hero-scroll-mouse {
   width: 22px;
   height: 36px;
-  border: 2px solid rgba(255, 255, 255, 0.75);
+  border: 2px solid #0f172a;
   border-radius: 15px;
   position: relative;
 }
@@ -228,7 +235,7 @@
   transform: translateX(-50%);
   width: 4px;
   height: 8px;
-  background: #ffffff;
+  background: #0f172a;
   border-radius: 2px;
   animation: scrollWheel 1.8s infinite;
 }
