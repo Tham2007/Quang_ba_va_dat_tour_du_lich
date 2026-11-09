@@ -2,20 +2,23 @@
    DELTA TRAVEL - TOUR ITINERARY MODAL (itinerary.css)
    ========================================================================== */
 
-/* Modal chi tiết lịch trình - Liquid Glass & Auto Scroll */
+/* Modal chi tiết lịch trình - Pure White & Black Paper Theme */
 .modal-itinerary .modal-dialog {
   max-width: 920px;
   width: 95%;
-  max-height: calc(100vh - 2.5rem);
-  margin: 1.25rem auto;
+  max-height: calc(100vh - 7rem) !important;
+  margin-top: 5.5rem !important;
+  margin-bottom: 2.5rem !important;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .modal-itinerary .modal-content {
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  background: #ffffff;
+  border-radius: 20px;
+  border: 2px solid #0f172a !important;
+  background: #ffffff !important;
   box-shadow: 0 25px 60px -12px rgba(15, 23, 42, 0.35);
-  max-height: calc(100vh - 2.5rem);
+  max-height: calc(100vh - 7rem) !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
@@ -23,12 +26,39 @@
 
 .modal-itinerary .modal-header {
   flex-shrink: 0 !important;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  color: #ffffff;
+  background: #ffffff !important;
+  color: #0f172a !important;
   padding: 1.25rem 2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 2px solid #0f172a !important;
   position: relative;
   z-index: 10;
+}
+
+.modal-itinerary .modal-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a !important;
+  margin: 0;
+}
+
+.modal-itinerary .btn-close-modal {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.modal-itinerary .btn-close-modal:hover {
+  background: #0f172a;
+  color: #ffffff;
+  transform: rotate(90deg);
 }
 
 .modal-itinerary .modal-body {
@@ -55,39 +85,6 @@
 }
 .modal-itinerary .modal-body::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
-}
-
-.modal-itinerary .modal-header {
-  background: var(--bg-dark);
-  color: #ffffff;
-  padding: 1.5rem 2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  position: relative;
-}
-
-.modal-itinerary .modal-title {
-  font-size: 1.45rem;
-  font-weight: 800;
-  color: #ffffff;
-}
-
-.modal-itinerary .btn-close-modal {
-  background: rgba(255, 255, 255, 0.15);
-  border: none;
-  color: #ffffff;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.modal-itinerary .btn-close-modal:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: rotate(90deg);
 }
 
 /* Banner ảnh trong modal */
@@ -231,7 +228,7 @@
 .itinerary-day-card {
   position: relative;
   background: #ffffff;
-  border: 1px solid var(--border-color);
+  border: 1.5px solid #0f172a;
   border-radius: var(--radius-lg);
   padding: 1.25rem 1.5rem;
   margin-bottom: 1.5rem;
@@ -240,7 +237,7 @@
 }
 
 .itinerary-day-card:hover {
-  border-color: var(--secondary-color);
+  border-color: #000000;
   box-shadow: var(--shadow-md);
 }
 
@@ -250,7 +247,7 @@
   left: -2.75rem;
   width: 32px;
   height: 32px;
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  background: #0f172a;
   color: #ffffff;
   border-radius: 50%;
   display: flex;
@@ -265,7 +262,7 @@
 .itinerary-day-title {
   font-size: 1.15rem;
   font-weight: 800;
-  color: var(--primary-color);
+  color: #0f172a;
   margin-bottom: 1rem;
 }
 
@@ -380,13 +377,11 @@
   color: var(--danger-color);
 }
 
-/* Sticky Modal Footer Bar */
+/* Sticky Modal Footer Bar - Pure White & Black Paper Theme */
 .modal-itinerary-footer {
   flex-shrink: 0 !important;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-top: 1px solid rgba(226, 232, 240, 0.8);
+  background: #ffffff !important;
+  border-top: 2px solid #0f172a !important;
   padding: 1rem 2rem;
   display: flex;
   align-items: center;

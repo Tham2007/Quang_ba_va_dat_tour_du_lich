@@ -273,3 +273,4 @@ Ngăn chặn click nhiều lần gây trùng lặp đơn đặt tour khi khách 
 1. Toàn bộ 8 bảng tiếng Anh dư thừa (`favorites`, `audit_log`, `bookings`, `itinerary_items`, `schedules`, `tours`, `sessions`, `users`) đã được loại bỏ hoàn toàn khỏi cơ sở dữ liệu SQL Server.
 2. Cơ sở dữ liệu hiện tại chỉ bao gồm duy nhất 15 bảng nghiệp vụ gốc, bảo toàn 100% dữ liệu, khóa chính, khóa ngoại và quan hệ ERD đã thiết kế.
 3. Mọi chức năng mở rộng phía giao diện người dùng (chuyển đổi đa ngôn ngữ Việt - Anh, biểu tượng cờ SVG, thanh điều hướng kính Liquid Glass, khung chat AI Concierge) đều tuân thủ nguyên tắc không can thiệp làm biến đổi cấu trúc bảng trong CSDL.
+

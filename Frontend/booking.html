@@ -18,7 +18,8 @@
   <link rel="stylesheet" href="assets/css/header.css">
   <link rel="stylesheet" href="assets/css/auth.css">
 
-  <!-- Đa ngôn ngữ (VI 🇻🇳 / EN 🇬🇧) -->
+  <!-- Dữ liệu tour & Đa ngôn ngữ (VI 🇻🇳 / EN 🇬🇧) -->
+  <script src="assets/js/models/data.js"></script>
   <script src="assets/js/controllers/i18n.js"></script>
 
   <style>
@@ -239,6 +240,84 @@
       color: #ffffff;
     }
 
+    /* Paper Itinerary Timeline (Pure White & Black Paper Theme) */
+    .itinerary-timeline-paper {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .paper-itinerary-day {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .paper-itinerary-day:hover {
+      border-color: #0f172a;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+    }
+
+    .paper-itinerary-day-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 1.05rem;
+      color: #0f172a;
+      border-bottom: 1px dashed #cbd5e1;
+      padding-bottom: 0.65rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .paper-itinerary-day-num {
+      background: #0f172a;
+      color: #ffffff;
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 0.25rem 0.65rem;
+      border-radius: 6px;
+      letter-spacing: 0.05em;
+    }
+
+    .paper-itinerary-period {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+
+    .paper-itinerary-period:last-child {
+      margin-bottom: 0;
+    }
+
+    .paper-itinerary-tag {
+      background: #f8fafc;
+      color: #0f172a;
+      font-weight: 700;
+      font-size: 0.75rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 6px;
+      min-width: 96px;
+      text-align: center;
+      border: 1px solid #cbd5e1;
+      flex-shrink: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .paper-itinerary-desc {
+      color: #334155;
+      margin: 0;
+      flex: 1;
+    }
+
     /* Print styling */
     @media print {
       body {
@@ -332,13 +411,13 @@
   <!-- 2. Form đặt tour toàn trang -->
   <main class="container my-4 my-md-5">
     <div id="bookingFormWrapper" class="row g-4">
-      <!-- Cột trái: Các bước điền hồ sơ đặt vé -->
+      <!-- Cột trái: Các bước điền hồ sơ đặt vé & Lịch trình -->
       <div class="col-12 col-lg-8">
         <!-- Khối 1: Thông tin chuyến đi & Ngày khởi hành -->
         <div class="paper-sheet">
           <div class="paper-step-title">
             <span class="paper-step-num">1</span>
-            <span>Thông tin hành trình & Ngày khởi hành</span>
+            <span data-i18n="booking_step_1">Thông tin hành trình & Ngày khởi hành</span>
           </div>
 
           <div class="d-flex align-items-center gap-3 mb-4 p-3 bg-light rounded-3">
@@ -354,30 +433,45 @@
 
           <div class="row g-3">
             <div class="col-12 col-md-6">
-              <label class="paper-label" for="bookingScheduleSelect">Ngày khởi hành khả dụng *</label>
+              <label class="paper-label" for="bookingScheduleSelect" data-i18n="booking_sched_label">Ngày khởi hành khả dụng *</label>
               <select id="bookingScheduleSelect" class="paper-control">
                 <option value="">Đang nạp lịch khởi hành...</option>
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="paper-label" for="pickupLocationInput">Điểm đón khách yêu cầu</label>
-              <input type="text" id="pickupLocationInput" class="paper-control" placeholder="Ví dụ: Khách sạn hoặc Sân bay...">
+              <label class="paper-label" for="pickupLocationInput" data-i18n="booking_pickup_label">Điểm đón khách yêu cầu</label>
+              <input type="text" id="pickupLocationInput" class="paper-control" placeholder="Ví dụ: Khách sạn hoặc Sân bay..." data-i18n-placeholder="booking_pickup_placeholder">
             </div>
           </div>
 
           <div class="row g-3 mt-2">
             <div class="col-4">
-              <label class="paper-label" for="numAdults">Người lớn (>11 tuổi)</label>
+              <label class="paper-label" for="numAdults" data-i18n="booking_adults_label">Người lớn (>11 tuổi)</label>
               <input type="number" id="numAdults" class="paper-control" value="1" min="1" max="50">
             </div>
             <div class="col-4">
-              <label class="paper-label" for="numChildren">Trẻ em (5-11 tuổi)</label>
+              <label class="paper-label" for="numChildren" data-i18n="booking_children_label">Trẻ em (5-11 tuổi)</label>
               <input type="number" id="numChildren" class="paper-control" value="0" min="0" max="20">
             </div>
             <div class="col-4">
-              <label class="paper-label" for="numInfants">Em bé (<5 tuổi)</label>
+              <label class="paper-label" for="numInfants" data-i18n="booking_infants_label">Em bé (<5 tuổi)</label>
               <input type="number" id="numInfants" class="paper-control" value="0" min="0" max="10">
             </div>
+          </div>
+        </div>
+
+        <!-- Khối 1.5: Lịch trình chi tiết từng ngày (Pure White Paper Theme - Nền trắng chữ đen) -->
+        <div class="paper-sheet" id="bookingItinerarySheet">
+          <div class="paper-step-title justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-calendar2-week text-dark"></i>
+              <span data-i18n="booking_itinerary_title">Lịch trình chi tiết từng ngày</span>
+            </div>
+            <span class="badge bg-dark text-white rounded-pill px-3 py-1 font-monospace" style="font-size: 0.75rem; letter-spacing: 0.05em;" data-i18n="booking_itinerary_badge">Chuẩn 5 sao</span>
+          </div>
+
+          <div id="bookingItineraryTimeline" class="itinerary-timeline-paper">
+            <div class="text-center py-3 text-muted small">Đang tải lịch trình hành trình...</div>
           </div>
         </div>
 
@@ -385,25 +479,25 @@
         <div class="paper-sheet">
           <div class="paper-step-title">
             <span class="paper-step-num">2</span>
-            <span>Thông tin người đặt vé</span>
+            <span data-i18n="booking_step_2">Thông tin người đặt vé</span>
           </div>
 
           <div class="row g-3">
             <div class="col-12 col-md-6">
-              <label class="paper-label" for="customerFullName">Họ và tên người đại diện *</label>
-              <input type="text" id="customerFullName" class="paper-control" placeholder="Nguyễn Văn A" required>
+              <label class="paper-label" for="customerFullName" data-i18n="booking_name_label">Họ và tên người đại diện *</label>
+              <input type="text" id="customerFullName" class="paper-control" placeholder="Nguyễn Văn A" data-i18n-placeholder="booking_name_placeholder" required>
             </div>
             <div class="col-12 col-md-6">
-              <label class="paper-label" for="customerPhone">Số điện thoại liên hệ *</label>
-              <input type="tel" id="customerPhone" class="paper-control" placeholder="0901234567" required>
+              <label class="paper-label" for="customerPhone" data-i18n="booking_phone_label">Số điện thoại liên hệ *</label>
+              <input type="tel" id="customerPhone" class="paper-control" placeholder="0901234567" data-i18n-placeholder="booking_phone_placeholder" required>
             </div>
             <div class="col-12 col-md-6">
-              <label class="paper-label" for="customerEmail">Địa chỉ Email nhận vé điện tử *</label>
-              <input type="email" id="customerEmail" class="paper-control" placeholder="example@email.com" required>
+              <label class="paper-label" for="customerEmail" data-i18n="booking_email_label">Địa chỉ Email nhận vé điện tử *</label>
+              <input type="email" id="customerEmail" class="paper-control" placeholder="example@email.com" data-i18n-placeholder="booking_email_placeholder" required>
             </div>
             <div class="col-12 col-md-6">
-              <label class="paper-label" for="customerNotes">Ghi chú đặc biệt (nếu có)</label>
-              <input type="text" id="customerNotes" class="paper-control" placeholder="Ăn chay, phòng đơn, ghế đầu...">
+              <label class="paper-label" for="customerNotes" data-i18n="booking_notes_label">Ghi chú đặc biệt (nếu có)</label>
+              <input type="text" id="customerNotes" class="paper-control" placeholder="Ăn chay, phòng đơn, ghế đầu..." data-i18n-placeholder="booking_notes_placeholder">
             </div>
           </div>
         </div>
@@ -412,31 +506,31 @@
         <div class="paper-sheet">
           <div class="paper-step-title">
             <span class="paper-step-num">3</span>
-            <span>Phương thức thanh toán trực tuyến</span>
+            <span data-i18n="booking_step_3">Phương thức thanh toán trực tuyến</span>
           </div>
 
           <div class="d-flex flex-column gap-2 mb-3">
             <label class="paper-pay-option active">
               <input type="radio" name="payMethod" value="qr" checked class="mt-1">
               <div>
-                <div class="fw-bold"><i class="bi bi-qr-code text-primary"></i> Quét mã VietQR chuyển khoản tự động (Khuyên dùng)</div>
-                <div class="small text-muted">Xác nhận đơn ngay lập tức qua ứng dụng ngân hàng số không mất phí.</div>
+                <div class="fw-bold"><i class="bi bi-qr-code text-primary"></i> <span data-i18n="pay_qr_title">Quét mã VietQR chuyển khoản tự động (Khuyên dùng)</span></div>
+                <div class="small text-muted" data-i18n="pay_qr_desc">Xác nhận đơn ngay lập tức qua ứng dụng ngân hàng số không mất phí.</div>
               </div>
             </label>
 
             <label class="paper-pay-option">
               <input type="radio" name="payMethod" value="card" class="mt-1">
               <div>
-                <div class="fw-bold"><i class="bi bi-credit-card text-success"></i> Thẻ ATM Nội Địa / Thẻ Quốc Tế (Visa/Mastercard)</div>
-                <div class="small text-muted">Cổng thanh toán bảo mật tiêu chuẩn quốc tế PCI-DSS.</div>
+                <div class="fw-bold"><i class="bi bi-credit-card text-success"></i> <span data-i18n="pay_card_title">Thẻ ATM Nội Địa / Thẻ Quốc Tế (Visa/Mastercard)</span></div>
+                <div class="small text-muted" data-i18n="pay_card_desc">Cổng thanh toán bảo mật tiêu chuẩn quốc tế PCI-DSS.</div>
               </div>
             </label>
 
             <label class="paper-pay-option">
               <input type="radio" name="payMethod" value="cash" class="mt-1">
               <div>
-                <div class="fw-bold"><i class="bi bi-building text-warning"></i> Thanh toán tiền mặt tại Văn phòng Delta Travel</div>
-                <div class="small text-muted">Giữ chỗ trước và hoàn tất thanh toán trước ngày khởi hành 48 giờ.</div>
+                <div class="fw-bold"><i class="bi bi-building text-warning"></i> <span data-i18n="pay_cash_title">Thanh toán tiền mặt tại Văn phòng Delta Travel</span></div>
+                <div class="small text-muted" data-i18n="pay_cash_desc">Giữ chỗ trước và hoàn tất thanh toán trước ngày khởi hành 48 giờ.</div>
               </div>
             </label>
           </div>
@@ -446,52 +540,52 @@
       <!-- Cột phải: Phiếu hóa đơn giấy chiết tính giá vé -->
       <div class="col-12 col-lg-4">
         <div class="paper-invoice-card">
-          <div class="paper-invoice-title">HÓA ĐƠN CHIẾT TÍNH</div>
+          <div class="paper-invoice-title" data-i18n="inv_title">HÓA ĐƠN CHIẾT TÍNH</div>
 
           <div class="paper-invoice-row">
-            <span class="text-muted">Đơn giá người lớn:</span>
+            <span class="text-muted" data-i18n="inv_adult_price">Đơn giá người lớn:</span>
             <span id="unitPriceDisplay" class="fw-bold">0 đ</span>
           </div>
 
           <div class="paper-invoice-row">
-            <span class="text-muted">Số lượng khách:</span>
+            <span class="text-muted" data-i18n="inv_guest_count">Số lượng khách:</span>
             <span id="guestCountDisplay" class="fw-bold">1 khách</span>
           </div>
 
           <div class="paper-invoice-row">
-            <span class="text-muted">Bảo hiểm du lịch 100%:</span>
-            <span class="text-success fw-bold">MIỄN PHÍ</span>
+            <span class="text-muted" data-i18n="inv_insurance">Bảo hiểm du lịch 100%:</span>
+            <span class="text-success fw-bold" data-i18n="inv_insurance_val">MIỄN PHÍ</span>
           </div>
 
           <div class="paper-invoice-row">
-            <span class="text-muted">Thuế VAT & Phí dịch vụ:</span>
-            <span class="text-dark">Đã bao gồm</span>
+            <span class="text-muted" data-i18n="inv_tax">Thuế VAT & Phí dịch vụ:</span>
+            <span class="text-dark" data-i18n="inv_tax_val">Đã bao gồm</span>
           </div>
 
           <!-- Nhập mã giảm giá Voucher -->
           <div class="my-3 pt-3 border-top">
             <div class="input-group input-group-sm">
-              <input type="text" id="voucherCodeInput" class="form-control" placeholder="Mã ưu đãi (VD: DELTA10)">
-              <button class="btn btn-outline-dark" type="button" onclick="applyVoucher()">Áp dụng</button>
+              <input type="text" id="voucherCodeInput" class="form-control" placeholder="Mã ưu đãi (VD: DELTA10)" data-i18n-placeholder="inv_voucher_placeholder">
+              <button class="btn btn-outline-dark" type="button" onclick="applyVoucher()" data-i18n="inv_voucher_apply">Áp dụng</button>
             </div>
             <div id="voucherAlert" class="small text-success mt-1" style="display: none;"></div>
           </div>
 
           <div class="paper-invoice-total">
             <div>
-              <div class="fw-bold text-uppercase small text-muted">TỔNG TIỀN NIÊM YẾT:</div>
+              <div class="fw-bold text-uppercase small text-muted" data-i18n="inv_total_label">TỔNG TIỀN NIÊM YẾT:</div>
               <div id="totalPriceDisplay" class="fs-3 fw-bold text-dark">0 đ</div>
             </div>
           </div>
 
           <div class="mt-4">
             <button type="button" class="paper-btn-submit" onclick="submitBookingOrder()">
-              <i class="bi bi-check-circle-fill me-1"></i> XÁC NHẬN ĐẶT TOUR
+              <i class="bi bi-check-circle-fill me-1"></i> <span data-i18n="inv_btn_confirm">XÁC NHẬN ĐẶT TOUR</span>
             </button>
           </div>
 
           <div class="mt-3 text-center small text-muted">
-            <i class="bi bi-shield-check text-success"></i> Cam kết 100% giữ chỗ chuẩn xác và bảo hiểm trọn gói.
+            <i class="bi bi-shield-check text-success"></i> <span data-i18n="inv_guarantee">Cam kết 100% giữ chỗ chuẩn xác và bảo hiểm trọn gói.</span>
           </div>
         </div>
       </div>
@@ -502,48 +596,48 @@
       <div class="mb-3">
         <i class="bi bi-patch-check-fill text-success" style="font-size: 64px;"></i>
       </div>
-      <div class="text-uppercase fw-bold text-success small" style="letter-spacing: 0.15em;">ĐẶT TOUR THÀNH CÔNG</div>
-      <h2 class="fw-bold text-dark mb-2">Phiếu Xác Nhận Giữ Chỗ Chính Thức</h2>
-      <p class="text-muted small mx-auto mb-4" style="max-width: 500px;">
+      <div class="text-uppercase fw-bold text-success small" style="letter-spacing: 0.15em;" data-i18n="receipt_success_tag">ĐẶT TOUR THÀNH CÔNG</div>
+      <h2 class="fw-bold text-dark mb-2" data-i18n="receipt_title">Phiếu Xác Nhận Giữ Chỗ Chính Thức</h2>
+      <p class="text-muted small mx-auto mb-4" style="max-width: 500px;" data-i18n="receipt_desc">
         Hệ thống Delta Travel đã ghi nhận thông tin đặt tour của bạn. Vui lòng hoàn tất thanh toán để hoàn tất giữ chỗ.
       </p>
 
       <div class="border rounded-3 p-4 mx-auto mb-4 text-start bg-light" style="max-width: 580px;">
         <div class="d-flex justify-content-between mb-2">
-          <span class="text-muted">Mã hồ sơ đặt tour:</span>
+          <span class="text-muted" data-i18n="receipt_ref_label">Mã hồ sơ đặt tour:</span>
           <strong id="receiptRef" class="font-monospace text-dark">#DELTA-...</strong>
         </div>
         <div class="d-flex justify-content-between mb-2">
-          <span class="text-muted">Hành trình:</span>
+          <span class="text-muted" data-i18n="receipt_tour_label">Hành trình:</span>
           <strong id="receiptTourTitle">...</strong>
         </div>
         <div class="d-flex justify-content-between mb-2">
-          <span class="text-muted">Khách hàng:</span>
+          <span class="text-muted" data-i18n="receipt_customer_label">Khách hàng:</span>
           <strong id="receiptCustomer">...</strong>
         </div>
         <div class="d-flex justify-content-between border-top pt-2">
-          <span class="text-muted">Tổng tiền cần thanh toán:</span>
+          <span class="text-muted" data-i18n="receipt_total_label">Tổng tiền cần thanh toán:</span>
           <strong id="receiptTotal" class="fs-5 text-dark">0 đ</strong>
         </div>
       </div>
 
       <!-- Khung VietQR thanh toán -->
       <div id="receiptQRBox" class="border rounded-3 p-4 mx-auto mb-4 bg-white" style="max-width: 400px;">
-        <h6 class="fw-bold mb-2">Quét mã VietQR chuyển khoản</h6>
-        <div class="small text-muted mb-3">Mở ứng dụng ngân hàng và quét mã để thanh toán tự động:</div>
+        <h6 class="fw-bold mb-2" data-i18n="receipt_qr_title">Quét mã VietQR chuyển khoản</h6>
+        <div class="small text-muted mb-3" data-i18n="receipt_qr_desc">Mở ứng dụng ngân hàng và quét mã để thanh toán tự động:</div>
         <img id="receiptQRImg" src="assets/images/bank_qr_demo.png" alt="QR Code" style="width: 220px; height: 220px; object-fit: contain;" class="border p-2 rounded-2 mx-auto d-block">
-        <div class="small text-muted mt-2">Nội dung chuyển khoản: <strong id="receiptTransferNote" class="text-dark">...</strong></div>
+        <div class="small text-muted mt-2"><span data-i18n="receipt_transfer_note">Nội dung chuyển khoản:</span> <strong id="receiptTransferNote" class="text-dark">...</strong></div>
       </div>
 
       <div class="d-flex flex-wrap gap-2 justify-content-center no-print">
         <button class="btn btn-outline-dark px-4 py-2 rounded-pill fw-semibold" onclick="window.print()">
-          <i class="bi bi-printer me-1"></i> In phiếu xác nhận
+          <i class="bi bi-printer me-1"></i> <span data-i18n="receipt_btn_print">In phiếu xác nhận</span>
         </button>
         <a href="my-bookings.html" class="btn btn-dark px-4 py-2 rounded-pill fw-semibold">
-          <i class="bi bi-ticket-perforated me-1"></i> Xem trong Đơn của tôi
+          <i class="bi bi-ticket-perforated me-1"></i> <span data-i18n="receipt_btn_my_bookings">Xem trong Đơn của tôi</span>
         </a>
         <a href="index.html" class="btn btn-outline-secondary px-4 py-2 rounded-pill fw-semibold">
-          <i class="bi bi-house me-1"></i> Về trang chủ
+          <i class="bi bi-house me-1"></i> <span data-i18n="receipt_btn_home">Về trang chủ</span>
         </a>
       </div>
     </div>
@@ -564,17 +658,25 @@
       const tourId = params.get("tourId") || "DL-HL01";
 
       try {
-        // Tải tour từ API
+        // Tìm tour từ DEFAULT_TOURS trước (để có đầy đủ lịch trình chi tiết và thông số)
         let tour = null;
+        if (typeof DEFAULT_TOURS !== "undefined" && Array.isArray(DEFAULT_TOURS)) {
+          tour = DEFAULT_TOURS.find(t => String(t.id).toUpperCase() === String(tourId).toUpperCase());
+        }
+
+        // Tải thêm từ API nếu online
         if (typeof DeltaAPI !== "undefined" && DeltaAPI.fetchTour) {
-          const res = await DeltaAPI.fetchTour(tourId);
-          if (res && res.success && res.data) {
-            tour = res.data;
+          try {
+            const res = await DeltaAPI.fetchTour(tourId);
+            if (res && res.success && res.data) {
+              tour = { ...(tour || {}), ...res.data };
+            }
+          } catch (e) {
+            console.warn("Lỗi tải API tour:", e);
           }
         }
 
         if (!tour) {
-          // Fallback danh mục mặc định
           tour = {
             id: tourId,
             title: "Tour Du Thuyền 5 Sao Vịnh Hạ Long – Vịnh Lan Hạ",
@@ -587,6 +689,7 @@
 
         currentTour = tour;
         renderTourInfo();
+        renderBookingItinerary(currentTour);
         await loadSchedules(tour.id);
         recalcPrice();
       } catch (err) {
@@ -596,15 +699,90 @@
 
     function renderTourInfo() {
       if (!currentTour) return;
-      document.getElementById("tourTitleDisplay").textContent = currentTour.title;
-      document.getElementById("tourDurationDisplay").innerHTML = `<i class="bi bi-clock"></i> ${currentTour.duration}`;
-      document.getElementById("tourTransportDisplay").innerHTML = `<i class="bi bi-bus-front"></i> ${currentTour.transport || "Xe du lịch đời mới"}`;
+      const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
+      const tourKey = "tour_title_" + String(currentTour.id || "").replace(/[^a-zA-Z0-9]/g, "_");
+      const displayTitle = (isEn && typeof t === "function" && t(tourKey) !== tourKey) ? t(tourKey) : currentTour.title;
+
+      document.getElementById("tourTitleDisplay").textContent = displayTitle;
+
+      const durationStr = isEn
+        ? String(currentTour.duration || "3N2Đ").replace(/N/g, "D").replace(/Đ/g, "N")
+        : (currentTour.duration || "3N2Đ");
+      document.getElementById("tourDurationDisplay").innerHTML = `<i class="bi bi-clock"></i> ${durationStr}`;
+
+      const transportStr = isEn
+        ? String(currentTour.transport || "Tour Coach").replace(/Du thuyền 5\*/g, "5* Cruise").replace(/Limousine VIP/g, "VIP Limousine").replace(/Máy bay khứ hồi/g, "Roundtrip Flight").replace(/Xe du lịch đời mới/g, "Modern Tour Coach").replace(/Tàu cao tốc 5 sao/g, "5-Star Express Boat").replace(/Vé máy bay/g, "Flight Ticket")
+        : (currentTour.transport || "Xe du lịch đời mới");
+      document.getElementById("tourTransportDisplay").innerHTML = `<i class="bi bi-bus-front"></i> ${transportStr}`;
+
       document.getElementById("tourThumbImg").src = currentTour.image || "assets/images/halong.png";
       document.getElementById("unitPriceDisplay").textContent = formatVND(currentTour.price);
     }
 
+    function renderBookingItinerary(tour) {
+      const container = document.getElementById("bookingItineraryTimeline");
+      if (!container || !tour) return;
+
+      const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
+      let days = [];
+
+      if (Array.isArray(tour.itinerary) && tour.itinerary.length > 0) {
+        days = tour.itinerary;
+      } else if (typeof DEFAULT_TOURS !== "undefined") {
+        const def = DEFAULT_TOURS.find(d => String(d.id).toUpperCase() === String(tour.id).toUpperCase());
+        if (def && Array.isArray(def.itinerary)) days = def.itinerary;
+      }
+
+      if (!days || days.length === 0) {
+        days = [
+          {
+            day: 1,
+            title: isEn ? "Departure & Arrival Experience" : "Khởi hành & Trải nghiệm điểm đến",
+            morning: isEn ? "08:00 Tour guide & limousine pick-up from meeting point, departure." : "08:00 Hướng dẫn viên và xe limousine Delta Travel đón quý khách, khởi hành chuyến đi.",
+            afternoon: isEn ? "12:00 Check-in, enjoy lunch featuring authentic local specialties." : "12:00 Làm thủ tục nhận phòng / lên du thuyền, thưởng thức bữa trưa đặc sản vùng miền.",
+            evening: isEn ? "18:30 Dinner, evening stroll and leisure sightseeing activities." : "18:30 Dùng bữa tối lãng mạn, tự do dạo phố đêm và tham gia các hoạt động giải trí."
+          }
+        ];
+      }
+
+      const dayPrefix = isEn ? "Day " : "Ngày ";
+      const morningLabel = isEn ? "Morning" : "Buổi sáng";
+      const afternoonLabel = isEn ? "Afternoon" : "Buổi chiều";
+      const eveningLabel = isEn ? "Evening" : "Buổi tối";
+
+      container.innerHTML = days.map((d, idx) => {
+        const dayNum = d.day || (idx + 1);
+        const dayTitle = d.title || (isEn ? `Day ${dayNum} Highlights` : `Lịch trình ngày ${dayNum}`);
+        const mText = d.morning || (isEn ? "Morning sightseeing activities as guided." : "Hoạt động tham quan buổi sáng theo hướng dẫn viên.");
+        const aText = d.afternoon || (isEn ? "Afternoon exploration of key attractions." : "Hoạt động buổi chiều và khám phá các danh lam thắng cảnh.");
+        const eText = d.evening || (isEn ? "Evening dining, relaxation and free exploration." : "Hoạt động buổi tối, ăn tối và tự do dạo chơi.");
+
+        return `
+          <div class="paper-itinerary-day">
+            <div class="paper-itinerary-day-header">
+              <span class="paper-itinerary-day-num">${dayPrefix}${dayNum}</span>
+              <span>${dayTitle}</span>
+            </div>
+            <div class="paper-itinerary-period">
+              <span class="paper-itinerary-tag"><i class="bi bi-brightness-alt-high-fill text-warning me-1"></i>${morningLabel}</span>
+              <p class="paper-itinerary-desc">${mText}</p>
+            </div>
+            <div class="paper-itinerary-period">
+              <span class="paper-itinerary-tag"><i class="bi bi-sun-fill text-primary me-1"></i>${afternoonLabel}</span>
+              <p class="paper-itinerary-desc">${aText}</p>
+            </div>
+            <div class="paper-itinerary-period">
+              <span class="paper-itinerary-tag"><i class="bi bi-moon-stars-fill text-secondary me-1"></i>${eveningLabel}</span>
+              <p class="paper-itinerary-desc">${eText}</p>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
     async function loadSchedules(tourId) {
       const select = document.getElementById("bookingScheduleSelect");
+      const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
       try {
         let schedules = [];
         if (typeof DeltaAPI !== "undefined" && DeltaAPI.fetchSchedules) {
@@ -615,7 +793,6 @@
         }
 
         if (schedules.length === 0) {
-          // Tạo 3 lịch khởi hành gần nhất
           schedules = [7, 14, 21].map((d, i) => {
             const date = new Date(Date.now() + d * 86400000);
             return {
@@ -628,22 +805,27 @@
 
         currentSchedules = schedules;
         select.innerHTML = schedules.map(s => {
-          const dStr = new Date(s.departureAt).toLocaleDateString("vi-VN");
-          return `<option value="${s.id}">${dStr} · Còn ${s.availableSeats} chỗ</option>`;
+          const dStr = new Date(s.departureAt).toLocaleDateString(isEn ? "en-US" : "vi-VN");
+          const seatsStr = isEn ? `${s.availableSeats} seats left` : `Còn ${s.availableSeats} chỗ`;
+          return `<option value="${s.id}">${dStr} · ${seatsStr}</option>`;
         }).join("");
       } catch (err) {
-        select.innerHTML = `<option value="DEFAULT">Khởi hành thứ 7 hàng tuần</option>`;
+        select.innerHTML = `<option value="DEFAULT">${isEn ? "Departs every Saturday" : "Khởi hành thứ 7 hàng tuần"}</option>`;
       }
     }
 
     function recalcPrice() {
       if (!currentTour) return;
+      const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
       const adults = parseInt(document.getElementById("numAdults")?.value || 1, 10);
       const children = parseInt(document.getElementById("numChildren")?.value || 0, 10);
       const infants = parseInt(document.getElementById("numInfants")?.value || 0, 10);
 
       const totalGuests = adults + children + infants;
-      document.getElementById("guestCountDisplay").textContent = `${totalGuests} khách (${adults} lớn, ${children} trẻ)`;
+      const guestSummary = isEn
+        ? `${totalGuests} guest(s) (${adults} adult, ${children} child)`
+        : `${totalGuests} khách (${adults} lớn, ${children} trẻ)`;
+      document.getElementById("guestCountDisplay").textContent = guestSummary;
 
       // Tính tổng tiền: Người lớn 100%, trẻ em 75%, em bé miễn phí
       const rawTotal = (adults * currentTour.price) + (children * currentTour.price * 0.75);
@@ -656,18 +838,22 @@
       const input = document.getElementById("voucherCodeInput");
       const code = (input?.value || "").trim().toUpperCase();
       const alertEl = document.getElementById("voucherAlert");
+      const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
 
       if (code === "DELTA10" || code === "VIPTOUR") {
         discountAmount = 200000;
         alertEl.style.display = "block";
-        alertEl.textContent = `Áp dụng thành công mã ${code}: Giảm 200.000 đ!`;
+        alertEl.textContent = isEn
+          ? `Promo code ${code} applied successfully: 200,000 VND discount!`
+          : `Áp dụng thành công mã ${code}: Giảm 200.000 đ!`;
         recalcPrice();
       } else if (code !== "") {
-        alert("Mã ưu đãi không hợp lệ hoặc đã hết hạn.");
+        alert(isEn ? "Invalid or expired promo code." : "Mã ưu đãi không hợp lệ hoặc đã hết hạn.");
       }
     }
 
     async function submitBookingOrder() {
+      const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
       const name = document.getElementById("customerFullName").value.trim();
       const phone = document.getElementById("customerPhone").value.trim();
       const email = document.getElementById("customerEmail").value.trim();
@@ -677,14 +863,17 @@
       const infants = parseInt(document.getElementById("numInfants").value || 0, 10);
 
       if (!name || !phone || !email) {
-        alert("Vui lòng điền đầy đủ Họ tên, Số điện thoại và Email liên hệ.");
+        alert(isEn ? "Please fill in full name, phone number, and email address." : "Vui lòng điền đầy đủ Họ tên, Số điện thoại và Email liên hệ.");
         return;
       }
+
+      const tourKey = "tour_title_" + String(currentTour.id || "").replace(/[^a-zA-Z0-9]/g, "_");
+      const displayTitle = (isEn && typeof t === "function" && t(tourKey) !== tourKey) ? t(tourKey) : currentTour.title;
 
       const payload = {
         scheduleId: scheduleId || "DEFAULT",
         tourId: currentTour.id,
-        tourTitle: currentTour.title,
+        tourTitle: displayTitle,
         customerName: name,
         customerPhone: phone,
         customerEmail: email,
@@ -706,12 +895,11 @@
         }
 
         if (!booking) {
-          // Fallback tạo mã đơn
           const rand = Math.floor(100000 + Math.random() * 900000);
           booking = {
             id: `BK${rand}`,
             reference: `BK${rand}`,
-            tourTitle: currentTour.title,
+            tourTitle: displayTitle,
             customerName: name,
             customerPhone: phone,
             totalPrice: Math.max(0, ((adults * currentTour.price) + (children * currentTour.price * 0.75)) - discountAmount),
@@ -720,29 +908,26 @@
           };
         }
 
-        // Lưu vào localStorage
         const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
         local.unshift(booking);
         localStorage.setItem("delta_customer_bookings", JSON.stringify(local));
 
-        // Hiển thị phiếu xác nhận giữ chỗ
         document.getElementById("bookingFormWrapper").style.display = "none";
         const successBox = document.getElementById("bookingSuccessReceipt");
         successBox.style.display = "block";
 
         document.getElementById("receiptRef").textContent = `#${booking.reference || booking.id}`;
-        document.getElementById("receiptTourTitle").textContent = currentTour.title;
+        document.getElementById("receiptTourTitle").textContent = displayTitle;
         document.getElementById("receiptCustomer").textContent = `${name} (${phone})`;
         document.getElementById("receiptTotal").textContent = formatVND(booking.totalPrice || ((adults * currentTour.price) + (children * currentTour.price * 0.75)));
         document.getElementById("receiptTransferNote").textContent = `${booking.reference || booking.id} ${phone}`;
 
         window.scrollTo({ top: 0, behavior: "smooth" });
       } catch (err) {
-        alert("Lỗi đặt tour: " + (err.message || "Vui lòng thử lại"));
+        alert((isEn ? "Booking error: " : "Lỗi đặt tour: ") + (err.message || (isEn ? "Please try again." : "Vui lòng thử lại.")));
       }
     }
 
-    // Lắng nghe thay đổi
     ["numAdults", "numChildren", "numInfants"].forEach(id => {
       document.getElementById(id)?.addEventListener("input", recalcPrice);
     });
@@ -761,6 +946,12 @@
 
     window.addEventListener("languageChanged", () => {
       if (typeof renderAuthHeader === "function") renderAuthHeader();
+      if (currentTour) {
+        renderTourInfo();
+        renderBookingItinerary(currentTour);
+        loadSchedules(currentTour.id);
+        recalcPrice();
+      }
     });
   </script>
 

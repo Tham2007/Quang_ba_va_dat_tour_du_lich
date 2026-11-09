@@ -311,9 +311,10 @@ function renderDestinations() {
     const name = document.createElement("span");
     name.className = "dest-name";
     name.textContent = destination.name;
+    const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
     const countLabel = document.createElement("span");
     countLabel.className = "dest-tours-count";
-    countLabel.textContent = `${count} tour`;
+    countLabel.textContent = isEn ? `${count} tour${count === 1 ? "" : "s"}` : `${count} tour`;
     overlay.append(name, countLabel);
     card.append(image, overlay);
     column.append(card);
@@ -1183,13 +1184,13 @@ async function openItineraryModal(tourId) {
   if (codeEl) codeEl.textContent = tour.id;
 
   const durationEl = document.getElementById("itineraryDuration");
-  if (durationEl) durationEl.textContent = tour.duration || "3N2Đ";
+  if (durationEl) durationEl.textContent = isEn ? String(tour.duration || "3N2Đ").replace(/N/g, "D").replace(/Đ/g, "N") : (tour.duration || "3N2Đ");
 
   const departureEl = document.getElementById("itineraryDeparture");
-  if (departureEl) departureEl.textContent = tour.departure || "Hà Nội / TP.HCM";
+  if (departureEl) departureEl.textContent = isEn ? String(tour.departure || "Hanoi").replace(/Hà Nội/g, "Hanoi").replace(/TP\. Hồ Chí Minh/g, "Ho Chi Minh City").replace(/Cần Thơ/g, "Can Tho") : (tour.departure || "Hà Nội / TP.HCM");
 
   const transportEl = document.getElementById("itineraryTransport");
-  if (transportEl) transportEl.textContent = tour.transport || "Xe du lịch đời mới / Máy bay";
+  if (transportEl) transportEl.textContent = isEn ? String(tour.transport || "Tour Coach").replace(/Du thuyền 5\*/g, "5* Cruise").replace(/Limousine VIP/g, "VIP Limousine").replace(/Máy bay khứ hồi/g, "Roundtrip Flight").replace(/Xe du lịch đời mới/g, "Modern Tour Coach").replace(/Tàu cao tốc 5 sao/g, "5-Star Express Boat").replace(/Vé máy bay/g, "Flight Ticket") : (tour.transport || "Xe du lịch đời mới / Máy bay");
 
   const priceEl = document.getElementById("itineraryPrice");
   if (priceEl) priceEl.textContent = formatVND(tour.price);
@@ -1280,10 +1281,15 @@ async function openItineraryModal(tourId) {
       const afternoonText = day.afternoon || "Hoạt động buổi chiều và khám phá các danh lam thắng cảnh tiêu biểu.";
       const eveningText = day.evening || "Hoạt động buổi tối, ăn tối và tự do dạo chơi.";
 
+      const dayPrefix = isEn ? "Day " : "Ngày ";
+      const morningLabel = isEn ? "Morning" : "Buổi Sáng";
+      const afternoonLabel = isEn ? "Afternoon" : "Buổi Chiều";
+      const eveningLabel = isEn ? "Evening" : "Buổi Tối";
+
       return `
         <div class="itinerary-day-card">
           <div class="itinerary-day-badge">${dayNum}</div>
-          <h5 class="itinerary-day-title">Ngày ${dayNum}: ${dayTitle}</h5>
+          <h5 class="itinerary-day-title">${dayPrefix}${dayNum}: ${dayTitle}</h5>
 
           <!-- Buổi Sáng -->
           <div class="day-period-block">
@@ -1291,7 +1297,7 @@ async function openItineraryModal(tourId) {
               <i class="bi bi-brightness-alt-high-fill"></i>
             </div>
             <div class="period-content">
-              <h6>Buổi Sáng</h6>
+              <h6>${morningLabel}</h6>
               <p>${escapeHtml(morningText)}</p>
             </div>
           </div>
@@ -1302,7 +1308,7 @@ async function openItineraryModal(tourId) {
               <i class="bi bi-sun-fill"></i>
             </div>
             <div class="period-content">
-              <h6>Buổi Chiều</h6>
+              <h6>${afternoonLabel}</h6>
               <p>${escapeHtml(afternoonText)}</p>
             </div>
           </div>
@@ -1313,7 +1319,7 @@ async function openItineraryModal(tourId) {
               <i class="bi bi-moon-stars-fill"></i>
             </div>
             <div class="period-content">
-              <h6>Buổi Tối</h6>
+              <h6>${eveningLabel}</h6>
               <p>${escapeHtml(eveningText)}</p>
             </div>
           </div>
@@ -2545,4 +2551,5 @@ document.addEventListener("DOMContentLoaded", () => {
 // Lắng nghe sự kiện chuyển đổi ngôn ngữ
 window.addEventListener("languageChanged", () => {
   if (typeof renderTourCards === "function") renderTourCards();
+  if (typeof renderDestinations === "function") renderDestinations();
 });

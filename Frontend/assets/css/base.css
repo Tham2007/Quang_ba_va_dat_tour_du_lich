@@ -350,3 +350,28 @@ img {
   flex-shrink: 0 !important;
 }
 
+/* Đảm bảo toàn bộ Bootstrap Modal luôn nổi lên trên cùng (tuyệt đối không bị navbar hay header che khuất) */
+.modal {
+  z-index: 10050 !important;
+}
+
+.modal-backdrop {
+  z-index: 10040 !important;
+}
+
+.modal-dialog {
+  margin-top: 5.5rem !important;
+  margin-bottom: 2.5rem !important;
+}
+
+.modal-dialog-centered {
+  align-items: flex-start !important;
+}
+
+@media (max-width: 768px) {
+  .modal-dialog {
+    margin-top: 4.5rem !important;
+    margin-bottom: 1.5rem !important;
+  }
+}
+

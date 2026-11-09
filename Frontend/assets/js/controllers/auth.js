@@ -661,14 +661,15 @@ async function openUserProfileModal() {
 
   // Hạng thành viên tính toán theo dữ liệu thực tế
   if (rankEl) {
+    const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
     if (user.role === "ADMIN") {
-      rankEl.textContent = "Ban Quản Trị";
+      rankEl.textContent = isEn ? "Administrator" : "Ban Quản Trị";
     } else if (total >= 5) {
-      rankEl.textContent = "Hạng Vàng";
+      rankEl.textContent = isEn ? "Gold Member" : "Hạng Vàng";
     } else if (total >= 2) {
-      rankEl.textContent = "Hạng Bạc";
+      rankEl.textContent = isEn ? "Silver Member" : "Hạng Bạc";
     } else {
-      rankEl.textContent = "Thành viên mới";
+      rankEl.textContent = isEn ? "Standard Member" : "Thành viên mới";
     }
   }
 

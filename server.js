@@ -10,6 +10,24 @@ const crypto = require("node:crypto");
 const { DatabaseSync } = require("node:sqlite");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
+const https = require("https");
+
+// Tự động tải biến môi trường từ .env nếu có
+const envPath = path.resolve(__dirname, ".env");
+if (fs.existsSync(envPath)) {
+  try {
+    const envLines = fs.readFileSync(envPath, "utf-8").split(/\r?\n/);
+    for (const line of envLines) {
+      const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+      if (match) {
+        const k = match[1];
+        let v = (match[2] || "").trim();
+        if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
+        if (!process.env[k]) process.env[k] = v;
+      }
+    }
+  } catch (e) {}
+}
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -1739,58 +1757,151 @@ app.post("/api/v1/admin/bookings/:booking_id/confirm-payment", requireAdmin, (re
   res.json(bookingDict(updated));
 });
 
-// 7. AI Assistant - Huấn luyện đúng trọng tâm, chuyên sâu Delta Travel & gợi ý tour tương tác
-app.post("/api/v1/assistant/chat", (req, res) => {
+// 7. AI Assistant - Kết nối Groq AI (openai/gpt-oss-120b), huấn luyện chuyên sâu Delta Travel
+async function queryGroqAI(userMessage, allTours) {
+  const apiKey = process.env.GROQ_API_KEY || "";
+  if (!apiKey) throw new Error("Chưa cấu hình GROQ_API_KEY");
+  const catalogSummary = allTours.slice(0, 16).map(t => 
+    `- Mã [${t.id}]: ${t.title} | Thời lượng: ${t.duration || '3N2Đ'} | Điểm đón: ${t.departure || 'Hà Nội'} | Giá: ${Number(t.price).toLocaleString("vi-VN")} VND | Vùng: ${t.region}`
+  ).join("\n");
+
+  const systemPrompt = `Bạn là Trợ lý AI Concierge 5 sao độc quyền của hãng du lịch lữ hành Delta Travel (Việt Nam).
+DANH MỤC 16 TOUR HIỆN CÓ CỦA DELTA TRAVEL:
+${catalogSummary}
+
+QUY TẮC CỰC KỲ QUAN TRỌNG VỀ ĐỐI THOẠI & GỢI Ý TOUR:
+1. Giao tiếp thân thiện, lịch thiệp, chu đáo chuẩn dịch vụ 5 sao. Trả lời bằng đúng ngôn ngữ người dùng đang hỏi (Tiếng Việt hoặc Tiếng Anh).
+2. NẾU KHÁCH CHỈ TRÒ CHUYỆN BÌNH THƯỜNG (chào hỏi "xin chào", "hello", "hi", hỏi thời tiết, cảm ơn, hỏi thăm vu vơ không nhắc đến du lịch/tour): Hãy trò chuyện tự nhiên, ngắn gọn, KHÔNG GỢI Ý TOUR, KHÔNG BÁN TOUR VÀ TUYỆT ĐỐI KHÔNG GHI [RECOMMENDED_TOURS].
+3. CHỈ KHI KHÁCH CẦN TƯ VẤN, GỢI Ý TOUR, TÌM TOUR, HỎI VỀ GIÁ, ĐỊA ĐIỂM, LÊN KẾ HOẠCH DU LỊCH HOẶC ĐẶT VÉ: Bạn hãy tư vấn tâm huyết, giải thích lộ trình và ở CUỐI CÙNG của câu trả lời, hãy xuống dòng viết đúng cú pháp:
+[RECOMMENDED_TOURS: MA_TOUR_1, MA_TOUR_2]
+(Chọn từ 1 đến tối đa 3 mã tour thích hợp nhất từ danh mục trên).`;
+
+  const requestBody = JSON.stringify({
+    model: "openai/gpt-oss-120b",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage }
+    ],
+    temperature: 0.6,
+    max_tokens: 800
+  });
+
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: "api.groq.com",
+      path: "/openai/v1/chat/completions",
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(requestBody)
+      },
+      timeout: 12000
+    }, (res) => {
+      let data = "";
+      res.on("data", chunk => data += chunk);
+      res.on("end", () => {
+        try {
+          const json = JSON.parse(data);
+          if (json.choices && json.choices[0] && json.choices[0].message) {
+            const fullContent = json.choices[0].message.content || "";
+            const match = fullContent.match(/\[RECOMMENDED_TOURS:\s*([^\]]+)\]/i);
+            let tourIds = [];
+            let cleanAnswer = fullContent;
+            if (match) {
+              tourIds = match[1].split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
+              cleanAnswer = fullContent.replace(/\[RECOMMENDED_TOURS:\s*[^\]]+\]/i, "").trim();
+            } else {
+              // Kiểm tra xem người dùng có yêu cầu tìm tour không
+              const lower = userMessage.toLowerCase();
+              const wantsTour = lower.includes("tour") || lower.includes("gợi ý") || lower.includes("recommend") || lower.includes("giá") || lower.includes("đặt") || lower.includes("book") || lower.includes("đi đâu") || lower.includes("du lịch");
+              if (wantsTour) {
+                const mentioned = (fullContent.match(/DL-[A-Z0-9]{2,6}/gi) || []).map(s => s.toUpperCase());
+                tourIds = [...new Set(mentioned)].slice(0, 3);
+              }
+            }
+            resolve({ answer: cleanAnswer, tourIds, source: "Groq AI (openai/gpt-oss-120b)" });
+          } else {
+            reject(new Error(json.error?.message || "Invalid AI response"));
+          }
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+
+    req.on("error", reject);
+    req.on("timeout", () => {
+      req.destroy();
+      reject(new Error("Groq API Timeout"));
+    });
+    req.write(requestBody);
+    req.end();
+  });
+}
+
+app.post("/api/v1/assistant/chat", async (req, res) => {
   const rawMsg = ((req.body && req.body.message) || "").trim();
   const message = rawMsg.toLowerCase();
   let answer = "";
   let suggestedTours = [];
+  let source = "Delta Travel AI Database";
 
-  if (message.includes("giá") || message.includes("bao nhiêu") || message.includes("price") || message.includes("chi phí")) {
-    const sample = db.prepare("SELECT * FROM tours WHERE active = 1 ORDER BY price ASC LIMIT 4").all();
-    suggestedTours = sample.map(publicTour);
-    answer = "Giá niêm yết hiện tại: " + sample.map(t => `${t.title}: ${Number(t.price).toLocaleString("vi-VN")} VND`).join("; ") + ". Toàn bộ giá tour đã bao gồm bảo hiểm 100%, khách sạn và xe đưa đón đời mới. Quý khách có thể bấm 'Đặt ngay' ở các tour dưới đây:";
-  } else if (message.includes("hạ long") || message.includes("ha long") || message.includes("lan hạ") || message.includes("du thuyền")) {
-    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Hạ Long%' OR title LIKE '%Lan Hạ%' OR transport LIKE '%Du thuyền%') LIMIT 3").all();
-    suggestedTours = matched.map(publicTour);
-    answer = "Vịnh Hạ Long - kỳ quan thiên nhiên thế giới với hàng ngàn hòn đảo kỳ vĩ. Delta Travel mang đến hành trình du thuyền 5 sao chuẩn quốc tế (3N2Đ): chèo thuyền kayak vịnh Lan Hạ, khám phá hang Sửng Sốt, tắm biển Ti Tốp và thưởng thức tiệc hải sản tươi ngon. Bạn có thể xem lịch trình hoặc đặt ngay bên dưới:";
-  } else if (message.includes("đà nẵng") || message.includes("da nang") || message.includes("hội an") || message.includes("hoi an") || message.includes("bà nà") || message.includes("cầu vàng")) {
-    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Đà Nẵng%' OR title LIKE '%Hội An%' OR region = 'central') LIMIT 3").all();
-    suggestedTours = matched.map(publicTour);
-    answer = "Hành trình Miền Trung di sản: Đà Nẵng - Cầu Vàng Bà Nà Hills - Phố cổ Hội An (4N3Đ) trọn gói vé máy bay khứ hồi và khách sạn 4 sao biển Mỹ Khê. Bạn sẽ được check-in Cầu Vàng trên mây và thả đèn hoa đăng lung linh bên sông Hoài. Dưới đây là các tour tốt nhất:";
-  } else if (message.includes("phú quốc") || message.includes("phu quoc") || message.includes("biển") || message.includes("đảo")) {
-    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Phú Quốc%' OR title LIKE '%Côn Đảo%') LIMIT 3").all();
-    suggestedTours = matched.map(publicTour);
-    answer = "Thiên đường biển đảo Phú Quốc đang bước vào mùa nắng đẹp nhất năm. Delta Travel thiết kế hải trình 4N3Đ trọn gói: cáp treo Hòn Thơm vượt biển, lặn ngắm san hô cano cao tốc 4 đảo, thành phố không ngủ Grand World và nghỉ dưỡng resort sát biển. Gợi ý hành trình phù hợp cho bạn:";
-  } else if (message.includes("đà lạt") || message.includes("da lat") || message.includes("săn mây") || message.includes("hoa")) {
-    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND title LIKE '%Đà Lạt%' LIMIT 2").all();
-    suggestedTours = matched.map(publicTour);
-    answer = "Thành phố mộng mơ Đà Lạt khí hậu mát mẻ 18-20°C quanh năm. Tour 3N2Đ của Delta Travel đưa đón bằng xe Limousine phòng nằm cao cấp: săn mây Cầu Đất lúc bình minh, hồ Tuyền Lâm, ga xe lửa cổ và đồi hoa cẩm tú cầu. Bạn hãy tham khảo và giữ chỗ sớm nhé:";
-  } else if (message.includes("sa pa") || message.includes("sapa") || message.includes("fansipan") || message.includes("núi")) {
-    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Sa Pa%' OR title LIKE '%Hà Giang%') LIMIT 2").all();
-    suggestedTours = matched.map(publicTour);
-    answer = "Vùng cao Tây Bắc Sa Pa & Đỉnh Fansipan 3.143m - nóc nhà Đông Dương hùng vĩ. Xe Limousine đón trả tận nơi tại Hà Nội, khách sạn view thung lũng Mường Hoa thơ mộng và trải nghiệm văn hóa bản Cát Cát độc đáo:";
-  } else if (message.includes("côn đảo") || message.includes("con dao") || message.includes("cô sáu")) {
-    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND title LIKE '%Côn Đảo%' LIMIT 2").all();
-    suggestedTours = matched.map(publicTour);
-    answer = "Về miền đất thiêng Côn Đảo: Viếng Nghĩa trang Hàng Dương và mộ Cô Sáu lúc nửa đêm, tham quan hệ thống di tích lịch sử và tắm biển Bãi Đầm Trầu hoang sơ tuyệt mỹ. Vé máy bay khứ hồi và tàu cao tốc chuẩn 5 sao:";
-  } else if (message.includes("hủy") || message.includes("hoàn tiền") || message.includes("cancel") || message.includes("đổi ngày")) {
-    answer = "Chính sách của Delta Travel cam kết minh bạch và linh hoạt: Đơn chưa thanh toán có thể hủy trực tuyến trên website khi còn hơn 72 giờ trước giờ khởi hành. Đơn đã thanh toán được hỗ trợ bảo lưu hoặc đổi ngày khởi hành miễn phí 01 lần. Đội ngũ chăm sóc khách hàng trực 24/7 qua Hotline 1900 8899.";
-  } else if (message.includes("tour") || message.includes("đi đâu") || message.includes("địa điểm") || message.includes("gợi ý") || message.includes("tư vấn")) {
-    const sample = db.prepare("SELECT * FROM tours WHERE active = 1 ORDER BY RANDOM() LIMIT 3").all();
-    suggestedTours = sample.map(publicTour);
-    answer = "Delta Travel hiện có 16 hành trình du lịch 5 sao tiêu biểu khắp 3 miền: Vịnh Hạ Long, Đà Nẵng, Phú Quốc, Sa Pa, Đà Lạt và Côn Đảo với lịch khởi hành liên tục hàng tuần. Dưới đây là những hành trình được du khách đánh giá cao nhất hôm nay:";
-  } else {
-    const sample = db.prepare("SELECT * FROM tours WHERE active = 1 AND flash_sale = 1 LIMIT 2").all();
-    suggestedTours = sample.map(publicTour);
-    answer = "Chào Quý khách! Tôi là Trợ lý AI Concierge độc quyền của Delta Travel. Tôi có thể giải đáp chi tiết về giá vé, lộ trình, kinh nghiệm điểm đến và gợi ý tour trực tiếp cho bạn đặt ngay trên cuộc trò chuyện. Quý khách muốn khám phá vùng miền hay điểm đến nào?";
+  const allActiveTours = db.prepare("SELECT * FROM tours WHERE active = 1").all();
+
+  // 1. Thử gọi Groq AI
+  try {
+    const aiResult = await queryGroqAI(rawMsg, allActiveTours);
+    if (aiResult && aiResult.answer) {
+      answer = aiResult.answer;
+      source = aiResult.source;
+      if (Array.isArray(aiResult.tourIds) && aiResult.tourIds.length > 0) {
+        const matched = allActiveTours.filter(t => aiResult.tourIds.includes(String(t.id).toUpperCase()));
+        suggestedTours = matched.map(publicTour);
+      }
+    }
+  } catch (aiErr) {
+    console.warn("Groq AI tạm thời không phản hồi, chuyển sang fallback dự phòng:", aiErr.message);
+  }
+
+  // 2. Dự phòng cục bộ nếu Groq không trả lời được
+  if (!answer) {
+    const isNormalChat = message.startsWith("chào") || message === "hi" || message === "hello" || message.includes("thời tiết") || message.includes("bạn là ai");
+    
+    if (isNormalChat) {
+      answer = "Kính chào Quý khách! 👋 Tôi là Trợ lý AI Concierge của Delta Travel. Tôi có thể hỗ trợ quý khách tìm kiếm kỳ nghỉ 5 sao, cung cấp thời tiết, lịch trình và đặt vé trực tiếp. Quý khách đang có kế hoạch khám phá địa điểm nào?";
+      suggestedTours = [];
+    } else if (message.includes("giá") || message.includes("bao nhiêu") || message.includes("price") || message.includes("chi phí")) {
+      const sample = db.prepare("SELECT * FROM tours WHERE active = 1 ORDER BY price ASC LIMIT 3").all();
+      suggestedTours = sample.map(publicTour);
+      answer = "Giá niêm yết hiện tại của Delta Travel đã bao gồm trọn gói 100% bảo hiểm du lịch, phòng khách sạn/du thuyền 5 sao và phương tiện đưa đón cao cấp. Dưới đây là các tour có mức giá ưu đãi nhất:";
+    } else if (message.includes("hạ long") || message.includes("ha long") || message.includes("lan hạ") || message.includes("du thuyền")) {
+      const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Hạ Long%' OR title LIKE '%Lan Hạ%' OR transport LIKE '%Du thuyền%') LIMIT 2").all();
+      suggestedTours = matched.map(publicTour);
+      answer = "Vịnh Hạ Long & Lan Hạ với du thuyền 5 sao đẳng cấp quốc tế: chèo thuyền kayak qua hang bí ẩn, tắm biển Ba Trái Đào và thưởng thức hải sản tươi sống. Bạn có thể xem lịch trình hoặc đặt ngay bên dưới:";
+    } else if (message.includes("đà nẵng") || message.includes("da nang") || message.includes("hội an") || message.includes("cầu vàng")) {
+      const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Đà Nẵng%' OR title LIKE '%Hội An%' OR region = 'central') LIMIT 2").all();
+      suggestedTours = matched.map(publicTour);
+      answer = "Thiên đường miền Trung: Đà Nẵng - Cầu Vàng Bà Nà Hills - Phố cổ Hội An trọn gói vé máy bay khứ hồi và khách sạn cao cấp sát biển. Dưới đây là hành trình phù hợp nhất:";
+    } else if (message.includes("phú quốc") || message.includes("phu quoc")) {
+      const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Phú Quốc%' OR title LIKE '%Côn Đảo%') LIMIT 2").all();
+      suggestedTours = matched.map(publicTour);
+      answer = "Thiên đường biển đảo Phú Quốc: Cáp treo Hòn Thơm vượt biển, lặn ngắm san hô 4 đảo và vui chơi tại Grand World không ngủ:";
+    } else if (message.includes("tour") || message.includes("gợi ý") || message.includes("tư vấn") || message.includes("recommend")) {
+      const sample = db.prepare("SELECT * FROM tours WHERE active = 1 ORDER BY RANDOM() LIMIT 2").all();
+      suggestedTours = sample.map(publicTour);
+      answer = "Delta Travel hiện có 16 hành trình du lịch 5 sao tiêu biểu khắp 3 miền với lịch khởi hành liên tục. Dưới đây là những hành trình nổi bật được yêu thích nhất:";
+    } else {
+      answer = "Kính chào Quý khách! Tôi là Trợ lý AI Concierge của Delta Travel. Tôi có thể hỗ trợ bạn tư vấn hành trình, cập nhật thời tiết và gợi ý các gói tour tốt nhất. Bạn muốn tìm tour ở vùng miền nào?";
+      suggestedTours = [];
+    }
   }
 
   res.json({
     answer,
     suggestedTours,
     mode: "smart_concierge",
-    source: "Delta Travel AI Database"
+    source
   });
 });
 
