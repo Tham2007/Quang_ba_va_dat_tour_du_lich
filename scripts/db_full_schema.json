@@ -1,0 +1,870 @@
+{
+  "tables": [
+    "AUDITLOG",
+    "BAIVIET_QUANGBA",
+    "CHITIET_HANHKHACH",
+    "CHUYENKHOIHANH",
+    "DANHGIA",
+    "DANHMUC",
+    "DATTOUR",
+    "HINHANH_TOUR",
+    "LICH_TRINH_DETAIL",
+    "NGUOIDUNG",
+    "THANHTOAN",
+    "TOUR"
+  ],
+  "schema": {
+    "AUDITLOG": {
+      "rowCount": 4,
+      "columns": [
+        {
+          "COLUMN_NAME": "MaLog",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "MaNguoiThucHien",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "HanhDong",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 100,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "DuLieuCu",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": -1,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "DuLieuMoi",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": -1,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "ThoiGian",
+          "DATA_TYPE": "datetime",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "(getdate())"
+        }
+      ]
+    },
+    "BAIVIET_QUANGBA": {
+      "rowCount": 3,
+      "columns": [
+        {
+          "COLUMN_NAME": "MaBaiViet",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "TieuDe",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 255,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "Slug",
+          "DATA_TYPE": "varchar",
+          "CHARACTER_MAXIMUM_LENGTH": 255,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "TomTat",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 500,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "NoiDung",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": -1,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "HinhAnhDaiDien",
+          "DATA_TYPE": "varchar",
+          "CHARACTER_MAXIMUM_LENGTH": 255,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "LuotXem",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "((0))"
+        },
+        {
+          "COLUMN_NAME": "NgayTao",
+          "DATA_TYPE": "datetime",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "(getdate())"
+        },
+        {
+          "COLUMN_NAME": "TrangThai",
+          "DATA_TYPE": "bit",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "((1))"
+        },
+        {
+          "COLUMN_NAME": "MaNguoiDang",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        }
+      ]
+    },
+    "CHITIET_HANHKHACH": {
+      "rowCount": 11,
+      "columns": [
+        {
+          "COLUMN_NAME": "MaHanhKhach",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "MaDatTour",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "HoTen",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 100,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "NgaySinh",
+          "DATA_TYPE": "date",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "GioiTinh",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 10,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "SoDienThoai",
+          "DATA_TYPE": "varchar",
+          "CHARACTER_MAXIMUM_LENGTH": 15,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        }
+      ]
+    },
+    "CHUYENKHOIHANH": {
+      "rowCount": 9,
+      "columns": [
+        {
+          "COLUMN_NAME": "MaChuyen",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "MaTour",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "NgayKhoiHanh",
+          "DATA_TYPE": "datetime",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "NgayKetThuc",
+          "DATA_TYPE": "datetime",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "GiaThucTe",
+          "DATA_TYPE": "decimal",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "SoChoToiDa",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "SoChoDaDat",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "((0))"
+        },
+        {
+          "COLUMN_NAME": "TrangThaiChuyen",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 50,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "(N'Mở bán')"
+        }
+      ]
+    },
+    "DANHGIA": {
+      "rowCount": 2,
+      "columns": [
+        {
+          "COLUMN_NAME": "MaDanhGia",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "MaDatTour",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "SoSao",
+          "DATA_TYPE": "tinyint",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "((5))"
+        },
+        {
+          "COLUMN_NAME": "NoiDung",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 1000,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "HinhAnh",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 500,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "NgayDanhGia",
+          "DATA_TYPE": "datetime",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "(getdate())"
+        },
+        {
+          "COLUMN_NAME": "TrangThaiHienThi",
+          "DATA_TYPE": "bit",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "((1))"
+        },
+        {
+          "COLUMN_NAME": "PhanHoiAdmin",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 1000,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        }
+      ]
+    },
+    "DANHMUC": {
+      "rowCount": 4,
+      "columns": [
+        {
+          "COLUMN_NAME": "MaDanhMuc",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "TenDanhMuc",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 100,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "MoTa",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": -1,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        }
+      ]
+    },
+    "DATTOUR": {
+      "rowCount": 7,
+      "columns": [
+        {
+          "COLUMN_NAME": "MaDatTour",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "MaKhachHang",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "MaChuyen",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "NgayDat",
+          "DATA_TYPE": "datetime",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "(getdate())"
+        },
+        {
+          "COLUMN_NAME": "SoLuongKhach",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "TongTien",
+          "DATA_TYPE": "decimal",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "TrangThaiDat",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 50,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "(N'Chờ xác nhận')"
+        },
+        {
+          "COLUMN_NAME": "TrangThaiThanhToan",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 50,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "(N'Chưa thanh toán')"
+        }
+      ]
+    },
+    "HINHANH_TOUR": {
+      "rowCount": 10,
+      "columns": [
+        {
+          "COLUMN_NAME": "MaHinhAnh",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "MaTour",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "DuongDanAnh",
+          "DATA_TYPE": "varchar",
+          "CHARACTER_MAXIMUM_LENGTH": 255,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "GhiChu",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 200,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        }
+      ]
+    },
+    "LICH_TRINH_DETAIL": {
+      "rowCount": 10,
+      "columns": [
+        {
+          "COLUMN_NAME": "MaLichTrinh",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "MaTour",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "NgayThu",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "TieuDeNgay",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 200,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "NoiDungChiTiet",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": -1,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "BuaAn",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 100,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "ThuTuTrongNgay",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "LoaiHoatDong",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 30,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "DiaDiem",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 180,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "GioBatDau",
+          "DATA_TYPE": "char",
+          "CHARACTER_MAXIMUM_LENGTH": 5,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        }
+      ]
+    },
+    "NGUOIDUNG": {
+      "rowCount": 6,
+      "columns": [
+        {
+          "COLUMN_NAME": "MaNguoiDung",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "HoTen",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 100,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "Email",
+          "DATA_TYPE": "varchar",
+          "CHARACTER_MAXIMUM_LENGTH": 100,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "SoDienThoai",
+          "DATA_TYPE": "varchar",
+          "CHARACTER_MAXIMUM_LENGTH": 15,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "MatKhau",
+          "DATA_TYPE": "varchar",
+          "CHARACTER_MAXIMUM_LENGTH": 255,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "DiaChi",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 200,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "TrangThai",
+          "DATA_TYPE": "bit",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "((1))"
+        },
+        {
+          "COLUMN_NAME": "NgayTao",
+          "DATA_TYPE": "datetime",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "(getdate())"
+        },
+        {
+          "COLUMN_NAME": "VaiTro",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 20,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "(N'CUSTOMER')"
+        }
+      ]
+    },
+    "THANHTOAN": {
+      "rowCount": 5,
+      "columns": [
+        {
+          "COLUMN_NAME": "MaThanhToan",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "MaDatTour",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "PhuongThuc",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 50,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "SoTien",
+          "DATA_TYPE": "decimal",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "NgayThanhToan",
+          "DATA_TYPE": "datetime",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "(getdate())"
+        },
+        {
+          "COLUMN_NAME": "MaGiaoDich",
+          "DATA_TYPE": "varchar",
+          "CHARACTER_MAXIMUM_LENGTH": 100,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "TrangThai",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 50,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "(N'Thành công')"
+        }
+      ]
+    },
+    "TOUR": {
+      "rowCount": 4,
+      "columns": [
+        {
+          "COLUMN_NAME": "MaTour",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "MaDanhMuc",
+          "DATA_TYPE": "int",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "TenTour",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 200,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "MoTaChiTiet",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": -1,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "LichTrinhTongQuan",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 500,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "GiaKhuyenNghi",
+          "DATA_TYPE": "decimal",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "HinhAnhDaiDien",
+          "DATA_TYPE": "varchar",
+          "CHARACTER_MAXIMUM_LENGTH": 255,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "TrangThai",
+          "DATA_TYPE": "bit",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "((1))"
+        },
+        {
+          "COLUMN_NAME": "Slug",
+          "DATA_TYPE": "varchar",
+          "CHARACTER_MAXIMUM_LENGTH": 255,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "Duration",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 50,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "Departure",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 255,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "Transport",
+          "DATA_TYPE": "nvarchar",
+          "CHARACTER_MAXIMUM_LENGTH": 255,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "GiaGoc",
+          "DATA_TYPE": "decimal",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "YES",
+          "COLUMN_DEFAULT": null
+        },
+        {
+          "COLUMN_NAME": "FlashSale",
+          "DATA_TYPE": "bit",
+          "CHARACTER_MAXIMUM_LENGTH": null,
+          "IS_NULLABLE": "NO",
+          "COLUMN_DEFAULT": "((0))"
+        }
+      ]
+    }
+  },
+  "primaryKeys": [
+    {
+      "TABLE_NAME": "AUDITLOG",
+      "COLUMN_NAME": "MaLog",
+      "CONSTRAINT_NAME": "PK_AUDITLOG"
+    },
+    {
+      "TABLE_NAME": "BAIVIET_QUANGBA",
+      "COLUMN_NAME": "MaBaiViet",
+      "CONSTRAINT_NAME": "PK_BAIVIET_QUANGBA"
+    },
+    {
+      "TABLE_NAME": "CHITIET_HANHKHACH",
+      "COLUMN_NAME": "MaHanhKhach",
+      "CONSTRAINT_NAME": "PK_CHITIET_HANHKHACH"
+    },
+    {
+      "TABLE_NAME": "CHUYENKHOIHANH",
+      "COLUMN_NAME": "MaChuyen",
+      "CONSTRAINT_NAME": "PK_CHUYENKHOIHANH"
+    },
+    {
+      "TABLE_NAME": "DANHGIA",
+      "COLUMN_NAME": "MaDanhGia",
+      "CONSTRAINT_NAME": "PK_DANHGIA"
+    },
+    {
+      "TABLE_NAME": "DANHMUC",
+      "COLUMN_NAME": "MaDanhMuc",
+      "CONSTRAINT_NAME": "PK_DANHMUC"
+    },
+    {
+      "TABLE_NAME": "DATTOUR",
+      "COLUMN_NAME": "MaDatTour",
+      "CONSTRAINT_NAME": "PK_DATTOUR"
+    },
+    {
+      "TABLE_NAME": "HINHANH_TOUR",
+      "COLUMN_NAME": "MaHinhAnh",
+      "CONSTRAINT_NAME": "PK_HINHANH_TOUR"
+    },
+    {
+      "TABLE_NAME": "LICH_TRINH_DETAIL",
+      "COLUMN_NAME": "MaLichTrinh",
+      "CONSTRAINT_NAME": "PK_LICH_TRINH_DETAIL"
+    },
+    {
+      "TABLE_NAME": "NGUOIDUNG",
+      "COLUMN_NAME": "MaNguoiDung",
+      "CONSTRAINT_NAME": "PK_NGUOIDUNG"
+    },
+    {
+      "TABLE_NAME": "THANHTOAN",
+      "COLUMN_NAME": "MaThanhToan",
+      "CONSTRAINT_NAME": "PK_THANHTOAN"
+    },
+    {
+      "TABLE_NAME": "TOUR",
+      "COLUMN_NAME": "MaTour",
+      "CONSTRAINT_NAME": "PK_TOUR"
+    }
+  ],
+  "foreignKeys": [
+    {
+      "ParentTable": "AUDITLOG",
+      "ParentColumn": "MaNguoiThucHien",
+      "ReferencedTable": "NGUOIDUNG",
+      "ReferencedColumn": "MaNguoiDung",
+      "ConstraintName": "FK_AUDITLOG_NGUOIDUNG"
+    },
+    {
+      "ParentTable": "BAIVIET_QUANGBA",
+      "ParentColumn": "MaNguoiDang",
+      "ReferencedTable": "NGUOIDUNG",
+      "ReferencedColumn": "MaNguoiDung",
+      "ConstraintName": "FK_BAIVIET_NGUOIDUNG"
+    },
+    {
+      "ParentTable": "CHITIET_HANHKHACH",
+      "ParentColumn": "MaDatTour",
+      "ReferencedTable": "DATTOUR",
+      "ReferencedColumn": "MaDatTour",
+      "ConstraintName": "FK_CHITIETHANHKHACH_DATTOUR"
+    },
+    {
+      "ParentTable": "CHUYENKHOIHANH",
+      "ParentColumn": "MaTour",
+      "ReferencedTable": "TOUR",
+      "ReferencedColumn": "MaTour",
+      "ConstraintName": "FK_CHUYENKHOIHANH_TOUR"
+    },
+    {
+      "ParentTable": "DANHGIA",
+      "ParentColumn": "MaDatTour",
+      "ReferencedTable": "DATTOUR",
+      "ReferencedColumn": "MaDatTour",
+      "ConstraintName": "FK_DANHGIA_DATTOUR"
+    },
+    {
+      "ParentTable": "DATTOUR",
+      "ParentColumn": "MaChuyen",
+      "ReferencedTable": "CHUYENKHOIHANH",
+      "ReferencedColumn": "MaChuyen",
+      "ConstraintName": "FK_DATTOUR_CHUYENKHOIHANH"
+    },
+    {
+      "ParentTable": "DATTOUR",
+      "ParentColumn": "MaKhachHang",
+      "ReferencedTable": "NGUOIDUNG",
+      "ReferencedColumn": "MaNguoiDung",
+      "ConstraintName": "FK_DATTOUR_NGUOIDUNG"
+    },
+    {
+      "ParentTable": "HINHANH_TOUR",
+      "ParentColumn": "MaTour",
+      "ReferencedTable": "TOUR",
+      "ReferencedColumn": "MaTour",
+      "ConstraintName": "FK_HINHANHTOUR_TOUR"
+    },
+    {
+      "ParentTable": "LICH_TRINH_DETAIL",
+      "ParentColumn": "MaTour",
+      "ReferencedTable": "TOUR",
+      "ReferencedColumn": "MaTour",
+      "ConstraintName": "FK_LICHTRINH_TOUR"
+    },
+    {
+      "ParentTable": "THANHTOAN",
+      "ParentColumn": "MaDatTour",
+      "ReferencedTable": "DATTOUR",
+      "ReferencedColumn": "MaDatTour",
+      "ConstraintName": "FK_THANHTOAN_DATTOUR"
+    },
+    {
+      "ParentTable": "TOUR",
+      "ParentColumn": "MaDanhMuc",
+      "ReferencedTable": "DANHMUC",
+      "ReferencedColumn": "MaDanhMuc",
+      "ConstraintName": "FK_TOUR_DANHMUC"
+    }
+  ]
+}

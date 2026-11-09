@@ -12,7 +12,7 @@
 3. **Giữ nguyên các thuộc tính (Attributes):** Không xóa, không đổi tên hoặc thay đổi kiểu dữ liệu, độ dài và thuộc tính NOT NULL của các cột ban đầu.
 4. **Giữ nguyên khóa:** Giữ nguyên khóa chính (PK), khóa ngoại (FK), khóa duy nhất (UK) và các ràng buộc toàn vẹn dữ liệu.
 5. **Không phá vỡ ERD:** Cấu trúc database luôn đồng bộ và tương thích với bản vẽ thiết kế ERD 12 bảng đã hoàn thành.
-6. **Ưu tiên tích hợp vào bảng hiện hữu:** Mọi dữ liệu phụ trợ về phiên bảo mật, cơ cấu chi phí hay chống trùng lặp đơn đều được tích hợp vào các thực thể gốc tương ứng (`NGUOIDUNG`, `TOUR`, `DATTOUR`), tuyệt đối không tạo thêm bảng dư thừa.
+6. **Ưu tiên tận dụng cấu trúc hiện có:** Khi cần sửa chức năng hoặc nâng cấp tính năng website, hệ thống điều chỉnh logic code Backend, API, câu truy vấn SQL hoặc logic xử lý ứng dụng (Application Memory / Session Cache), tuyệt đối không thêm bảng hay thay đổi cấu trúc bảng CSDL gốc.
 7. **Bảo toàn dữ liệu:** Không thực hiện DROP TABLE, TRUNCATE TABLE hoặc xóa dữ liệu nghiệp vụ của đồ án.
 
 ---
@@ -52,9 +52,6 @@ Lưu trữ thông tin người dùng, khách hàng, quản trị viên và dữ 
 | `TrangThai` | `bit` | NOT NULL | Trạng thái: `1` (Hoạt động), `0` (Khóa) |
 | `NgayTao` | `datetime` | NOT NULL | Thời gian tạo tài khoản |
 | `VaiTro` | `nvarchar(20)` | NOT NULL | Quyền hạn: `KhachHang`, `Admin` |
-| `TokenHash` | `char(64)` | YES | Hash mã Token xác thực phiên đăng nhập hiện hành |
-| `CsrfHash` | `char(64)` | YES | Token chống giả mạo request (CSRF Protection) |
-| `HetHan` | `datetime2` | YES | Thời hạn hiệu lực của phiên đăng nhập |
 
 ---
 
@@ -88,7 +85,6 @@ Lưu trữ toàn bộ thông tin sản phẩm du lịch trọn gói và chi ti�
 | `Transport` | `nvarchar(255)` | YES | Phương tiện chính (Du thuyền, Máy bay, Limousine...) |
 | `GiaGoc` | `decimal(18,2)` | YES | Giá gốc trước khuyến mãi |
 | `FlashSale` | `bit` | NOT NULL | Đánh dấu tour Flash Sale (`1` hoặc `0`) |
-| `ChiPhiChiTiet` | `nvarchar(max)` | YES | Chi tiết các khoản chi cấu thành giá tour (Vận chuyển, Lưu trú, Ăn uống...) |
 
 ---
 
@@ -151,8 +147,6 @@ Quản lý các đơn đặt vé của khách hàng, số lượng khách, tổn
 | `TongTien` | `decimal(18,2)` | NOT NULL | Tổng giá trị đơn đặt tour (VND) |
 | `TrangThaiDat` | `nvarchar(50)` | NOT NULL | `ChoXacNhan`, `DaXacNhan`, `HoanTat`, `DaHuy` |
 | `TrangThaiThanhToan` | `nvarchar(50)` | NOT NULL | `ChuaThanhToan`, `DaThanhToan`, `HoanTien` |
-| `KhoaYeuCau` | `varchar(64)` | YES | UUID Idempotency Key duy nhất của yêu cầu (chống lặp click) |
-| `DauVanTay` | `char(64)` | YES | Hash dấu vân tay dữ liệu đơn tour |
 
 ---
 
@@ -233,8 +227,8 @@ Ghi nhận mọi thao tác quan trọng để đảm bảo tính minh bạch và
 
 ---
 
-## 🔒 CAM KẾT ĐẢM BẢO CHẤT LƯỢNG HỆ THỐNG
-1. Toàn bộ 3 bảng tạm thời (`API_PHIENDANGNHAP`, `API_TOUR_COST_ITEM`, `API_YEUCAU_DATTOUR`) đã được **XÓA BỎ HOÀN TOÀN** khỏi cơ sở dữ liệu SQL Server.
-2. Cơ sở dữ liệu hiện tại chỉ bao gồm duy nhất **12 bảng nghiệp vụ gốc**, bảo toàn 100% dữ liệu, khóa chính, khóa ngoại và quan hệ ERD đã thiết kế ban đầu.
-3. Các trường chức năng hỗ trợ phiên bảo mật (`TokenHash`, `CsrfHash`, `HetHan`), cơ cấu chi phí (`ChiPhiChiTiet`) và chống trùng lặp đơn (`KhoaYeuCau`, `DauVanTay`) đã được tích hợp trực tiếp, an toàn vào đúng các bảng hiện hữu (`NGUOIDUNG`, `TOUR`, `DATTOUR`).
-4. Mọi chức năng mở rộng phía giao diện người dùng (chuyển đổi đa ngôn ngữ Việt - Anh, biểu tượng cờ SVG, thanh điều hướng kính Liquid Glass, khung chat AI Concierge) đều tuân thủ nguyên tắc không tạo thêm bảng mới trong CSDL.
+## 🔒 CAM KẾT BẢO TOÀN CẤU TRÚC DATABASE (100% CHUẨN ERD)
+1. Cơ sở dữ liệu SQL Server (`db_ad0b71_dattour`) chỉ duy trì duy nhất **đúng 12 bảng thực thể nghiệp vụ chuẩn 3NF**, không tồn tại bất kỳ bảng phụ hay bảng tạm nào.
+2. Toàn bộ các bảng, khóa chính (PK), khóa ngoại (FK) và thuộc tính gốc được giữ nguyên vẹn 100%, tương thích hoàn hảo với bản thiết kế ERD và tài liệu phân tích nghiệp vụ.
+3. Không tự ý thêm, sửa, xóa cột hoặc bảng. Mọi logic xác thực phiên (Session/JWT), chống click trùng lặp (Idempotency) và chi tiết phân rã chi phí tour được xử lý độc lập tại tầng ứng dụng (Backend / API Service) mà không can thiệp vào cấu trúc CSDL.
+4. Mọi chức năng mở rộng phía giao diện người dùng (chuyển đổi đa ngôn ngữ Việt - Anh, cờ hiệu SVG sắc nét, giao diện đặt tour và lịch trình trên nền giấy trắng chữ đen thuần túy, trợ lý ảo AI Concierge kết nối trực tiếp Groq AI) đều hoạt động trơn tru trên nền 12 bảng CSDL chuẩn mực.
