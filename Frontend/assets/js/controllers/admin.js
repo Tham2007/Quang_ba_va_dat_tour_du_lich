@@ -250,7 +250,7 @@ function refreshAdminData() {
             rating: 5.0,
             reviewsCount: 100,
             badge: st.isFlashSale ? 'Ưu đãi' : '',
-            availableSeats: 20,
+            availableSeats: st.availableSeats !== undefined ? st.availableSeats : (st.schedules?.[0]?.availableSeats ?? 20),
             status: st.active ? 'ACTIVE' : 'INACTIVE',
             itinerary: itinerary.length > 0 ? itinerary : [
               { day: 1, title: 'Khám phá điểm đến', morning: 'Khởi hành', afternoon: 'Tham quan', evening: 'Nghỉ ngơi' }
@@ -1587,7 +1587,8 @@ async function handleSaveTourSubmit(e) {
         flash_sale: tourData.isFlashSale,
         description: tourData.highlights.join("\n"),
         active: status === "ACTIVE",
-        images: apiImages
+        images: apiImages,
+        available_seats: tourData.availableSeats
       });
       if (!catalogUpdate.success) {
         showAdminToast(catalogUpdate.error || "Không thể cập nhật tour trên máy chủ.", "error");
@@ -1821,9 +1822,12 @@ function openScheduleModal(scheduleId = null) {
   }
 
   const defaultDate = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 16);
+  const nowMinDate = new Date().toISOString().slice(0, 16);
   document.getElementById("scheduleModalTitle").textContent = sch ? "Chỉnh Sửa Lịch Khởi Hành" : "Thêm Lịch Khởi Hành Mới";
   document.getElementById("formSchId").value = sch ? sch.id : ("SCH-" + Date.now().toString().slice(-4));
-  document.getElementById("formSchDate").value = sch ? sch.departureAt.slice(0, 16) : defaultDate;
+  const dateInput = document.getElementById("formSchDate");
+  dateInput.value = sch ? sch.departureAt.slice(0, 16) : defaultDate;
+  dateInput.min = nowMinDate; // Chặn ngày quá khứ ngay trên giao diện
   document.getElementById("formSchSeats").value = sch ? sch.totalSeats : 30;
   const tour = AdminState.tours.find(item => item.id === (sch?.tourId || selectTour?.value));
   if (selectTour) selectTour.disabled = Boolean(sch);
@@ -1845,6 +1849,20 @@ async function handleSaveScheduleSubmit(e) {
   const departureAt = document.getElementById("formSchDate").value;
   const totalSeats = Number(document.getElementById("formSchSeats").value) || 30;
   const status = document.getElementById("formSchStatus").value;
+
+  if (!departureAt) {
+    showAdminToast("Vui lòng chọn ngày khởi hành.", "error");
+    return;
+  }
+
+  // Kiểm tra tính hợp lệ: không cho phép ngày nhỏ hơn ngày hiện tại
+  const depDate = new Date(departureAt);
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  if (depDate < todayStart) {
+    showAdminToast("Ngày khởi hành không được ở quá khứ. Vui lòng chọn ngày từ hôm nay trở đi.", "error");
+    return;
+  }
 
   const tour = AdminState.tours.find(t => t.id === tourId);
   const tourTitle = tour ? tour.title : tourId;
@@ -1906,9 +1924,27 @@ async function handleSaveScheduleSubmit(e) {
     showAdminToast(`Thêm lịch khởi hành mới ${id} thành công!`, "success");
   }
 
+  AdminState.schedules = schedules;
   saveSchedulesData(schedules);
   bootstrap.Modal.getInstance(document.getElementById("adminScheduleModal"))?.hide();
   renderCurrentTab();
+
+  if (typeof DeltaAPI !== "undefined" && DeltaAPI.adminGetSchedules) {
+    DeltaAPI.adminGetSchedules().then(res => {
+      if (res && res.success && Array.isArray(res.data)) {
+        AdminState.schedules = res.data.map(schedule => ({
+          id: schedule.id,
+          tourId: schedule.tourId,
+          tourTitle: AdminState.tours.find(t => t.id === schedule.tourId)?.title || schedule.tourId,
+          departureAt: schedule.departureAt,
+          totalSeats: schedule.totalSeats,
+          bookedSeats: schedule.totalSeats - schedule.availableSeats,
+          status: schedule.active ? "OPEN" : "CLOSED"
+        }));
+        renderCurrentTab();
+      }
+    }).catch(() => {});
+  }
 }
 
 // =============================================================================

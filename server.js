@@ -783,6 +783,58 @@ function tourImages(imageValue) {
   return images.filter(Boolean);
 }
 
+
+
+function publicSchedule(s) {
+  const total = Number(s.total_seats);
+  const reserved = Number(s.reserved_seats || 0);
+  return {
+    id: s.id,
+    tourId: s.tour_id,
+    departureAt: iso(s.departure_at),
+    totalSeats: total,
+    availableSeats: Math.max(0, total - reserved),
+    active: Boolean(s.active)
+  };
+}
+
+function tourAvailableSeats(tourId) {
+  try {
+    const futureSchedule = db.prepare(`
+      SELECT total_seats, reserved_seats
+      FROM schedules
+      WHERE tour_id = ? AND active = 1 AND departure_at >= date('now')
+      ORDER BY departure_at ASC LIMIT 1
+    `).get(tourId);
+    if (futureSchedule) {
+      return Math.max(0, Number(futureSchedule.total_seats) - Number(futureSchedule.reserved_seats || 0));
+    }
+    const anySchedule = db.prepare(`
+      SELECT total_seats, reserved_seats
+      FROM schedules
+      WHERE tour_id = ? AND active = 1
+      ORDER BY departure_at DESC LIMIT 1
+    `).get(tourId);
+    if (anySchedule) {
+      return Math.max(0, Number(anySchedule.total_seats) - Number(anySchedule.reserved_seats || 0));
+    }
+  } catch (_) {}
+  return 20;
+}
+
+function tourSchedules(tourId) {
+  try {
+    const rows = db.prepare(`
+      SELECT * FROM schedules
+      WHERE tour_id = ? AND active = 1 AND departure_at >= date('now')
+      ORDER BY departure_at ASC
+    `).all(tourId);
+    return rows.map(publicSchedule);
+  } catch (_) {
+    return [];
+  }
+}
+
 function publicTour(t) {
   const images = tourImages(t.image);
   let itinerary = [];
@@ -808,6 +860,8 @@ function publicTour(t) {
     price: Number(t.price),
     originalPrice: Number(t.original_price),
     isFlashSale: Boolean(t.flash_sale),
+    availableSeats: tourAvailableSeats(t.id),
+    schedules: tourSchedules(t.id),
     updatedAt: iso(t.updated_at)
   };
 }
@@ -846,18 +900,7 @@ function adminTourDetails(tour) {
   };
 }
 
-function publicSchedule(s) {
-  const total = Number(s.total_seats);
-  const reserved = Number(s.reserved_seats || 0);
-  return {
-    id: s.id,
-    tourId: s.tour_id,
-    departureAt: iso(s.departure_at),
-    totalSeats: total,
-    availableSeats: Math.max(0, total - reserved),
-    active: Boolean(s.active)
-  };
-}
+
 
 function userDict(u) {
   let totalBookings = 0;
@@ -1223,11 +1266,12 @@ app.delete("/api/v1/favorites/:tour_id", requireAuth, (req, res) => {
 // 4. Tours & Schedules
 app.get("/api/v1/tours", async (req, res) => {
   if (await proxySqlServerCatalog(req, res, "/api/v1/tours", ["q", "region", "max_price"])) return;
-  const { search, region, flash_sale } = req.query;
+  const { search, q, destination, region, flash_sale, min_price, max_price } = req.query;
   let query = "SELECT * FROM tours WHERE active = 1";
   const params = [];
 
-  if (region) {
+  // Vùng miền (chỉ áp dụng nếu không có điểm đến cụ thể để tránh lọc nhầm, và khác 'all')
+  if (region && region !== "all" && !destination) {
     query += " AND region = ?";
     params.push(region);
   }
@@ -1235,13 +1279,27 @@ app.get("/api/v1/tours", async (req, res) => {
     query += " AND flash_sale = ?";
     params.push(flash_sale === "true" || flash_sale === "1" ? 1 : 0);
   }
-  if (search) {
-    query += " AND (title LIKE ? OR description LIKE ? OR departure LIKE ?)";
-    const term = `%${search}%`;
-    params.push(term, term, term);
+  if (min_price && !isNaN(Number(min_price))) {
+    query += " AND price >= ?";
+    params.push(Number(min_price));
+  }
+  if (max_price && !isNaN(Number(max_price))) {
+    query += " AND price <= ?";
+    params.push(Number(max_price));
   }
   query += " ORDER BY id ASC";
-  const tours = db.prepare(query).all(...params);
+  let tours = db.prepare(query).all(...params);
+
+  const term = (destination || search || q || "").trim();
+  if (term) {
+    const normalize = s => String(s || "").toLowerCase().replace(/[đĐ]/g, "d").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    const normTerm = normalize(term);
+    tours = tours.filter(t => {
+      const text = normalize([t.title, t.description, t.departure, t.itinerary_json].join(" "));
+      return text.includes(normTerm);
+    });
+  }
+
   res.json(tours.map(publicTour));
 });
 
@@ -1635,6 +1693,28 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
   const t = db.prepare("SELECT * FROM tours WHERE id = ?").get(tour_id);
   if (!t) return res.status(404).json({ detail: "Không tìm thấy tour." });
 
+  // Xử lý cập nhật số chỗ mở bán đồng bộ xuống bảng lịch khởi hành (schedules)
+  const incomingSeats = req.body?.available_seats ?? req.body?.availableSeats;
+  if (incomingSeats !== undefined && incomingSeats !== null) {
+    const seatsNum = Number(incomingSeats);
+    if (!isNaN(seatsNum) && seatsNum >= 0) {
+      const activeScheds = db.prepare("SELECT id, reserved_seats FROM schedules WHERE tour_id = ? AND active = 1").all(tour_id);
+      if (activeScheds.length > 0) {
+        for (const sc of activeScheds) {
+          const resSeats = Number(sc.reserved_seats || 0);
+          db.prepare("UPDATE schedules SET total_seats = ? WHERE id = ?").run(seatsNum + resSeats, sc.id);
+        }
+      } else {
+        const d = new Date();
+        d.setDate(d.getDate() + 7);
+        db.prepare(`
+          INSERT INTO schedules (id, tour_id, departure_at, total_seats, reserved_seats, active)
+          VALUES (?, ?, ?, ?, 0, 1)
+        `).run(crypto.randomUUID(), tour_id, d.toISOString(), seatsNum);
+      }
+    }
+  }
+
   const columns = {
     title: "title",
     slug: "slug",
@@ -1648,7 +1728,9 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
     flash_sale: "flash_sale",
     active: "active",
     image: "image",
-    images: "image"
+    images: "image",
+    available_seats: null,
+    availableSeats: null
   };
   const fields = [];
   const params = [];
@@ -1656,13 +1738,14 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
     if (!Object.hasOwn(columns, key)) {
       return res.status(422).json({ detail: `Không hỗ trợ cập nhật trường "${key}".` });
     }
+    const col = columns[key];
+    if (col === null) continue; // Đã xử lý ở bảng liên quan (như schedules)
     if (val !== undefined && val !== null) {
       if (key === "images" &&
           (!Array.isArray(val) || val.length > 12 ||
            val.some(image => typeof image !== "string" || image.length > 1200))) {
         return res.status(422).json({ detail: "Danh sách ảnh tour không hợp lệ." });
       }
-      const col = columns[key];
       fields.push(`${col} = ?`);
       params.push(key === "images" ? JSON.stringify(val) :
         key === "flash_sale" || key === "active" ? (val ? 1 : 0) : val);
@@ -1699,11 +1782,27 @@ app.post("/api/v1/admin/schedules", requireAdmin, (req, res) => {
     return res.status(422).json({ detail: "Thiếu thông tin lịch trình." });
   }
 
+  const depDate = new Date(departure_at);
+  if (isNaN(depDate.getTime())) {
+    return res.status(422).json({ detail: "Ngày khởi hành không hợp lệ." });
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (depDate < today) {
+    return res.status(422).json({ detail: "Ngày khởi hành không được ở quá khứ. Vui lòng chọn ngày từ hôm nay trở đi." });
+  }
+
+  const totalSeatsNum = Number(total_seats) || 20;
+  if (totalSeatsNum <= 0 || totalSeatsNum > 1000) {
+    return res.status(422).json({ detail: "Số chỗ mở bán không hợp lệ (từ 1 đến 1000 chỗ)." });
+  }
+
   const id = crypto.randomUUID();
   db.prepare(`
     INSERT INTO schedules (id, tour_id, departure_at, total_seats, reserved_seats, active)
     VALUES (?, ?, ?, ?, 0, 1)
-  `).run(id, tour_id, new Date(departure_at).toISOString(), total_seats);
+  `).run(id, tour_id, depDate.toISOString(), totalSeatsNum);
 
   const sched = db.prepare("SELECT * FROM schedules WHERE id = ?").get(id);
   audit(req.user.id, "SCHEDULE_CREATED", id);
@@ -1758,42 +1857,14 @@ app.post("/api/v1/admin/bookings/:booking_id/confirm-payment", requireAdmin, (re
 });
 
 // 7. AI Assistant - Kết nối Groq AI (openai/gpt-oss-120b), huấn luyện chuyên sâu Delta Travel
-async function queryGroqAI(userMessage, allTours) {
+async function queryGroqChat(messages) {
   const apiKey = process.env.GROQ_API_KEY || "";
   if (!apiKey) throw new Error("Chưa cấu hình GROQ_API_KEY");
-  const catalogSummary = allTours.slice(0, 16).map(t => 
-    `- Mã [${t.id}]: ${t.title} | Thời lượng: ${t.duration || '3N2Đ'} | Điểm đón: ${t.departure || 'Hà Nội'} | Giá: ${Number(t.price).toLocaleString("vi-VN")} VND | Vùng: ${t.region}`
-  ).join("\n");
-
-  const systemPrompt = `Bạn là Trợ lý AI Concierge 5 sao độc quyền của hãng du lịch lữ hành Delta Travel (Việt Nam).
-DANH MỤC 16 TOUR HIỆN CÓ CỦA DELTA TRAVEL:
-${catalogSummary}
-
-QUY TẮC BẮT BUỘC VỀ PHẠM VI & TỪ CHỐI CÂU HỎI LẠC ĐỀ (STRICT DOMAIN GATING):
-1. PHẠM VI CHUYÊN BIỆT: Bạn CHỈ ĐƯỢC PHÉP hỗ trợ về: Du lịch, nghỉ dưỡng, 16 tour của Delta Travel, địa điểm du lịch tại Việt Nam, kinh nghiệm du lịch, thời tiết điểm đến, thủ tục đặt vé & thanh toán tại Delta Travel.
-2. TUYỆT ĐỐI TỪ CHỐI CÂU HỎI KHÔNG LIÊN QUAN ĐẾN DU LỊCH:
-- Nếu người dùng hỏi bất kỳ câu hỏi nào NGOÀI DU LỊCH (ví dụ: cách có người yêu, hẹn hò, tình cảm, giải bài tập, viết code, chính trị, y tế, triết lý, tin tức không liên quan...):
-- BẠN PHẢI TỪ CHỐI LỊCH SỰ NGAY LẬP TỨC. Tuyệt đối KHÔNG trả lời hay tư vấn nội dung câu hỏi đó!
-- MẪU TỪ CHỐI: "Dạ, tôi là Trợ lý AI Concierge của Delta Travel, tôi chỉ chuyên hỗ trợ tư vấn về các tour du lịch, kỳ nghỉ dưỡng và dịch vụ đặt vé tại Việt Nam thôi ạ! Tôi không thể tư vấn về vấn đề này. Tuy nhiên, nếu bạn muốn một chuyến du lịch để thư giãn hoặc gặp gỡ thêm bạn bè mới, tôi rất sẵn lòng gợi ý các tour tuyệt đẹp cho bạn nhé!" (hoặc tương tự bằng tiếng Anh nếu khách hỏi tiếng Anh).
-- TUYỆT ĐỐI KHÔNG đính kèm [RECOMMENDED_TOURS] khi từ chối câu hỏi lạc đề.
-
-3. KHI KHÁCH CHÀO HỎI BÌNH THƯỜNG ("xin chào", "hello", "hi", "bạn là ai", cảm ơn):
-- Trò chuyện lịch thiệp, ngắn gọn, giới thiệu mình là AI Concierge của Delta Travel, hỏi khách muốn đi nghỉ dưỡng ở đâu. KHÔNG đính kèm [RECOMMENDED_TOURS].
-
-4. CHỈ KHI KHÁCH CẦN TƯ VẤN, GỢI Ý TOUR, TÌM TOUR, HỎI VỀ GIÁ, ĐỊA ĐIỂM, LÊN KẾ HOẠCH DU LỊCH HOẶC ĐẶT VÉ:
-- Bạn hãy tư vấn tâm huyết, giải thích lộ trình và ở CUỐI CÙNG của câu trả lời, hãy xuống dòng viết đúng cú pháp:
-[RECOMMENDED_TOURS: MA_TOUR_1, MA_TOUR_2]
-(Chọn từ 1 đến tối đa 3 mã tour thích hợp nhất từ danh mục trên).
-
-5. ĐỒNG BỘ NGÔN NGỮ: Khách hỏi tiếng Việt thì trả lời tiếng Việt, khách hỏi tiếng Anh thì trả lời 100% tiếng Anh chuẩn mực.`;
 
   const requestBody = JSON.stringify({
     model: "openai/gpt-oss-120b",
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userMessage }
-    ],
-    temperature: 0.6,
+    messages,
+    temperature: 0.3,
     max_tokens: 800
   });
 
@@ -1807,7 +1878,7 @@ QUY TẮC BẮT BUỘC VỀ PHẠM VI & TỪ CHỐI CÂU HỎI LẠC ĐỀ (STRI
         "Content-Type": "application/json",
         "Content-Length": Buffer.byteLength(requestBody)
       },
-      timeout: 12000
+      timeout: 10000
     }, (res) => {
       let data = "";
       res.on("data", chunk => data += chunk);
@@ -1815,23 +1886,7 @@ QUY TẮC BẮT BUỘC VỀ PHẠM VI & TỪ CHỐI CÂU HỎI LẠC ĐỀ (STRI
         try {
           const json = JSON.parse(data);
           if (json.choices && json.choices[0] && json.choices[0].message) {
-            const fullContent = json.choices[0].message.content || "";
-            const match = fullContent.match(/\[RECOMMENDED_TOURS:\s*([^\]]+)\]/i);
-            let tourIds = [];
-            let cleanAnswer = fullContent;
-            if (match) {
-              tourIds = match[1].split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
-              cleanAnswer = fullContent.replace(/\[RECOMMENDED_TOURS:\s*[^\]]+\]/i, "").trim();
-            } else {
-              // Kiểm tra xem người dùng có yêu cầu tìm tour không
-              const lower = userMessage.toLowerCase();
-              const wantsTour = lower.includes("tour") || lower.includes("gợi ý") || lower.includes("recommend") || lower.includes("giá") || lower.includes("đặt") || lower.includes("book") || lower.includes("đi đâu") || lower.includes("du lịch");
-              if (wantsTour) {
-                const mentioned = (fullContent.match(/DL-[A-Z0-9]{2,6}/gi) || []).map(s => s.toUpperCase());
-                tourIds = [...new Set(mentioned)].slice(0, 3);
-              }
-            }
-            resolve({ answer: cleanAnswer, tourIds, source: "Groq AI (openai/gpt-oss-120b)" });
+            resolve(json.choices[0].message.content || "");
           } else {
             reject(new Error(json.error?.message || "Invalid AI response"));
           }
@@ -1851,72 +1906,232 @@ QUY TẮC BẮT BUỘC VỀ PHẠM VI & TỪ CHỐI CÂU HỎI LẠC ĐỀ (STRI
   });
 }
 
-app.post("/api/v1/assistant/chat", async (req, res) => {
-  const rawMsg = ((req.body && req.body.message) || "").trim();
-  const message = rawMsg.toLowerCase();
-  let answer = "";
-  let suggestedTours = [];
-  let source = "Delta Travel AI Database";
-
-  const allActiveTours = db.prepare("SELECT * FROM tours WHERE active = 1").all();
-
-  // 1. Thử gọi Groq AI
-  try {
-    const aiResult = await queryGroqAI(rawMsg, allActiveTours);
-    if (aiResult && aiResult.answer) {
-      answer = aiResult.answer;
-      source = aiResult.source;
-      if (Array.isArray(aiResult.tourIds) && aiResult.tourIds.length > 0) {
-        const matched = allActiveTours.filter(t => aiResult.tourIds.includes(String(t.id).toUpperCase()));
-        suggestedTours = matched.map(publicTour);
-      }
-    }
-  } catch (aiErr) {
-    console.warn("Groq AI tạm thời không phản hồi, chuyển sang fallback dự phòng:", aiErr.message);
+function findTourInText(text, allTours) {
+  if (!text) return null;
+  const lower = text.toLowerCase();
+  
+  // 1. Kiểm tra mã tour chính xác (DL-XXXX)
+  for (const t of allTours) {
+    if (lower.includes(String(t.id).toLowerCase())) return t;
   }
 
-  // 2. Dự phòng cục bộ nếu Groq không trả lời được
-  if (!answer) {
-    const isOffTopic = message.includes("người yêu") || message.includes("tán gái") || message.includes("bạn gái") || message.includes("bạn trai") || message.includes("tình yêu") || message.includes("toán") || message.includes("code") || message.includes("lập trình") || message.includes("bệnh") || message.includes("thuốc") || message.includes("dating") || message.includes("girlfriend") || message.includes("boyfriend");
-    const isNormalChat = message.startsWith("chào") || message === "hi" || message === "hello" || message.includes("thời tiết") || message.includes("bạn là ai");
-    
-    if (isOffTopic) {
-      answer = "Dạ xin lỗi bạn, tôi là Trợ lý AI Concierge độc quyền của Delta Travel, tôi chỉ chuyên hỗ trợ tư vấn về các tour du lịch, kỳ nghỉ dưỡng và dịch vụ đặt vé tại Việt Nam thôi ạ! Tôi không thể tư vấn về vấn đề này. Tuy nhiên, nếu bạn muốn một chuyến du lịch để thư giãn hoặc gặp gỡ thêm nhiều người bạn mới, tôi rất sẵn lòng gợi ý các tour tuyệt đẹp cho bạn nhé!";
-      suggestedTours = [];
-    } else if (isNormalChat) {
-      answer = "Kính chào Quý khách! 👋 Tôi là Trợ lý AI Concierge của Delta Travel. Tôi có thể hỗ trợ quý khách tìm kiếm kỳ nghỉ 5 sao, cung cấp thời tiết, lịch trình và đặt vé trực tiếp. Quý khách đang có kế hoạch khám phá địa điểm nào?";
-      suggestedTours = [];
-    } else if (message.includes("giá") || message.includes("bao nhiêu") || message.includes("price") || message.includes("chi phí")) {
-      const sample = db.prepare("SELECT * FROM tours WHERE active = 1 ORDER BY price ASC LIMIT 3").all();
-      suggestedTours = sample.map(publicTour);
-      answer = "Giá niêm yết hiện tại của Delta Travel đã bao gồm trọn gói 100% bảo hiểm du lịch, phòng khách sạn/du thuyền 5 sao và phương tiện đưa đón cao cấp. Dưới đây là các tour có mức giá ưu đãi nhất:";
-    } else if (message.includes("hạ long") || message.includes("ha long") || message.includes("lan hạ") || message.includes("du thuyền")) {
-      const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Hạ Long%' OR title LIKE '%Lan Hạ%' OR transport LIKE '%Du thuyền%') LIMIT 2").all();
-      suggestedTours = matched.map(publicTour);
-      answer = "Vịnh Hạ Long & Lan Hạ với du thuyền 5 sao đẳng cấp quốc tế: chèo thuyền kayak qua hang bí ẩn, tắm biển Ba Trái Đào và thưởng thức hải sản tươi sống. Bạn có thể xem lịch trình hoặc đặt ngay bên dưới:";
-    } else if (message.includes("đà nẵng") || message.includes("da nang") || message.includes("hội an") || message.includes("cầu vàng")) {
-      const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Đà Nẵng%' OR title LIKE '%Hội An%' OR region = 'central') LIMIT 2").all();
-      suggestedTours = matched.map(publicTour);
-      answer = "Thiên đường miền Trung: Đà Nẵng - Cầu Vàng Bà Nà Hills - Phố cổ Hội An trọn gói vé máy bay khứ hồi và khách sạn cao cấp sát biển. Dưới đây là hành trình phù hợp nhất:";
-    } else if (message.includes("phú quốc") || message.includes("phu quoc")) {
-      const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Phú Quốc%' OR title LIKE '%Côn Đảo%') LIMIT 2").all();
-      suggestedTours = matched.map(publicTour);
-      answer = "Thiên đường biển đảo Phú Quốc: Cáp treo Hòn Thơm vượt biển, lặn ngắm san hô 4 đảo và vui chơi tại Grand World không ngủ:";
-    } else if (message.includes("tour") || message.includes("gợi ý") || message.includes("tư vấn") || message.includes("recommend")) {
-      const sample = db.prepare("SELECT * FROM tours WHERE active = 1 ORDER BY RANDOM() LIMIT 2").all();
-      suggestedTours = sample.map(publicTour);
-      answer = "Delta Travel hiện có 16 hành trình du lịch 5 sao tiêu biểu khắp 3 miền với lịch khởi hành liên tục. Dưới đây là những hành trình nổi bật được yêu thích nhất:";
-    } else {
-      answer = "Kính chào Quý khách! Tôi là Trợ lý AI Concierge của Delta Travel. Tôi có thể hỗ trợ bạn tư vấn hành trình, cập nhật thời tiết và gợi ý các gói tour tốt nhất. Bạn muốn tìm tour ở vùng miền nào?";
-      suggestedTours = [];
+  // 2. Kiểm tra địa danh đặc trưng
+  const keywords = [
+    { keys: ["hạ long", "ha long", "lan hạ", "lan ha"], slug: "ha-long" },
+    { keys: ["đà nẵng", "da nang", "bà nà", "ba na", "cầu vàng", "hội an", "hoi an"], slug: "da-nang" },
+    { keys: ["phú quốc", "phu quoc", "hòn thơm"], slug: "phu-quoc" },
+    { keys: ["sapa", "sa pa", "fansipan"], slug: "sapa" },
+    { keys: ["hà giang", "ha giang", "mã pí lèng", "đồng văn"], slug: "ha-giang" },
+    { keys: ["cao bằng", "cao bang", "bản giốc", "ban gioc", "pác bó"], slug: "cao-bang" },
+    { keys: ["mộc châu", "moc chau", "thác dải yếm", "đồi chè trái tim"], slug: "moc-chau" },
+    { keys: ["cần thơ", "can tho", "miền tây", "chợ nổi cái răng", "trà sư"], slug: "can-tho" },
+    { keys: ["ninh bình", "ninh binh", "tràng an", "bái đính"], slug: "ninh-binh" },
+    { keys: ["đà lạt", "da lat", "cầu đất"], slug: "da-lat" },
+    { keys: ["nha trang", "hòn tằm", "vịnh san hô"], slug: "nha-trang" },
+    { keys: ["huế", "hue", "đại nội", "khải định"], slug: "hue" }
+  ];
+
+  for (const kw of keywords) {
+    if (kw.keys.some(k => lower.includes(k))) {
+      const match = allTours.find(t => 
+        (t.slug && t.slug.includes(kw.slug)) || 
+        (t.title && kw.keys.some(k => t.title.toLowerCase().includes(k)))
+      );
+      if (match) return match;
     }
+  }
+
+  // 3. So khớp tiêu đề tour trực tiếp
+  for (const t of allTours) {
+    if (lower.includes(t.title.toLowerCase())) return t;
+  }
+
+  return null;
+}
+
+app.post("/api/v1/assistant/chat", async (req, res) => {
+  const rawMsg = ((req.body && req.body.message) || "").trim();
+  const history = Array.isArray(req.body.history) ? req.body.history : (Array.isArray(req.body.messages) ? req.body.messages : []);
+  const currentTourId = req.body.currentTourId || req.body.current_tour_id;
+  const clientLang = req.body.lang || (typeof req.headers["accept-language"] === "string" && req.headers["accept-language"].startsWith("en") ? "en" : "vi");
+
+  // Kiểm tra ngôn ngữ tiếng Anh
+  const isEn = clientLang === "en" || (/^[a-zA-Z0-9\s.,?!'"-:;()]+$/.test(rawMsg) && (
+    /\b(the|is|are|how|much|tour|tours|trip|price|cost|where|what|when|hello|hi|good|can|you|recommend|book|booking|schedule|itinerary)\b/i.test(rawMsg)
+  ));
+
+  // 1. CHẶN TUYỆT ĐỐI CÂU HỎI LẠC ĐỀ NGOÀI DU LỊCH (STRICT DOMAIN GATING)
+  const isOffTopic = /(người yêu|bạn gái|bạn trai|crush|tán gái|tán trai|tình yêu|hẹn hò|chia tay|toán|giải toán|phương trình|vật lý|hóa học|bài tập|lập trình|viết code|python|javascript|code|bệnh|thuốc|triệu chứng|khám bệnh|chính trị|chiến tranh|dating|girlfriend|boyfriend|breakup|math|physics|chemistry|homework|coding)/i.test(rawMsg);
+  if (isOffTopic) {
+    return res.json({
+      answer: isEn
+        ? "I apologize, but as Delta Travel's AI Concierge, I am exclusively dedicated to assisting with travel tours, vacation itineraries, and booking services for Delta Travel in Vietnam. I cannot offer advice on topics outside of travel and tourism. If you are looking for a vacation to relax or meet new friends, I would be delighted to recommend wonderful tours for you! ✈️"
+        : "Dạ xin lỗi bạn, tôi là Trợ lý AI Concierge độc quyền của Delta Travel, tôi chỉ chuyên hỗ trợ tư vấn thông tin về các tour du lịch, lịch trình nghỉ dưỡng và dịch vụ đặt vé của Delta Travel tại Việt Nam thôi ạ! Tôi không thể tư vấn về các chủ đề ngoài phạm vi du lịch. Tuy nhiên, nếu bạn muốn một chuyến du lịch để thư giãn hoặc gặp gỡ thêm nhiều người bạn mới, tôi rất sẵn lòng gợi ý các tour tuyệt đẹp cho bạn nhé! ✈️",
+      suggestedTours: [],
+      mode: "smart_concierge",
+      source: "Delta Travel Guardrail"
+    });
+  }
+
+  // 2. HỖ TRỢ HƯỚNG DẪN CHỨC NĂNG WEBSITE (ĐẶT TOUR, THANH TOÁN, HỦY TOUR, ĐĂNG KÝ)
+  const isWebGuide = /(làm sao để đặt|cách đặt|đặt vé thế nào|hướng dẫn đặt|thanh toán thế nào|phương thức thanh toán|hủy tour thế nào|đổi ngày|đăng ký tài khoản|đăng nhập|how to book|how to pay|payment methods|cancel tour)/i.test(rawMsg);
+  if (isWebGuide) {
+    let guideAnswer = "";
+    if (/đặt|book/i.test(rawMsg)) {
+      guideAnswer = isEn
+        ? "To book a tour on Delta Travel:\n1. Choose your preferred tour and click 'Book Now'.\n2. Select your Departure Date and number of guests (Adults, Children).\n3. Fill in Lead Guest contact information.\n4. Choose payment via VietQR MBBank or Card/Cash.\n5. Click 'Confirm Booking' to receive your instant E-Ticket!"
+        : "Để đặt tour trên Delta Travel:\n1. Chọn tour ưng ý và bấm 'Đặt ngay'.\n2. Chọn Ngày khởi hành phù hợp và số lượng khách (Người lớn, Trẻ em).\n3. Điền thông tin người đại diện đặt vé.\n4. Chọn phương thức thanh toán VietQR MBBank hoặc Thẻ/Tiền mặt.\n5. Nhấn 'Xác nhận đặt tour' để nhận Vé Điện Tử (E-Ticket) ngay lập tức!";
+    } else if (/thanh toán|pay/i.test(rawMsg)) {
+      guideAnswer = isEn
+        ? "Delta Travel supports official VietQR fast bank transfer (MBBank - Account 0975703852, Account Holder: LE VAN AN), Domestic/International ATM & Visa cards, or direct cash payment at Delta Travel offices."
+        : "Delta Travel hỗ trợ thanh toán chuyển khoản nhanh qua mã VietQR chuẩn NAPAS 247 (MBBank - STK 0975703852, Chủ TK LE VAN AN), thẻ ATM/Visa nội địa & quốc tế, hoặc thanh toán tiền mặt tại quầy giao dịch.";
+    } else {
+      guideAnswer = isEn
+        ? "You can track and manage your bookings anytime under 'My Bookings' on the top navigation bar."
+        : "Quý khách có thể xem, tải vé điện tử hoặc quản lý các đơn đặt tại mục 'Đơn của tôi' trên thanh điều hướng.";
+    }
+    return res.json({
+      answer: guideAnswer,
+      suggestedTours: [],
+      mode: "smart_concierge",
+      source: "Delta Travel Help Center"
+    });
+  }
+
+  // 3. TRUY VẤN CƠ SỞ DỮ LIỆU TOUR THỰC TẾ
+  const allActiveTours = db.prepare("SELECT * FROM tours WHERE active = 1").all();
+
+  // Xác định xem câu hỏi có nhắm vào một tour cụ thể hay không
+  let matchedTour = findTourInText(rawMsg, allActiveTours);
+
+  // Nếu không thấy tên tour trong tin nhắn hiện tại, kiểm tra ngữ cảnh câu hỏi tiếp nối ("tour này", "tour đó", "giá bao nhiêu", "lịch trình")
+  const isFollowUp = /(tour này|tour đó|chuyến này|giá bao nhiêu|mấy ngày|thời gian|lịch trình|đón ở đâu|phương tiện|còn bao nhiêu chỗ|còn chỗ không|bao tiền|this tour|how much|itinerary)/i.test(rawMsg);
+  if (!matchedTour && isFollowUp) {
+    // 1. Kiểm tra currentTourId gửi kèm từ client
+    if (currentTourId) {
+      matchedTour = allActiveTours.find(t => String(t.id).toUpperCase() === String(currentTourId).toUpperCase());
+    }
+    // 2. Quét ngược lịch sử hội thoại gần nhất
+    if (!matchedTour && history.length > 0) {
+      for (let i = history.length - 1; i >= 0; i--) {
+        const hTour = findTourInText(history[i]?.content || "", allActiveTours);
+        if (hTour) {
+          matchedTour = hTour;
+          break;
+        }
+      }
+    }
+  }
+
+  // A. TRƯỜNG HỢP HỎI 1 TOUR CỤ THỂ HOẶC CÂU HỎI TIẾP NỐI:
+  // CHỈ TRUY VẤN VÀ ĐƯA THÔNG TIN DUY NHẤT TOUR ĐÓ VÀO NGỮ CẢNH (KHÔNG LIỆT KÊ TRÀN LAN)
+  if (matchedTour) {
+    const seats = tourAvailableSeats(matchedTour.id);
+    const schedules = tourSchedules(matchedTour.id);
+    const nextDep = schedules[0] ? new Date(schedules[0].departureAt).toLocaleDateString(isEn ? "en-US" : "vi-VN") : "Khởi hành hàng tuần";
+    const priceFormatted = Number(matchedTour.price).toLocaleString("vi-VN") + " VND";
+
+    const singleTourContext = `DỮ LIỆU CHÍNH THỨC CỦA TOUR ĐANG ĐƯỢC HỎI TỪ DATABASE DELTA TRAVEL:
+- Mã Tour: ${matchedTour.id}
+- Tên Tour: ${matchedTour.title}
+- Giá trọn gói: ${priceFormatted}/khách
+- Thời lượng: ${matchedTour.duration || "3N2Đ"}
+- Điểm đón khách: ${matchedTour.departure || "Hà Nội / TP.HCM"}
+- Phương tiện: ${matchedTour.transport || "Xe du lịch đời mới"}
+- Số chỗ mở bán còn lại: ${seats} chỗ
+- Lịch khởi hành gần nhất: ${nextDep}
+- Mô tả chi tiết: ${matchedTour.description || matchedTour.title}`;
+
+    const systemPrompt = `Bạn là Trợ lý AI Concierge độc quyền của Delta Travel.
+Khách hàng đang hỏi cụ thể về DUY NHẤT tour sau đây:
+${singleTourContext}
+
+QUY TẮC BẮT BUỘC:
+1. Bạn CHỈ ĐƯỢC TƯ VẤN THÔNG TIN VỀ TOUR NÀY. Tuyệt đối KHÔNG tự ý liệt kê, giới thiệu hay gợi ý thêm bất kỳ tour nào khác!
+2. Thông tin (giá, số chỗ còn lại, ngày đi, lịch trình, xe đưa đón) PHẢI LẤY CHÍNH XÁC 100% từ dữ liệu trên, không tự bịa đặt.
+3. Nếu khách hỏi câu tiếp nối ("tour này giá bao nhiêu", "còn chỗ không", "lịch trình thế nào"), hãy trả lời ngay ngắn gọn, lịch thiệp và đúng trọng tâm.
+4. Ngôn ngữ: ${isEn ? "Reply in 100% professional English." : "Trả lời hoàn toàn bằng tiếng Việt lịch sự, thân thiện."}`;
+
+    let answer = "";
+    try {
+      const messages = [
+        { role: "system", content: systemPrompt },
+        ...history.slice(-4).map(h => ({ role: h.role === "user" ? "user" : "assistant", content: String(h.content || "") })),
+        { role: "user", content: rawMsg }
+      ];
+      answer = await queryGroqChat(messages);
+    } catch (err) {
+      console.warn("Groq AI lỗi, chuyển sang cấu trúc trả lời trực tiếp:", err.message);
+      answer = isEn
+        ? `Here are the details for **${matchedTour.title}** (Code: ${matchedTour.id}):\n- **Package Price**: ${priceFormatted}/person\n- **Duration**: ${matchedTour.duration}\n- **Pick-up**: ${matchedTour.departure}\n- **Transport**: ${matchedTour.transport}\n- **Available Seats**: ${seats} seats remaining\n- **Next Departure**: ${nextDep}\n\nYou can click 'Book Now' below to secure your seats instantly!`
+        : `Dưới đây là thông tin chi tiết về **${matchedTour.title}** (Mã: ${matchedTour.id}):\n- **Giá trọn gói**: ${priceFormatted}/khách\n- **Thời lượng**: ${matchedTour.duration}\n- **Điểm đón**: ${matchedTour.departure}\n- **Phương tiện**: ${matchedTour.transport}\n- **Số chỗ còn lại**: ${seats} chỗ\n- **Khởi hành gần nhất**: ${nextDep}\n\nQuý khách có thể bấm 'Đặt ngay' ở thẻ tour bên dưới để giữ chỗ trực tiếp!`;
+    }
+
+    return res.json({
+      answer: answer.replace(/\[RECOMMENDED_TOURS:[^\]]*\]/gi, "").trim(),
+      suggestedTours: [publicTour(matchedTour)],
+      mode: "smart_concierge",
+      source: "Delta Travel Live Database"
+    });
+  }
+
+  // B. TRƯỜNG HỢP CHÀO HỎI THÔNG THƯỜNG
+  const isGreeting = /^(chào|xin chào|hello|hi|hey|good morning|bạn là ai|alo)\b/i.test(rawMsg) && rawMsg.length < 30;
+  if (isGreeting) {
+    return res.json({
+      answer: isEn
+        ? "Welcome to Delta Travel! 👋 I am your dedicated AI Concierge. I can assist you with 5-star tour itineraries, real-time seat availability, and booking guidance in Vietnam. Which destination are you planning to explore?"
+        : "Kính chào Quý khách! 👋 Tôi là Trợ lý AI Concierge của Delta Travel. Tôi có thể hỗ trợ quý khách tra cứu lịch trình, kiểm tra số chỗ và tư vấn chi tiết các tour du lịch 5 sao. Quý khách đang quan tâm đến điểm đến nào?",
+      suggestedTours: [],
+      mode: "smart_concierge",
+      source: "Delta Travel Concierge"
+    });
+  }
+
+  // C. TRƯỜNG HỢP YÊU CẦU TÌM KIẾM HOẶC GỢI Ý NHIỀU TOUR
+  const wantsRecommendations = /(gợi ý|tìm tour|danh sách|so sánh|recommend|all tours|các tour|tour nào)/i.test(rawMsg);
+  let relevantTours = [];
+  if (wantsRecommendations) {
+    if (rawMsg.includes("bắc") || rawMsg.includes("north")) {
+      relevantTours = allActiveTours.filter(t => t.region === "north").slice(0, 3);
+    } else if (rawMsg.includes("trung") || rawMsg.includes("central")) {
+      relevantTours = allActiveTours.filter(t => t.region === "central").slice(0, 3);
+    } else if (rawMsg.includes("nam") || rawMsg.includes("south")) {
+      relevantTours = allActiveTours.filter(t => t.region === "south").slice(0, 3);
+    } else {
+      relevantTours = allActiveTours.slice(0, 3);
+    }
+  }
+
+  const catalogSummary = (relevantTours.length > 0 ? relevantTours : allActiveTours.slice(0, 4)).map(t =>
+    `- [${t.id}] ${t.title} | Giá: ${Number(t.price).toLocaleString("vi-VN")} đ | Thời gian: ${t.duration} | Chỗ còn: ${tourAvailableSeats(t.id)} chỗ`
+  ).join("\n");
+
+  const generalSystemPrompt = `Bạn là Trợ lý AI Concierge của Delta Travel.
+DỮ LIỆU TOUR HIỆN CÓ:
+${catalogSummary}
+
+QUY TẮC:
+1. Chỉ tư vấn về các tour trên dựa vào dữ liệu thực tế. Không bịa đặt thông tin.
+2. Ngôn ngữ: ${isEn ? "Reply strictly in 100% natural English." : "Trả lời bằng tiếng Việt lịch sự, thân thiện."}`;
+
+  let answer = "";
+  try {
+    answer = await queryGroqChat([
+      { role: "system", content: generalSystemPrompt },
+      { role: "user", content: rawMsg }
+    ]);
+  } catch (_) {
+    answer = isEn
+      ? "Here are our top recommended vacation packages with real-time availability. Please feel free to ask about any specific tour for detailed day-by-day itineraries!"
+      : "Dưới đây là các hành trình du lịch tiêu biểu đang mở bán với số chỗ thực tế. Quý khách có thể hỏi thêm về bất kỳ tour nào để được tư vấn lịch trình chi tiết từng ngày!";
   }
 
   res.json({
-    answer,
-    suggestedTours,
+    answer: answer.replace(/\[RECOMMENDED_TOURS:[^\]]*\]/gi, "").trim(),
+    suggestedTours: relevantTours.map(publicTour),
     mode: "smart_concierge",
-    source
+    source: "Delta Travel Catalog"
   });
 });
 

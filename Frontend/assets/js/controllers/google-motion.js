@@ -100,3 +100,4 @@
     setTimeout(observeTourCards, 300);
   }
 })();
+

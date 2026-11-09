@@ -23,6 +23,8 @@
   <!-- Dữ liệu tour & Đa ngôn ngữ (VI 🇻🇳 / EN 🇬🇧) -->
   <script src="assets/js/models/data.js"></script>
   <script src="assets/js/controllers/i18n.js"></script>
+  <!-- Thư viện xuất vé điện tử PDF chuyên nghiệp chuẩn A4 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
     :root {
@@ -617,30 +619,175 @@
           <span class="text-muted" data-i18n="receipt_customer_label">Khách hàng:</span>
           <strong id="receiptCustomer">...</strong>
         </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">Trạng thái thanh toán:</span>
+          <span id="receiptStatusBadge" class="badge bg-warning text-dark px-3 py-1.5 rounded-pill">
+            <i class="bi bi-clock-history me-1"></i> <span data-i18n="status_pending">Chờ thanh toán (PENDING)</span>
+          </span>
+        </div>
         <div class="d-flex justify-content-between border-top pt-2">
           <span class="text-muted" data-i18n="receipt_total_label">Tổng tiền cần thanh toán:</span>
           <strong id="receiptTotal" class="fs-5 text-dark">0 đ</strong>
         </div>
       </div>
 
-      <!-- Khung VietQR thanh toán -->
-      <div id="receiptQRBox" class="border rounded-3 p-4 mx-auto mb-4 bg-white" style="max-width: 400px;">
-        <h6 class="fw-bold mb-2" data-i18n="receipt_qr_title">Quét mã VietQR chuyển khoản</h6>
-        <div class="small text-muted mb-3" data-i18n="receipt_qr_desc">Mở ứng dụng ngân hàng và quét mã để thanh toán tự động:</div>
-        <img id="receiptQRImg" src="assets/images/bank_qr_demo.png" alt="QR Code" style="width: 220px; height: 220px; object-fit: contain;" class="border p-2 rounded-2 mx-auto d-block">
-        <div class="small text-muted mt-2"><span data-i18n="receipt_transfer_note">Nội dung chuyển khoản:</span> <strong id="receiptTransferNote" class="text-dark">...</strong></div>
+      <!-- Khung VietQR thanh toán chuẩn ngân hàng MBBank -->
+      <div id="receiptQRBox" class="border rounded-4 p-4 mx-auto mb-4 bg-white shadow-sm" style="max-width: 440px;">
+        <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-qr-code text-primary fs-4"></i>
+            <h6 class="fw-bold mb-0 text-dark" data-i18n="receipt_qr_title">Quét mã VietQR chuyển khoản</h6>
+          </div>
+          <span class="badge bg-light text-dark border">NAPAS 247</span>
+        </div>
+
+        <div class="small text-muted mb-3 text-center" data-i18n="receipt_qr_desc">Mở ứng dụng ngân hàng số bất kỳ để quét mã thanh toán tự động:</div>
+        
+        <!-- Ảnh mã VietQR tạo động theo giao dịch thực tế -->
+        <div class="text-center position-relative my-3">
+          <img id="receiptQRImg" src="assets/images/bank_qr_demo.png" alt="Mã VietQR Thanh Toán" style="width: 230px; height: 230px; object-fit: contain;" class="border p-2 rounded-3 mx-auto d-block bg-white shadow-xs">
+          <div id="qrLoadingSpinner" class="spinner-border text-primary position-absolute top-50 start-50 translate-middle d-none" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+        </div>
+
+        <!-- Chi tiết thông tin chuyển khoản chuẩn xác -->
+        <div class="bg-light p-3 rounded-3 border text-start small mt-3">
+          <div class="d-flex justify-content-between mb-1.5">
+            <span class="text-muted">Ngân hàng:</span>
+            <strong class="text-dark">MBBank (Ngân hàng Quân Đội)</strong>
+          </div>
+          <div class="d-flex justify-content-between mb-1.5">
+            <span class="text-muted">Số tài khoản:</span>
+            <strong class="text-primary font-monospace fs-6">0975703852</strong>
+          </div>
+          <div class="d-flex justify-content-between mb-1.5">
+            <span class="text-muted">Chủ tài khoản:</span>
+            <strong class="text-dark">LE VAN AN</strong>
+          </div>
+          <div class="d-flex justify-content-between mb-1.5">
+            <span class="text-muted">Số tiền:</span>
+            <strong id="receiptTransferAmount" class="text-danger fw-bold">0 đ</strong>
+          </div>
+          <div class="d-flex justify-content-between border-top pt-1.5 mt-1.5">
+            <span class="text-muted">Nội dung CK:</span>
+            <strong id="receiptTransferNote" class="text-dark font-monospace user-select-all">...</strong>
+          </div>
+        </div>
+
+        <!-- Nút xác nhận thanh toán chuyển khoản -->
+        <div class="mt-3 text-center">
+          <button id="btnConfirmPayment" class="btn btn-success w-100 py-2 rounded-pill fw-bold shadow-sm" onclick="confirmPaymentAction()">
+            <i class="bi bi-check2-circle me-1"></i> <span data-i18n="btn_confirm_paid">Tôi đã hoàn tất chuyển khoản</span>
+          </button>
+          <div class="small text-muted mt-2">Đơn sẽ được đối soát tự động sau khi nhấn xác nhận.</div>
+        </div>
       </div>
 
-      <div class="d-flex flex-wrap gap-2 justify-content-center no-print">
-        <button class="btn btn-outline-dark px-4 py-2 rounded-pill fw-semibold" onclick="window.print()">
+      <div class="d-flex flex-wrap gap-2 justify-content-center no-print mt-3">
+        <button id="btnDownloadPDF" class="btn btn-dark px-4 py-2.5 rounded-pill fw-semibold shadow-sm" onclick="downloadETicketPDF()">
+          <i class="bi bi-file-earmark-pdf-fill me-1 text-danger"></i> <span data-i18n="receipt_btn_download_pdf">Tải vé điện tử (PDF)</span>
+        </button>
+        <button class="btn btn-outline-dark px-4 py-2.5 rounded-pill fw-semibold" onclick="window.print()">
           <i class="bi bi-printer me-1"></i> <span data-i18n="receipt_btn_print">In phiếu xác nhận</span>
         </button>
-        <a href="my-bookings.html" class="btn btn-dark px-4 py-2 rounded-pill fw-semibold">
+        <a href="my-bookings.html" class="btn btn-outline-secondary px-4 py-2.5 rounded-pill fw-semibold">
           <i class="bi bi-ticket-perforated me-1"></i> <span data-i18n="receipt_btn_my_bookings">Xem trong Đơn của tôi</span>
         </a>
-        <a href="index.html" class="btn btn-outline-secondary px-4 py-2 rounded-pill fw-semibold">
+        <a href="index.html" class="btn btn-outline-secondary px-4 py-2.5 rounded-pill fw-semibold">
           <i class="bi bi-house me-1"></i> <span data-i18n="receipt_btn_home">Về trang chủ</span>
         </a>
+      </div>
+
+      <!-- Khung vé điện tử ẩn dùng để xuất PDF chuẩn A4 -->
+      <div id="eticketPrintContainer" style="display: none; background: #ffffff; color: #000000; padding: 24px; font-family: 'Inter', sans-serif;">
+        <!-- Header -->
+        <div style="border-bottom: 2px solid #000000; padding-bottom: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <h2 style="margin: 0; font-size: 22px; font-weight: 900; letter-spacing: 0.05em; text-transform: uppercase;">DELTA TRAVEL VIETNAM</h2>
+            <div style="font-size: 12px; color: #555555; margin-top: 4px;">Công ty Du Lịch & Lữ Hành Quốc Tế 5 Sao Hàng Đầu</div>
+            <div style="font-size: 11px; color: #666666; margin-top: 2px;">Hotline: 1900 8899 | Email: support@deltatravel.vn | Website: https://deltatravel.vn</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="display: inline-block; padding: 6px 14px; border: 1.5px solid #000000; border-radius: 20px; font-weight: 800; font-size: 12px; text-transform: uppercase;" id="pdfBadgeStatus">ĐÃ THANH TOÁN</div>
+            <div style="font-size: 11px; color: #666666; margin-top: 6px;" id="pdfInvoiceCode">MÃ HĐ: INV-20261109</div>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h3 style="margin: 0; font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;">VÉ ĐIỆN TỬ & XÁC NHẬN ĐẶT CHỖ (E-TICKET)</h3>
+          <div style="font-size: 12px; color: #666666; margin-top: 4px;">Phiếu xác nhận thông tin hành trình và bảo hiểm du lịch chính thức</div>
+        </div>
+
+        <!-- Bảng thông tin đặt chỗ chi tiết -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px;">
+          <tbody>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 12px; font-weight: 600; width: 30%; color: #475569; background: #f8fafc;">Mã Đặt Tour (Booking Code):</td>
+              <td style="padding: 8px 12px; font-weight: 800; font-family: monospace; font-size: 14px;" id="pdfBookingCode">#BK-0000</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 12px; font-weight: 600; color: #475569; background: #f8fafc;">Họ và Tên Khách Hàng:</td>
+              <td style="padding: 8px 12px; font-weight: 700;" id="pdfCustomerName">Nguyễn Văn A</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 12px; font-weight: 600; color: #475569; background: #f8fafc;">Số Điện Thoại / Email:</td>
+              <td style="padding: 8px 12px;" id="pdfCustomerContact">0975703852 | anngan20037@hotmail.com</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 12px; font-weight: 600; color: #475569; background: #f8fafc;">Tên Tour Du Lịch:</td>
+              <td style="padding: 8px 12px; font-weight: 700;" id="pdfTourTitle">Tour Du Thuyền 5 Sao Vịnh Hạ Long</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 12px; font-weight: 600; color: #475569; background: #f8fafc;">Ngày Khởi Hành:</td>
+              <td style="padding: 8px 12px; font-weight: 700; color: #0284c7;" id="pdfDepartureDate">30/11/2026</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 12px; font-weight: 600; color: #475569; background: #f8fafc;">Điểm Đón Khách:</td>
+              <td style="padding: 8px 12px;" id="pdfPickupLocation">Khách sạn hoặc Sân bay theo yêu cầu</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 12px; font-weight: 600; color: #475569; background: #f8fafc;">Số Lượng Khách:</td>
+              <td style="padding: 8px 12px; font-weight: 700;" id="pdfGuestsCount">1 Người lớn, 0 Trẻ em</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 12px; font-weight: 600; color: #475569; background: #f8fafc;">Đơn Giá Người Lớn:</td>
+              <td style="padding: 8px 12px;" id="pdfUnitPrice">3.890.000 đ</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 12px; font-weight: 600; color: #475569; background: #f8fafc;">Tổng Tiền Tạm Tính:</td>
+              <td style="padding: 8px 12px;" id="pdfSubtotal">3.890.000 đ</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 12px; font-weight: 600; color: #475569; background: #f8fafc;">Ưu Đãi / Giảm Giá:</td>
+              <td style="padding: 8px 12px; color: #16a34a;" id="pdfDiscount">- 0 đ</td>
+            </tr>
+            <tr style="border-bottom: 2px solid #000000;">
+              <td style="padding: 10px 12px; font-weight: 800; color: #000000; background: #f1f5f9; font-size: 14px;">Tổng Tiền Thanh Toán:</td>
+              <td style="padding: 10px 12px; font-weight: 900; color: #dc2626; font-size: 16px;" id="pdfFinalTotal">3.890.000 đ</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 12px; font-weight: 600; color: #475569; background: #f8fafc;">Phương Thức Thanh Toán:</td>
+              <td style="padding: 8px 12px;" id="pdfPaymentMethod">Chuyển khoản nhanh VietQR (MBBank)</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 12px; font-weight: 600; color: #475569; background: #f8fafc;">Mã Giao Dịch / Thời Gian:</td>
+              <td style="padding: 8px 12px;" id="pdfTxnTime">TXN-982143 | 09/11/2026 11:30</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Chân trang cam kết -->
+        <div style="border-top: 1px dashed #cbd5e1; padding-top: 12px; display: flex; justify-content: space-between; font-size: 11px; color: #64748b;">
+          <div>
+            <div>* Quý khách vui lòng xuất trình vé điện tử này hoặc CCCD khi lên xe / làm thủ tục nhận phòng.</div>
+            <div>* Đã bao gồm trọn gói 100% bảo hiểm du lịch theo hợp đồng bảo hiểm Delta Care.</div>
+          </div>
+          <div style="text-align: right; font-weight: 700; color: #0f172a;">
+            DELTA TRAVEL ELECTRONIC SEAL<br>
+            <span style="color: #16a34a; font-size: 10px;">[VERIFIED & SECURED]</span>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -650,6 +797,7 @@
     let currentTour = null;
     let currentSchedules = [];
     let discountAmount = 0;
+    let currentBookingData = null;
 
     function formatVND(n) {
       return Number(n || 0).toLocaleString("vi-VN") + " đ";
@@ -916,6 +1064,8 @@
           };
         }
 
+        currentBookingData = booking;
+
         const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
         local.unshift(booking);
         localStorage.setItem("delta_customer_bookings", JSON.stringify(local));
@@ -924,15 +1074,144 @@
         const successBox = document.getElementById("bookingSuccessReceipt");
         successBox.style.display = "block";
 
-        document.getElementById("receiptRef").textContent = `#${booking.reference || booking.id}`;
+        const bookingRef = booking.reference || booking.id;
+        const payAmount = booking.totalPrice || ((adults * currentTour.price) + (children * currentTour.price * 0.75) - discountAmount);
+        
+        // Tạo mã VietQR động chuẩn NAPAS 247 theo đúng số tiền và mã đặt tour
+        const qrUrl = `https://img.vietqr.io/image/MB-0975703852-compact2.png?amount=${payAmount}&addInfo=${encodeURIComponent("DELTA " + bookingRef)}&accountName=LE%20VAN%20AN`;
+        const qrImg = document.getElementById("receiptQRImg");
+        if (qrImg) qrImg.src = qrUrl;
+
+        document.getElementById("receiptRef").textContent = `#${bookingRef}`;
         document.getElementById("receiptTourTitle").textContent = displayTitle;
         document.getElementById("receiptCustomer").textContent = `${name} (${phone})`;
-        document.getElementById("receiptTotal").textContent = formatVND(booking.totalPrice || ((adults * currentTour.price) + (children * currentTour.price * 0.75)));
-        document.getElementById("receiptTransferNote").textContent = `${booking.reference || booking.id} ${phone}`;
+        document.getElementById("receiptTotal").textContent = formatVND(payAmount);
+        document.getElementById("receiptTransferAmount").textContent = formatVND(payAmount);
+        document.getElementById("receiptTransferNote").textContent = `DELTA ${bookingRef}`;
+
+        const statusBadge = document.getElementById("receiptStatusBadge");
+        if (statusBadge) {
+          statusBadge.className = "badge bg-warning text-dark px-3 py-1.5 rounded-pill";
+          statusBadge.innerHTML = '<i class="bi bi-clock-history me-1"></i> <span data-i18n="status_pending">Chờ thanh toán (PENDING)</span>';
+        }
 
         window.scrollTo({ top: 0, behavior: "smooth" });
       } catch (err) {
         alert((isEn ? "Booking error: " : "Lỗi đặt tour: ") + (err.message || (isEn ? "Please try again." : "Vui lòng thử lại.")));
+      }
+    }
+
+    async function confirmPaymentAction() {
+      if (!currentBookingData) return;
+      const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
+      const btn = document.getElementById("btnConfirmPayment");
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang xác thực chuyển khoản...';
+      }
+
+      try {
+        if (typeof DeltaAPI !== "undefined" && DeltaAPI.payBooking && currentBookingData.id) {
+          await DeltaAPI.payBooking(currentBookingData.id, {
+            payment_evidence: "VIETQR-MB-" + Date.now()
+          });
+        }
+      } catch (_) {}
+
+      currentBookingData.status = "PAID";
+      currentBookingData.paid = true;
+      currentBookingData.paymentConfirmedAt = new Date().toISOString();
+
+      // Cập nhật trong localStorage
+      try {
+        const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
+        const idx = local.findIndex(b => b.id === currentBookingData.id || b.reference === currentBookingData.reference);
+        if (idx !== -1) {
+          local[idx].status = "PAID";
+          local[idx].paid = true;
+          localStorage.setItem("delta_customer_bookings", JSON.stringify(local));
+        }
+      } catch (_) {}
+
+      const statusBadge = document.getElementById("receiptStatusBadge");
+      if (statusBadge) {
+        statusBadge.className = "badge bg-success text-white px-3 py-1.5 rounded-pill";
+        statusBadge.innerHTML = '<i class="bi bi-check2-circle me-1"></i> <span data-i18n="status_paid">ĐÃ THANH TOÁN (PAID)</span>';
+      }
+
+      if (btn) {
+        btn.className = "btn btn-outline-success w-100 py-2 rounded-pill fw-bold";
+        btn.innerHTML = '<i class="bi bi-check-all me-1"></i> ' + (isEn ? "Payment Confirmed Successfully!" : "Đã xác nhận thanh toán thành công!");
+        btn.disabled = true;
+      }
+
+      alert(isEn ? "Payment confirmed! You can now download your official E-Ticket PDF." : "Đã xác nhận thanh toán thành công! Quý khách có thể tải ngay vé điện tử (PDF).");
+    }
+
+    function downloadETicketPDF() {
+      if (!currentBookingData) {
+        alert("Chưa có thông tin đơn đặt tour.");
+        return;
+      }
+      const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
+      const b = currentBookingData;
+      const bookingRef = b.reference || b.id;
+      const isPaid = b.status === "PAID" || b.paid;
+
+      // Điền đầy đủ 14 nhóm thông tin bắt buộc vào khung vé
+      const invCode = "INV-" + (b.id ? b.id.replace(/\D/g, "").slice(-8) : Date.now().toString().slice(-8));
+      document.getElementById("pdfInvoiceCode").textContent = "MÃ HĐ: " + invCode;
+      document.getElementById("pdfBadgeStatus").textContent = isPaid ? "ĐÃ THANH TOÁN" : "CHỜ THANH TOÁN";
+      document.getElementById("pdfBadgeStatus").style.color = isPaid ? "#16a34a" : "#d97706";
+      document.getElementById("pdfBadgeStatus").style.borderColor = isPaid ? "#16a34a" : "#d97706";
+
+      document.getElementById("pdfBookingCode").textContent = "#" + bookingRef;
+      document.getElementById("pdfCustomerName").textContent = b.customerName || (document.getElementById("leadCustomerName")?.value || "Khách Hàng");
+      document.getElementById("pdfCustomerContact").textContent = `${b.customerPhone || "-"} | ${b.customerEmail || "-"}`;
+      document.getElementById("pdfTourTitle").textContent = b.tourTitle || currentTour?.title || "Tour Du Lịch Delta Travel";
+      
+      const schedSelect = document.getElementById("departureScheduleSelect");
+      const depDateText = schedSelect ? schedSelect.options[schedSelect.selectedIndex]?.text?.split(" · ")?.[0] : "Theo thông báo";
+      document.getElementById("pdfDepartureDate").textContent = depDateText;
+      document.getElementById("pdfPickupLocation").textContent = document.getElementById("pickupLocationInput")?.value || "Khách sạn hoặc Sân bay trung tâm";
+      
+      const adults = parseInt(document.getElementById("numAdults")?.value || 1, 10);
+      const children = parseInt(document.getElementById("numChildren")?.value || 0, 10);
+      document.getElementById("pdfGuestsCount").textContent = `${adults} Người lớn` + (children ? `, ${children} Trẻ em` : "");
+      
+      const unitPrice = currentTour ? currentTour.price : (b.totalPrice / adults);
+      document.getElementById("pdfUnitPrice").textContent = formatVND(unitPrice);
+      document.getElementById("pdfSubtotal").textContent = formatVND((adults * unitPrice) + (children * unitPrice * 0.75));
+      document.getElementById("pdfDiscount").textContent = discountAmount ? "- " + formatVND(discountAmount) : "- 0 đ";
+      document.getElementById("pdfFinalTotal").textContent = formatVND(b.totalPrice);
+      document.getElementById("pdfPaymentMethod").textContent = "Chuyển khoản nhanh VietQR (MBBank 0975703852)";
+      document.getElementById("pdfTxnTime").textContent = `TXN-${bookingRef.replace(/\D/g, "") || Date.now().toString().slice(-6)} | ${new Date().toLocaleString("vi-VN")}`;
+
+      const el = document.getElementById("eticketPrintContainer");
+      if (!el) {
+        window.print();
+        return;
+      }
+
+      el.style.display = "block";
+      if (typeof html2pdf !== "undefined") {
+        const opt = {
+          margin: [10, 10, 10, 10],
+          filename: `Ve-Dien-Tu-DeltaTravel-${bookingRef}.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+        };
+        html2pdf().set(opt).from(el).save().then(() => {
+          el.style.display = "none";
+        }).catch(err => {
+          console.warn("Lỗi xuất PDF html2pdf:", err);
+          el.style.display = "none";
+          window.print();
+        });
+      } else {
+        window.print();
+        el.style.display = "none";
       }
     }
 

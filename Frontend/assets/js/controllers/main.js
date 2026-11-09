@@ -324,20 +324,26 @@ function renderDestinations() {
 
 function normalizeDestinationText(value) {
   return String(value || "")
+    .toLowerCase()
+    .replace(/[đĐ]/g, "d")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .toLowerCase();
+    .trim();
 }
 
 function destinationTerms(destinationName) {
   const name = normalizeDestinationText(destinationName);
-  if (name.includes("ha long")) return ["ha long", "lan ha"];
-  if (name.includes("da nang")) return ["da nang", "hoi an"];
-  if (name.includes("phu quoc")) return ["phu quoc"];
-  if (name.includes("da lat")) return ["da lat"];
+  if (name.includes("ha long") || name.includes("lan ha")) return ["ha long", "lan ha", "vinh ha long"];
+  if (name.includes("da nang") || name.includes("hoi an") || name.includes("ba na")) return ["da nang", "hoi an", "ba na", "cau vang"];
+  if (name.includes("phu quoc")) return ["phu quoc", "hon thom"];
+  if (name.includes("da lat")) return ["da lat", "cau dat"];
   if (name.includes("sa pa") || name.includes("sapa")) return ["sa pa", "sapa", "fansipan"];
-  if (name.includes("mien tay")) return ["mien tay", "can tho", "tra su"];
+  if (name.includes("mien tay") || name.includes("can tho")) return ["mien tay", "can tho", "tra su", "cai rang"];
+  if (name.includes("cao bang")) return ["cao bang", "ban gioc", "pac bo"];
+  if (name.includes("ha giang")) return ["ha giang", "dong van", "ma pi leng"];
+  if (name.includes("moc chau")) return ["moc chau", "thac dai yem"];
+  if (name.includes("nha trang")) return ["nha trang", "hon tam"];
+  if (name.includes("hue")) return ["hue", "dai noi"];
   return [name];
 }
 
@@ -348,16 +354,24 @@ function destinationPrimaryTerm(destinationName) {
   if (name.includes("phu quoc")) return "Phú Quốc";
   if (name.includes("da lat")) return "Đà Lạt";
   if (name.includes("sa pa") || name.includes("sapa")) return "Sa Pa";
-  if (name.includes("mien tay")) return "Miền Tây";
+  if (name.includes("mien tay") || name.includes("can tho")) return "Cần Thơ";
+  if (name.includes("cao bang")) return "Cao Bằng";
+  if (name.includes("ha giang")) return "Hà Giang";
+  if (name.includes("moc chau")) return "Mộc Châu";
   return destinationName;
 }
 
 function destinationMatches(tour, destinationName) {
+  const itin = Array.isArray(tour.itinerary)
+    ? tour.itinerary.map(day => `${day.title || ""} ${day.morning || ""} ${day.afternoon || ""} ${day.evening || ""} ${day.description || ""}`).join(" ")
+    : "";
   const searchable = normalizeDestinationText([
     tour.title,
     tour.regionName,
     tour.description,
-    ...(Array.isArray(tour.itinerary) ? tour.itinerary.map(day => day.title || "") : [])
+    tour.departure,
+    tour.transport,
+    itin
   ].join(" "));
   return destinationTerms(destinationName).some(term => searchable.includes(term));
 }
@@ -651,10 +665,19 @@ function currentTourFilters(page = 1) {
 function filterLegacyApiTours(tours, filters) {
   const folded = value => normalizeDestinationText(value);
   const filtered = tours.filter(tour => {
-    const text = folded([tour.title, tour.description, tour.regionName].join(" "));
-    if (filters.region !== "all" && tour.region !== filters.region) return false;
+    const itin = Array.isArray(tour.itinerary)
+      ? tour.itinerary.map(i => `${i.title || ""} ${i.morning || ""} ${i.afternoon || ""} ${i.evening || ""} ${i.description || ""}`).join(" ")
+      : "";
+    const text = folded([tour.title, tour.description, tour.regionName, tour.departure, tour.transport, itin].join(" "));
+    
+    // Vùng miền: nếu khách nhập điểm đến cụ thể, tiêu chí điểm đến được ưu tiên độc lập, không bị loại nhầm bởi tab vùng miền
+    if (filters.region && filters.region !== "all") {
+      if (!filters.destination && tour.region !== filters.region) return false;
+      if (filters.destination && tour.region !== filters.region && !destinationMatches(tour, filters.destination)) return false;
+    }
+
     if (filters.q && !text.includes(folded(filters.q))) return false;
-    if (filters.destination && !text.includes(folded(filters.destination))) return false;
+    if (filters.destination && !destinationMatches(tour, filters.destination) && !text.includes(folded(filters.destination))) return false;
     if (filters.departure_location && !folded(tour.departure).includes(folded(filters.departure_location))) return false;
     if (filters.min_price !== undefined && tour.price < filters.min_price) return false;
     if (filters.max_price !== undefined && tour.price > filters.max_price) return false;
@@ -1974,10 +1997,23 @@ function displayETicket(order) {
 }
 
 /**
- * In vé điện tử hoặc lưu file PDF qua hộp thoại in của trình duyệt
+ * Xuất vé điện tử ra file PDF chuẩn A4 hoặc in ấn trực tiếp
  */
 function printETicket() {
-  window.print();
+  const paper = document.querySelector(".eticket-paper");
+  const bookingId = document.getElementById("ticketBookingId")?.textContent?.trim() || "DELTA";
+  if (typeof html2pdf !== "undefined" && paper) {
+    const opt = {
+      margin: [10, 10, 10, 10],
+      filename: `Ve-Dien-Tu-${bookingId}.pdf`,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+    };
+    html2pdf().set(opt).from(paper).save().catch(() => window.print());
+  } else {
+    window.print();
+  }
 }
 
 // =============================================================================

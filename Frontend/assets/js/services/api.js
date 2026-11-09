@@ -376,10 +376,16 @@ const DeltaAPI = (() => {
     });
   }
 
-  async function assistantChat(message) {
+  async function assistantChat(message, options = {}) {
+    const payload = typeof message === "object" ? message : {
+      message,
+      history: options.history || [],
+      lang: options.lang || (typeof getAppLanguage === "function" ? getAppLanguage() : "vi"),
+      currentTourId: options.currentTourId || null
+    };
     return await request("/assistant/chat", {
       method: "POST",
-      body: { message }
+      body: payload
     });
   }
 

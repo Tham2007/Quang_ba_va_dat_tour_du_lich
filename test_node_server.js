@@ -365,6 +365,83 @@ async function runTests() {
     const unknownRes = await req("/api/v1/non-existent-route");
     assert("GET /api/v1/unknown (404 guard)", unknownRes.status === 404 && unknownRes.json?.detail !== undefined);
 
+    // =========================================================================
+    // KIỂM THỬ 7 LỖI HỆ THỐNG MỚI ĐƯỢC KHẮC PHỤC
+    // =========================================================================
+
+    // Bug 1: Cập nhật và đồng bộ số chỗ mở bán giữa Admin và Khách hàng
+    const patchSeats = await req("/api/v1/admin/tours/DL-CB09", {
+      method: "PATCH",
+      headers: adminHeaders,
+      body: { available_seats: 38 }
+    });
+    const adminToursAfterPatch = await req("/api/v1/admin/tours", { headers: adminHeaders });
+    const customerToursAfterPatch = await req("/api/v1/tours");
+    const adminTourCB09 = adminToursAfterPatch.json?.find(t => t.id === "DL-CB09");
+    const customerTourCB09 = customerToursAfterPatch.json?.find(t => t.id === "DL-CB09");
+    assert("Bug 1: Đồng bộ số chỗ mở bán (Admin & Khách hàng)",
+      patchSeats.status === 200 &&
+      adminTourCB09?.availableSeats === 38 &&
+      customerTourCB09?.availableSeats === 38 &&
+      adminTourCB09?.availableSeats === customerTourCB09?.availableSeats,
+      `Admin: ${adminTourCB09?.availableSeats}, Customer: ${customerTourCB09?.availableSeats}`);
+
+    // Bug 2: Chặn thêm lịch khởi hành có ngày ở quá khứ
+    const pastSchedule = await req("/api/v1/admin/schedules", {
+      method: "POST",
+      headers: adminHeaders,
+      body: { tour_id: "DL-CB09", departure_at: "2026-11-05T08:00:00Z", total_seats: 25 }
+    });
+    assert("Bug 2: Chặn ngày khởi hành ở quá khứ (HTTP 422)",
+      pastSchedule.status === 422 && pastSchedule.json?.detail?.includes("quá khứ"),
+      `Status: ${pastSchedule.status}`);
+
+    // Bug 3: Thêm lịch khởi hành hợp lệ thành công và hiển thị đồng bộ
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 15);
+    const validSchedule = await req("/api/v1/admin/schedules", {
+      method: "POST",
+      headers: adminHeaders,
+      body: { tour_id: "DL-CB09", departure_at: futureDate.toISOString(), total_seats: 28 }
+    });
+    const adminScheds = await req("/api/v1/admin/schedules", { headers: adminHeaders });
+    const custScheds = await req("/api/v1/tours/DL-CB09/schedules");
+    const addedId = validSchedule.json?.id;
+    assert("Bug 3: Thêm lịch khởi hành hợp lệ & đồng bộ tức thì",
+      validSchedule.status === 201 &&
+      adminScheds.json?.some(s => s.id === addedId) &&
+      custScheds.json?.some(s => s.id === addedId),
+      `Schedule ID: ${addedId}`);
+
+    // Bug 6a: AI Concierge từ chối câu hỏi không liên quan đến du lịch
+    const aiOffTopic = await req("/api/v1/assistant/chat", {
+      method: "POST",
+      body: { message: "cách có người yêu" }
+    });
+    assert("Bug 6a: AI từ chối câu hỏi ngoài phạm vi (cách có người yêu)",
+      aiOffTopic.status === 200 &&
+      aiOffTopic.json?.suggestedTours?.length === 0 &&
+      aiOffTopic.json?.answer?.includes("Trợ lý AI Concierge") &&
+      aiOffTopic.json?.answer?.includes("không thể tư vấn"));
+
+    // Bug 6b: AI Concierge nhận diện chính xác 1 tour duy nhất khi được hỏi cụ thể
+    const aiSpecific = await req("/api/v1/assistant/chat", {
+      method: "POST",
+      body: { message: "tour vịnh hạ long giá bao nhiêu và có du thuyền không?" }
+    });
+    assert("Bug 6b: AI chỉ tư vấn chính xác 1 tour được hỏi (Vịnh Hạ Long)",
+      aiSpecific.status === 200 &&
+      aiSpecific.json?.suggestedTours?.length === 1 &&
+      aiSpecific.json?.suggestedTours?.[0]?.title?.includes("Hạ Long"));
+
+    // Bug 7: Lọc tour theo điểm đến độc lập (Đà Nẵng / đà nẵng)
+    const filterDaNang1 = await req("/api/v1/tours?destination=" + encodeURIComponent("Đà Nẵng"));
+    const filterDaNang2 = await req("/api/v1/tours?destination=" + encodeURIComponent("da nang"));
+    assert("Bug 7: Bộ lọc điểm đến Đà Nẵng độc lập (có dấu & không dấu)",
+      filterDaNang1.status === 200 && filterDaNang1.json?.length > 0 &&
+      filterDaNang2.status === 200 && filterDaNang2.json?.length > 0 &&
+      filterDaNang1.json?.[0]?.title?.includes("Đà Nẵng"));
+
     const catalogRequests = [];
     catalogMockServer = http.createServer((request, response) => {
       const requestUrl = new URL(request.url, "http://127.0.0.1");

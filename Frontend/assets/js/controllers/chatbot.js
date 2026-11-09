@@ -20,7 +20,17 @@ async function callAIAPI(userMessage) {
   if (typeof DeltaAPI === "undefined" || !DeltaAPI.assistantChat) {
     throw new Error("Dịch vụ tư vấn du lịch chưa sẵn sàng.");
   }
-  const result = await DeltaAPI.assistantChat(userMessage);
+  const appLang = typeof getAppLanguage === "function" ? getAppLanguage() : "vi";
+  const historyForApi = chatHistory.slice(-6).map(h => ({
+    role: h.role === "user" ? "user" : "assistant",
+    content: h.parts?.[0]?.text || h.content || ""
+  }));
+
+  const result = await DeltaAPI.assistantChat({
+    message: userMessage,
+    history: historyForApi,
+    lang: appLang
+  });
   if (!result.success || !result.data?.answer) {
     throw new Error(result.error || "Không nhận được phản hồi từ máy chủ.");
   }
