@@ -50,33 +50,10 @@
     linear-gradient(to bottom, rgba(3, 7, 18, 0.5) 0%, transparent 20%, transparent 65%, rgba(3, 7, 18, 0.95) 100%);
 }
 
-/* 2. CHỮ NGHỆ THUẬT MỜ KHỔNG LỒ Ở KHU VỰC DƯỚI (SECTION WATERMARK) */
-.section-watermark-bg {
-  position: absolute;
-  top: 45%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 100%;
-  overflow: hidden;
-  pointer-events: none;
-  user-select: none;
-  z-index: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.045;
-  white-space: nowrap;
-}
-
+/* 2. CHỮ NGHỆ THUẬT MỜ KHỔNG LỒ ĐÃ ĐƯỢC XÓA THEO YÊU CẦU */
+.section-watermark-bg,
 .watermark-row {
-  font-family: var(--font-heading, 'Montserrat', sans-serif);
-  font-weight: 900;
-  font-size: clamp(3.5rem, 11vw, 12rem);
-  line-height: 0.9;
-  letter-spacing: 0.14em;
-  color: #0f172a;
-  text-transform: uppercase;
+  display: none !important;
 }
 
 /* 3. LỚP NỘI DUNG VĂN BẢN TRÊN CÙNG (Z-INDEX: 4) */

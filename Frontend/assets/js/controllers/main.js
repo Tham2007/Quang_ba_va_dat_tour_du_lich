@@ -173,19 +173,55 @@ function updateCustomerBookingCounters() {
 }
 
 function initNavbarScroll() {
+  const header = document.querySelector("header.sticky-top");
   const navbar = document.querySelector(".navbar-delta");
   const backToTopBtn = document.getElementById("backToTopBtn");
+  const heroSection = document.getElementById("hero3DShowcase");
 
-  window.addEventListener("scroll", () => {
-    if (window.scrollY > 60) {
-      navbar?.classList.add("scrolled");
+  function updateNavbar() {
+    const scrollY = window.scrollY;
+
+    // Khi người dùng đang ở phần Hero 3D thì thanh bar hoàn toàn trong suốt
+    if (heroSection) {
+      const heroThreshold = heroSection.offsetTop + heroSection.offsetHeight - 140;
+      if (scrollY < heroThreshold) {
+        header?.classList.add("hero-transparent");
+        navbar?.classList.remove("scrolled");
+      } else {
+        header?.classList.remove("hero-transparent");
+        navbar?.classList.add("scrolled");
+      }
+    } else {
+      if (scrollY > 60) {
+        navbar?.classList.add("scrolled");
+      } else {
+        navbar?.classList.remove("scrolled");
+      }
+    }
+
+    if (scrollY > 300) {
       backToTopBtn?.classList.add("show");
     } else {
-      navbar?.classList.remove("scrolled");
       backToTopBtn?.classList.remove("show");
     }
-  });
+  }
+
+  window.addEventListener("scroll", updateNavbar, { passive: true });
+  updateNavbar();
 }
+
+/**
+ * Hỗ trợ lọc nhanh theo tag phổ biến từ sidebar
+ */
+window.quickFilterTag = function(tag) {
+  const input = document.getElementById("filterDestination");
+  if (input) {
+    input.value = tag;
+  }
+  AppState.searchKeyword = tag;
+  searchToursFromApi(1);
+  document.getElementById("toursSection")?.scrollIntoView({ behavior: "smooth" });
+};
 
 /**
  * Xử lý nút cuộn nhanh lên đầu trang (Back to Top)
@@ -453,9 +489,6 @@ function renderTourCards() {
     const departureDate = nextSchedule
       ? new Date(nextSchedule.departureAt).toLocaleDateString("vi-VN")
       : "";
-    const imagesCount = Array.isArray(tour.images) && tour.images.length
-      ? tour.images.length
-      : 3;
     return `
       <div class="col-12 col-md-6 col-xl-4 col-xxl-3 mb-4">
         <div class="tour-card">
@@ -470,7 +503,6 @@ function renderTourCards() {
             </button>
             <div class="tour-thumb-meta">
               <span class="tour-duration-tag"><i class="bi bi-clock"></i> ${tour.duration}</span>
-              <span class="badge-tour-gallery" onclick="openItineraryModal('${tour.id}'); event.stopPropagation();" title="Xem thư viện ${imagesCount} ảnh của tour"><i class="bi bi-images"></i> ${imagesCount} ảnh</span>
               <span class="tour-seats-tag">${seats > 0 ? `Còn ${seats} chỗ` : (nextSchedule ? "Hết chỗ" : "Chưa có lịch")}</span>
             </div>
           </div>
@@ -495,19 +527,6 @@ function renderTourCards() {
                 <i class="bi bi-bus-front-fill"></i>
                 <span>${tour.transport}</span>
               </div>
-            </div>
-
-            <!-- Đánh giá sao -->
-            <div class="tour-rating-row">
-              <div class="stars-group">
-                <i class="bi bi-star-fill"></i>
-                <i class="bi bi-star-fill"></i>
-                <i class="bi bi-star-fill"></i>
-                <i class="bi bi-star-fill"></i>
-                <i class="bi bi-star-half"></i>
-              </div>
-              <span class="rating-score">${tour.rating}</span>
-              <span class="rating-reviews">(${tour.reviewsCount} đánh giá)</span>
             </div>
 
             <!-- Giá tour -->

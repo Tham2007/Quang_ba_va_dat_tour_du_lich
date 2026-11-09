@@ -11,6 +11,110 @@ header.sticky-top {
   right: 0;
   width: 100%;
   z-index: 1020;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ════════════════════════════════════════════════════════════
+   HERO 3D TRANSPARENT NAVBAR MODE
+   Khi người dùng đang xem Hero 3D Showcase:
+   - Toàn bộ Navbar & Topbar hoàn toàn trong suốt không che mất ảnh 3D
+   - Chữ logo chuyển thành màu trắng sắc nét, bóng đổ sang trọng
+   - Thanh Tab Capsule và Nút chuyển sang phong cách kính pha lê đêm (Dark Crystal Glass)
+   - Khi cuộn qua hết Hero 3D sẽ chuyển động mượt mà về Liquid Glass trắng
+   ════════════════════════════════════════════════════════════ */
+header.sticky-top.hero-transparent .topbar {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+header.sticky-top.hero-transparent .topbar a {
+  color: rgba(255, 255, 255, 0.88) !important;
+}
+
+header.sticky-top.hero-transparent .topbar a:hover {
+  color: #f59e0b !important;
+}
+
+header.sticky-top.hero-transparent .topbar-divider {
+  background-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+header.sticky-top.hero-transparent .navbar-delta {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom: 1px solid transparent !important;
+  box-shadow: none !important;
+}
+
+header.sticky-top.hero-transparent .brand-title {
+  color: #ffffff !important;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.85);
+}
+
+header.sticky-top.hero-transparent .brand-subtitle {
+  color: rgba(255, 255, 255, 0.8) !important;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+}
+
+header.sticky-top.hero-transparent .brand-icon-crystal {
+  background: rgba(255, 255, 255, 0.16) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35) !important;
+}
+
+header.sticky-top.hero-transparent .liquid-nav-dock {
+  background: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(20px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.25) !important;
+}
+
+header.sticky-top.hero-transparent .liquid-nav-link {
+  color: rgba(255, 255, 255, 0.88) !important;
+}
+
+header.sticky-top.hero-transparent .liquid-nav-link:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.16) !important;
+}
+
+header.sticky-top.hero-transparent .liquid-nav-link.active {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.26) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35) !important;
+}
+
+header.sticky-top.hero-transparent .liquid-user-glass {
+  background: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(20px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+  color: #ffffff !important;
+}
+
+header.sticky-top.hero-transparent .liquid-user-glass span {
+  color: #ffffff !important;
+}
+
+header.sticky-top.hero-transparent .liquid-btn-icon {
+  background: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+header.sticky-top.hero-transparent .btn-explore-liquid {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.95) 0%, rgba(217, 119, 6, 0.95) 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.45) !important;
 }
 
 /* Topbar trên cùng */

@@ -40,7 +40,7 @@
   <!-- ==========================================================================
        1. TOPBAR & HEADER
        ========================================================================== -->
-  <header class="sticky-top">
+  <header class="sticky-top hero-transparent">
     <!-- Topbar liên hệ & tiện ích (Chỉ hiển thị trên màn hình lớn >= 992px để tránh vỡ giao diện trên Mobile) -->
     <div class="topbar d-none d-lg-block">
       <div class="container d-flex justify-content-between align-items-center">
@@ -273,12 +273,7 @@
   <!-- ==========================================================================
        4. DANH SÁCH TOUR DU LỊCH NỔI BẬT & BỘ LỌC TABS
        ========================================================================== -->
-  <section class="container-fluid px-3 px-md-4 px-xl-5 my-5 position-relative overflow-hidden" id="toursSection">
-    <!-- Chữ nghệ thuật mờ khổng lồ ở khu vực dưới -->
-    <div class="section-watermark-bg" aria-hidden="true">
-      <div class="watermark-row watermark-row-1">VIETNAM DISCOVERY</div>
-      <div class="watermark-row watermark-row-2">DELTA TRAVEL LUXURY</div>
-    </div>
+  <section class="container-fluid px-3 px-md-4 px-xl-5 my-5 position-relative" id="toursSection">
     <div class="section-header">
       <div class="section-tag"><i class="bi bi-stars"></i> Hành trình chọn lọc</div>
       <h2 class="section-title">Tour Du Lịch Trọn Gói Được Yêu Thích Nhất</h2>
@@ -362,6 +357,50 @@
               <i class="bi bi-search"></i> Áp dụng bộ lọc
             </button>
           </form>
+
+          <!-- 1. Tag tìm kiếm hot bổ trợ -->
+          <div class="tour-quick-tags-section mt-4 pt-3 border-top">
+            <span class="form-label mb-2"><i class="bi bi-fire text-danger"></i> Tag tìm kiếm hot</span>
+            <div class="tour-quick-tags-cloud">
+              <button type="button" class="quick-tag-chip" onclick="quickFilterTag('Hạ Long')"><i class="bi bi-tag-fill"></i> Hạ Long</button>
+              <button type="button" class="quick-tag-chip" onclick="quickFilterTag('Đà Nẵng')"><i class="bi bi-tag-fill"></i> Đà Nẵng</button>
+              <button type="button" class="quick-tag-chip" onclick="quickFilterTag('Đà Lạt')"><i class="bi bi-tag-fill"></i> Đà Lạt</button>
+              <button type="button" class="quick-tag-chip" onclick="quickFilterTag('Phú Quốc')"><i class="bi bi-tag-fill"></i> Phú Quốc</button>
+              <button type="button" class="quick-tag-chip" onclick="quickFilterTag('Sa Pa')"><i class="bi bi-tag-fill"></i> Sa Pa</button>
+              <button type="button" class="quick-tag-chip" onclick="quickFilterTag('Du thuyền')"><i class="bi bi-water"></i> Du thuyền 5*</button>
+              <button type="button" class="quick-tag-chip" onclick="quickFilterTag('Côn Đảo')"><i class="bi bi-tag-fill"></i> Côn Đảo</button>
+            </div>
+          </div>
+
+          <!-- 2. Box hỗ trợ đặt tour 24/7 trực tiếp -->
+          <div class="sidebar-support-card mt-4 p-3 rounded-4">
+            <div class="d-flex align-items-center gap-3 mb-2">
+              <div class="support-icon-circle">
+                <i class="bi bi-headset fs-4 text-warning"></i>
+              </div>
+              <div>
+                <div class="fw-bold text-dark small">Tư vấn viên 24/7</div>
+                <div class="text-muted" style="font-size: 0.78rem;">Hỗ trợ miễn phí hành trình</div>
+              </div>
+            </div>
+            <a href="tel:19008899" class="btn btn-warning w-100 fw-bold rounded-pill text-dark py-2 shadow-sm d-flex align-items-center justify-content-center gap-2 text-decoration-none">
+              <i class="bi bi-telephone-fill"></i> 1900 8899
+            </a>
+            <button type="button" onclick="openChatbot()" class="btn btn-outline-dark w-100 fw-bold rounded-pill py-2 mt-2 d-flex align-items-center justify-content-center gap-2 small">
+              <i class="bi bi-chat-dots-fill text-primary"></i> Chat với tư vấn viên
+            </button>
+          </div>
+
+          <!-- 3. Cam kết thương hiệu Delta Travel -->
+          <div class="sidebar-trust-commitments mt-4 pt-3 border-top">
+            <span class="form-label mb-2"><i class="bi bi-patch-check-fill text-success"></i> Cam kết Delta Travel</span>
+            <ul class="list-unstyled sidebar-trust-list mb-0">
+              <li><i class="bi bi-shield-fill-check text-success"></i> 100% Giá chuẩn niêm yết</li>
+              <li><i class="bi bi-heart-pulse-fill text-danger"></i> Bảo hiểm du lịch toàn diện</li>
+              <li><i class="bi bi-stars text-warning"></i> Khách sạn & Du thuyền cao cấp</li>
+              <li><i class="bi bi-arrow-repeat text-info"></i> Đổi ngày khởi hành linh hoạt</li>
+            </ul>
+          </div>
         </div>
       </aside>
 
@@ -382,9 +421,11 @@
         <p id="tourActiveFilters" class="small text-muted mb-3" aria-live="polite"></p>
         <div id="tourFilterStatus" class="small mb-3" role="status" aria-live="polite"></div>
         <div class="row" id="toursContainer"></div>
-        <nav id="tourPagination" class="mt-4" aria-label="Phân trang danh sách tour"></nav>
       </div>
     </div>
+
+    <!-- Phân trang nằm độc lập ở giữa 100% toàn bộ chiều rộng trang -->
+    <nav id="tourPagination" class="my-5 w-100 d-flex justify-content-center" aria-label="Phân trang danh sách tour"></nav>
   </section>
 
   <!-- ==========================================================================

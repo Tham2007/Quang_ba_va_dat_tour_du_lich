@@ -24,6 +24,18 @@
   }
 }
 
+@media (min-width: 992px) {
+  .tour-catalog-layout {
+    align-items: stretch;
+  }
+  .tour-sidebar-col {
+    position: relative;
+    width: 320px !important;
+    flex: 0 0 320px !important;
+    max-width: 320px !important;
+  }
+}
+
 @media (min-width: 1400px) {
   .tour-sidebar-col {
     width: 340px !important;
@@ -34,23 +46,86 @@
 
 .tour-filter-sidebar {
   position: sticky;
-  top: 100px;
-  height: calc(100vh - 120px);
-  height: calc(100dvh - 120px);
-  min-height: 480px;
-  max-height: calc(100vh - 120px);
-  max-height: calc(100dvh - 120px);
+  top: 85px;
+  max-height: calc(100vh - 100px);
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 1.35rem;
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(24px) saturate(190%) brightness(1.04);
   -webkit-backdrop-filter: blur(24px) saturate(190%) brightness(1.04);
-  border: 1px solid rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: var(--radius-xl);
   box-shadow: 
     0 15px 40px -10px rgba(0, 0, 0, 0.05),
     0 0 0 1px rgba(255, 255, 255, 0.9) inset;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(203, 213, 225, 0.7) transparent;
+}
+
+.tour-filter-sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+.tour-filter-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(203, 213, 225, 0.8);
+  border-radius: 9999px;
+}
+.tour-filter-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Quick filter tag chips */
+.tour-quick-tags-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+.quick-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  background: rgba(241, 245, 249, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.quick-tag-chip:hover {
+  color: #0284c7;
+  background: #e0f2fe;
+  border-color: #bae6fd;
+  transform: translateY(-1px);
+}
+
+/* Sidebar support card */
+.sidebar-support-card {
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.55) 0%, rgba(241, 245, 249, 0.8) 100%);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+}
+.support-icon-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Sidebar trust commitments */
+.sidebar-trust-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 0.45rem;
 }
 
 @media (max-height: 600px) and (min-width: 992px) {
@@ -218,10 +293,14 @@
   color: var(--text-muted);
 }
 
-/* LIQUID GLASS CENTERED PAGINATION */
+/* LIQUID GLASS CENTERED PAGINATION - CĂN GIỮA TUYỆT ĐỐI */
 #tourPagination {
-  margin: 3.5rem 0 2rem;
+  margin: 3.5rem auto 1.5rem;
   width: 100%;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
 }
 
 .pagination-wrapper {
@@ -229,6 +308,8 @@
   justify-content: center !important;
   align-items: center !important;
   width: 100%;
+  margin: 0 auto !important;
+  text-align: center !important;
 }
 
 .pagination-liquid {
