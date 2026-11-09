@@ -95,14 +95,27 @@ function initChatbotUI() {
 
 /**
  * MỞ KHUNG CHAT AI LỚN TOÀN MÀN HÌNH (Khi người dùng click Trợ lý AI trên Header / Thanh Tab)
- * Thuần nền trắng chữ đen như trên giấy, không lưu lịch sử, dùng avatar thực.
+ * Tinh tế, không đè mất thanh điều hướng tab bar, thuần sáng nhã nhặn 5 sao.
  */
 function openLargeAIChat() {
   const fullscreenEl = document.getElementById("largeAIChatFullscreen");
+  const headerEl = document.querySelector("header.sticky-top") || document.querySelector("header");
   if (fullscreenEl) {
+    if (headerEl) {
+      headerEl.classList.add("ai-chat-open");
+      const hHeight = headerEl.offsetHeight;
+      fullscreenEl.style.top = `${hHeight}px`;
+      fullscreenEl.style.height = `calc(100vh - ${hHeight}px)`;
+    }
     fullscreenEl.style.display = "flex";
     document.body.style.overflow = "hidden";
-    // Không ghi lịch sử AI - khởi tạo sạch mới mỗi lần mở
+
+    // Đánh dấu active cho tab "Trợ lý AI" trong thanh tab dock
+    document.querySelectorAll(".liquid-nav-dock .liquid-nav-link").forEach(el => el.classList.remove("active"));
+    const aiTab = document.querySelector(".liquid-nav-dock .liquid-nav-link[onclick*='openLargeAIChat']");
+    if (aiTab) aiTab.classList.add("active");
+
+    // Khởi tạo cuộc trò chuyện sạch mới
     resetLargeChatConversation();
     setTimeout(() => {
       document.getElementById("largeAIChatInput")?.focus();
@@ -119,9 +132,17 @@ function openLargeAIChat() {
  */
 function closeLargeAIChat() {
   const fullscreenEl = document.getElementById("largeAIChatFullscreen");
+  const headerEl = document.querySelector("header.sticky-top") || document.querySelector("header");
   if (fullscreenEl) {
     fullscreenEl.style.display = "none";
     document.body.style.overflow = "";
+    if (headerEl) {
+      headerEl.classList.remove("ai-chat-open");
+    }
+    // Khôi phục tab Trang chủ hoặc tab trước đó
+    document.querySelectorAll(".liquid-nav-dock .liquid-nav-link").forEach(el => el.classList.remove("active"));
+    const homeTab = document.querySelector(".liquid-nav-dock .liquid-nav-link[href='#home']");
+    if (homeTab) homeTab.classList.add("active");
   }
 }
 window.closeLargeAIChat = closeLargeAIChat;
@@ -249,7 +270,7 @@ function appendChatMessage(sender, rawText, suggestedTours = [], containerId = "
 
   let avatarHtml = "";
   if (sender === "bot") {
-    avatarHtml = `<div class="chat-msg-avatar" title="Delta AI"><i class="bi bi-robot"></i></div>`;
+    avatarHtml = `<div class="chat-msg-avatar" title="Delta Concierge"><i class="bi bi-stars text-warning"></i></div>`;
   } else {
     // Lấy thông tin tài khoản thực tế của người dùng để hiển thị avatar
     const currentUser = (typeof getCurrentUser === "function") ? getCurrentUser() : null;
@@ -269,10 +290,14 @@ function appendChatMessage(sender, rawText, suggestedTours = [], containerId = "
   // Thẻ tour tương tác đặt ngay
   let toursHtml = "";
   if (sender === "bot" && Array.isArray(suggestedTours) && suggestedTours.length > 0) {
+    const suggestedTitle = typeof t === "function" ? t("ai_suggested_tours_title") : "Tour nổi bật có thể đặt ngay:";
+    const bookNowText = typeof t === "function" ? t("card_book_now") : "Đặt ngay";
+    const itineraryText = typeof t === "function" ? t("card_view_itinerary") : "Lịch trình";
+
     toursHtml = `
       <div class="chat-suggested-tours mt-3">
         <div class="small fw-bold text-dark mb-2">
-          <i class="bi bi-compass-fill text-warning me-1"></i> Tour nổi bật có thể đặt ngay:
+          <i class="bi bi-compass-fill text-warning me-1"></i> ${suggestedTitle}
         </div>
         <div class="row g-2">
           ${suggestedTours.map(t => `
@@ -288,10 +313,19 @@ function appendChatMessage(sender, rawText, suggestedTours = [], containerId = "
                 </div>
                 <div class="d-flex gap-1 mt-2">
                   <a href="booking.html?tourId=${encodeURIComponent(t.id)}" class="btn btn-dark btn-sm w-100 fw-bold py-1" style="font-size: 11px;">
-                    <i class="bi bi-cart-check"></i> Đặt ngay
+                    <i class="bi bi-cart-check"></i> ${bookNowText}
                   </a>
                   <button type="button" onclick="openItineraryModal('${t.id}')" class="btn btn-outline-dark btn-sm w-100 py-1" style="font-size: 11px;">
-                    Lịch trình
+                    ${itineraryText}
+                  </button>
+                </div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
                   </button>
                 </div>
               </div>
@@ -368,7 +402,7 @@ function showTypingIndicator(containerId = "chatbotMessages") {
   const typingDiv = document.createElement("div");
   typingDiv.className = "chat-msg bot chat-typing";
   typingDiv.innerHTML = `
-    <div class="chat-msg-avatar"><i class="bi bi-robot"></i></div>
+    <div class="chat-msg-avatar"><i class="bi bi-stars text-warning"></i></div>
     <div class="chat-msg-bubble">
       <div class="typing-indicator">
         <div class="typing-dot"></div>
@@ -400,10 +434,11 @@ function toggleSendButtonState(isLoading, isLarge = false) {
   if (!btn) return;
 
   btn.disabled = isLoading;
+  const sendLabel = typeof t === "function" ? t("ai_btn_send") : "Gửi";
   if (isLoading) {
     btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
   } else {
-    btn.innerHTML = `<i class="bi bi-send-fill me-1"></i> Gửi`;
+    btn.innerHTML = `<i class="bi bi-send-fill me-1"></i> ${sendLabel}`;
   }
 }
 
@@ -411,12 +446,17 @@ function resetChatConversation() {
   chatHistory = [];
   const container = document.getElementById("chatbotMessages");
   if (container) {
+    const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
+    const greeting = isEn
+      ? "Welcome to Delta Travel! 👋 I can help you plan your itinerary and book tours immediately."
+      : "Xin chào Quý khách! 👋 Tôi có thể tư vấn lộ trình và gợi ý tour đặt ngay cho bạn.";
+    const timeLabel = isEn ? "Just now" : "Vừa xong";
     container.innerHTML = `
       <div class="chat-msg bot">
-        <div class="chat-msg-avatar" title="Delta AI"><i class="bi bi-robot"></i></div>
+        <div class="chat-msg-avatar" title="Delta Concierge"><i class="bi bi-stars text-warning"></i></div>
         <div class="chat-msg-bubble">
-          <div>Xin chào Quý khách! 👋 Tôi có thể tư vấn lộ trình và gợi ý tour đặt ngay cho bạn.</div>
-          <span class="chat-msg-time">Vừa xong</span>
+          <div>${greeting}</div>
+          <span class="chat-msg-time">${timeLabel}</span>
         </div>
       </div>
     `;
@@ -427,9 +467,26 @@ function resetLargeChatConversation() {
   chatHistory = [];
   const container = document.getElementById("largeAIChatMessages");
   if (container) {
-    container.innerHTML = `
+    const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
+    const welcomeHtml = isEn ? `
       <div class="chat-msg bot">
-        <div class="chat-msg-avatar" title="Delta AI"><i class="bi bi-robot"></i></div>
+        <div class="chat-msg-avatar" title="Delta Concierge"><i class="bi bi-stars text-warning"></i></div>
+        <div class="chat-msg-bubble">
+          <div>
+            <strong>Welcome to Delta Travel! 👋</strong> I am your 5-Star AI Concierge. I can help you:
+            <ul class="mb-2 mt-1 ps-3">
+              <li>Search and compare luxury resort packages across 3 regions of Vietnam.</li>
+              <li>Provide daily itineraries, weather insights, dining tips & genuine travel advice.</li>
+              <li><strong>Recommend interactive tour cards for instant booking and itinerary review right inside our chat.</strong></li>
+            </ul>
+            Where are you planning to travel, and for how many guests?
+          </div>
+          <span class="chat-msg-time">Delta AI Concierge</span>
+        </div>
+      </div>
+    ` : `
+      <div class="chat-msg bot">
+        <div class="chat-msg-avatar" title="Delta Concierge"><i class="bi bi-stars text-warning"></i></div>
         <div class="chat-msg-bubble">
           <div>
             <strong>Kính chào Quý khách! 👋</strong> Tôi là Trợ lý AI Concierge của Delta Travel. Tôi có thể hỗ trợ bạn:
@@ -444,6 +501,9 @@ function resetLargeChatConversation() {
         </div>
       </div>
     `;
+    container.innerHTML = welcomeHtml;
+  }
+}
   }
 }
 window.resetLargeChatConversation = resetLargeChatConversation;

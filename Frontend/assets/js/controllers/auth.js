@@ -137,6 +137,11 @@ function renderAuthHeader() {
   const topbarContainer = document.getElementById("topbarAuthContainer");
   const user = getCurrentUser();
 
+  const loginText = typeof t === "function" ? t("btn_login") : "Đăng nhập";
+  const registerText = typeof t === "function" ? t("btn_register") : "Đăng ký";
+  const logoutText = typeof t === "function" ? t("topbar_logout") : "Đăng xuất";
+  const profileTooltip = typeof t === "function" ? t("profile_title") : "Hồ sơ tài khoản & Đơn đặt";
+
   if (user) {
     // Tách lấy chữ cái đầu để làm Avatar
     const names = user.fullName.trim().split(" ");
@@ -151,13 +156,13 @@ function renderAuthHeader() {
     const htmlContent = `
       <div class="d-inline-flex align-items-center gap-1.5">
         <!-- Liquid Glass User Profile Pill -->
-        <button type="button" class="liquid-user-glass" onclick="openUserProfileModal()" title="Hồ sơ tài khoản & Đơn đặt">
+        <button type="button" class="liquid-user-glass" onclick="openUserProfileModal()" title="${profileTooltip}">
           ${avatarHtml}
           <span class="liquid-user-name">${user.fullName}</span>
         </button>
 
         <!-- Logout Button in Matching Glass Pill -->
-        <button type="button" class="liquid-logout-btn" onclick="handleUserLogout()" title="Đăng xuất tài khoản">
+        <button type="button" class="liquid-logout-btn" onclick="handleUserLogout()" title="${logoutText}">
           <i class="bi bi-box-arrow-right"></i>
         </button>
       </div>
@@ -167,7 +172,7 @@ function renderAuthHeader() {
     if (topbarContainer) {
       topbarContainer.innerHTML = `
         <span class="text-light small me-2"><i class="bi bi-person-check text-warning"></i> ${user.fullName}</span>
-        <a href="javascript:void(0)" onclick="handleUserLogout()" class="text-warning small text-decoration-none">Đăng xuất</a>
+        <a href="javascript:void(0)" onclick="handleUserLogout()" class="text-warning small text-decoration-none">${logoutText}</a>
       `;
     }
   } else {
@@ -175,10 +180,10 @@ function renderAuthHeader() {
     const htmlBtn = `
       <div class="d-inline-flex align-items-center gap-1.5">
         <button type="button" class="btn btn-sm btn-outline-dark rounded-pill px-2.5 px-sm-3 py-1.5 fw-bold" style="font-size: 12px; background: rgba(255,255,255,0.7); backdrop-filter: blur(12px);" onclick="openAuthModal('login')">
-          Đăng nhập
+          ${loginText}
         </button>
         <button type="button" class="btn btn-sm btn-dark rounded-pill px-3 py-1.5 fw-bold text-white shadow-sm d-none d-sm-inline-block" style="font-size: 12px;" onclick="openAuthModal('register')">
-          Đăng ký
+          ${registerText}
         </button>
       </div>
     `;
@@ -186,13 +191,17 @@ function renderAuthHeader() {
     if (container) container.innerHTML = htmlBtn;
     if (topbarContainer) {
       topbarContainer.innerHTML = `
-        <a href="javascript:void(0)" onclick="openAuthModal('login')"><i class="bi bi-box-arrow-in-right text-warning"></i> Đăng nhập</a>
+        <a href="javascript:void(0)" onclick="openAuthModal('login')"><i class="bi bi-box-arrow-in-right text-warning"></i> ${loginText}</a>
         <span class="topbar-divider"></span>
-        <a href="javascript:void(0)" onclick="openAuthModal('register')"><i class="bi bi-person-plus text-info"></i> Đăng ký</a>
+        <a href="javascript:void(0)" onclick="openAuthModal('register')"><i class="bi bi-person-plus text-info"></i> ${registerText}</a>
       `;
     }
   }
 }
+
+window.addEventListener("languageChanged", () => {
+  renderAuthHeader();
+});
 
 // =============================================================================
 // III. MODAL AUTH & CHUYỂN ĐỔI TAB (LOGIN / REGISTER / FORGOT)
