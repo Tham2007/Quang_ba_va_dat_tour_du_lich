@@ -347,10 +347,16 @@ const DeltaAPI = (() => {
     });
   }
 
-  async function updateProfile(fullName, phone) {
+  async function getSession() {
+    return await request("/auth/session");
+  }
+
+  async function updateProfile(fullName, phone, avatar) {
+    const body = { full_name: fullName, phone };
+    if (typeof avatar !== "undefined") body.avatar = avatar;
     return await request("/auth/profile", {
       method: "PATCH",
-      body: { full_name: fullName, phone }
+      body
     });
   }
 
@@ -400,6 +406,7 @@ const DeltaAPI = (() => {
     login,
     register,
     getMe,
+    getSession,
     logout,
     adminFetchDashboard,
     adminFetchTours,
