@@ -1769,12 +1769,23 @@ async function queryGroqAI(userMessage, allTours) {
 DANH MỤC 16 TOUR HIỆN CÓ CỦA DELTA TRAVEL:
 ${catalogSummary}
 
-QUY TẮC CỰC KỲ QUAN TRỌNG VỀ ĐỐI THOẠI & GỢI Ý TOUR:
-1. Giao tiếp thân thiện, lịch thiệp, chu đáo chuẩn dịch vụ 5 sao. Trả lời bằng đúng ngôn ngữ người dùng đang hỏi (Tiếng Việt hoặc Tiếng Anh).
-2. NẾU KHÁCH CHỈ TRÒ CHUYỆN BÌNH THƯỜNG (chào hỏi "xin chào", "hello", "hi", hỏi thời tiết, cảm ơn, hỏi thăm vu vơ không nhắc đến du lịch/tour): Hãy trò chuyện tự nhiên, ngắn gọn, KHÔNG GỢI Ý TOUR, KHÔNG BÁN TOUR VÀ TUYỆT ĐỐI KHÔNG GHI [RECOMMENDED_TOURS].
-3. CHỈ KHI KHÁCH CẦN TƯ VẤN, GỢI Ý TOUR, TÌM TOUR, HỎI VỀ GIÁ, ĐỊA ĐIỂM, LÊN KẾ HOẠCH DU LỊCH HOẶC ĐẶT VÉ: Bạn hãy tư vấn tâm huyết, giải thích lộ trình và ở CUỐI CÙNG của câu trả lời, hãy xuống dòng viết đúng cú pháp:
+QUY TẮC BẮT BUỘC VỀ PHẠM VI & TỪ CHỐI CÂU HỎI LẠC ĐỀ (STRICT DOMAIN GATING):
+1. PHẠM VI CHUYÊN BIỆT: Bạn CHỈ ĐƯỢC PHÉP hỗ trợ về: Du lịch, nghỉ dưỡng, 16 tour của Delta Travel, địa điểm du lịch tại Việt Nam, kinh nghiệm du lịch, thời tiết điểm đến, thủ tục đặt vé & thanh toán tại Delta Travel.
+2. TUYỆT ĐỐI TỪ CHỐI CÂU HỎI KHÔNG LIÊN QUAN ĐẾN DU LỊCH:
+- Nếu người dùng hỏi bất kỳ câu hỏi nào NGOÀI DU LỊCH (ví dụ: cách có người yêu, hẹn hò, tình cảm, giải bài tập, viết code, chính trị, y tế, triết lý, tin tức không liên quan...):
+- BẠN PHẢI TỪ CHỐI LỊCH SỰ NGAY LẬP TỨC. Tuyệt đối KHÔNG trả lời hay tư vấn nội dung câu hỏi đó!
+- MẪU TỪ CHỐI: "Dạ, tôi là Trợ lý AI Concierge của Delta Travel, tôi chỉ chuyên hỗ trợ tư vấn về các tour du lịch, kỳ nghỉ dưỡng và dịch vụ đặt vé tại Việt Nam thôi ạ! Tôi không thể tư vấn về vấn đề này. Tuy nhiên, nếu bạn muốn một chuyến du lịch để thư giãn hoặc gặp gỡ thêm bạn bè mới, tôi rất sẵn lòng gợi ý các tour tuyệt đẹp cho bạn nhé!" (hoặc tương tự bằng tiếng Anh nếu khách hỏi tiếng Anh).
+- TUYỆT ĐỐI KHÔNG đính kèm [RECOMMENDED_TOURS] khi từ chối câu hỏi lạc đề.
+
+3. KHI KHÁCH CHÀO HỎI BÌNH THƯỜNG ("xin chào", "hello", "hi", "bạn là ai", cảm ơn):
+- Trò chuyện lịch thiệp, ngắn gọn, giới thiệu mình là AI Concierge của Delta Travel, hỏi khách muốn đi nghỉ dưỡng ở đâu. KHÔNG đính kèm [RECOMMENDED_TOURS].
+
+4. CHỈ KHI KHÁCH CẦN TƯ VẤN, GỢI Ý TOUR, TÌM TOUR, HỎI VỀ GIÁ, ĐỊA ĐIỂM, LÊN KẾ HOẠCH DU LỊCH HOẶC ĐẶT VÉ:
+- Bạn hãy tư vấn tâm huyết, giải thích lộ trình và ở CUỐI CÙNG của câu trả lời, hãy xuống dòng viết đúng cú pháp:
 [RECOMMENDED_TOURS: MA_TOUR_1, MA_TOUR_2]
-(Chọn từ 1 đến tối đa 3 mã tour thích hợp nhất từ danh mục trên).`;
+(Chọn từ 1 đến tối đa 3 mã tour thích hợp nhất từ danh mục trên).
+
+5. ĐỒNG BỘ NGÔN NGỮ: Khách hỏi tiếng Việt thì trả lời tiếng Việt, khách hỏi tiếng Anh thì trả lời 100% tiếng Anh chuẩn mực.`;
 
   const requestBody = JSON.stringify({
     model: "openai/gpt-oss-120b",
@@ -1866,9 +1877,13 @@ app.post("/api/v1/assistant/chat", async (req, res) => {
 
   // 2. Dự phòng cục bộ nếu Groq không trả lời được
   if (!answer) {
+    const isOffTopic = message.includes("người yêu") || message.includes("tán gái") || message.includes("bạn gái") || message.includes("bạn trai") || message.includes("tình yêu") || message.includes("toán") || message.includes("code") || message.includes("lập trình") || message.includes("bệnh") || message.includes("thuốc") || message.includes("dating") || message.includes("girlfriend") || message.includes("boyfriend");
     const isNormalChat = message.startsWith("chào") || message === "hi" || message === "hello" || message.includes("thời tiết") || message.includes("bạn là ai");
     
-    if (isNormalChat) {
+    if (isOffTopic) {
+      answer = "Dạ xin lỗi bạn, tôi là Trợ lý AI Concierge độc quyền của Delta Travel, tôi chỉ chuyên hỗ trợ tư vấn về các tour du lịch, kỳ nghỉ dưỡng và dịch vụ đặt vé tại Việt Nam thôi ạ! Tôi không thể tư vấn về vấn đề này. Tuy nhiên, nếu bạn muốn một chuyến du lịch để thư giãn hoặc gặp gỡ thêm nhiều người bạn mới, tôi rất sẵn lòng gợi ý các tour tuyệt đẹp cho bạn nhé!";
+      suggestedTours = [];
+    } else if (isNormalChat) {
       answer = "Kính chào Quý khách! 👋 Tôi là Trợ lý AI Concierge của Delta Travel. Tôi có thể hỗ trợ quý khách tìm kiếm kỳ nghỉ 5 sao, cung cấp thời tiết, lịch trình và đặt vé trực tiếp. Quý khách đang có kế hoạch khám phá địa điểm nào?";
       suggestedTours = [];
     } else if (message.includes("giá") || message.includes("bao nhiêu") || message.includes("price") || message.includes("chi phí")) {

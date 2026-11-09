@@ -726,11 +726,17 @@
       const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
       let days = [];
 
-      if (Array.isArray(tour.itinerary) && tour.itinerary.length > 0) {
-        days = tour.itinerary;
-      } else if (typeof DEFAULT_TOURS !== "undefined") {
-        const def = DEFAULT_TOURS.find(d => String(d.id).toUpperCase() === String(tour.id).toUpperCase());
-        if (def && Array.isArray(def.itinerary)) days = def.itinerary;
+      if (isEn && typeof window.getTourItineraryDays === "function") {
+        days = window.getTourItineraryDays(tour, "en");
+      }
+
+      if (!days || days.length === 0) {
+        if (Array.isArray(tour.itinerary) && tour.itinerary.length > 0) {
+          days = tour.itinerary;
+        } else if (typeof DEFAULT_TOURS !== "undefined") {
+          const def = DEFAULT_TOURS.find(d => String(d.id).toUpperCase() === String(tour.id).toUpperCase());
+          if (def && Array.isArray(def.itinerary)) days = def.itinerary;
+        }
       }
 
       if (!days || days.length === 0) {

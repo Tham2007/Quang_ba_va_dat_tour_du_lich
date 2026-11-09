@@ -35,6 +35,10 @@ const DELTA_TRANSLATIONS = {
     hero_btn_explore: "Khám Phá Tour Ngay",
     hero_btn_search: "Tìm Chuyến Đi",
     hero_scroll: "Cuộn để khám phá",
+    hero_phase2_badge: "Kỳ quan thiên nhiên thế giới",
+    hero_phase2_title: "Băng Qua Những Tầng Mây Hùng Vĩ",
+    hero_phase2_desc: "Đón ánh bình minh rực rỡ trên non nước hữu tình với hệ thống du thuyền 5 sao chuẩn quốc tế và hải trình độc bản.",
+    hero_phase3_badge: "Điểm đến thiên đường nghỉ dưỡng",
     hero_slide2_badge: "Điểm đến thiên đường nghỉ dưỡng",
     hero_slide2_title: "Chào Mừng Đến Vịnh Hạ Long",
     hero_slide2_desc: "Hơn 50.000 du khách đã tin chọn Delta Travel cho những kỳ nghỉ đáng nhớ nhất cuộc đời.",
@@ -195,7 +199,13 @@ const DELTA_TRANSLATIONS = {
     itinerary_package_price: "Giá trọn gói khuyến mãi:",
     itinerary_book_now: "Đặt tour này ngay",
     itinerary_included_title: "Giá Tour Bao Gồm",
+    itinerary_excluded_title: "Giá Tour Không Bao Gồm",
     itinerary_terms_title: "Quy định hoàn / đổi vé tour",
+    terms_1: "Hủy tour trước 15 ngày khởi hành: Miễn phí 100% chi phí hủy.",
+    terms_2: "Hủy tour từ 07 - 14 ngày trước khởi hành: Tính phí 30% giá tour.",
+    terms_3: "Hủy tour từ 03 - 06 ngày trước khởi hành: Tính phí 50% giá tour.",
+    terms_4: "Hủy tour trong vòng 48h trước giờ xuất phát: Tính phí 100% giá tour.",
+    terms_5: "Trường hợp thiên tai bão lũ, hoãn chuyến bay: Delta Travel hỗ trợ bảo lưu 100% tiền cọc hoặc đổi sang tour tương đương.",
     itinerary_morning: "Buổi sáng",
     itinerary_afternoon: "Buổi chiều",
     itinerary_evening: "Buổi tối",
@@ -222,6 +232,34 @@ const DELTA_TRANSLATIONS = {
     testi_tag: "Khách hàng chia sẻ thực tế",
     testi_title: "Cảm Nhận Từ Những Người Bạn Đồng Hành",
     testi_desc: "Hơn 50.000 khách hàng đã trải nghiệm và đánh giá chất lượng chuẩn 5 sao cùng Delta Travel.",
+
+    // Travel Blog
+    blog_tag: "Cẩm nang du lịch",
+    blog_title: "Kinh Nghiệm & Điểm Đến Mới Lạ",
+    blog_desc: "Tổng hợp những thông tin hữu ích, địa điểm ăn uống ngon bổ rẻ và bí quyết chụp ảnh du lịch tuyệt đẹp.",
+    blog_views_1: "1.250 lượt xem",
+    blog_views_2: "2.140 lượt xem",
+    blog_views_3: "980 lượt xem",
+    blog_1_title: "Kinh nghiệm đi tour du thuyền Hạ Long 5 sao chi tiết từ A-Z",
+    blog_1_desc: "Bỏ túi những lưu ý quan trọng về cách chọn hạng phòng, trang phục check-in hoàng hôn và hoạt động câu mực đêm thú vị.",
+    blog_2_title: "Bí kíp săn biển mây Đồi Chè Cầu Đất Đà Lạt triệu view",
+    blog_2_desc: "Thời điểm vàng để bắt trọn khoảnh khắc mây bồng bềnh lúc bình minh và những quán cafe view thung lũng đẹp mê hồn.",
+    blog_3_title: "Thưởng thức tô hủ tiếu bồng bềnh tại Chợ Nổi Cái Răng",
+    blog_3_desc: "Nét văn hóa giao thương độc đáo trên sông nước Cửu Long và trải nghiệm len lỏi rừng tràm xanh ngắt bằng xuồng ba lá.",
+    blog_read_more: "Xem chi tiết hành trình",
+
+    // FAQ
+    faq_tag: "Giải đáp thắc mắc",
+    faq_title: "Câu Hỏi Thường Gặp Về Dịch Vụ Tour",
+    faq_desc: "Tất cả những thông tin bạn cần biết về thủ tục đặt lịch, chính sách giá vé trẻ em và hoàn tiền.",
+    faq_q1: "1. Quy trình đặt tour trực tuyến tại Delta Travel diễn ra như thế nào?",
+    faq_a1: "Bạn chỉ cần chọn tour ưng ý, bấm \"Đặt ngay\", điền thông tin người đi, số lượng khách và chọn phương thức thanh toán. Hệ thống sẽ cấp ngay vé điện tử có mã đặt chỗ hợp lệ.",
+    faq_q2: "2. Chính sách giá tour dành cho trẻ em và em bé được tính ra sao?",
+    faq_a2: "Người lớn (từ 11 tuổi trở lên) tính 100% giá tour tiêu chuẩn. Trẻ em (5-10 tuổi) tính 75% giá vé (có suất ăn và ghế riêng). Em bé (dưới 5 tuổi) phụ thu 10% bảo hiểm & thủ tục.",
+    faq_q3: "3. Tôi có thể hủy hoặc đổi ngày khởi hành sau khi đã đặt không?",
+    faq_a3: "Delta Travel hỗ trợ đổi ngày khởi hành hoàn toàn miễn phí nếu thông báo trước 07 ngày. Trong trường hợp hủy tour, bạn có thể vào mục \"Tra cứu đơn đặt chỗ\" để hủy trực tiếp trên website.",
+    faq_q4: "4. Khi tham gia tour cần chuẩn bị những giấy tờ tùy thân gì?",
+    faq_a4: "Quý khách cần mang theo CCCD hoặc Hộ chiếu còn hạn sử dụng. Trẻ em dưới 14 tuổi mang theo bản sao Giấy khai sinh trích lục để làm thủ tục check-in.",
 
     // Footer
     footer_desc: "Thương hiệu lữ hành 5 sao hàng đầu Việt Nam. Khám phá vẻ đẹp kỳ vĩ của đất nước cùng những chuyến đi nghỉ dưỡng trọn vẹn và an tâm tuyệt đối.",
@@ -336,6 +374,10 @@ const DELTA_TRANSLATIONS = {
     hero_btn_explore: "Explore Tours Now",
     hero_btn_search: "Search Trips",
     hero_scroll: "Scroll to explore",
+    hero_phase2_badge: "World Natural Heritage",
+    hero_phase2_title: "Passing Through The Majestic Clouds",
+    hero_phase2_desc: "Embrace the glorious sunrise over breathtaking landscapes aboard world-class 5-star cruises and signature voyages.",
+    hero_phase3_badge: "World-Class Retreat Destination",
     hero_slide2_badge: "World-Class Retreat Destination",
     hero_slide2_title: "Welcome To Ha Long Bay",
     hero_slide2_desc: "Over 50,000 travelers have trusted Delta Travel for their most memorable vacation experiences.",
@@ -496,7 +538,13 @@ const DELTA_TRANSLATIONS = {
     itinerary_package_price: "Special Package Price:",
     itinerary_book_now: "Book This Tour Now",
     itinerary_included_title: "Included Services",
+    itinerary_excluded_title: "Excluded Services",
     itinerary_terms_title: "Cancellation & Refund Policy",
+    terms_1: "Cancellations 15+ days before departure: 100% free cancellation.",
+    terms_2: "Cancellations 7 - 14 days before departure: 30% cancellation fee.",
+    terms_3: "Cancellations 3 - 6 days before departure: 50% cancellation fee.",
+    terms_4: "Cancellations within 48 hours of departure: 100% cancellation fee.",
+    terms_5: "Force majeure (natural storms, flight cancellations): Delta Travel guarantees 100% deposit retention or equivalent tour transfer.",
     itinerary_morning: "Morning",
     itinerary_afternoon: "Afternoon",
     itinerary_evening: "Evening",
@@ -523,6 +571,34 @@ const DELTA_TRANSLATIONS = {
     testi_tag: "Verified Guest Reviews",
     testi_title: "Voices From Our Travelers",
     testi_desc: "Over 50,000 travelers have enjoyed world-class vacations with Delta Travel.",
+
+    // Travel Blog
+    blog_tag: "Travel Guidebook",
+    blog_title: "Travel Tips & Inspiring Destinations",
+    blog_desc: "Essential travel guides, local foodie spots, and photography tips for your perfect vacation.",
+    blog_views_1: "1,250 views",
+    blog_views_2: "2,140 views",
+    blog_views_3: "980 views",
+    blog_1_title: "5-Star Ha Long Luxury Cruise Experience: Complete A-Z Guide",
+    blog_1_desc: "Key advice on cabin selection, sunset check-in styles, and exciting night squid fishing activities.",
+    blog_2_title: "Da Lat Cloud Hunting Guide: Cau Dat Tea Hill Million-Dollar View",
+    blog_2_desc: "Golden hours to catch rolling sea of clouds at sunrise and the most scenic valley cafes.",
+    blog_3_title: "Savor Floating Noodle Soup at Cai Rang Floating Market",
+    blog_3_desc: "Unique trading culture on the Mekong Delta and scenic sampan boat rides through lush cajuput forests.",
+    blog_read_more: "Explore Itinerary",
+
+    // FAQ
+    faq_tag: "Frequently Asked Questions",
+    faq_title: "General Inquiries About Our Tours",
+    faq_desc: "Everything you need to know about reservations, child pricing policies, and flexible cancellations.",
+    faq_q1: "1. How does online tour booking work at Delta Travel?",
+    faq_a1: "Simply choose your desired tour, click \"Book Now\", fill in guest details, and select your preferred payment method (VietQR, ATM/Card, or Cash). Your valid electronic ticket (E-Ticket) and reservation code will be issued instantly.",
+    faq_q2: "2. How are child and infant tour fares calculated?",
+    faq_a2: "Adults (11+ yrs) pay 100% standard fare. Children (5-10 yrs) enjoy a 25% discount (paying 75% with dedicated seat and meal). Infants (under 5 yrs) are only charged a 10% insurance & ticketing fee, sharing bed with parents.",
+    faq_q3: "3. Can I cancel or reschedule my departure date after booking?",
+    faq_a3: "Delta Travel offers 100% free departure rescheduling when notified at least 7 days in advance. To cancel, go to \"Track Booking\" to request cancellation online according to our flexible domestic policy.",
+    faq_q4: "4. What identification documents are required for the tour?",
+    faq_a4: "Guests need a valid National ID or Passport. For children under 14 without an ID card, please bring an official extract of their birth certificate for flight, hotel, and cruise check-in procedures.",
 
     // Footer
     footer_desc: "Vietnam's premier 5-star travel brand. Explore breathtaking wonders with curated luxury itineraries and complete peace of mind.",
@@ -610,6 +686,371 @@ const DELTA_TRANSLATIONS = {
   }
 };
 
+const TOUR_ITINERARIES_EN = {
+  "DL-HL01": [
+    {
+      day: 1,
+      title: "Hanoi – Ha Long Bay – 5-Star Cruise Check-in – Lan Ha Bay",
+      morning: "08:00 VIP Limousine pick-up from Hanoi Old Quarter, departing along modern expressway to Tuan Chau Marina.",
+      afternoon: "12:00 Board luxury 5-star cruise, enjoy welcome drink and gourmet seafood buffet while cruising amidst karst towers.",
+      evening: "18:00 Sunset cocktail party on sundeck. 19:30 Fine dining dinner, night squid fishing, and acoustic lounge music."
+    },
+    {
+      day: 2,
+      title: "Lan Ha Bay – Ba Trai Dao Beach – Dark & Bright Cave Kayaking",
+      morning: "06:30 Sunrise Tai Chi session on sundeck, followed by light breakfast. Transfer to explore Dark & Bright Cave by kayak.",
+      afternoon: "12:30 Savor fresh lunch on board. Swim and relax at pristine Ba Trai Dao white sandy beach.",
+      evening: "19:00 Romantic BBQ dinner on deck, stargazing, luxury spa relaxation, and peaceful overnight on emerald bay."
+    },
+    {
+      day: 3,
+      title: "Viet Hai Ancient Village – Ha Long Bay – Return to Hanoi",
+      morning: "07:00 Breakfast buffet. Cycle through lush rainforest to visit 100-year-old Viet Hai ancient fishing village.",
+      afternoon: "10:30 Check out cabins, early buffet lunch as cruise heads back to port. 12:30 Limousine transfer back to Hanoi.",
+      evening: "16:00 Arrive safely at Hanoi meeting point. Tour ends with unforgettable memories."
+    }
+  ],
+  "DL-DN02": [
+    {
+      day: 1,
+      title: "Arrival Da Nang – Son Tra Peninsula – Linh Ung Pagoda – My Khe Beach",
+      morning: "Pick-up at Da Nang Airport/Station, transfer to hotel for check-in and leisure relaxation.",
+      afternoon: "Visit Son Tra Peninsula, admire majestic 67m Lady Buddha at Linh Ung Pagoda, stroll along world-famous My Khe Beach.",
+      evening: "Dinner with Da Nang delicacies (Tran pork rice paper rolls, Quang noodles), admire Dragon Bridge fire and water performance."
+    },
+    {
+      day: 2,
+      title: "Ba Na Hills – Golden Bridge in the Clouds – Fantasy Park",
+      morning: "Ascend via world-record cable car to Ba Na Hills, walk on iconic Golden Bridge held by colossal hands in misty clouds.",
+      afternoon: "Explore French Village, Le Jardin D'Amour flower gardens, and enjoy over 100 indoor attractions at Fantasy Park.",
+      evening: "Return to Da Nang city center, dinner at riverside restaurant, romantic Han River cruise."
+    },
+    {
+      day: 3,
+      title: "Marble Mountains – Non Nuoc Stone Village – Hoi An Ancient Town",
+      morning: "Explore mysterious Marble Mountains (Ngu Hanh Son), Huyen Khong Cave, and 300-year-old Non Nuoc stone carving village.",
+      afternoon: "Depart for UNESCO World Heritage Hoi An Ancient Town, stroll along lantern-lit streets and visit Japanese Covered Bridge.",
+      evening: "Savor Hoi An specialties (Cao Lau, white rose dumplings, chicken rice), release floating flower lanterns on Hoai River."
+    },
+    {
+      day: 4,
+      title: "Cam Thanh Coconut Village – Da Nang Souvenirs – Departure",
+      morning: "Experience thrilling basket boat rides through Bay Mau coconut forest with local fishermen spinning shows.",
+      afternoon: "Shop for Central Vietnam dried seafood and souvenirs at Han Market. Limousine transfer to Da Nang Airport.",
+      evening: "Board departure flight back to Hanoi / Ho Chi Minh City. End of marvelous Central Vietnam getaway."
+    }
+  ],
+  "DL-PQ03": [
+    {
+      day: 1,
+      title: "Phu Quoc Arrival – Grand World 'Sleepless City' – Teddy Bear Museum",
+      morning: "Flight arrival at Phu Quoc International Airport, transfer to luxury resort, welcome coconut drink.",
+      afternoon: "Explore Grand World Phu Quoc: cruise along Venice Canal, visit Bamboo Legend architecture and Teddy Bear Museum.",
+      evening: "Enjoy world-class multimedia show 'Essence of Vietnam' & Venice water show with vibrant lights and fireworks."
+    },
+    {
+      day: 2,
+      title: "Hon Thom Cable Car – 4 Islands Speedboat Tour – Sunset Sanato",
+      morning: "Ride world's longest sea-crossing cable car to Hon Thom Island, enjoy Aquatopia Water Park.",
+      afternoon: "Canoe tour around Gam Ghi, May Rut, and Mong Tay islands for coral reef snorkeling and SUP photo shoots.",
+      evening: "Sunset cocktails at Sunset Sanato Beach Club, fresh seafood dinner at Night Market."
+    },
+    {
+      day: 3,
+      title: "Phu Quoc Pearl Farm – Pepper Farm & Fish Sauce Factory – Departure",
+      morning: "Breakfast buffet, visit local pearl culturing facility, traditional black pepper garden, and fish sauce barrel house.",
+      afternoon: "Leisure swim at Bai Sao turquoise beach, souvenir shopping, airport transfer for departure flight.",
+      evening: "Arrive at home destination. Conclude magical pearl island vacation."
+    }
+  ],
+  "DL-DL04": [
+    {
+      day: 1,
+      title: "Arrival Da Lat – Robin Hill Cable Car – Truc Lam Zen Monastery – Tuyen Lam Lake",
+      morning: "Pick-up in Da Lat, breakfast with signature Xiu Mai bread, take scenic cable car over pine forests to Truc Lam Monastery.",
+      afternoon: "Check-in boutique hotel, stroll along peaceful Tuyen Lam Lake, visit romantic Clay Tunnel.",
+      evening: "Hotpot dinner (wild chicken with basil leaves), explore bustling Da Lat Night Market with grilled rice paper and hot soy milk."
+    },
+    {
+      day: 2,
+      title: "Cau Dat Tea Hill Cloud Hunting – Windmills – Puppy Farm – Langbiang Peak",
+      morning: "05:00 Sunrise expedition hunting panoramic sea of clouds at Cau Dat Tea Hill and giant wind turbine fields.",
+      afternoon: "Visit Puppy Farm with friendly pets and high-tech strawberry garden, take 4x4 Jeep up Langbiang mountain peak.",
+      evening: "Join K'Ho ethnic campfire gong exchange show with roasted meat and Can wine under starry mountain sky."
+    },
+    {
+      day: 3,
+      title: "Domaine de Marie Church – Dalat Railway Station – Departure",
+      morning: "Visit European-style Domaine de Marie Church, French Indochina architecture of Da Lat Railway Station, and hydrangea fields.",
+      afternoon: "Shop for artichoke tea, dried fruit jams, and fresh local specialties at Da Lat Market. Transfer to airport or bus station.",
+      evening: "Return to home city, concluding refreshing highland holiday."
+    }
+  ],
+  "DL-SP05": [
+    {
+      day: 1,
+      title: "Hanoi – Sa Pa – Cat Cat Village – Mountain Cultural Life",
+      morning: "06:30 Sleeper limousine from Hanoi along Noi Bai - Lao Cai highway to foggy Sa Pa town.",
+      afternoon: "Check in 4-star mountain view hotel. Walk down to Cat Cat Village, admire Tien Sa waterfall and H'Mong textile crafts.",
+      evening: "Salmon hotpot dinner, stroll around Stone Church, try local grilled skewers in the cool mountain breeze."
+    },
+    {
+      day: 2,
+      title: "Conquer Fansipan 'Roof of Indochina' – Muong Hoa Funicular",
+      morning: "Muong Hoa funicular ride through golden terraced valley, high-speed cable car climbing to 3,143m Fansipan summit.",
+      afternoon: "Ring the peak bell at Roof of Indochina, visit giant Amitabha Buddha bronze statue and majestic pagodas in clouds.",
+      evening: "Herbal foot bath of Red Dao people, fine dining dinner, leisure evening at romantic European-style cafes."
+    },
+    {
+      day: 3,
+      title: "Ham Rong Mountain – Sa Pa Central Market – Return to Hanoi",
+      morning: "Hike Ham Rong flower garden, enjoy panoramic view of misty Sa Pa town and Muong Hoa valley from Cloud Yard.",
+      afternoon: "Shop for mountain specialties, mushrooms, and brocade fabrics. 14:00 Limousine departs back to Hanoi.",
+      evening: "20:00 Arrive safely at Hanoi drop-off point. Tour concludes."
+    }
+  ],
+  "DL-MT06": [
+    {
+      day: 1,
+      title: "HCMC – My Tho – Ben Tre – Can Tho – Ninh Kieu Wharf by Night",
+      morning: "07:30 Limousine departs from HCMC, crosses Rach Mieu suspension bridge into the coconut kingdom of Ben Tre.",
+      afternoon: "Horse-drawn carriage ride along village pathways, taste pure honey tea, listen to traditional Don Ca Tai Tu folk music. Travel to Can Tho.",
+      evening: "Board Can Tho dinner cruise on the Hau River, enjoy Southern specialties with sparkling night lights along Ninh Kieu Wharf."
+    },
+    {
+      day: 2,
+      title: "Cai Rang Floating Market – Tra Su Cajuput Forest – Return to HCMC",
+      morning: "05:30 Motorboat excursion to Cai Rang Floating Market, savor steaming Hu Tieu noodles and milk coffee on floating boats.",
+      afternoon: "Visit Tra Su Cajuput Forest, glide on wooden sampans across bright green duckweed carpets amidst rare water birds. Enjoy grilled snakehead fish.",
+      evening: "Depart for HCMC across My Thuan bridge. Arrive in the evening, concluding warm Mekong Delta journey."
+    }
+  ],
+  "DL-NB07": [
+    {
+      day: 1,
+      title: "Hanoi – Bai Dinh Pagoda – Trang An Ecotourism – Mua Cave",
+      morning: "07:30 Limousine pick-up from Hanoi, travel to Ninh Binh to visit Southeast Asia's largest Buddhist complex, Bai Dinh Pagoda.",
+      afternoon: "Rowboat cruise through Trang An UNESCO World Heritage, passing limestone peaks and mysterious caves. Climb 500 steps up Hang Mua peak.",
+      evening: "Crispy rice and mountain goat banquet dinner. Return to Hanoi in the evening, concluding wonderful heritage discovery."
+    }
+  ],
+  "DL-HG08": [
+    {
+      day: 1,
+      title: "Hanoi – Ha Giang – Quan Ba Heaven Gate – Fairy Twin Mountains – Yen Minh",
+      morning: "06:30 Depart Hanoi for Ha Giang, passing scenic green tea hills of Tuyen Quang.",
+      afternoon: "Ascend Bac Sum Pass, marvel at Quan Ba Heaven Gate and Fairy Twin Mountains. Arrive at pine forests of Yen Minh.",
+      evening: "Traditional dinner with ethnic homestay hosts, sip corn wine and rest in peaceful mountain valley."
+    },
+    {
+      day: 2,
+      title: "Dong Van Karst Plateau – Vuong Palace – Lung Cu Flag Tower – Ma Pi Leng – Nho Que River",
+      morning: "Explore Tham Ma slope, H'Mong King Vuong Palace, and touch national flagpole at Lung Cu northernmost point.",
+      afternoon: "Conquer legendary Ma Pi Leng Pass, board boat cruising on turquoise Nho Que River through Tu San Canyon.",
+      evening: "Explore Dong Van Old Quarter, taste Men Men and Au Tau porridge, rest in ancient boutique hotel."
+    },
+    {
+      day: 3,
+      title: "Dong Van Sunday Market – Return to Hanoi",
+      morning: "Immerse in vibrant ethnic market colors with H'Mong, Dao, Tay traders in festive traditional dress.",
+      afternoon: "Scenic drive back via Ha Giang city, stop for photos and local dried beef specialties. Return towards Hanoi.",
+      evening: "20:00 Arrive at Hanoi drop-off point. Conclude epic Ha Giang road trip."
+    }
+  ],
+  "DL-CB09": [
+    {
+      day: 1,
+      title: "Hanoi – Thai Nguyen – Bac Kan – Ba Be Lake / Cao Bang",
+      morning: "06:30 Depart Hanoi via National Highway 3, passing scenic northern countryside.",
+      afternoon: "Arrive in Cao Bang, check in hotel, visit historical monuments and local Tay villages.",
+      evening: "Dinner featuring grilled mountain pork, 7-flavor roasted duck, and sticky rice."
+    },
+    {
+      day: 2,
+      title: "Ban Gioc Waterfall – Nguom Ngao Cave – Truc Lam Zen Monastery",
+      morning: "Marvel at majestic Ban Gioc Waterfall, Southeast Asia's largest natural border waterfall, board bamboo raft near cascades.",
+      afternoon: "Explore surreal stalactites inside Nguom Ngao Cave, visit Truc Lam Ban Gioc Buddhist Zen Monastery.",
+      evening: "Return to Cao Bang city, explore night walking street, try local sour pho (Pho Chua)."
+    },
+    {
+      day: 3,
+      title: "Pac Bo Historical Site – Lenin Stream – Karl Marx Peak – Hanoi",
+      morning: "Visit Pac Bo cave where President Ho Chi Minh lived, admire emerald Lenin Stream and Karl Marx Peak.",
+      afternoon: "Depart back to Hanoi, stopping to purchase Cao Bang vermicelli, chestnuts, and sweet snacks.",
+      evening: "19:30 Arrive safely in Hanoi. Tour concludes."
+    }
+  ],
+  "DL-MC10": [
+    {
+      day: 1,
+      title: "Hanoi – Thung Khe Pass – Moc Chau Plateau – Heart-Shaped Tea Hills",
+      morning: "07:00 Depart Hanoi via Hoa Binh highway, stop at foggy white-stone Thung Khe Pass for roasted corn.",
+      afternoon: "Visit lush Heart-Shaped Tea Hills of Moc Chau, explore colorful plum and peach blossom orchards.",
+      evening: "Highland dinner with bamboo-tube rice, grilled stream fish, and campfire music."
+    },
+    {
+      day: 2,
+      title: "Bach Long Glass Bridge – Dai Yem Waterfall – Return to Hanoi",
+      morning: "Walk across world-record Bach Long Glass Bridge, admire roaring Dai Yem Waterfall.",
+      afternoon: "Shop for Moc Chau fresh dairy milk, dried strawberries, and tea. Depart for Hanoi.",
+      evening: "18:30 Arrive in Hanoi. Tour ends."
+    }
+  ],
+  "DL-HU11": [
+    {
+      day: 1,
+      title: "Arrival Hue – Imperial Citadel (Dai Noi) – Dong Ba Market",
+      morning: "Pick-up at Phu Bai Airport, transfer to riverside hotel, welcome royal herbal tea.",
+      afternoon: "Tour UNESCO World Heritage Imperial Citadel, Ngo Mon Gate, Thai Hoa Palace, and Forbidden Purple City.",
+      evening: "Board dragon boat on Perfume River, listen to Royal Ca Hue singing, float glowing paper lanterns."
+    },
+    {
+      day: 2,
+      title: "Khai Dinh Tomb – Tu Duc Tomb – Thien Mu Pagoda – Thuy Xuan Incense Village",
+      morning: "Visit magnificent European-Asian Khai Dinh Mausoleum and poetic Tu Duc imperial tomb.",
+      afternoon: "Explore 400-year-old Thien Mu Pagoda, take Instagram photos at rainbow-colored Thuy Xuan Incense Village.",
+      evening: "Royal banquet dinner, taste Banh Beo, Nam, Loc, and Hue beef noodles."
+    },
+    {
+      day: 3,
+      title: "Lang Co Bay – Lap An Lagoon – Departure",
+      morning: "Breakfast buffet, scenic excursion to serene Lap An Lagoon and stunning Lang Co Bay.",
+      afternoon: "Shop for Hue royal tea, sesame candy (Me Xung), and fermented shrimp paste. Airport transfer.",
+      evening: "Conclude majestic Hue imperial journey."
+    }
+  ],
+  "DL-NT12": [
+    {
+      day: 1,
+      title: "Arrival Nha Trang – VinWonders Harbor – Night City Tour",
+      morning: "Arrival at Cam Ranh Airport, transfer along scenic coastal highway to beachfront resort.",
+      afternoon: "Take sea-crossing cable car to VinWonders Nha Trang, enjoy water world and European castle square.",
+      evening: "Enjoy Tata Show 3D mapping performance, seafood dinner at Tram Huong tower square."
+    },
+    {
+      day: 2,
+      title: "Coral Bay 3-Island Speedboat Tour – Diving & Floating Bar",
+      morning: "Speedboat to Coral Bay (Vinh San Ho), snorkel among colorful coral reefs and marine life.",
+      afternoon: "Visit fishing village raft, fresh seafood lunch, swim at Bai Tranh white sand beach.",
+      evening: "Relax with hot mineral mud bath at I-Resort, dinner with grilled Nem Nuong Ninh Hoa."
+    },
+    {
+      day: 3,
+      title: "Diep Son Underwater Sandbar – Doc Let Beach",
+      morning: "Excursion to Diep Son Island, walk across the unique underwater sandbar pathway in the ocean.",
+      afternoon: "Swim at paradise-like Doc Let beach with powdery white sand and shallow calm waters.",
+      evening: "Cocktails at high-altitude rooftop lounge overlooking Nha Trang bay by night."
+    },
+    {
+      day: 4,
+      title: "Ponagar Cham Towers – Long Son Pagoda – Departure",
+      morning: "Visit historic Ponagar Cham Towers and sacred white Buddha at Long Son Pagoda.",
+      afternoon: "Shop for Nha Trang bird's nests, dried squid, and mango rice paper. Airport transfer.",
+      evening: "Departure flight home. Conclude sun-soaked beach vacation."
+    }
+  ],
+  "DL-QN13": [
+    {
+      day: 1,
+      title: "Arrival Quy Nhon – Ghenh Rang Tien Sa – Han Mac Tu Memorial",
+      morning: "Flight arrival at Phu Cat Airport, check in seaside hotel.",
+      afternoon: "Visit Ghenh Rang Tien Sa, Queen's Egg Stone Beach, and Han Mac Tu poet memorial site.",
+      evening: "Dinner with jellyfish noodles, shrimp pancakes (Banh Xeo Tom Nhay), stroll along windy Xuan Dieu beach."
+    },
+    {
+      day: 2,
+      title: "Ky Co Beach 'Maldives of Vietnam' – Eo Gio – Hon Kho",
+      morning: "Canoe to Ky Co beach with crystal-clear turquoise waters, enjoy water sports and coral viewing.",
+      afternoon: "Walk along scenic cliffside coastal path at Eo Gio (Windy Strait), visit Ngoc Hoa Monastery with twin Buddha statues.",
+      evening: "Seafood BBQ dinner, enjoy sunset at Nhon Ly fishing village cafes."
+    },
+    {
+      day: 3,
+      title: "Twin Cham Towers – Phuong Mai Sand Dunes – Departure",
+      morning: "Explore 800-year-old Twin Cham Towers (Thap Doi) and sand-boarding at giant Phuong Mai sand dunes.",
+      afternoon: "Shop for Binh Dinh specialties (Nem Cho Huyen, Bau Da wine). Transfer to airport for flight.",
+      evening: "Safely return home. Tour concludes."
+    }
+  ],
+  "DL-PY14": [
+    {
+      day: 1,
+      title: "Arrival Tuy Hoa – Bai Xep 'Yellow Flowers Green Grass' – Mang Lang Church",
+      morning: "Arrive at Tuy Hoa Airport, check in hotel along coastal Hung Vuong boulevard.",
+      afternoon: "Visit picturesque Bai Xep beach where 'I See Yellow Flowers Upon the Green Grass' was filmed, visit gothic Mang Lang Church.",
+      evening: "Dinner with ocean tuna eyes braised in Chinese herbs, stroll around Nghinh Phong Tower."
+    },
+    {
+      day: 2,
+      title: "Ganh Da Dia Prismatic Columns – O Loan Lagoon – Dai Lanh Cape",
+      morning: "Marvel at Ganh Da Dia, world-class volcanic basalt columns naturally stacked like giant beehives.",
+      afternoon: "Enjoy fresh blood cockle lunch at O Loan Lagoon, visit Mui Dien (Dai Lanh Cape) where mainland Vietnam sees sunrise first.",
+      evening: "Sunset cocktails at Vung Ro Bay, night squid fishing and seafood feast."
+    },
+    {
+      day: 3,
+      title: "Nhan Tower – Tuy Hoa Market – Departure",
+      morning: "Climb Nhan Mountain to admire ancient Champa Nhan Tower and panoramic Tuy Hoa city views.",
+      afternoon: "Shop for dried sun-dried beef (Bo Mot Nang) with yellow ant salt. Airport transfer.",
+      evening: "Return to home city. End of charming Phu Yen tour."
+    }
+  ],
+  "DL-TN15": [
+    {
+      day: 1,
+      title: "HCMC – Tay Ninh Holy See – Sun World Ba Den Mountain Peak",
+      morning: "07:00 Depart HCMC, attend noon ceremonial service at magnificent Tay Ninh Cao Dai Holy See.",
+      afternoon: "Modern cable car ascension to Ba Den Mountain summit, admire Asia's tallest bronze Lady Buddha statue.",
+      evening: "Enjoy sunset buffet at the peak, walk through flower gardens in clouds. Return to HCMC in the evening."
+    }
+  ],
+  "DL-CD16": [
+    {
+      day: 1,
+      title: "Arrival Con Dao – Con Dao Prison Museum – Hang Duong Cemetery Tribute",
+      morning: "Flight arrival at Con Dao Co Ong Airport, transfer through scenic coastal cliffs to resort.",
+      afternoon: "Visit historical Con Dao Prison relics, French Tiger Cages, American Tiger Cages, and Pier 914.",
+      evening: "23:00 Sacred candlelight tribute and incense offering at Hang Duong Cemetery and Vo Thi Sau memorial shrine."
+    },
+    {
+      day: 2,
+      title: "Dam Trau Beach – Bay Canh Island Coral Snorkeling – Turtle Sanctuary",
+      morning: "Relax at pristine Dam Trau Beach, watch airplanes land close overhead while sipping fresh young coconuts.",
+      afternoon: "Speedboat to Bay Canh Island, explore mangrove ecosystem, snorkel coral reefs, visit sea turtle nursery.",
+      evening: "Fresh seafood dinner (red grouper, moon crab), peaceful nighttime walk along the historic seaside promenade."
+    },
+    {
+      day: 3,
+      title: "Con Dao Market – Van Son Pagoda – Departure",
+      morning: "Panoramic view from Van Son Pagoda atop Mot Mountain, visit An Son shrine of Lady Phi Yen.",
+      afternoon: "Shop for Con Dao almond seed sweets (Mut Hat Bang) and sun-dried fish. Transfer to airport.",
+      evening: "Departure flight back to HCMC / Hanoi. Conclude profoundly moving and spiritual Con Dao journey."
+    }
+  ]
+};
+
+function getTourItineraryDays(tour, lang) {
+  if (!tour) return [];
+  const language = lang || (typeof getAppLanguage === "function" ? getAppLanguage() : "vi");
+  const tourId = String(tour.id || "").trim().toUpperCase();
+
+  if (language === "en" && TOUR_ITINERARIES_EN && TOUR_ITINERARIES_EN[tourId]) {
+    return TOUR_ITINERARIES_EN[tourId];
+  }
+
+  if (Array.isArray(tour.itinerary) && tour.itinerary.length > 0) {
+    return tour.itinerary;
+  }
+  if (typeof DEFAULT_TOURS !== "undefined" && Array.isArray(DEFAULT_TOURS)) {
+    const def = DEFAULT_TOURS.find(d => String(d.id).trim().toUpperCase() === tourId);
+    if (def && Array.isArray(def.itinerary) && def.itinerary.length > 0) {
+      return def.itinerary;
+    }
+  }
+
+  return [];
+}
+
 let currentAppLang = localStorage.getItem("delta_lang") || "vi";
 
 function t(key, params = {}) {
@@ -692,3 +1133,5 @@ window.getAppLanguage = getAppLanguage;
 window.setAppLanguage = setAppLanguage;
 window.toggleLanguage = toggleLanguage;
 window.DELTA_TRANSLATIONS = DELTA_TRANSLATIONS;
+window.TOUR_ITINERARIES_EN = TOUR_ITINERARIES_EN;
+window.getTourItineraryDays = getTourItineraryDays;

@@ -1195,25 +1195,31 @@ async function openItineraryModal(tourId) {
   const priceEl = document.getElementById("itineraryPrice");
   if (priceEl) priceEl.textContent = formatVND(tour.price);
 
-  // Tải lịch trình: API -> tour object -> DEFAULT_TOURS
+  // Tải lịch trình: Nếu ngôn ngữ là tiếng Anh, ưu tiên dùng TOUR_ITINERARIES_EN
   let itineraryDays = [];
-  if (typeof DeltaAPI !== "undefined" && DeltaAPI.isOnline() && DeltaAPI.fetchItinerary) {
-    try {
-      const response = await DeltaAPI.fetchItinerary(tour.id);
-      if (response && response.success && Array.isArray(response.data) && response.data.length > 0) {
-        const grouped = new Map();
-        for (const activity of response.data) {
-          if (!grouped.has(activity.dayNumber)) grouped.set(activity.dayNumber, []);
-          grouped.get(activity.dayNumber).push(activity);
+  if (isEn && typeof window.getTourItineraryDays === "function") {
+    itineraryDays = window.getTourItineraryDays(tour, "en");
+  }
+
+  if (!itineraryDays || itineraryDays.length === 0) {
+    if (typeof DeltaAPI !== "undefined" && DeltaAPI.isOnline() && DeltaAPI.fetchItinerary) {
+      try {
+        const response = await DeltaAPI.fetchItinerary(tour.id);
+        if (response && response.success && Array.isArray(response.data) && response.data.length > 0) {
+          const grouped = new Map();
+          for (const activity of response.data) {
+            if (!grouped.has(activity.dayNumber)) grouped.set(activity.dayNumber, []);
+            grouped.get(activity.dayNumber).push(activity);
+          }
+          itineraryDays = [...grouped.entries()].map(([day, activities]) => ({
+            day,
+            title: `Lịch trình ngày ${day}`,
+            activities
+          }));
         }
-        itineraryDays = [...grouped.entries()].map(([day, activities]) => ({
-          day,
-          title: `Lịch trình ngày ${day}`,
-          activities
-        }));
+      } catch (e) {
+        console.warn("fetchItinerary error:", e);
       }
-    } catch (e) {
-      console.warn("fetchItinerary error:", e);
     }
   }
 
@@ -1336,20 +1342,31 @@ async function openItineraryModal(tourId) {
 
   // 3. Điền Dịch vụ bao gồm & Không bao gồm
   let inclusions = [];
-  if (Array.isArray(tour.inclusions)) {
-    inclusions = tour.inclusions;
-  } else if (typeof tour.inclusions === "string") {
-    inclusions = tour.inclusions.split("\n").map(s => s.trim()).filter(Boolean);
-  }
-  if (!inclusions || inclusions.length === 0) {
+  if (isEn) {
     inclusions = [
-      "Xe đưa đón du lịch đời mới máy lạnh suốt tuyến",
-      "Khách sạn / Du thuyền tiêu chuẩn 4-5 sao cao cấp",
-      "Các bữa ăn chính đặc sản theo lịch trình",
-      "Vé tham quan tất cả các thắng cảnh trong tour",
-      "Hướng dẫn viên chuyên nghiệp đồng hành chu đáo",
-      "Bảo hiểm du lịch trọn gói mức 100.000.000đ"
+      "Modern air-conditioned tour bus / luxury transport throughout",
+      "Premium 4 to 5-star hotel / luxury cruise accommodation",
+      "All main specialty meals included in the itinerary",
+      "Entrance tickets to all scenic attractions and monuments",
+      "Professional dedicated English-speaking tour leader",
+      "Comprehensive travel insurance coverage up to 100,000,000 VND"
     ];
+  } else {
+    if (Array.isArray(tour.inclusions)) {
+      inclusions = tour.inclusions;
+    } else if (typeof tour.inclusions === "string") {
+      inclusions = tour.inclusions.split("\n").map(s => s.trim()).filter(Boolean);
+    }
+    if (!inclusions || inclusions.length === 0) {
+      inclusions = [
+        "Xe đưa đón du lịch đời mới máy lạnh suốt tuyến",
+        "Khách sạn / Du thuyền tiêu chuẩn 4-5 sao cao cấp",
+        "Các bữa ăn chính đặc sản theo lịch trình",
+        "Vé tham quan tất cả các thắng cảnh trong tour",
+        "Hướng dẫn viên chuyên nghiệp đồng hành chu đáo",
+        "Bảo hiểm du lịch trọn gói mức 100.000.000đ"
+      ];
+    }
   }
 
   const inclusionsEl = document.getElementById("itineraryInclusions");
@@ -1360,18 +1377,27 @@ async function openItineraryModal(tourId) {
   }
 
   let exclusions = [];
-  if (Array.isArray(tour.exclusions)) {
-    exclusions = tour.exclusions;
-  } else if (typeof tour.exclusions === "string") {
-    exclusions = tour.exclusions.split("\n").map(s => s.trim()).filter(Boolean);
-  }
-  if (!exclusions || exclusions.length === 0) {
+  if (isEn) {
     exclusions = [
-      "Thuế VAT 8% (nếu quý khách có nhu cầu xuất hóa đơn đỏ)",
-      "Chi phí phòng đơn nếu đi 1 mình có phụ thu",
-      "Đồ uống gọi thêm trong các bữa ăn (rượu vang, bia, nước ngọt)",
-      "Tiền tip bồi dưỡng cho tài xế và hướng dẫn viên (tùy tâm)"
+      "VAT invoice tax (upon business invoice request)",
+      "Single room supplement surcharge for solo travelers",
+      "Personal extra drinks during meals (wine, beer, soft drinks)",
+      "Gratuities and tips for tour driver and guide (optional)"
     ];
+  } else {
+    if (Array.isArray(tour.exclusions)) {
+      exclusions = tour.exclusions;
+    } else if (typeof tour.exclusions === "string") {
+      exclusions = tour.exclusions.split("\n").map(s => s.trim()).filter(Boolean);
+    }
+    if (!exclusions || exclusions.length === 0) {
+      exclusions = [
+        "Thuế VAT 8% (nếu quý khách có nhu cầu xuất hóa đơn đỏ)",
+        "Chi phí phòng đơn nếu đi 1 mình có phụ thu",
+        "Đồ uống gọi thêm trong các bữa ăn (rượu vang, bia, nước ngọt)",
+        "Tiền tip bồi dưỡng cho tài xế và hướng dẫn viên (tùy tâm)"
+      ];
+    }
   }
 
   const exclusionsEl = document.getElementById("itineraryExclusions");
