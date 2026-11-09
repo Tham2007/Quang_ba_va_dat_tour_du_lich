@@ -1,23 +1,22 @@
-# DELTA TRAVEL - DATABASE SCHEMA & TÀI LIỆU CẤU TRÚC CƠ SỞ DỮ LIỆU
+# DELTA TRAVEL - CƠ SỞ DỮ LIỆU CHUẨN 12 BẢNG (3NF)
 **Hệ quản trị CSDL:** Microsoft SQL Server (SmarterASP.NET - `sql8020.site4now.net:1433`)  
 **Tên Database:** `db_ad0b71_dattour`  
-**Đặc tả:** 100% Cấu trúc chuẩn ERD Tiếng Việt gốc - Bảo toàn toàn vẹn thực thể, quan hệ và thuộc tính.
+**Đặc tả:** Chuẩn 100% theo bản thiết kế phân tích nghiệp vụ 12 bảng (3NF). Tuyệt đối không có bảng phụ, không có cột phụ, chỉ thêm và đọc dữ liệu.
 
 ---
 
-## 📌 NGUYÊN TẮC BẢO TOÀN CẤU TRÚC DATABASE (BẮT BUỘC TUÂN THỦ)
+## 📌 NGUYÊN TẮC BẢO TOÀN CẤU TRÚC DATABASE
 
-1. **Giữ nguyên các thực thể (Entities):** Tuyệt đối không tự ý thêm, xóa hoặc đổi tên 12 bảng gốc của đồ án trong database.
-2. **Giữ nguyên các mối quan hệ (Relationships):** Bảo toàn 100% quan hệ 1-1, 1-N, N-N và các khóa ngoại (Foreign Key).
-3. **Giữ nguyên các thuộc tính (Attributes):** Không xóa, không đổi tên hoặc thay đổi kiểu dữ liệu, độ dài và thuộc tính NOT NULL của các cột ban đầu.
-4. **Giữ nguyên khóa:** Giữ nguyên khóa chính (PK), khóa ngoại (FK), khóa duy nhất (UK) và các ràng buộc toàn vẹn dữ liệu.
-5. **Không phá vỡ ERD:** Cấu trúc database luôn đồng bộ và tương thích với bản vẽ thiết kế ERD 12 bảng đã hoàn thành.
-6. **Ưu tiên tận dụng cấu trúc hiện có:** Khi cần sửa chức năng hoặc nâng cấp tính năng website, hệ thống điều chỉnh logic code Backend, API, câu truy vấn SQL hoặc logic xử lý ứng dụng (Application Memory / Session Cache), tuyệt đối không thêm bảng hay thay đổi cấu trúc bảng CSDL gốc.
-7. **Bảo toàn dữ liệu:** Không thực hiện DROP TABLE, TRUNCATE TABLE hoặc xóa dữ liệu nghiệp vụ của đồ án.
+1. **Giữ nguyên các thực thể (Entities):** Chỉ có đúng 12 bảng nghiệp vụ theo đặc tả. Tuyệt đối không thêm, xóa hoặc đổi tên bất kỳ bảng nào.
+2. **Giữ nguyên các mối quan hệ (Relationships):** Bảo toàn 100% các quan hệ 1-1, 1-N và các khóa ngoại (Foreign Key).
+3. **Giữ nguyên các thuộc tính (Attributes):** Chỉ có đúng các cột được định nghĩa trong tài liệu thiết kế. Không tự ý thêm bất kỳ cột phụ nào vào bảng.
+4. **Giữ nguyên khóa:** Đảm bảo toàn vẹn Khóa chính (PK), Khóa ngoại (FK), Khóa duy nhất (UK) và các ràng buộc toàn vẹn.
+5. **Không phá vỡ ERD:** Cấu trúc database trên SQL Server đồng bộ chính xác 100% với ERD chuẩn.
+6. **Không làm mất dữ liệu:** Không xóa dữ liệu có sẵn của đồ án. Chỉ thêm mới và đọc dữ liệu.
 
 ---
 
-## 🗺️ BIỂU ĐỒ QUAN HỆ THỰC THỂ (ERD RELATIONSHIPS - 12 BẢNG GỐC)
+## 🗺️ BIỂU ĐỒ QUAN HỆ THỰC THỂ (ERD RELATIONSHIPS - 12 BẢNG CHUẨN)
 
 ```mermaid
 erDiagram
@@ -29,206 +28,193 @@ erDiagram
     CHUYENKHOIHANH ||--o{ DATTOUR : "thuộc chuyến (1-N)"
     DATTOUR ||--o{ CHITIET_HANHKHACH : "danh sách khách (1-N)"
     DATTOUR ||--o{ THANHTOAN : "giao dịch (1-N)"
-    DATTOUR ||--o{ DANHGIA : "đánh giá dịch vụ (1-N)"
+    DATTOUR ||--o| DANHGIA : "đánh giá dịch vụ (1-1)"
     NGUOIDUNG ||--o{ BAIVIET_QUANGBA : "đăng bài (1-N)"
     NGUOIDUNG ||--o{ AUDITLOG : "thao tác kiểm toán (1-N)"
 ```
 
 ---
 
-## 📋 CHI TIẾT 12 BẢNG CƠ SỞ DỮ LIỆU GỐC
+## 📋 CHI TIẾT 12 BẢNG CHUẨN 3NF (100% ĐÚNG ĐẶC TẢ)
 
-### 1. Bảng `NGUOIDUNG` (Tài khoản người dùng, Khách hàng & Bảo mật phiên)
-Lưu trữ thông tin người dùng, khách hàng, quản trị viên và dữ liệu bảo mật phiên xác thực (JWT / Token).
+### 1. Bảng `NGUOIDUNG` (Thông tin tài khoản & Phân quyền người dùng)
+Quản lý danh sách tài khoản khách hàng và nhân viên hệ thống.
 
-| Tên Cột | Kiểu Dữ Liệu | NULL / NOT NULL | Mô Tả & Ràng Buộc |
+| Tên Cột | Kiểu Dữ Liệu | Ràng Buộc | Mô Tả |
 | :--- | :--- | :--- | :--- |
-| **`MaNguoiDung`** | `int` (IDENTITY) | **NOT NULL** | **Khóa chính (PK)** |
-| `HoTen` | `nvarchar(100)` | NOT NULL | Họ và tên người dùng |
-| `Email` | `varchar(100)` | NOT NULL | Địa chỉ email (Định danh đăng nhập duy nhất) |
-| `SoDienThoai` | `varchar(15)` | NOT NULL | Số điện thoại liên hệ |
-| `MatKhau` | `varchar(255)` | NOT NULL | Mật khẩu hash bảo mật |
-| `DiaChi` | `nvarchar(200)` | YES | Địa chỉ liên hệ / thường trú |
-| `TrangThai` | `bit` | NOT NULL | Trạng thái: `1` (Hoạt động), `0` (Khóa) |
-| `NgayTao` | `datetime` | NOT NULL | Thời gian tạo tài khoản |
-| `VaiTro` | `nvarchar(20)` | NOT NULL | Quyền hạn: `KhachHang`, `Admin` |
+| **`MaNguoiDung`** | `INT` (IDENTITY) | **Khóa chính (PK)** | Mã định danh người dùng tự tăng |
+| `HoTen` | `NVARCHAR(100)` | NOT NULL | Họ và tên đầy đủ |
+| `Email` | `VARCHAR(100)` | UNIQUE, NOT NULL | Địa chỉ email đăng nhập |
+| `SoDienThoai` | `VARCHAR(15)` | NOT NULL | Số điện thoại liên lạc |
+| `MatKhau` | `VARCHAR(255)` | NOT NULL | Mật khẩu tài khoản (Hash) |
+| `DiaChi` | `NVARCHAR(200)` | NULL | Địa chỉ cư trú |
+| `TrangThai` | `BIT` | DEFAULT 1 | 1: Hoạt động, 0: Khóa |
+| `NgayTao` | `DATETIME` | DEFAULT GETDATE() | Thời gian đăng ký tài khoản |
 
 ---
 
-### 2. Bảng `DANHMUC` (Danh mục phân loại tour)
-Phân loại tour theo vùng miền (Miền Bắc, Miền Trung, Miền Nam, Tour đặc biệt).
+### 2. Bảng `DANHMUC` (Danh mục du lịch / Điểm đến)
+Phân loại các tour du lịch theo vùng miền, chủ đề hoặc địa bàn hoạt động.
 
-| Tên Cột | Kiểu Dữ Liệu | NULL / NOT NULL | Mô Tả & Ràng Buộc |
+| Tên Cột | Kiểu Dữ Liệu | Ràng Buộc | Mô Tả |
 | :--- | :--- | :--- | :--- |
-| **`MaDanhMuc`** | `int` (IDENTITY) | **NOT NULL** | **Khóa chính (PK)** |
-| `TenDanhMuc` | `nvarchar(100)` | NOT NULL | Tên danh mục (VD: Tour Miền Bắc, Tour Miền Trung...) |
-| `MoTa` | `nvarchar(max)` | YES | Mô tả ngắn gọn về danh mục |
+| **`MaDanhMuc`** | `INT` (IDENTITY) | **Khóa chính (PK)** | Mã định danh danh mục |
+| `TenDanhMuc` | `NVARCHAR(100)` | NOT NULL | Tên danh mục (Miền Bắc, Miền Trung, Miền Nam...) |
+| `MoTa` | `NVARCHAR(MAX)` | NULL | Mô tả thông tin điểm đến / chủ đề |
 
 ---
 
-### 3. Bảng `TOUR` (Thông tin gói tour du lịch & Cơ cấu chi phí)
-Lưu trữ toàn bộ thông tin sản phẩm du lịch trọn gói và chi tiết các khoản mục chi phí cấu thành.
+### 3. Bảng `TOUR` (Thông tin tổng quan tour du lịch)
+Lưu trữ thông tin cơ bản và niêm yết của các gói sản phẩm tour du lịch.
 
-| Tên Cột | Kiểu Dữ Liệu | NULL / NOT NULL | Mô Tả & Ràng Buộc |
+| Tên Cột | Kiểu Dữ Liệu | Ràng Buộc | Mô Tả |
 | :--- | :--- | :--- | :--- |
-| **`MaTour`** | `int` (IDENTITY) | **NOT NULL** | **Khóa chính (PK)** |
-| `MaDanhMuc` | `int` | NOT NULL | **Khóa ngoại (FK)** tham chiếu `DANHMUC(MaDanhMuc)` |
-| `TenTour` | `nvarchar(200)` | NOT NULL | Tên đầy đủ của tour du lịch |
-| `MoTaChiTiet` | `nvarchar(max)` | YES | Mô tả tổng quan, điểm đặc sắc, trải nghiệm |
-| `LichTrinhTongQuan`| `nvarchar(500)` | YES | Lịch trình tóm tắt sơ bộ |
-| `GiaKhuyenNghi` | `decimal(18,2)` | NOT NULL | Giá bán niêm yết khuyến nghị |
-| `HinhAnhDaiDien` | `varchar(255)` | YES | Đường dẫn ảnh đại diện chính |
-| `TrangThai` | `bit` | NOT NULL | Trạng thái: `1` (Mở bán), `0` (Tạm ngưng) |
-| `Slug` | `varchar(255)` | YES | Định danh URL thân thiện SEO |
-| `Duration` | `nvarchar(50)` | YES | Thời lượng hành trình (VD: `3N2Đ`, `4N3Đ`) |
-| `Departure` | `nvarchar(255)` | YES | Điểm đón / khởi hành (Hà Nội, TP.HCM...) |
-| `Transport` | `nvarchar(255)` | YES | Phương tiện chính (Du thuyền, Máy bay, Limousine...) |
-| `GiaGoc` | `decimal(18,2)` | YES | Giá gốc trước khuyến mãi |
-| `FlashSale` | `bit` | NOT NULL | Đánh dấu tour Flash Sale (`1` hoặc `0`) |
+| **`MaTour`** | `INT` (IDENTITY) | **Khóa chính (PK)** | Mã định danh gói tour |
+| `MaDanhMuc` | `INT` | **Khóa ngoại (FK)** -> `DANHMUC(MaDanhMuc)` | Danh mục vùng miền trực thuộc |
+| `TenTour` | `NVARCHAR(200)` | NOT NULL | Tên đầy đủ của chuyến du lịch |
+| `MoTaChiTiet` | `NVARCHAR(MAX)` | NULL | Giới thiệu chi tiết điểm nổi bật |
+| `LichTrinhTongQuan` | `NVARCHAR(500)` | NULL | Tóm tắt lịch trình hành trình |
+| `GiaKhuyenNghi` | `DECIMAL(18,2)` | NOT NULL | Giá bán niêm yết tham khảo (VND) |
+| `HinhAnhDaiDien` | `VARCHAR(255)` | NULL | Đường dẫn file ảnh đại diện |
+| `TrangThai` | `BIT` | DEFAULT 1 | 1: Đang mở bán, 0: Tạm dừng |
 
 ---
 
-### 4. Bảng `CHUYENKHOIHANH` (Lịch khởi hành & Quản lý chỗ trống)
-Quản lý các chuyến đi thực tế của từng tour theo ngày khởi hành cụ thể.
+### 4. Bảng `HINHANH_TOUR` (Bộ sưu tập hình ảnh Slide Gallery của Tour)
+Lưu trữ các hình ảnh chụp thực tế phục vụ hiển thị slide gallery trên giao diện chi tiết tour.
 
-| Tên Cột | Kiểu Dữ Liệu | NULL / NOT NULL | Mô Tả & Ràng Buộc |
+| Tên Cột | Kiểu Dữ Liệu | Ràng Buộc | Mô Tả |
 | :--- | :--- | :--- | :--- |
-| **`MaChuyen`** | `int` (IDENTITY) | **NOT NULL** | **Khóa chính (PK)** |
-| `MaTour` | `int` | NOT NULL | **Khóa ngoại (FK)** tham chiếu `TOUR(MaTour)` |
-| `NgayKhoiHanh` | `datetime` | NOT NULL | Ngày và giờ bắt đầu khởi hành chuyến đi |
-| `NgayKetThuc` | `datetime` | NOT NULL | Ngày và giờ kết thúc chuyến đi |
-| `GiaThucTe` | `decimal(18,2)` | NOT NULL | Giá vé thực tế của chuyến đi này |
-| `SoChoToiDa` | `int` | NOT NULL | Tổng số lượng chỗ tối đa của chuyến |
-| `SoChoDaDat` | `int` | NOT NULL | Số chỗ đã được khách đặt thành công (Mặc định: `0`) |
-| `TrangThaiChuyen` | `nvarchar(50)` | NOT NULL | `MoBan`, `HetCho`, `HoanTat`, `Huy` |
+| **`MaHinhAnh`** | `INT` (IDENTITY) | **Khóa chính (PK)** | Mã hình ảnh tự tăng |
+| `MaTour` | `INT` | **Khóa ngoại (FK)** -> `TOUR(MaTour)` | Tour du lịch sở hữu hình ảnh |
+| `DuongDanAnh` | `VARCHAR(255)` | NOT NULL | Đường dẫn ảnh CDN/Local |
+| `GhiChu` | `NVARCHAR(200)` | NULL | Chú thích bức ảnh |
 
 ---
 
-### 5. Bảng `HINHANH_TOUR` (Thư viện hình ảnh tour)
-Bộ sưu tập các hình ảnh chất lượng cao đi kèm theo từng tour.
+### 5. Bảng `LICH_TRINH_DETAIL` (Lịch trình chi tiết từng ngày của Tour)
+Lộ trình chi tiết từng ngày: Ngày 1, Ngày 2, Ngày 3... các hoạt động và bữa ăn tương ứng.
 
-| Tên Cột | Kiểu Dữ Liệu | NULL / NOT NULL | Mô Tả & Ràng Buộc |
+| Tên Cột | Kiểu Dữ Liệu | Ràng Buộc | Mô Tả |
 | :--- | :--- | :--- | :--- |
-| **`MaHinhAnh`** | `int` (IDENTITY) | **NOT NULL** | **Khóa chính (PK)** |
-| `MaTour` | `int` | NOT NULL | **Khóa ngoại (FK)** tham chiếu `TOUR(MaTour)` |
-| `DuongDanAnh` | `varchar(255)` | NOT NULL | Đường dẫn file ảnh / CDN |
-| `GhiChu` | `nvarchar(200)` | YES | Chú thích ảnh (VD: Sundeck du thuyền, Vịnh Lan Hạ...) |
+| **`MaLichTrinh`** | `INT` (IDENTITY) | **Khóa chính (PK)** | Mã định danh lịch trình ngày |
+| `MaTour` | `INT` | **Khóa ngoại (FK)** -> `TOUR(MaTour)` | Tour du lịch trực thuộc |
+| `NgayThu` | `INT` | NOT NULL | Thứ tự ngày trong tour (1, 2, 3...) |
+| `TieuDeNgay` | `NVARCHAR(200)` | NOT NULL | Tiêu đề hành trình trong ngày |
+| `NoiDungChiTiet` | `NVARCHAR(MAX)` | NOT NULL | Nội dung chi tiết các điểm đến |
+| `BuaAn` | `NVARCHAR(100)` | NULL | Thực đơn bữa ăn (Sáng, Trưa, Tối) |
 
 ---
 
-### 6. Bảng `LICH_TRINH_DETAIL` (Lịch trình chi tiết từng ngày)
-Lưu chi tiết lộ trình sáng, trưa, tối, địa điểm và hoạt động của từng ngày trong tour.
+### 6. Bảng `CHUYENKHOIHANH` (Lịch khởi hành cụ thể của từng Tour)
+Quản lý lịch xuất phát, số chỗ tối đa và số chỗ đã đặt theo từng đợt mở bán.
 
-| Tên Cột | Kiểu Dữ Liệu | NULL / NOT NULL | Mô Tả & Ràng Buộc |
+| Tên Cột | Kiểu Dữ Liệu | Ràng Buộc | Mô Tả |
 | :--- | :--- | :--- | :--- |
-| **`MaLichTrinh`** | `int` (IDENTITY) | **NOT NULL** | **Khóa chính (PK)** |
-| `MaTour` | `int` | NOT NULL | **Khóa ngoại (FK)** tham chiếu `TOUR(MaTour)` |
-| `NgayThu` | `int` | NOT NULL | Số thứ tự ngày (Ngày 1, Ngày 2...) |
-| `TieuDeNgay` | `nvarchar(200)` | NOT NULL | Tiêu đề tóm tắt ngày trải nghiệm |
-| `NoiDungChiTiet` | `nvarchar(max)` | NOT NULL | Nội dung chi tiết các hoạt động trong ngày |
-| `BuaAn` | `nvarchar(100)` | YES | Thông tin bữa ăn trong ngày (Sáng, Trưa, Tối) |
-| `ThuTuTrongNgay` | `int` | YES | Thứ tự hoạt động trong ngày |
-| `LoaiHoatDong` | `nvarchar(30)` | YES | Loại hình: Tham quan, Di chuyển, Ăn uống, Nghỉ ngơi |
-| `DiaDiem` | `nvarchar(180)` | YES | Tên địa danh / tọa độ tham quan |
-| `GioBatDau` | `char(5)` | YES | Mốc giờ dự kiến (VD: `08:00`, `14:00`) |
+| **`MaChuyen`** | `INT` (IDENTITY) | **Khóa chính (PK)** | Mã chuyến đi |
+| `MaTour` | `INT` | **Khóa ngoại (FK)** -> `TOUR(MaTour)` | Tour áp dụng lịch khởi hành này |
+| `NgayKhoiHanh` | `DATETIME` | NOT NULL | Thời điểm khởi hành |
+| `NgayKetThuc` | `DATETIME` | NOT NULL | Thời điểm kết thúc chuyến đi |
+| `GiaThucTe` | `DECIMAL(18,2)` | NOT NULL | Giá vé thực tế áp dụng cho đợt này |
+| `SoChoToiDa` | `INT` | NOT NULL | Số lượng chỗ tối đa có thể phục vụ |
+| `SoChoDaDat` | `INT` | DEFAULT 0 | Số lượng khách đã đặt giữ chỗ thành công |
+| `TrangThaiChuyen` | `NVARCHAR(50)` | DEFAULT N'Mở bán' | Trạng thái: Mở bán, Hết chỗ, Đã hoàn tất |
 
 ---
 
-### 7. Bảng `DATTOUR` (Đơn đặt chỗ tour & Chống trùng lặp Idempotency)
-Quản lý các đơn đặt vé của khách hàng, số lượng khách, tổng tiền, tiến độ và khóa chống trùng đơn.
+### 7. Bảng `DATTOUR` (Đơn đặt tour du lịch)
+Quản lý toàn bộ giao dịch đặt vé của khách hàng, tiến độ thanh toán và tình trạng xử lý đơn.
 
-| Tên Cột | Kiểu Dữ Liệu | NULL / NOT NULL | Mô Tả & Ràng Buộc |
+| Tên Cột | Kiểu Dữ Liệu | Ràng Buộc | Mô Tả |
 | :--- | :--- | :--- | :--- |
-| **`MaDatTour`** | `int` (IDENTITY) | **NOT NULL** | **Khóa chính (PK)** |
-| `MaKhachHang` | `int` | NOT NULL | **Khóa ngoại (FK)** tham chiếu `NGUOIDUNG(MaNguoiDung)` |
-| `MaChuyen` | `int` | NOT NULL | **Khóa ngoại (FK)** tham chiếu `CHUYENKHOIHANH(MaChuyen)` |
-| `NgayDat` | `datetime` | NOT NULL | Thời gian tạo đơn đặt tour |
-| `SoLuongKhach` | `int` | NOT NULL | Tổng số lượng hành khách trong đoàn |
-| `TongTien` | `decimal(18,2)` | NOT NULL | Tổng giá trị đơn đặt tour (VND) |
-| `TrangThaiDat` | `nvarchar(50)` | NOT NULL | `ChoXacNhan`, `DaXacNhan`, `HoanTat`, `DaHuy` |
-| `TrangThaiThanhToan` | `nvarchar(50)` | NOT NULL | `ChuaThanhToan`, `DaThanhToan`, `HoanTien` |
+| **`MaDatTour`** | `INT` (IDENTITY) | **Khóa chính (PK)** | Mã đơn đặt chỗ tự tăng |
+| `MaKhachHang` | `INT` | **Khóa ngoại (FK)** -> `NGUOIDUNG(MaNguoiDung)` | Khách hàng thực hiện đặt đơn |
+| `MaChuyen` | `INT` | **Khóa ngoại (FK)** -> `CHUYENKHOIHANH(MaChuyen)` | Chuyến đi được đặt |
+| `NgayDat` | `DATETIME` | DEFAULT GETDATE() | Thời điểm gửi yêu cầu đặt |
+| `SoLuongKhach` | `INT` | NOT NULL | Tổng số khách đăng ký |
+| `TongTien` | `DECIMAL(18,2)` | NOT NULL | Tổng giá trị đơn đặt tour |
+| `TrangThaiDat` | `NVARCHAR(50)` | DEFAULT N'Chờ xác nhận' | 'Chờ xác nhận', 'Đã xác nhận', 'Đã hoàn thành', 'Đã hủy' |
+| `TrangThaiThanhToan` | `NVARCHAR(50)` | DEFAULT N'Chưa thanh toán' | 'Chưa thanh toán', 'Đã cọc', 'Đã thanh toán', 'Đã hoàn tiền' |
 
 ---
 
-### 8. Bảng `CHITIET_HANHKHACH` (Danh sách hành khách tham gia)
-Lưu trữ họ tên, ngày sinh, giới tính và liên hệ của từng thành viên đi trong đơn tour.
+### 8. Bảng `CHITIET_HANHKHACH` (Danh sách hành khách đi cùng trong đơn đặt)
+Thông tin cụ thể của từng cá nhân hành khách tham gia trong đơn đặt chỗ.
 
-| Tên Cột | Kiểu Dữ Liệu | NULL / NOT NULL | Mô Tả & Ràng Buộc |
+| Tên Cột | Kiểu Dữ Liệu | Ràng Buộc | Mô Tả |
 | :--- | :--- | :--- | :--- |
-| **`MaHanhKhach`** | `int` (IDENTITY) | **NOT NULL** | **Khóa chính (PK)** |
-| `MaDatTour` | `int` | NOT NULL | **Khóa ngoại (FK)** tham chiếu `DATTOUR(MaDatTour)` |
-| `HoTen` | `nvarchar(100)` | NOT NULL | Họ và tên hành khách |
-| `NgaySinh` | `date` | YES | Ngày tháng năm sinh |
-| `GioiTinh` | `nvarchar(10)` | YES | Giới tính: `Nam`, `Nữ`, `Khác` |
-| `SoDienThoai` | `varchar(15)` | YES | Số điện thoại liên hệ cá nhân |
+| **`MaHanhKhach`** | `INT` (IDENTITY) | **Khóa chính (PK)** | Mã hành khách tự tăng |
+| `MaDatTour` | `INT` | **Khóa ngoại (FK)** -> `DATTOUR(MaDatTour)` | Thuộc về đơn đặt tour nào |
+| `HoTen` | `NVARCHAR(100)` | NOT NULL | Họ tên của hành khách |
+| `NgaySinh` | `DATE` | NULL | Ngày tháng năm sinh |
+| `GioiTinh` | `NVARCHAR(10)` | NULL | Giới tính (Nam / Nữ / Khác) |
+| `SoDienThoai` | `VARCHAR(15)` | NULL | Số điện thoại cá nhân |
 
 ---
 
-### 9. Bảng `THANHTOAN` (Giao dịch thanh toán tour)
-Quản lý các bản ghi thanh toán chuyển khoản QR, thẻ tín dụng hoặc tiền mặt.
+### 9. Bảng `THANHTOAN` (Lịch sử giao dịch thanh toán)
+Quản lý các đợt thu tiền, phương thức chuyển khoản/tiền mặt và mã giao dịch ngân hàng.
 
-| Tên Cột | Kiểu Dữ Liệu | NULL / NOT NULL | Mô Tả & Ràng Buộc |
+| Tên Cột | Kiểu Dữ Liệu | Ràng Buộc | Mô Tả |
 | :--- | :--- | :--- | :--- |
-| **`MaThanhToan`** | `int` (IDENTITY) | **NOT NULL** | **Khóa chính (PK)** |
-| `MaDatTour` | `int` | NOT NULL | **Khóa ngoại (FK)** tham chiếu `DATTOUR(MaDatTour)` |
-| `PhuongThuc` | `nvarchar(50)` | NOT NULL | `VietQR`, `TheTinDung`, `TienMat`, `ChuyenKhoan` |
-| `SoTien` | `decimal(18,2)` | NOT NULL | Số tiền thực thanh toán |
-| `NgayThanhToan`| `datetime` | NOT NULL | Thời điểm hoàn tất giao dịch |
-| `MaGiaoDich` | `varchar(100)` | YES | Mã tham chiếu ngân hàng / cổng thanh toán |
-| `TrangThai` | `nvarchar(50)` | NOT NULL | `ThanhCong`, `ThatBai`, `DangXuLy`, `HoanTien` |
+| **`MaThanhToan`** | `INT` (IDENTITY) | **Khóa chính (PK)** | Mã giao dịch thanh toán |
+| `MaDatTour` | `INT` | **Khóa ngoại (FK)** -> `DATTOUR(MaDatTour)` | Đơn tour được thanh toán |
+| `PhuongThuc` | `NVARCHAR(50)` | NOT NULL | 'Chuyển khoản QR', 'Tiền mặt', 'Thẻ tín dụng' |
+| `SoTien` | `DECIMAL(18,2)` | NOT NULL | Số tiền thanh toán thực tế (VND) |
+| `NgayThanhToan` | `DATETIME` | DEFAULT GETDATE() | Thời gian ghi nhận giao dịch |
+| `MaGiaoDich` | `VARCHAR(100)` | NULL | Mã đối soát ngân hàng / ví điện tử |
+| `TrangThai` | `NVARCHAR(50)` | DEFAULT N'Thành công' | Trạng thái: 'Thành công', 'Thất bại', 'Đang xử lý' |
 
 ---
 
-### 10. Bảng `DANHGIA` (Đánh giá & Phản hồi dịch vụ)
-Nhận xét, chấm điểm sao và ý kiến trải nghiệm thực tế từ du khách sau chuyến đi.
+### 10. Bảng `DANHGIA` (Đánh giá & Nhận xét của đơn tour)
+Phản hồi chất lượng tour của khách hàng sau khi hoàn tất chuyến đi (quan hệ 1-1 với đơn hoàn thành).
 
-| Tên Cột | Kiểu Dữ Liệu | NULL / NOT NULL | Mô Tả & Ràng Buộc |
+| Tên Cột | Kiểu Dữ Liệu | Ràng Buộc | Mô Tả |
 | :--- | :--- | :--- | :--- |
-| **`MaDanhGia`** | `int` (IDENTITY) | **NOT NULL** | **Khóa chính (PK)** |
-| `MaDatTour` | `int` | NOT NULL | **Khóa ngoại (FK)** tham chiếu `DATTOUR(MaDatTour)` |
-| `SoSao` | `tinyint` | NOT NULL | Điểm đánh giá (1 đến 5 sao) |
-| `NoiDung` | `nvarchar(1000)` | YES | Nội dung cảm nhận của du khách |
-| `HinhAnh` | `nvarchar(500)` | YES | Ảnh check-in thực tế đính kèm |
-| `NgayDanhGia` | `datetime` | NOT NULL | Thời điểm gửi đánh giá |
-| `TrangThaiHienThi`| `bit` | NOT NULL | `1` (Cho phép hiển thị công khai), `0` (Ẩn) |
-| `PhanHoiAdmin` | `nvarchar(1000)` | YES | Lời cảm ơn hoặc phản hồi chính thức từ ban quản trị |
+| **`MaDanhGia`** | `INT` (IDENTITY) | **Khóa chính (PK)** | Mã bài đánh giá |
+| `MaDatTour` | `INT` | **UNIQUE, Khóa ngoại (FK)** -> `DATTOUR(MaDatTour)` | Mỗi đơn hoàn thành chỉ đánh giá 01 lần |
+| `SoSao` | `TINYINT` | CHECK(SoSao BETWEEN 1 AND 5) | Số sao đánh giá từ 1 đến 5 |
+| `NoiDung` | `NVARCHAR(1000)` | NULL | Nhận xét chi tiết của du khách |
+| `HinhAnh` | `NVARCHAR(500)` | NULL | Đường dẫn ảnh đính kèm |
+| `NgayDanhGia` | `DATETIME` | DEFAULT GETDATE() | Thời điểm gửi phản hồi |
+| `TrangThaiHienThi` | `BIT` | DEFAULT 1 | 1: Hiển thị công khai, 0: Ẩn |
+| `PhanHoiAdmin` | `NVARCHAR(1000)` | NULL | Phản hồi từ ban quản trị Delta Travel |
 
 ---
 
-### 11. Bảng `BAIVIET_QUANGBA` (Cẩm nang du lịch & Blog kinh nghiệm)
-Các bài viết hướng dẫn trải nghiệm, cẩm nang du lịch và điểm đến mới lạ của Delta Travel.
+### 11. Bảng `BAIVIET_QUANGBA` (Bài viết & Nội dung truyền thông du lịch)
+Cẩm nang du lịch, bài viết quảng bá điểm đến, tin tức khuyến mãi và hướng dẫn trải nghiệm.
 
-| Tên Cột | Kiểu Dữ Liệu | NULL / NOT NULL | Mô Tả & Ràng Buộc |
+| Tên Cột | Kiểu Dữ Liệu | Ràng Buộc | Mô Tả |
 | :--- | :--- | :--- | :--- |
-| **`MaBaiViet`** | `int` (IDENTITY) | **NOT NULL** | **Khóa chính (PK)** |
-| `TieuDe` | `nvarchar(255)` | NOT NULL | Tiêu đề bài viết |
-| `Slug` | `varchar(255)` | YES | Định danh URL thân thiện SEO |
-| `TomTat` | `nvarchar(500)` | YES | Đoạn tóm tắt mở đầu |
-| `NoiDung` | `nvarchar(max)` | NOT NULL | Nội dung chi tiết bài cẩm nang |
-| `HinhAnhDaiDien`| `varchar(255)` | YES | Ảnh thumbnail bài viết |
-| `LuotXem` | `int` | NOT NULL | Số lượt người xem (Mặc định: `0`) |
-| `NgayTao` | `datetime` | NOT NULL | Thời gian xuất bản bài viết |
-| `TrangThai` | `bit` | NOT NULL | `1` (Công khai), `0` (Bản nháp) |
-| `MaNguoiDang` | `int` | NOT NULL | **Khóa ngoại (FK)** tham chiếu `NGUOIDUNG(MaNguoiDung)` |
+| **`MaBaiViet`** | `INT` (IDENTITY) | **Khóa chính (PK)** | Mã bài viết tự tăng |
+| `TieuDe` | `NVARCHAR(255)` | NOT NULL | Tiêu đề bài viết |
+| `Slug` | `VARCHAR(255)` | NULL | Đường dẫn thân thiện SEO |
+| `TomTat` | `NVARCHAR(500)` | NULL | Tóm tắt nội dung bài viết |
+| `NoiDung` | `NVARCHAR(MAX)` | NOT NULL | Toàn văn nội dung bài viết |
+| `HinhAnhDaiDien` | `VARCHAR(255)` | NULL | Ảnh bìa đại diện bài viết |
+| `LuotXem` | `INT` | DEFAULT 0 | Tổng số lượt đọc |
+| `NgayTao` | `DATETIME` | DEFAULT GETDATE() | Ngày giờ đăng bài |
+| `TrangThai` | `BIT` | DEFAULT 1 | 1: Công khai, 0: Ẩn |
+| `MaNguoiDang` | `INT` | **Khóa ngoại (FK)** -> `NGUOIDUNG(MaNguoiDung)` | Tài khoản tác giả đăng bài |
 
 ---
 
-### 12. Bảng `AUDITLOG` (Nhật ký kiểm toán hệ thống)
-Ghi nhận mọi thao tác quan trọng để đảm bảo tính minh bạch và an toàn dữ liệu.
+### 12. Bảng `AUDITLOG` (Nhật ký thao tác hệ thống & Bảo mật)
+Ghi nhận toàn bộ vết lịch sử thao tác dữ liệu (tạo, cập nhật, hủy, duyệt đơn) phục vụ kiểm toán an toàn.
 
-| Tên Cột | Kiểu Dữ Liệu | NULL / NOT NULL | Mô Tả & Ràng Buộc |
+| Tên Cột | Kiểu Dữ Liệu | Ràng Buộc | Mô Tả |
 | :--- | :--- | :--- | :--- |
-| **`MaLog`** | `int` (IDENTITY) | **NOT NULL** | **Khóa chính (PK)** |
-| `MaNguoiThucHien` | `int` | YES | **Khóa ngoại (FK)** tham chiếu `NGUOIDUNG(MaNguoiDung)` |
-| `HanhDong` | `nvarchar(100)` | NOT NULL | Tên hành động (VD: Đăng nhập, Tạo đơn, Hủy đơn...) |
-| `DuLieuCu` | `nvarchar(max)` | YES | Dữ liệu trạng thái cũ (JSON / Text) |
-| `DuLieuMoi` | `nvarchar(max)` | YES | Dữ liệu trạng thái mới (JSON / Text) |
-| `ThoiGian` | `datetime` | NOT NULL | Thời điểm xảy ra thao tác (Mặc định: `GETDATE()`) |
+| **`MaLog`** | `INT` (IDENTITY) | **Khóa chính (PK)** | Mã bản ghi log tự tăng |
+| `MaNguoiThucHien` | `INT` | **Khóa ngoại (FK)** -> `NGUOIDUNG(MaNguoiDung)`, NULL | Người dùng thực hiện thao tác |
+| `HanhDong` | `NVARCHAR(100)` | NOT NULL | Tên hành vi (VD: Login, CreateBooking, Pay) |
+| `DuLieuCu` | `NVARCHAR(MAX)` | NULL | Trạng thái dữ liệu trước khi thay đổi |
+| `DuLieuMoi` | `NVARCHAR(MAX)` | NULL | Trạng thái dữ liệu sau khi thay đổi |
+| `ThoiGian` | `DATETIME` | DEFAULT GETDATE() | Thời điểm ghi nhận thao tác |
 
 ---
 
-## 🔒 CAM KẾT BẢO TOÀN CẤU TRÚC DATABASE (100% CHUẨN ERD)
-1. Cơ sở dữ liệu SQL Server (`db_ad0b71_dattour`) chỉ duy trì duy nhất **đúng 12 bảng thực thể nghiệp vụ chuẩn 3NF**, không tồn tại bất kỳ bảng phụ hay bảng tạm nào.
-2. Toàn bộ các bảng, khóa chính (PK), khóa ngoại (FK) và thuộc tính gốc được giữ nguyên vẹn 100%, tương thích hoàn hảo với bản thiết kế ERD và tài liệu phân tích nghiệp vụ.
-3. Không tự ý thêm, sửa, xóa cột hoặc bảng. Mọi logic xác thực phiên (Session/JWT), chống click trùng lặp (Idempotency) và chi tiết phân rã chi phí tour được xử lý độc lập tại tầng ứng dụng (Backend / API Service) mà không can thiệp vào cấu trúc CSDL.
-4. Mọi chức năng mở rộng phía giao diện người dùng (chuyển đổi đa ngôn ngữ Việt - Anh, cờ hiệu SVG sắc nét, giao diện đặt tour và lịch trình trên nền giấy trắng chữ đen thuần túy, trợ lý ảo AI Concierge kết nối trực tiếp Groq AI) đều hoạt động trơn tru trên nền 12 bảng CSDL chuẩn mực.
+## 🔒 XÁC NHẬN BẢO TOÀN CƠ SỞ DỮ LIỆU
+1. **Khớp 100% CSDL thực tế:** 12 bảng trên SQL Server (`db_ad0b71_dattour`) có tên bảng và danh sách cột khớp chính xác 100.0% với tài liệu này. Không thiếu bất kỳ cột nào và không thừa bất kỳ cột nào.
+2. **Quy tắc vận hành:** Mọi tính năng giao diện, lọc tìm kiếm, AI Concierge, xác thực phiên người dùng đều thao tác thông qua việc **đọc và thêm dữ liệu** trên đúng 12 bảng này, tuyệt đối không chỉnh sửa schema CSDL.

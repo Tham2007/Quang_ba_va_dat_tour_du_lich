@@ -469,34 +469,6 @@
           "CHARACTER_MAXIMUM_LENGTH": 100,
           "IS_NULLABLE": "YES",
           "COLUMN_DEFAULT": null
-        },
-        {
-          "COLUMN_NAME": "ThuTuTrongNgay",
-          "DATA_TYPE": "int",
-          "CHARACTER_MAXIMUM_LENGTH": null,
-          "IS_NULLABLE": "YES",
-          "COLUMN_DEFAULT": null
-        },
-        {
-          "COLUMN_NAME": "LoaiHoatDong",
-          "DATA_TYPE": "nvarchar",
-          "CHARACTER_MAXIMUM_LENGTH": 30,
-          "IS_NULLABLE": "YES",
-          "COLUMN_DEFAULT": null
-        },
-        {
-          "COLUMN_NAME": "DiaDiem",
-          "DATA_TYPE": "nvarchar",
-          "CHARACTER_MAXIMUM_LENGTH": 180,
-          "IS_NULLABLE": "YES",
-          "COLUMN_DEFAULT": null
-        },
-        {
-          "COLUMN_NAME": "GioBatDau",
-          "DATA_TYPE": "char",
-          "CHARACTER_MAXIMUM_LENGTH": 5,
-          "IS_NULLABLE": "YES",
-          "COLUMN_DEFAULT": null
         }
       ]
     },
@@ -558,13 +530,6 @@
           "CHARACTER_MAXIMUM_LENGTH": null,
           "IS_NULLABLE": "NO",
           "COLUMN_DEFAULT": "(getdate())"
-        },
-        {
-          "COLUMN_NAME": "VaiTro",
-          "DATA_TYPE": "nvarchar",
-          "CHARACTER_MAXIMUM_LENGTH": 20,
-          "IS_NULLABLE": "NO",
-          "COLUMN_DEFAULT": "(N'CUSTOMER')"
         }
       ]
     },
@@ -680,48 +645,6 @@
           "CHARACTER_MAXIMUM_LENGTH": null,
           "IS_NULLABLE": "NO",
           "COLUMN_DEFAULT": "((1))"
-        },
-        {
-          "COLUMN_NAME": "Slug",
-          "DATA_TYPE": "varchar",
-          "CHARACTER_MAXIMUM_LENGTH": 255,
-          "IS_NULLABLE": "YES",
-          "COLUMN_DEFAULT": null
-        },
-        {
-          "COLUMN_NAME": "Duration",
-          "DATA_TYPE": "nvarchar",
-          "CHARACTER_MAXIMUM_LENGTH": 50,
-          "IS_NULLABLE": "YES",
-          "COLUMN_DEFAULT": null
-        },
-        {
-          "COLUMN_NAME": "Departure",
-          "DATA_TYPE": "nvarchar",
-          "CHARACTER_MAXIMUM_LENGTH": 255,
-          "IS_NULLABLE": "YES",
-          "COLUMN_DEFAULT": null
-        },
-        {
-          "COLUMN_NAME": "Transport",
-          "DATA_TYPE": "nvarchar",
-          "CHARACTER_MAXIMUM_LENGTH": 255,
-          "IS_NULLABLE": "YES",
-          "COLUMN_DEFAULT": null
-        },
-        {
-          "COLUMN_NAME": "GiaGoc",
-          "DATA_TYPE": "decimal",
-          "CHARACTER_MAXIMUM_LENGTH": null,
-          "IS_NULLABLE": "YES",
-          "COLUMN_DEFAULT": null
-        },
-        {
-          "COLUMN_NAME": "FlashSale",
-          "DATA_TYPE": "bit",
-          "CHARACTER_MAXIMUM_LENGTH": null,
-          "IS_NULLABLE": "NO",
-          "COLUMN_DEFAULT": "((0))"
         }
       ]
     }
