@@ -1,0 +1,31 @@
+name: SQL Server 12-table contract static audit
+on:
+  pull_request:
+    paths:
+      - 'DATABASE_SCHEMA.md'
+      - 'database/database/**'
+      - 'scripts/check_sql_schema_contract.py'
+      - 'scripts/test_sql_schema_contract.py'
+      - '.github/workflows/ci-sql-schema-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'DATABASE_SCHEMA.md'
+      - 'database/database/**'
+      - 'scripts/check_sql_schema_contract.py'
+      - 'scripts/test_sql_schema_contract.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate 12 business tables and non-destructive audit
+        run: |
+          python scripts/check_sql_schema_contract.py
+          python -m unittest -v scripts/test_sql_schema_contract.py
