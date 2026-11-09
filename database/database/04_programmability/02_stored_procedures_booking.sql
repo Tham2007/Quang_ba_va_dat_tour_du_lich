@@ -71,8 +71,9 @@ BEGIN
         -- Kiểm tra chỗ còn trống
         IF (@SoChoToiDa - @SoChoDaDat) < @SoLuongKhach
         BEGIN
-            RAISERROR(N'Chuyến khởi hành không đủ số chỗ trống (Còn lại: %d chỗ, Yêu cầu: %d chỗ).', 16, 1, 
-                      (@SoChoToiDa - @SoChoDaDat), @SoLuongKhach);
+            DECLARE @SoChoConLai INT = @SoChoToiDa - @SoChoDaDat;
+            RAISERROR(N'Chuyến khởi hành không đủ số chỗ trống (Còn lại: %d chỗ, Yêu cầu: %d chỗ).', 16, 1,
+                      @SoChoConLai, @SoLuongKhach);
         END;
 
         -- 3. Tính toán tổng tiền
