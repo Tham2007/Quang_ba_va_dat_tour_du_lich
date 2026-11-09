@@ -1,7 +1,7 @@
 # DELTA TRAVEL - CƠ SỞ DỮ LIỆU CHUẨN 12 BẢNG (3NF)
 **Hệ quản trị CSDL:** Microsoft SQL Server (SmarterASP.NET - `sql8020.site4now.net:1433`)  
 **Tên Database:** `db_ad0b71_dattour`  
-**Đặc tả:** Chuẩn 100% theo bản thiết kế phân tích nghiệp vụ 12 bảng (3NF). Tuyệt đối không có bảng phụ, không có cột phụ, chỉ thêm và đọc dữ liệu.
+**Phạm vi:** Mô tả 12 bảng **nghiệp vụ gốc** của ERD. Không khẳng định tổng số bảng vật lý, cột mở rộng hay việc đã kiểm chứng trực tiếp SmarterASP. Ba bảng hạ tầng tùy chọn `API_PHIENDANGNHAP`, `API_YEUCAU_DATTOUR`, `API_TOUR_COST_ITEM` thuộc các migration SQL Server riêng và không nằm trong 12 bảng nghiệp vụ gốc.
 
 ---
 
@@ -11,7 +11,7 @@
 2. **Giữ nguyên các mối quan hệ (Relationships):** Bảo toàn 100% các quan hệ 1-1, 1-N và các khóa ngoại (Foreign Key).
 3. **Giữ nguyên các thuộc tính (Attributes):** Chỉ có đúng các cột được định nghĩa trong tài liệu thiết kế. Không tự ý thêm bất kỳ cột phụ nào vào bảng.
 4. **Giữ nguyên khóa:** Đảm bảo toàn vẹn Khóa chính (PK), Khóa ngoại (FK), Khóa duy nhất (UK) và các ràng buộc toàn vẹn.
-5. **Không phá vỡ ERD:** Cấu trúc database trên SQL Server đồng bộ chính xác 100% với ERD chuẩn.
+5. **Không phá vỡ ERD:** Kiểm tra metadata SQL Server thực tế (bảng, cột, khóa, FK) so với ERD trước khi khẳng định hai bên đồng bộ.
 6. **Không làm mất dữ liệu:** Không xóa dữ liệu có sẵn của đồ án. Chỉ thêm mới và đọc dữ liệu.
 
 ---
@@ -35,7 +35,7 @@ erDiagram
 
 ---
 
-## 📋 CHI TIẾT 12 BẢNG CHUẨN 3NF (100% ĐÚNG ĐẶC TẢ)
+## 📋 CHI TIẾT 12 BẢNG NGHIỆP VỤ THEO TÀI LIỆU THIẾT KẾ
 
 ### 1. Bảng `NGUOIDUNG` (Thông tin tài khoản & Phân quyền người dùng)
 Quản lý danh sách tài khoản khách hàng và nhân viên hệ thống.
@@ -216,5 +216,14 @@ Ghi nhận toàn bộ vết lịch sử thao tác dữ liệu (tạo, cập nh�
 ---
 
 ## 🔒 XÁC NHẬN BẢO TOÀN CƠ SỞ DỮ LIỆU
-1. **Khớp 100% CSDL thực tế:** 12 bảng trên SQL Server (`db_ad0b71_dattour`) có tên bảng và danh sách cột khớp chính xác 100.0% với tài liệu này. Không thiếu bất kỳ cột nào và không thừa bất kỳ cột nào.
-2. **Quy tắc vận hành:** Mọi tính năng giao diện, lọc tìm kiếm, AI Concierge, xác thực phiên người dùng đều thao tác thông qua việc **đọc và thêm dữ liệu** trên đúng 12 bảng này, tuyệt đối không chỉnh sửa schema CSDL.
+1. **Chưa đối soát được SQL Server thực tế:** Danh sách 12 bảng ở trên là đặc tả thiết kế, **không phải xác nhận đã đọc metadata** từ `db_ad0b71_dattour`. Thắm cần chạy `database/database/scripts/sqlserver_schema_preflight_readonly.sql` trên đúng database để ghi nhận bảng, cột, ràng buộc và migration hiện hữu.
+2. **Quy tắc vận hành:** Backend phải tương thích schema **đã được xác minh**, bảo toàn dữ liệu; không được chạy script có `DROP TABLE` lên production. Chức năng phiên, chống trùng đơn và quản trị có thể yêu cầu cơ chế hạ tầng bổ sung, phải được cả nhóm phê duyệt trước khi migration.
+
+
+## 🧭 TRẠNG THÁI ĐỐI SOÁT 09/11/2026
+
+- `database/database/01_schema/02_create_tables_3nf.sql` là script khởi tạo cũ, có lệnh `DROP TABLE`. **Không được chạy lại trên DB thật có dữ liệu.**
+- Migration staging `001_auth_sessions_idempotency.sql` tạo `API_PHIENDANGNHAP` và `API_YEUCAU_DATTOUR`, `002_admin_and_catalog_management.sql` tạo `API_TOUR_COST_ITEM` và một số cột mở rộng. **Chưa có bằng chứng cả ba đã hiện diện ở SmarterASP production.**
+- Bản báo cáo 12 bảng gộp `TokenHash/CsrfHash/HetHan` vào `NGUOIDUNG` và `KhoaYeuCau/DauVanTay` vào `DATTOUR` là phương án khác với migration dùng bảng riêng, **không dùng đồng thời khi chưa có ADR**.
+- Để kiểm tra, xem [báo cáo đối soát](docs/SCHEMA_RECONCILIATION_20261109.md) và [script preflight chỉ đọc](database/database/scripts/sqlserver_schema_preflight_readonly.sql).
+- Kiểm thử SQL Server dùng database CI tạm thời **không chứng minh** SmarterASP đã chạy API ghi đơn/thanh toán thực.
