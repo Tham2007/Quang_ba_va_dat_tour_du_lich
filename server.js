@@ -1690,25 +1690,58 @@ app.post("/api/v1/admin/bookings/:booking_id/confirm-payment", requireAdmin, (re
   res.json(bookingDict(updated));
 });
 
-// 7. AI Assistant
+// 7. AI Assistant - Huấn luyện đúng trọng tâm, chuyên sâu Delta Travel & gợi ý tour tương tác
 app.post("/api/v1/assistant/chat", (req, res) => {
-  const message = ((req.body && req.body.message) || "").toLowerCase();
+  const rawMsg = ((req.body && req.body.message) || "").trim();
+  const message = rawMsg.toLowerCase();
   let answer = "";
-  if (message.includes("giá") || message.includes("bao nhiêu") || message.includes("price")) {
-    const sample = db.prepare("SELECT title, price FROM tours WHERE active = 1 ORDER BY price ASC LIMIT 6").all();
-    answer = "Giá niêm yết hiện tại: " + sample.map(t => `${t.title}: ${Number(t.price).toLocaleString("vi-VN")} VND`).join("; ") + ". Quý khách có thể kiểm tra lịch và đặt tour trực tuyến trực tiếp trên hệ thống.";
-  } else if (message.includes("hủy") || message.includes("hoàn tiền") || message.includes("cancel")) {
-    answer = "Đơn chưa thanh toán có thể hủy trực tuyến trên website khi còn hơn 72 giờ trước giờ khởi hành. Đơn đã thanh toán sẽ được bộ phận chăm sóc khách hàng hỗ trợ đối soát nhanh chóng.";
-  } else if (message.includes("tour") || message.includes("đi đâu") || message.includes("địa điểm")) {
-    answer = "Delta Travel hiện có các hành trình tiêu biểu: Hạ Long, Đà Nẵng, Phú Quốc, Đà Lạt, Sa Pa và Miền Tây với lịch khởi hành liên tục hàng tuần.";
+  let suggestedTours = [];
+
+  if (message.includes("giá") || message.includes("bao nhiêu") || message.includes("price") || message.includes("chi phí")) {
+    const sample = db.prepare("SELECT * FROM tours WHERE active = 1 ORDER BY price ASC LIMIT 4").all();
+    suggestedTours = sample.map(publicTour);
+    answer = "Giá niêm yết hiện tại: " + sample.map(t => `${t.title}: ${Number(t.price).toLocaleString("vi-VN")} VND`).join("; ") + ". Toàn bộ giá tour đã bao gồm bảo hiểm 100%, khách sạn và xe đưa đón đời mới. Quý khách có thể bấm 'Đặt ngay' ở các tour dưới đây:";
+  } else if (message.includes("hạ long") || message.includes("ha long") || message.includes("lan hạ") || message.includes("du thuyền")) {
+    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Hạ Long%' OR title LIKE '%Lan Hạ%' OR transport LIKE '%Du thuyền%') LIMIT 3").all();
+    suggestedTours = matched.map(publicTour);
+    answer = "Vịnh Hạ Long - kỳ quan thiên nhiên thế giới với hàng ngàn hòn đảo kỳ vĩ. Delta Travel mang đến hành trình du thuyền 5 sao chuẩn quốc tế (3N2Đ): chèo thuyền kayak vịnh Lan Hạ, khám phá hang Sửng Sốt, tắm biển Ti Tốp và thưởng thức tiệc hải sản tươi ngon. Bạn có thể xem lịch trình hoặc đặt ngay bên dưới:";
+  } else if (message.includes("đà nẵng") || message.includes("da nang") || message.includes("hội an") || message.includes("hoi an") || message.includes("bà nà") || message.includes("cầu vàng")) {
+    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Đà Nẵng%' OR title LIKE '%Hội An%' OR region = 'central') LIMIT 3").all();
+    suggestedTours = matched.map(publicTour);
+    answer = "Hành trình Miền Trung di sản: Đà Nẵng - Cầu Vàng Bà Nà Hills - Phố cổ Hội An (4N3Đ) trọn gói vé máy bay khứ hồi và khách sạn 4 sao biển Mỹ Khê. Bạn sẽ được check-in Cầu Vàng trên mây và thả đèn hoa đăng lung linh bên sông Hoài. Dưới đây là các tour tốt nhất:";
+  } else if (message.includes("phú quốc") || message.includes("phu quoc") || message.includes("biển") || message.includes("đảo")) {
+    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Phú Quốc%' OR title LIKE '%Côn Đảo%') LIMIT 3").all();
+    suggestedTours = matched.map(publicTour);
+    answer = "Thiên đường biển đảo Phú Quốc đang bước vào mùa nắng đẹp nhất năm. Delta Travel thiết kế hải trình 4N3Đ trọn gói: cáp treo Hòn Thơm vượt biển, lặn ngắm san hô cano cao tốc 4 đảo, thành phố không ngủ Grand World và nghỉ dưỡng resort sát biển. Gợi ý hành trình phù hợp cho bạn:";
+  } else if (message.includes("đà lạt") || message.includes("da lat") || message.includes("săn mây") || message.includes("hoa")) {
+    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND title LIKE '%Đà Lạt%' LIMIT 2").all();
+    suggestedTours = matched.map(publicTour);
+    answer = "Thành phố mộng mơ Đà Lạt khí hậu mát mẻ 18-20°C quanh năm. Tour 3N2Đ của Delta Travel đưa đón bằng xe Limousine phòng nằm cao cấp: săn mây Cầu Đất lúc bình minh, hồ Tuyền Lâm, ga xe lửa cổ và đồi hoa cẩm tú cầu. Bạn hãy tham khảo và giữ chỗ sớm nhé:";
+  } else if (message.includes("sa pa") || message.includes("sapa") || message.includes("fansipan") || message.includes("núi")) {
+    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND (title LIKE '%Sa Pa%' OR title LIKE '%Hà Giang%') LIMIT 2").all();
+    suggestedTours = matched.map(publicTour);
+    answer = "Vùng cao Tây Bắc Sa Pa & Đỉnh Fansipan 3.143m - nóc nhà Đông Dương hùng vĩ. Xe Limousine đón trả tận nơi tại Hà Nội, khách sạn view thung lũng Mường Hoa thơ mộng và trải nghiệm văn hóa bản Cát Cát độc đáo:";
+  } else if (message.includes("côn đảo") || message.includes("con dao") || message.includes("cô sáu")) {
+    const matched = db.prepare("SELECT * FROM tours WHERE active = 1 AND title LIKE '%Côn Đảo%' LIMIT 2").all();
+    suggestedTours = matched.map(publicTour);
+    answer = "Về miền đất thiêng Côn Đảo: Viếng Nghĩa trang Hàng Dương và mộ Cô Sáu lúc nửa đêm, tham quan hệ thống di tích lịch sử và tắm biển Bãi Đầm Trầu hoang sơ tuyệt mỹ. Vé máy bay khứ hồi và tàu cao tốc chuẩn 5 sao:";
+  } else if (message.includes("hủy") || message.includes("hoàn tiền") || message.includes("cancel") || message.includes("đổi ngày")) {
+    answer = "Chính sách của Delta Travel cam kết minh bạch và linh hoạt: Đơn chưa thanh toán có thể hủy trực tuyến trên website khi còn hơn 72 giờ trước giờ khởi hành. Đơn đã thanh toán được hỗ trợ bảo lưu hoặc đổi ngày khởi hành miễn phí 01 lần. Đội ngũ chăm sóc khách hàng trực 24/7 qua Hotline 1900 8899.";
+  } else if (message.includes("tour") || message.includes("đi đâu") || message.includes("địa điểm") || message.includes("gợi ý") || message.includes("tư vấn")) {
+    const sample = db.prepare("SELECT * FROM tours WHERE active = 1 ORDER BY RANDOM() LIMIT 3").all();
+    suggestedTours = sample.map(publicTour);
+    answer = "Delta Travel hiện có 16 hành trình du lịch 5 sao tiêu biểu khắp 3 miền: Vịnh Hạ Long, Đà Nẵng, Phú Quốc, Sa Pa, Đà Lạt và Côn Đảo với lịch khởi hành liên tục hàng tuần. Dưới đây là những hành trình được du khách đánh giá cao nhất hôm nay:";
   } else {
-    answer = "Tôi có thể hỗ trợ thông tin tour, lịch trình, giá vé và chính sách hoàn hủy của Delta Travel. Quý khách vui lòng cho biết câu hỏi cụ thể.";
+    const sample = db.prepare("SELECT * FROM tours WHERE active = 1 AND flash_sale = 1 LIMIT 2").all();
+    suggestedTours = sample.map(publicTour);
+    answer = "Chào Quý khách! Tôi là Trợ lý AI Concierge độc quyền của Delta Travel. Tôi có thể giải đáp chi tiết về giá vé, lộ trình, kinh nghiệm điểm đến và gợi ý tour trực tiếp cho bạn đặt ngay trên cuộc trò chuyện. Quý khách muốn khám phá vùng miền hay điểm đến nào?";
   }
 
   res.json({
     answer,
-    mode: "rule_based",
-    source: "Delta Travel local database/policy"
+    suggestedTours,
+    mode: "smart_concierge",
+    source: "Delta Travel AI Database"
   });
 });
 

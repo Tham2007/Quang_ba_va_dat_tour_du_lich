@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản Lý Đơn Đặt Tour & Vé Điện Tử | Delta Travel</title>
+  <meta name="description" content="Tra cứu mã đơn đặt tour, quản lý lịch trình và in phiếu xác nhận giữ chỗ chính thức của Delta Travel.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/png" href="favicon_logo_delta.png">
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+
+  <style>
+    :root {
+      --paper-bg: #ffffff;
+      --paper-border: #e2e8f0;
+      --paper-text: #0f172a;
+      --paper-muted: #64748b;
+      --paper-black: #000000;
+      --paper-gold: #d97706;
+    }
+
+    body {
+      background-color: #f8fafc;
+      color: var(--paper-text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.5;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Top Paper Navigation */
+    .paper-topbar {
+      background: #ffffff;
+      border-bottom: 1px solid var(--paper-border);
+      padding: 0.85rem 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .paper-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--paper-black);
+    }
+
+    .paper-brand-logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 9px;
+      overflow: hidden;
+      border: 1px solid #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+    }
+
+    .paper-brand-logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .paper-brand-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 1.15rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--paper-black);
+      line-height: 1.1;
+      display: block;
+    }
+
+    .paper-brand-sub {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      color: #64748b;
+      text-transform: uppercase;
+      display: block;
+    }
+
+    /* Paper Document Card */
+    .paper-sheet {
+      background: #ffffff;
+      border: 1px solid var(--paper-border);
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .paper-sheet-header {
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .paper-sheet-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
+
+    .paper-sheet-sub {
+      color: var(--paper-muted);
+      font-size: 0.88rem;
+      margin-top: 0.35rem;
+    }
+
+    /* Filter & Search Bar */
+    .paper-search-box {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 0.55rem 0.85rem;
+      font-size: 0.9rem;
+      color: #0f172a;
+      background: #ffffff;
+    }
+
+    .paper-search-box:focus {
+      outline: none;
+      border-color: #0f172a;
+      box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.1);
+    }
+
+    .paper-tab-btn {
+      background: transparent;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 0.45rem 0.85rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .paper-tab-btn:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+
+    .paper-tab-btn.active {
+      background: #0f172a;
+      color: #ffffff;
+      border-color: #0f172a;
+    }
+
+    /* Ticket / Voucher Pass */
+    .paper-ticket-pass {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      position: relative;
+      transition: all 0.2s ease;
+    }
+
+    .paper-ticket-pass:hover {
+      border-color: #94a3b8;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+    }
+
+    .paper-stamp {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border: 1px solid;
+    }
+
+    .stamp-paid {
+      color: #15803d;
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+    }
+
+    .stamp-pending {
+      color: #b45309;
+      background: #fffbeb;
+      border-color: #fde68a;
+    }
+
+    .stamp-cancelled {
+      color: #b91c1c;
+      background: #fef2f2;
+      border-color: #fecaca;
+    }
+
+    .ticket-meta-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      font-weight: 600;
+      margin-bottom: 0.2rem;
+    }
+
+    .ticket-meta-val {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .paper-btn-print {
+      background: #ffffff;
+      border: 1px solid #0f172a;
+      color: #0f172a;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 0.4rem 0.85rem;
+      border-radius: 6px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+    }
+
+    .paper-btn-print:hover {
+      background: #0f172a;
+      color: #ffffff;
+    }
+
+    .paper-btn-pay {
+      background: #0f172a;
+      border: 1px solid #0f172a;
+      color: #ffffff;
+      font-size: 0.82rem;
+      font-weight: 700;
+      padding: 0.4rem 0.85rem;
+      border-radius: 6px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+    }
+
+    .paper-btn-pay:hover {
+      background: #d97706;
+      border-color: #d97706;
+      color: #ffffff;
+    }
+
+    /* Print Styles */
+    @media print {
+      body {
+        background: #ffffff !important;
+      }
+      .paper-topbar, .no-print, .paper-actions-bar {
+        display: none !important;
+      }
+      .paper-sheet {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+      }
+      .paper-ticket-pass {
+        border: 1.5px solid #000000 !important;
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. Thanh điều hướng giấy tối giản -->
+  <header class="paper-topbar">
+    <div class="container d-flex justify-content-between align-items-center">
+      <a href="index.html" class="paper-brand">
+        <div class="paper-brand-logo">
+          <img src="favicon_logo_delta.png" alt="Delta Travel Logo">
+        </div>
+        <div>
+          <span class="paper-brand-title">DELTA TRAVEL</span>
+          <span class="paper-brand-sub">KHÁM PHÁ & NGHỈ DƯỠNG</span>
+        </div>
+      </a>
+
+      <div class="d-flex align-items-center gap-2 no-print">
+        <a href="index.html" class="btn btn-outline-dark btn-sm rounded-pill fw-semibold px-3">
+          <i class="bi bi-arrow-left"></i> Về trang chủ
+        </a>
+        <a href="index.html#toursSection" class="btn btn-dark btn-sm rounded-pill fw-semibold px-3">
+          <i class="bi bi-compass"></i> Khám phá Tour
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- 2. Nội dung tài liệu quản lý đơn đặt tour -->
+  <main class="container my-4 my-md-5">
+    <div class="paper-sheet">
+      <!-- Header tài liệu -->
+      <div class="paper-sheet-header d-flex flex-wrap justify-content-between align-items-end gap-3">
+        <div>
+          <div class="text-uppercase fw-bold text-muted small" style="letter-spacing: 0.15em;">PHIẾU ĐIỆN TỬ CHÍNH THỨC</div>
+          <h1 class="paper-sheet-title">Quản Lý Đơn Đặt Tour & Tra Cứu Chuyến Đi</h1>
+          <p class="paper-sheet-sub mb-0">Theo dõi tiến độ duyệt chỗ, thanh toán trực tuyến và in phiếu giữ chỗ chính thức chuẩn giấy.</p>
+        </div>
+        <div class="no-print">
+          <button class="paper-btn-print" onclick="window.print()">
+            <i class="bi bi-printer"></i> In toàn bộ danh sách
+          </button>
+        </div>
+      </div>
+
+      <!-- Thanh công cụ tìm kiếm và bộ lọc trạng thái -->
+      <div class="row g-3 align-items-center mb-4 no-print paper-actions-bar">
+        <div class="col-12 col-md-5">
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+            <input type="text" id="bookingSearchInput" class="form-control paper-search-box border-start-0" placeholder="Nhập mã đơn (BK.../DL...), SĐT hoặc tên tour...">
+          </div>
+        </div>
+        <div class="col-12 col-md-7">
+          <div class="d-flex flex-wrap gap-1 justify-content-md-end" id="statusFilterGroup">
+            <button class="paper-tab-btn active" data-status="all">Tất cả đơn</button>
+            <button class="paper-tab-btn" data-status="PENDING_PAYMENT">Chờ thanh toán</button>
+            <button class="paper-tab-btn" data-status="PAID">Đã thanh toán</button>
+            <button class="paper-tab-btn" data-status="CONFIRMED">Đã duyệt giữ chỗ</button>
+            <button class="paper-tab-btn" data-status="CANCELLED">Đã hủy</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Danh sách đơn đặt vé / Vé điện tử dạng giấy -->
+      <div id="bookingsListContainer">
+        <div class="text-center py-5 text-muted">
+          <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
+          <div>Đang tải dữ liệu đơn đặt chỗ từ hệ thống Delta Travel...</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="assets/js/services/api.js"></script>
+  <script>
+    let allBookings = [];
+    let currentSearch = "";
+    let currentStatus = "all";
+
+    function formatVND(amount) {
+      return Number(amount || 0).toLocaleString("vi-VN") + " đ";
+    }
+
+    async function loadBookings() {
+      const container = document.getElementById("bookingsListContainer");
+      try {
+        let bookings = [];
+        // 1. Thử lấy từ Backend API
+        if (typeof DeltaAPI !== "undefined" && DeltaAPI.fetchMyBookings) {
+          const res = await DeltaAPI.fetchMyBookings();
+          if (res && res.success && Array.isArray(res.data)) {
+            bookings = res.data;
+          }
+        }
+        
+        // 2. Dự phòng thêm đơn hàng từ localStorage
+        const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
+        const mergedMap = new Map();
+        [...bookings, ...local].forEach(b => {
+          const key = b.id || b.bookingId || b.reference;
+          if (key && !mergedMap.has(key)) {
+            mergedMap.set(key, b);
+          }
+        });
+        allBookings = Array.from(mergedMap.values());
+        renderBookings();
+      } catch (err) {
+        console.warn("Lỗi tải đơn hàng:", err);
+        const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
+        allBookings = local;
+        renderBookings();
+      }
+    }
+
+    function renderBookings() {
+      const container = document.getElementById("bookingsListContainer");
+      if (!container) return;
+
+      let filtered = allBookings;
+
+      if (currentSearch.trim() !== "") {
+        const kw = currentSearch.trim().toLowerCase();
+        filtered = filtered.filter(b => {
+          const ref = (b.reference || b.bookingId || b.id || "").toLowerCase();
+          const phone = (b.customerPhone || b.customer?.phone || "").toLowerCase();
+          const name = (b.customerName || b.customer?.fullName || "").toLowerCase();
+          const title = (b.tourTitle || "").toLowerCase();
+          return ref.includes(kw) || phone.includes(kw) || name.includes(kw) || title.includes(kw);
+        });
+      }
+
+      if (currentStatus !== "all") {
+        filtered = filtered.filter(b => (b.status === currentStatus || b.statusCode === currentStatus));
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="border border-dashed rounded-3 p-5 text-center bg-white my-3">
+            <i class="bi bi-file-earmark-text text-muted fs-1 mb-3 d-block"></i>
+            <h5 class="fw-bold mb-1">Không tìm thấy đơn đặt tour nào</h5>
+            <p class="text-muted small mb-4">Bạn chưa có đơn đặt tour phù hợp với tiêu chí tra cứu hiện tại.</p>
+            <a href="index.html#toursSection" class="btn btn-dark btn-sm rounded-pill px-4 py-2 fw-semibold">
+              <i class="bi bi-compass me-1"></i> Khám phá & Đặt Tour Ngay
+            </a>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(b => {
+        const id = b.id || b.bookingId || b.reference;
+        const ref = b.reference || b.bookingId || id;
+        const tourTitle = b.tourTitle || "Tour Du Lịch Delta Travel 5 Sao";
+        const customerName = b.customerName || b.customer?.fullName || "Khách Hàng";
+        const customerPhone = b.customerPhone || b.customer?.phone || "Chưa cập nhật";
+        const guests = b.seats || ((b.adults || 1) + (b.children || 0) + (b.infants || 0));
+        const totalPrice = b.totalPrice || b.pricing?.totalPrice || 0;
+        const status = b.status || b.statusCode || "PENDING_PAYMENT";
+        const createdDate = b.createdAt ? new Date(b.createdAt).toLocaleDateString("vi-VN") : "Hôm nay";
+
+        let stampClass = "stamp-paid";
+        let stampText = "ĐÃ THANH TOÁN";
+        let isPending = false;
+        let isCancelled = false;
+
+        if (status === "PENDING_PAYMENT" || status === "PENDING_DEMO" || !b.paid) {
+          stampClass = "stamp-pending";
+          stampText = "CHỜ THANH TOÁN";
+          isPending = true;
+        } else if (status === "CONFIRMED") {
+          stampClass = "stamp-paid";
+          stampText = "ĐÃ DUYỆT GIỮ CHỖ";
+        } else if (status === "CANCELLED") {
+          stampClass = "stamp-cancelled";
+          stampText = "ĐÃ HỦY ĐƠN";
+          isCancelled = true;
+        }
+
+        return `
+          <div class="paper-ticket-pass" id="ticket-${id}">
+            <div class="d-flex flex-wrap justify-content-between align-items-center border-bottom pb-3 mb-3 gap-2">
+              <div>
+                <span class="paper-stamp ${stampClass}">
+                  <i class="bi bi-record-circle-fill"></i> ${stampText}
+                </span>
+                <span class="ms-2 font-monospace fw-bold text-dark">Mã đơn: #${ref}</span>
+              </div>
+              <div class="text-muted small">
+                <i class="bi bi-calendar3"></i> Ngày lập: <strong>${createdDate}</strong>
+              </div>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-12 col-lg-7">
+                <h4 class="fw-bold text-dark mb-3">${tourTitle}</h4>
+                <div class="row g-2">
+                  <div class="col-6 col-md-4">
+                    <div class="ticket-meta-label">Người đặt</div>
+                    <div class="ticket-meta-val">${customerName}</div>
+                  </div>
+                  <div class="col-6 col-md-4">
+                    <div class="ticket-meta-label">Số điện thoại</div>
+                    <div class="ticket-meta-val">${customerPhone}</div>
+                  </div>
+                  <div class="col-6 col-md-4">
+                    <div class="ticket-meta-label">Số khách</div>
+                    <div class="ticket-meta-val">${guests} người (${b.adults || 1} lớn, ${b.children || 0} trẻ)</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-12 col-lg-5 text-lg-end border-start-lg ps-lg-4">
+                <div class="ticket-meta-label">Tổng tiền thanh toán</div>
+                <div class="fs-4 fw-black text-dark mb-3">${formatVND(totalPrice)}</div>
+                
+                <div class="d-flex flex-wrap gap-2 justify-content-lg-end no-print">
+                  ${isPending ? `
+                    <a href="booking.html?bookingId=${encodeURIComponent(id)}" class="paper-btn-pay">
+                      <i class="bi bi-credit-card-2-front"></i> Thanh toán ngay
+                    </a>
+                  ` : ""}
+                  
+                  <button type="button" class="paper-btn-print" onclick="printSingleTicket('${id}')">
+                    <i class="bi bi-printer"></i> In phiếu vé
+                  </button>
+
+                  ${!isCancelled ? `
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="cancelBookingAction('${id}')">
+                      Hủy đơn
+                    </button>
+                  ` : ""}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function printSingleTicket(id) {
+      window.print();
+    }
+
+    async function cancelBookingAction(id) {
+      if (!confirm("Quý khách có chắc chắn muốn hủy đơn đặt tour này?")) return;
+      try {
+        if (typeof DeltaAPI !== "undefined" && DeltaAPI.cancelBooking) {
+          await DeltaAPI.cancelBooking(id, "Khách hàng yêu cầu hủy trực tuyến");
+        }
+        // Cập nhật local
+        allBookings = allBookings.map(b => {
+          if ((b.id || b.bookingId || b.reference) === id) {
+            return { ...b, status: "CANCELLED", statusCode: "CANCELLED" };
+          }
+          return b;
+        });
+        localStorage.setItem("delta_customer_bookings", JSON.stringify(allBookings));
+        renderBookings();
+        alert("Đã hủy đơn đặt tour thành công.");
+      } catch (err) {
+        alert("Lỗi hủy đơn: " + (err.message || "Vui lòng liên hệ tổng đài 1900 8899"));
+      }
+    }
+
+    // Sự kiện bộ lọc
+    document.getElementById("bookingSearchInput")?.addEventListener("input", (e) => {
+      currentSearch = e.target.value;
+      renderBookings();
+    });
+
+    document.querySelectorAll("#statusFilterGroup button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#statusFilterGroup button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentStatus = btn.dataset.status;
+        renderBookings();
+      });
+    });
+
+    document.addEventListener("DOMContentLoaded", loadBookings);
+  </script>
+</body>
+</html>

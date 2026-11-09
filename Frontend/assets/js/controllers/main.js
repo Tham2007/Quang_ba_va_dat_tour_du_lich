@@ -1352,134 +1352,15 @@ function setMinimumDepartureDate() {
 }
 
 /**
- * Mở Modal Đặt tour với tour được chỉ định
+ * Mở Trang Đặt tour riêng biệt chuẩn giấy (Không đè lên 3D web)
  */
 async function openBookingModal(tourId) {
   if (DeltaAPI?.isCatalogReadOnly?.()) {
     showToast("Danh mục đang kết nối SQL Server chỉ đọc; chức năng đặt tour chưa được tích hợp.", "warning");
     return;
   }
-
-  const normalizedTourId = String(tourId).trim().toLowerCase();
-  const tour = TOURS_DATA.find(
-    t => String(t.id).trim().toLowerCase() === normalizedTourId
-  );
-  if (!tour) {
-    showToast("Không tìm thấy tour trong danh sách hiện tại. Vui lòng tải lại trang.", "error");
-    return;
-  }
-
-  let schedules = [];
-  if (typeof DeltaAPI !== "undefined" && DeltaAPI.isOnline()) {
-    try {
-      const response = await DeltaAPI.fetchSchedules(tour.id);
-      if (response && response.success && Array.isArray(response.data) && response.data.length > 0) {
-        schedules = response.data.filter(schedule => schedule.availableSeats > 0);
-      }
-    } catch (err) {
-      console.warn("fetchSchedules error, falling back to local:", err);
-    }
-  }
-  
-  if (!schedules || schedules.length === 0) {
-    if (typeof getSchedulesData === "function") {
-      schedules = getSchedulesData()
-        .filter(schedule => String(schedule.tourId).toUpperCase() === String(tour.id).toUpperCase() && schedule.status === "OPEN")
-        .map(schedule => ({
-          ...schedule,
-          availableSeats: schedule.totalSeats - (schedule.bookedSeats || 0)
-        }))
-        .filter(schedule => schedule.availableSeats > 0);
-    }
-  }
-
-  // Luôn đảm bảo có ngày khởi hành khả dụng cho khách hàng
-  if (!schedules || schedules.length === 0) {
-    const offsets = [7, 14, 21, 30];
-    schedules = offsets.map((d, i) => {
-      const depDate = new Date(Date.now() + d * 86400000);
-      depDate.setHours(7, 30, 0, 0);
-      return {
-        id: `SCHED-${tour.id}-${i + 1}`,
-        tourId: tour.id,
-        departureAt: depDate.toISOString(),
-        totalSeats: 30,
-        availableSeats: 25 - i * 3,
-        status: "OPEN"
-      };
-    });
-  }
-  AppState.currentSchedules = schedules;
-  AppState.currentBookingTour = tour;
-  AppState.appliedVoucher = null;
-  AppState.selectedPaymentMethod = "qr";
-
-  // Tạo mã đơn hàng mẫu ngẫu nhiên dạng: DELTA-XXXXX
-  const randomNum = Math.floor(100000 + Math.random() * 900000);
-  AppState.bookingReference = `DELTA-${randomNum}`;
-
-  // Điền thông tin tour vào Order Summary
-  document.getElementById("summaryTourTitle").textContent = tour.title;
-  document.getElementById("summaryTourCode").textContent = tour.id;
-  document.getElementById("summaryTourThumb").src = tour.image;
-  document.getElementById("summaryTourDuration").textContent = tour.duration;
-
-  // Đặt lại các giá trị mặc định cho form
-  document.getElementById("qtyAdults").value = 1;
-  document.getElementById("qtyChildren").value = 0;
-  document.getElementById("qtyInfants").value = 0;
-  const departureSelect = document.getElementById("bookingDepartureDate");
-  if (departureSelect) {
-    departureSelect.replaceChildren();
-    for (const schedule of schedules) {
-      const option = new Option(
-        `${new Date(schedule.departureAt).toLocaleDateString("vi-VN")} · còn ${schedule.availableSeats} chỗ`,
-        schedule.id
-      );
-      option.disabled = schedule.availableSeats < 1;
-      departureSelect.append(option);
-    }
-    if (!schedules.length) {
-      departureSelect.append(new Option("Chưa có ngày khởi hành", ""));
-      showToast("Tour chưa có ngày khởi hành mở bán.", "warning");
-      return;
-    }
-  }
-
-  // Bỏ chọn tất cả checkbox dịch vụ gia tăng
-  document.querySelectorAll(".addon-checkbox").forEach(cb => cb.checked = false);
-
-  // Đặt lại ô voucher
-  const voucherInput = document.getElementById("voucherCodeInput");
-  const voucherMsg = document.getElementById("voucherStatusMsg");
-  if (voucherInput) voucherInput.value = "";
-  if (voucherMsg) {
-    voucherMsg.className = "voucher-status-msg";
-    voucherMsg.textContent = "";
-  }
-
-  // Chuyển tab thanh toán về QR mặc định
-  selectPaymentTab("qr");
-
-  // Tính toán lại bảng tiền
-  calculateOrderPricing();
-
-  // Tự động điền thông tin tài khoản nếu đã đăng nhập
-  if (typeof getCurrentUser === "function") {
-    const loggedUser = getCurrentUser();
-    if (loggedUser) {
-      const nameInput = document.getElementById("customerName");
-      const phoneInput = document.getElementById("customerPhone");
-      const emailInput = document.getElementById("customerEmail");
-      if (nameInput) nameInput.value = loggedUser.fullName;
-      if (phoneInput) phoneInput.value = loggedUser.phone;
-      if (emailInput) emailInput.value = loggedUser.email;
-    }
-  }
-
-  const modalEl = document.getElementById("bookingModal");
-  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-  modal.show();
+  const id = tourId || "DL-HL01";
+  window.location.href = `booking.html?tourId=${encodeURIComponent(id)}`;
 }
 
 /**
@@ -2002,17 +1883,10 @@ let currentCustomerBookingFilter = "all";
 let currentCustomerBookingSearch = "";
 
 /**
- * Mở modal Quản lý và tra cứu đơn đặt tour
+ * Mở Trang Quản lý đơn đặt tour riêng biệt chuẩn giấy (Không đè lên 3D web)
  */
 function openMyBookingsModal() {
-  const modalEl = document.getElementById("myBookingsModal");
-  if (!modalEl) return;
-
-  updateCustomerBookingCounters();
-  renderCustomerOrdersList(currentCustomerBookingSearch, currentCustomerBookingFilter);
-
-  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-  modal.show();
+  window.location.href = "my-bookings.html";
 }
 
 /**

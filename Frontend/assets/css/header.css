@@ -59,11 +59,16 @@ header.sticky-top.hero-transparent .brand-subtitle {
 }
 
 header.sticky-top.hero-transparent .brand-icon-crystal {
-  background: rgba(255, 255, 255, 0.16) !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35) !important;
+  background: #ffffff !important;
+  border-radius: 11px !important;
+  overflow: hidden !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+  padding: 0 !important;
+}
+
+header.sticky-top.hero-transparent .brand-logo-img {
+  border-radius: 10px !important;
 }
 
 header.sticky-top.hero-transparent .liquid-nav-dock {
@@ -194,31 +199,32 @@ header.sticky-top.hero-transparent .btn-explore-liquid {
 }
 
 .brand-icon-crystal {
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  border-radius: 11px;
+  overflow: hidden;
+  background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.08);
   box-shadow:
-    0 4px 14px rgba(0, 0, 0, 0.06),
-    inset 0 1.5px 2px rgba(255, 255, 255, 1);
-  padding: 4px;
+    0 3px 10px rgba(0, 0, 0, 0.08),
+    inset 0 1px 1.5px rgba(255, 255, 255, 1);
+  padding: 0;
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .navbar-brand-delta:hover .brand-icon-crystal {
-  transform: scale(1.08) rotate(4deg);
+  transform: scale(1.06);
 }
 
 .brand-logo-img {
-  width: 34px;
-  height: 34px;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
 }
 
 .brand-text {
@@ -291,6 +297,21 @@ header.sticky-top.hero-transparent .btn-explore-liquid {
   user-select: none;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   margin: 0 auto;
+}
+
+/* Đảm bảo thanh Tab Capsule nằm CHÍNH GIỮA 100% màn hình, không bị lệch do độ rộng 2 bên */
+@media (min-width: 992px) {
+  .navbar-delta .container-fluid {
+    position: relative !important;
+  }
+  .liquid-nav-dock {
+    position: absolute !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    margin: 0 !important;
+    z-index: 10;
+  }
 }
 
 /* Mọi tab nav tuyệt đối nằm trên một hàng ngang, không bị ngắt thành cột dọc */
