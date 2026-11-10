@@ -102,6 +102,9 @@ def account():
           "phone": "0912345678", "password": "TestOnly-Password-12345!"}, 201)
     mine = session.get(BASE + "/auth/me", timeout=20)
     assert mine.status_code == 200 and mine.json().get("id"), "Session auth failed"
+    # CSRF tokens are bound to identity. Registration changes anonymous -> authenticated.
+    # Fetch a new token after login/registration; never reuse the anonymous token.
+    token = session.get(BASE + "/auth/csrf", timeout=20).json()["csrfToken"]
     return session, token
 
 
