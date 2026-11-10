@@ -1,0 +1,24 @@
+name: ASP.NET Core backend build
+on:
+  pull_request:
+    paths:
+      - 'AspNetBackend/**'
+      - '.github/workflows/aspnet-ci.yml'
+  push:
+    paths:
+      - 'AspNetBackend/**'
+      - '.github/workflows/aspnet-ci.yml'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore AspNetBackend/DeltaTravel.AspNet.csproj
+      - name: Build with warnings as errors
+        run: dotnet build AspNetBackend/DeltaTravel.AspNet.csproj --configuration Release --no-restore
+      - name: Publish
+        run: dotnet publish AspNetBackend/DeltaTravel.AspNet.csproj --configuration Release --no-build --output out
