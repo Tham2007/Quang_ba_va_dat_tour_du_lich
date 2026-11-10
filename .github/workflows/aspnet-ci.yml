@@ -22,3 +22,18 @@ jobs:
         run: dotnet build AspNetBackend/DeltaTravel.AspNet.csproj --configuration Release --no-restore
       - name: Publish
         run: dotnet publish AspNetBackend/DeltaTravel.AspNet.csproj --configuration Release --no-build --output out
+      - name: Static contract and frontend syntax checks
+        run: python AspNetBackend/tests/static-audit.py
+      - name: Docker build
+        run: docker build --file AspNetBackend/Dockerfile --tag delta-aspnet-ci AspNetBackend
+      - name: Runtime smoke (no database means fail closed)
+        run: |
+          docker run -d --name delta-aspnet-ci-run -p 127.0.0.1:10000:10000 delta-aspnet-ci
+          trap 'docker rm -f delta-aspnet-ci-run >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:10000/api/v1/health/live; then break; fi
+            sleep 2
+          done
+          curl --fail --silent --show-error http://127.0.0.1:10000/api/v1/health/live
+          code=$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:10000/api/v1/health/ready)
+          test "$code" = '503'
