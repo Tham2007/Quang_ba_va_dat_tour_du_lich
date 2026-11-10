@@ -24,7 +24,7 @@ PSWD = os.environ.get("CI_SQLSERVER_SA_PASSWORD", "")
 
 
 def checked_environment():
-    if (os.getenv("DELTA_SQLSERVER_EPHEMERAL") != "1":
+    if os.getenv("DELTA_SQLSERVER_EPHEMERAL") != "1":
         raise RuntimeError("REFUSED: DELTA_SQLSERVER_EPHEMERAL must be 1")
     if os.getenv("CI_SQLSERVER_HOST") not in ("127.0.0.1", "localhost"):
         raise RuntimeError("REFUSED: disposable SQL Server must be on loopback")
@@ -60,7 +60,7 @@ def boot_database():
             "05_seed_data/01_sample_data_realistic.sql",
         ):
             sql = (SCHEMA_DIR / name).read_text(encoding="utf-8-sig")
-            batches = re.split(r"^\\s*GO\\s*(?:--[^\\n]*)?$", sql, flags=re.I | re.M)
+            batches = re.split(r"^\s*GO\s*(?:--[^\n]*)?$", sql, flags=re.I | re.M)
             for batch in batches:
                 if batch.strip():
                     with conn.cursor() as cur:
