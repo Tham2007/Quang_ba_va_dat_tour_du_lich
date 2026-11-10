@@ -72,11 +72,10 @@ def boot_database():
 
 def new_schedule(conn, capacity, label):
     with conn.cursor() as cur:
-        cur.execute("""DECLARE @id int;
-INSERT dbo.CHUYENKHOIHANH(MaTour,NgayKhoiHanh,NgayKetThuc,GiaThucTe,SoChoToiDa,SoChoDaDat,TrangThaiChuyen)
+        cur.execute("""INSERT dbo.CHUYENKHOIHANH(MaTour,NgayKhoiHanh,NgayKetThuc,GiaThucTe,SoChoToiDa,SoChoDaDat,TrangThaiChuyen)
 VALUES ((SELECT TOP (1) MaTour FROM dbo.TOUR ORDER BY MaTour),
- DATEADD(DAY,90,GETDATE()),DATEADD(DAY,94,GETDATE()),1500000,@capacity,0,N'Mở bán');
-SELECT CAST(SCOPE_IDENTITY() AS int);""", {"capacity": capacity})
+ DATEADD(DAY,90,GETDATE()),DATEADD(DAY,94,GETDATE()),1500000,%s,0,N'Mở bán');
+SELECT CAST(SCOPE_IDENTITY() AS int);""", (capacity,))
         row = cur.fetchone()
         assert row and isinstance(row[0], int), f"Schedule insert failed: {label}"
         return row[0]
