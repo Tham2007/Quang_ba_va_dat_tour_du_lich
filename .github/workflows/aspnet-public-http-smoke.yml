@@ -30,6 +30,22 @@ jobs:
           print("PUBLIC_HOME_HTTPS=200")
           print("ASP_NET_LIVE=200")
           PY
+      - name: Verify ASP homepage redirects to An's original frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          BACKEND="https://delta-travel-group6-aspnet-sqlserver.onrender.com/"
+          AN="https://delta-travel-group6-kthp-demo.onrender.com/"
+          for i in $(seq 1 18); do
+            location=$(curl -sS --max-time 25 -o /dev/null -w '%{redirect_url}' "$BACKEND" || true)
+            if [ "$location" = "$AN" ]; then
+              echo 'ASP_ROOT_REDIRECTS_TO_AN=true' | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "ASP root is not redirecting to An's frontend" >&2
+          exit 1
       - name: Database readiness gate (never pretend successful)
         shell: bash
         run: |
