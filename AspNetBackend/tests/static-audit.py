@@ -21,7 +21,7 @@ assert 'TRG_DATTOUR_CheckAndLockSeats' in code
 assert 'TRG_DATTOUR_HandleCancellation' in code
 assert 'SCOPE_IDENTITY()' in code
 # The SQL triggers are the sole owners of inventory mutations.
-assert not re.search(r'SoChoDaDat\\s*=\\s*SoChoDaDat\\s*[+-]', code)
+assert not re.search(r'SoChoDaDat\s*=\s*SoChoDaDat\s*[+-]', code)
 assert 'INVENTORY_INCREASE_MISMATCH' in code
 assert 'INVENTORY_RELEASE_MISMATCH' in code
 assert 'UPDLOCK, HOLDLOCK' in code
