@@ -98,12 +98,18 @@ app.MapGet("/api/v1/health/ready", async (Database database, CancellationToken c
     try
     {
         await using var db = await database.OpenAsync(ct);
-        await using var cmd = new SqlCommand("SELECT (SELECT COUNT_BIG(*) FROM sys.tables WHERE schema_id=SCHEMA_ID('dbo') AND name IN ('NGUOIDUNG','DANHMUC','TOUR','CHUYENKHOIHANH','DATTOUR','CHITIET_HANHKHACH','THANHTOAN','DANHGIA','BAIVIET_QUANGBA','AUDITLOG','HINHANH_TOUR','LICH_TRINH_DETAIL')), (SELECT COUNT_BIG(*) FROM sys.tables WHERE schema_id=SCHEMA_ID('dbo'))", db);
+        await using var cmd = new SqlCommand(@"SELECT
+(SELECT COUNT_BIG(*) FROM sys.tables WHERE schema_id=SCHEMA_ID('dbo') AND name IN ('NGUOIDUNG','DANHMUC','TOUR','CHUYENKHOIHANH','DATTOUR','CHITIET_HANHKHACH','THANHTOAN','DANHGIA','BAIVIET_QUANGBA','AUDITLOG','HINHANH_TOUR','LICH_TRINH_DETAIL')),
+(SELECT COUNT_BIG(*) FROM sys.tables WHERE schema_id=SCHEMA_ID('dbo')),
+(SELECT COUNT_BIG(*) FROM sys.triggers WHERE parent_id=OBJECT_ID(N'dbo.DATTOUR') AND is_disabled=0 AND name IN (N'TRG_DATTOUR_CheckAndLockSeats',N'TRG_DATTOUR_HandleCancellation'))", db);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct)) return Results.Json(new { status = "schema_unavailable" }, statusCode: 503);
         var count = reader.GetInt64(0);
         var total = reader.GetInt64(1);
-        return count == 12 && total == 12 ? Results.Ok(new { status = "ready", schemaTablesFound = count }) : Results.Json(new { status = "schema_mismatch", schemaTablesFound = count, actualTableCount = total }, statusCode: 503);
+        var triggers = reader.GetInt64(2);
+        return count == 12 && total == 12 && triggers == 2
+            ? Results.Ok(new { status = "ready", schemaTablesFound = count, inventoryTriggersEnabled = triggers })
+            : Results.Json(new { status = "schema_or_trigger_mismatch", schemaTablesFound = count, actualTableCount = total, inventoryTriggersEnabled = triggers }, statusCode: 503);
     }
     catch (SqlException) { return Results.Json(new { status = "database_unreachable" }, statusCode: 503); }
 });
@@ -238,6 +244,8 @@ app.MapPost("/api/v1/bookings", async (CreateBooking req, HttpContext context, I
     {
         await using var db = await database.OpenAsync(ct);
         await using var transaction = (SqlTransaction)await db.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        if (!await InventoryTriggersReady(db, transaction, ct))
+            return Results.Json(new { error = "INVENTORY_TRIGGERS_NOT_READY" }, statusCode: 503);
         await using var schedule = new SqlCommand(@"SELECT SoChoToiDa, SoChoDaDat, GiaThucTe, CASE WHEN NgayKhoiHanh>GETDATE() THEN 1 ELSE 0 END, TrangThaiChuyen
 FROM dbo.CHUYENKHOIHANH WITH (UPDLOCK, HOLDLOCK) WHERE MaChuyen=@id", db, transaction);
         schedule.Parameters.Add("@id", SqlDbType.Int).Value = req.ScheduleId;
@@ -249,19 +257,23 @@ FROM dbo.CHUYENKHOIHANH WITH (UPDLOCK, HOLDLOCK) WHERE MaChuyen=@id", db, transa
         }
         if (!future || status != "Mở bán" || capacity < booked || capacity - booked < req.Quantity)
             return Results.Conflict(new { error = "SOLD_OUT" });
-        await using var update = new SqlCommand(@"UPDATE dbo.CHUYENKHOIHANH SET SoChoDaDat=SoChoDaDat+@qty,
-TrangThaiChuyen=CASE WHEN SoChoDaDat+@qty>=SoChoToiDa THEN N'Hết chỗ' ELSE TrangThaiChuyen END WHERE MaChuyen=@schedule", db, transaction);
-        update.Parameters.Add("@qty", SqlDbType.Int).Value = req.Quantity;
-        update.Parameters.Add("@schedule", SqlDbType.Int).Value = req.ScheduleId;
-        if (await update.ExecuteNonQueryAsync(ct) != 1) throw new InvalidOperationException("Schedule row missing");
+        // TRG_DATTOUR_CheckAndLockSeats owns inventory. Do not increment seats in C#.
         await using var insert = new SqlCommand(@"INSERT dbo.DATTOUR (MaKhachHang,MaChuyen,NgayDat,SoLuongKhach,TongTien,TrangThaiDat,TrangThaiThanhToan)
-OUTPUT INSERTED.MaDatTour VALUES (@user,@schedule,GETDATE(),@qty,@amount,N'Chờ xác nhận',N'Chưa thanh toán')", db, transaction);
+VALUES (@user,@schedule,GETDATE(),@qty,@amount,N'Chờ xác nhận',N'Chưa thanh toán');
+SELECT CAST(SCOPE_IDENTITY() AS int)", db, transaction);
         insert.Parameters.Add("@user", SqlDbType.Int).Value = GetUserId(context.User);
         insert.Parameters.Add("@schedule", SqlDbType.Int).Value = req.ScheduleId;
         insert.Parameters.Add("@qty", SqlDbType.Int).Value = req.Quantity;
         var amount = insert.Parameters.Add("@amount", SqlDbType.Decimal);
         amount.Precision = 18; amount.Scale = 2; amount.Value = price * req.Quantity;
         var bookingId = Convert.ToInt32(await insert.ExecuteScalarAsync(ct));
+        // Detect disabled/altered trigger behavior and roll back instead of over/under-selling.
+        await using (var verify = new SqlCommand("SELECT SoChoDaDat FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=@schedule", db, transaction))
+        {
+            verify.Parameters.Add("@schedule", SqlDbType.Int).Value = req.ScheduleId;
+            if (Convert.ToInt32(await verify.ExecuteScalarAsync(ct)) != booked + req.Quantity)
+                throw new InvalidOperationException("INVENTORY_INCREASE_MISMATCH");
+        }
         foreach (var traveller in req.Travellers)
         {
             await using var passenger = new SqlCommand("INSERT dbo.CHITIET_HANHKHACH(MaDatTour,HoTen) VALUES (@booking,@name)", db, transaction);
@@ -303,16 +315,18 @@ app.MapPost("/api/v1/bookings/{bookingId:int}/cancel", async (int bookingId, Htt
     {
         await using var db = await database.OpenAsync(ct);
         await using var tx = (SqlTransaction)await db.BeginTransactionAsync(IsolationLevel.Serializable, ct);
-        await using var read = new SqlCommand(@"SELECT b.MaChuyen,b.SoLuongKhach,b.TrangThaiDat,b.TrangThaiThanhToan,CASE WHEN c.NgayKhoiHanh>DATEADD(HOUR,72,GETDATE()) THEN 1 ELSE 0 END
+        if (!await InventoryTriggersReady(db, tx, ct))
+            return Results.Json(new { error = "INVENTORY_TRIGGERS_NOT_READY" }, statusCode: 503);
+        await using var read = new SqlCommand(@"SELECT b.MaChuyen,b.SoLuongKhach,b.TrangThaiDat,b.TrangThaiThanhToan,CASE WHEN c.NgayKhoiHanh>DATEADD(HOUR,72,GETDATE()) THEN 1 ELSE 0 END,c.SoChoDaDat
 FROM dbo.DATTOUR b WITH (UPDLOCK,HOLDLOCK) JOIN dbo.CHUYENKHOIHANH c WITH (UPDLOCK,HOLDLOCK) ON c.MaChuyen=b.MaChuyen
 WHERE b.MaDatTour=@booking AND b.MaKhachHang=@user", db, tx);
         read.Parameters.Add("@booking", SqlDbType.Int).Value = bookingId;
         read.Parameters.Add("@user", SqlDbType.Int).Value = GetUserId(context.User);
-        int scheduleId; int qty; string status; string payment; bool cancellationWindow;
+        int scheduleId; int qty; int bookedBeforeCancel; string status; string payment; bool cancellationWindow;
         await using (var r = await read.ExecuteReaderAsync(ct))
         {
             if (!await r.ReadAsync(ct)) return Results.NotFound(new { error = "BOOKING_NOT_FOUND" });
-            scheduleId = r.GetInt32(0); qty = r.GetInt32(1); status = OptString(r, 2) ?? ""; payment = OptString(r, 3) ?? ""; cancellationWindow = r.GetInt32(4) == 1;
+            scheduleId = r.GetInt32(0); qty = r.GetInt32(1); status = OptString(r, 2) ?? ""; payment = OptString(r, 3) ?? ""; cancellationWindow = r.GetInt32(4) == 1; bookedBeforeCancel = r.GetInt32(5);
         }
         if (status == "Đã hủy") return Results.Ok(new { id = bookingId, status = "Đã hủy", alreadyCancelled = true });
         if (status != "Chờ xác nhận" || payment != "Chưa thanh toán" || !cancellationWindow)
@@ -320,11 +334,13 @@ WHERE b.MaDatTour=@booking AND b.MaKhachHang=@user", db, tx);
         await using var cancel = new SqlCommand("UPDATE dbo.DATTOUR SET TrangThaiDat=N'Đã hủy' WHERE MaDatTour=@id AND TrangThaiDat=N'Chờ xác nhận'", db, tx);
         cancel.Parameters.Add("@id", SqlDbType.Int).Value = bookingId;
         if (await cancel.ExecuteNonQueryAsync(ct) != 1) return Results.Conflict(new { error = "STATE_CHANGED" });
-        await using var release = new SqlCommand(@"UPDATE dbo.CHUYENKHOIHANH SET SoChoDaDat=SoChoDaDat-@qty,TrangThaiChuyen=N'Mở bán'
-WHERE MaChuyen=@schedule AND SoChoDaDat>=@qty", db, tx);
-        release.Parameters.Add("@qty", SqlDbType.Int).Value = qty;
-        release.Parameters.Add("@schedule", SqlDbType.Int).Value = scheduleId;
-        if (await release.ExecuteNonQueryAsync(ct) != 1) throw new InvalidOperationException("Inventory corruption prevented");
+        // TRG_DATTOUR_HandleCancellation returns seats. Never subtract them twice.
+        await using (var verify = new SqlCommand("SELECT SoChoDaDat FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=@schedule", db, tx))
+        {
+            verify.Parameters.Add("@schedule", SqlDbType.Int).Value = scheduleId;
+            if (bookedBeforeCancel < qty || Convert.ToInt32(await verify.ExecuteScalarAsync(ct)) != bookedBeforeCancel - qty)
+                throw new InvalidOperationException("INVENTORY_RELEASE_MISMATCH");
+        }
         await Audit(db, tx, GetUserId(context.User), "CancelBooking", bookingId.ToString(), ct);
         await tx.CommitAsync(ct);
         return Results.Ok(new { id = bookingId, status = "Đã hủy" });
@@ -370,6 +386,14 @@ app.MapGet("/api/v1/updates/schedules/{tourId:int}", async (int tourId, HttpCont
 });
 app.MapFallbackToFile("index.html");
 app.Run();
+
+static async Task<bool> InventoryTriggersReady(SqlConnection db, SqlTransaction tx, CancellationToken ct)
+{
+    await using var check = new SqlCommand(@"SELECT COUNT_BIG(*) FROM sys.triggers
+WHERE parent_id=OBJECT_ID(N'dbo.DATTOUR') AND is_disabled=0
+AND name IN (N'TRG_DATTOUR_CheckAndLockSeats',N'TRG_DATTOUR_HandleCancellation')", db, tx);
+    return Convert.ToInt64(await check.ExecuteScalarAsync(ct)) == 2;
+}
 
 static int GetUserId(ClaimsPrincipal user) => int.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier)!);
 static string? OptString(SqlDataReader r, int i) => r.IsDBNull(i) ? null : r.GetString(i);
