@@ -41,7 +41,8 @@ jobs:
         run: |
           python - <<'PY'
           import os, secrets
-          value = "Z9!" + secrets.token_urlsafe(32) + "a"\n          print("::add-mask::" + value)
+          value = "Z9!" + secrets.token_urlsafe(32) + "a"
+          print("::add-mask::" + value)
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
               f.write("CI_SQLSERVER_SA_PASSWORD=" + value + "\n")
           PY
