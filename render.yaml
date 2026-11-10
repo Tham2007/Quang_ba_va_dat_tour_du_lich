@@ -6,7 +6,7 @@ services:
     region: singapore
     dockerfilePath: ./AspNetBackend/Dockerfile
     dockerContext: ./AspNetBackend
-    healthCheckPath: /api/v1/health/live
+    healthCheckPath: /api/v1/health/ready
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
