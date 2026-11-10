@@ -1,0 +1,56 @@
+name: ASP.NET real SQL Server E2E (disposable database)
+on:
+  pull_request:
+    paths:
+      - 'AspNetBackend/**'
+      - 'database/database/**'
+      - '.github/workflows/aspnet-sqlserver-e2e.yml'
+  push:
+    paths:
+      - 'AspNetBackend/**'
+      - 'database/database/**'
+      - '.github/workflows/aspnet-sqlserver-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-aspnet-sqlserver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DELTA_SQLSERVER_EPHEMERAL: "1"
+      CI_SQLSERVER_HOST: "127.0.0.1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install disposable SQL Server driver and HTTP client
+        run: python -m pip install pymssql requests
+      - name: Build actual ASP.NET Core application
+        run: dotnet build AspNetBackend/DeltaTravel.AspNet.csproj -c Release
+      - name: Generate a per-run disposable SQL Server password
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os, secrets
+          value = "Z9!" + secrets.token_urlsafe(32) + "a"
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
+              f.write("CI_SQLSERVER_SA_PASSWORD=" + value + "\n")
+          PY
+      - name: Run SQL Server 2022, ASP.NET HTTP E2E, booking and cancel tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name delta-aspnet-sql-e2e \
+            -e ACCEPT_EULA=Y -e MSSQL_PID=Developer \
+            -e "MSSQL_SA_PASSWORD=$CI_SQLSERVER_SA_PASSWORD" \
+            -p 127.0.0.1:1433:1433 \
+            mcr.microsoft.com/mssql/server:2022-latest >/dev/null
+          trap 'docker rm -f delta-aspnet-sql-e2e >/dev/null 2>&1 || true' EXIT
+          python AspNetBackend/tests/sqlserver-e2e.py
