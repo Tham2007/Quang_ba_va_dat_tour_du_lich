@@ -22,6 +22,12 @@ jobs:
         run: dotnet build AspNetBackend/DeltaTravel.AspNet.csproj --configuration Release --no-restore
       - name: Publish
         run: dotnet publish AspNetBackend/DeltaTravel.AspNet.csproj --configuration Release --no-build --output out
+      - name: Upload ASP.NET publish package for SmarterASP / IIS
+        uses: actions/upload-artifact@v4
+        with:
+          name: delta-travel-aspnet-publish
+          path: out/
+          retention-days: 7
       - name: Static contract and frontend syntax checks
         run: python AspNetBackend/tests/static-audit.py
       - name: Docker build
