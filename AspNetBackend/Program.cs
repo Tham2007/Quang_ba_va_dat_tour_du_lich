@@ -384,7 +384,11 @@ app.MapGet("/api/v1/updates/schedules/{tourId:int}", async (int tourId, HttpCont
         await context.Response.WriteAsync("event: server-error\ndata: {\"error\":\"DATABASE_UNAVAILABLE\"}\n\n");
     }
 });
-app.MapFallbackToFile("index.html");
+// Do not serve the backend prototype UI for unknown pages; An owns the public UI.
+app.MapFallback((HttpContext context) =>
+    context.Request.Path.StartsWithSegments("/api")
+        ? (IResult)Results.NotFound(new { error = "NOT_FOUND" })
+        : Results.Redirect("https://delta-travel-group6-kthp-demo.onrender.com/", permanent: false));
 app.Run();
 
 static async Task<bool> InventoryTriggersReady(SqlConnection db, SqlTransaction tx, CancellationToken ct)
