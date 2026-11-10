@@ -71,6 +71,19 @@ app.Use(async (context, next) =>
     await next();
 });
 app.UseHttpsRedirection();
+// Keep the team's existing website designed by An as the only public frontend.
+// The ASP.NET service provides /api/v1 endpoints; it is not a replacement UI.
+// Do not redirect HEAD: hosting health probes may use HEAD on /.
+app.Use(async (context, next) =>
+{
+    if (HttpMethods.IsGet(context.Request.Method)
+        && (context.Request.Path == "/" || context.Request.Path == "/index.html"))
+    {
+        context.Response.Redirect("https://delta-travel-group6-kthp-demo.onrender.com/", permanent: false);
+        return;
+    }
+    await next();
+});
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseRouting();
