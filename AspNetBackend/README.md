@@ -1,5 +1,7 @@
 # Delta Travel: Backend ASP.NET Core 10 + Microsoft SQL Server
 
+> **Frontend chuẩn của nhóm là bản mới nhất do Lê Văn An phát triển**, lưu tại `Frontend/` (main), được publish ở https://delta-travel-group6-kthp-demo.onrender.com. Dịch vụ ASP.NET này **chỉ là backend độc lập**. Khi người dùng mở đường dẫn gốc ASP.NET, server chuyển về frontend của An. Không thay thế, không chỉnh sửa HTML/CSS/JS của An. API ASP.NET còn cần tích hợp có kiểm thử với frontend và kết nối SQL Server, chưa được tuyên bố đã đặt tour thực tế.
+
 Hệ thống độc lập để trình diễn luồng từ giao diện HTML đến ASP.NET Core, ghi trực tiếp vào SQL Server, không dùng localStorage làm nguồn dữ liệu nghiệp vụ. Dùng đúng 12 bảng trong `DATABASE_SCHEMA.md` của repo nhóm `Tham2007/Quang_ba_va_dat_tour_du_lich`, **không có script thay đổi schema**.
 
 ## Bảo mật và trạng thái
