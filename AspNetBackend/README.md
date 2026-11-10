@@ -4,6 +4,16 @@
 
 Hệ thống độc lập để trình diễn luồng từ giao diện HTML đến ASP.NET Core, ghi trực tiếp vào SQL Server, không dùng localStorage làm nguồn dữ liệu nghiệp vụ. Dùng đúng 12 bảng trong `DATABASE_SCHEMA.md` của repo nhóm `Tham2007/Quang_ba_va_dat_tour_du_lich`, **không có script thay đổi schema**.
 
+## Điều kiện tích hợp DB bắt buộc (10/11/2026)
+
+- **Không sử dụng SQL Server credentials từng bị lộ** qua mã nguồn hoặc Messenger. DBA phải đổi mật khẩu và cấu hình `SQLSERVER_CONNECTION_STRING` trực tiếp tại [Render Environment](https://dashboard.render.com/web/srv-dbpgm8utlv9c73fh87c0). Không gửi mật khẩu vào issues, commits, logs hoặc chat.
+- `/api/v1/health/ready` chỉ trả 200 khi có **đúng 12 bảng** và **hai trigger hoạt động** trên `dbo.DATTOUR`: `TRG_DATTOUR_CheckAndLockSeats` và `TRG_DATTOUR_HandleCancellation`. Nếu chưa đúng, API phải từ chối ghi dữ liệu.
+- **DB trigger là chủ sở hữu số chỗ**: backend không cộng `SoChoDaDat` khi INSERT hoặc trừ khi hủy; dùng transaction `Serializable` và đối chiếu biến động số chỗ đúng một lần ngay trong transaction.
+- SQL Server có trigger `AFTER INSERT` nên không được dùng `INSERT ... OUTPUT INSERTED.MaDatTour` trực tiếp; backend dùng `SCOPE_IDENTITY()` sau INSERT.
+- CI độc lập với production: `.github/workflows/aspnet-sqlserver-e2e.yml` tạo SQL Server 2022 **dùng một lần trên runner**, test API đăng ký, báo giá, đặt/hủy và tranh chỗ cuối. Kết quả CI không chứng minh SQL Server của Thắm đã kết nối Render.
+- Trước khi test ghi dữ liệu SmarterASP: DBA xác nhận có bản sao lưu và database test cách ly; không chạy file schema chứa `DROP TABLE` lên database đã có dữ liệu.
+- Frontend chính thức vẫn là `Frontend/` của An trên nhánh `main`; ASP.NET chỉ là backend và chuyển hướng ở trang gốc.
+
 ## Bảo mật và trạng thái
 
 - Dùng `Microsoft.Data.SqlClient`, query tham số, password PBKDF2 của `PasswordHasher`, cookie HttpOnly + Secure + SameSite Strict, CSRF header.
