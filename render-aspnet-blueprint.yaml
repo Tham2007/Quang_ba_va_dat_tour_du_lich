@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: delta-travel-aspnet-sqlserver
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./AspNetBackend/Dockerfile
+    dockerContext: ./AspNetBackend
+    healthCheckPath: /api/v1/health/live
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_FORWARDEDHEADERS_ENABLED
+        value: 'true'
+      - key: SQLSERVER_CONNECTION_STRING
+        sync: false
