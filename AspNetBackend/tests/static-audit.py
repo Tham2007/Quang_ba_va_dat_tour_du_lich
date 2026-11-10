@@ -16,6 +16,14 @@ required_tables = ('NGUOIDUNG', 'DANHMUC', 'TOUR', 'HINHANH_TOUR', 'LICH_TRINH_D
 assert all(t in code for t in required_tables)
 assert not re.search(r'\b(?:DROP|ALTER|TRUNCATE)\s+(?:TABLE|DATABASE)\b', code, re.I)
 assert 'IsolationLevel.Serializable' in code
+assert 'InventoryTriggersReady' in code
+assert 'TRG_DATTOUR_CheckAndLockSeats' in code
+assert 'TRG_DATTOUR_HandleCancellation' in code
+assert 'SCOPE_IDENTITY()' in code
+# The SQL triggers are the sole owners of inventory mutations.
+assert not re.search(r'SoChoDaDat\\s*=\\s*SoChoDaDat\\s*[+-]', code)
+assert 'INVENTORY_INCREASE_MISMATCH' in code
+assert 'INVENTORY_RELEASE_MISMATCH' in code
 assert 'UPDLOCK, HOLDLOCK' in code
 assert 'X-CSRF-Token' in code
 assert 'b.MaKhachHang=@user' in code
