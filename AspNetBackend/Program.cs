@@ -12,6 +12,8 @@ using Microsoft.Data.SqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton<Database>();
+// ASP.NET Core MVC architecture required by the course (Controller + Model + Razor View).
+builder.Services.AddControllersWithViews();
 builder.Services.AddSingleton<IPasswordHasher<UserPassword>, PasswordHasher<UserPassword>>();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -384,6 +386,8 @@ app.MapGet("/api/v1/updates/schedules/{tourId:int}", async (int tourId, HttpCont
         await context.Response.WriteAsync("event: server-error\ndata: {\"error\":\"DATABASE_UNAVAILABLE\"}\n\n");
     }
 });
+// Route the actual MVC catalogue before the An frontend fallback.
+app.MapControllers();
 // Do not serve the backend prototype UI for unknown pages; An owns the public UI.
 app.MapFallback((HttpContext context) =>
     context.Request.Path.StartsWithSegments("/api")
