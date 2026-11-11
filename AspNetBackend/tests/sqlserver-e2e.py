@@ -143,6 +143,19 @@ def main():
             else:
                 raise AssertionError("ASP.NET server did not become ready")
             print("PASS: ASP.NET /ready 200 on real ephemeral SQL Server 12 tables / 2 triggers")
+            # Exercise ASP.NET Core MVC Controller -> Model -> Razor View with the
+            # same ephemeral SQL Server, not only the existing Minimal API.
+            mvc = requests.get("http://127.0.0.1:10000/mvc/tours", timeout=20)
+            assert mvc.status_code == 200, f"MVC catalogue failed: {mvc.status_code}"
+            assert "ASP.NET Core MVC" in mvc.text and "Danh mục" in mvc.text
+            dangerous_query = requests.get(
+                "http://127.0.0.1:10000/mvc/tours",
+                params={"q": "<script>alert(1)</script>"}, timeout=20)
+            assert dangerous_query.status_code == 200
+            assert "<script>alert(1)</script>" not in dangerous_query.text, (
+                "Razor should HTML-encode untrusted query text")
+            print("PASS: real MVC Controller/Model/Razor View, SQL catalogue and HTML encoding")
+
 
             with connect(DB) as conn:
                 first = new_schedule(conn, 4, "create-cancel")
