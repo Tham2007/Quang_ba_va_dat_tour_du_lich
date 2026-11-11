@@ -138,7 +138,7 @@ async function main() {
       empty:false, id:true, passport:false, text:false, short:false, punct:false
     });
     assert.equal(await page.evaluate(() => Object.keys(localStorage).some(key =>
-      (localStorage.getItem(key) || "").includes("000000000000")), false,
+      (localStorage.getItem(key) || "").includes("000000000000"))), false,
       "Document number must not persist to localStorage");
     console.log("PASS: actual booking page validates CCCD; demo has no offline payment confirmation or ID persistence.");
 
