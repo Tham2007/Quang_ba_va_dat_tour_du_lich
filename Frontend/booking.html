@@ -517,7 +517,7 @@
             <label class="paper-pay-option active">
               <input type="radio" name="payMethod" value="qr" checked class="mt-1">
               <div>
-                <div class="fw-bold"><i class="bi bi-qr-code text-primary"></i> <span data-i18n="pay_qr_title">Quét mã VietQR chuyển khoản tự động (Khuyên dùng)</span></div>
+                <div class="fw-bold"><i class="bi bi-qr-code text-primary"></i> <span data-i18n="pay_qr_title">VietQR mô phỏng, không thanh toán tự động (Khuyên dùng)</span></div>
                 <div class="small text-muted" data-i18n="pay_qr_desc">Xác nhận đơn ngay lập tức qua ứng dụng ngân hàng số không mất phí.</div>
               </div>
             </label>
@@ -638,14 +638,14 @@
             <i class="bi bi-qr-code text-primary fs-4"></i>
             <h6 class="fw-bold mb-0 text-dark" data-i18n="receipt_qr_title">Quét mã VietQR chuyển khoản</h6>
           </div>
-          <span class="badge bg-light text-dark border">NAPAS 247</span>
+          <span class="badge bg-light text-dark border">DEMO</span>
         </div>
 
-        <div class="small text-muted mb-3 text-center" data-i18n="receipt_qr_desc">Mở ứng dụng ngân hàng số bất kỳ để quét mã thanh toán tự động:</div>
+        <div class="small text-muted mb-3 text-center" data-i18n="receipt_qr_desc">Mã QR bên dưới chỉ là mô phỏng, không quét hoặc chuyển tiền thật:</div>
         
         <!-- Ảnh mã VietQR tạo động theo giao dịch thực tế -->
         <div class="text-center position-relative my-3">
-          <img id="receiptQRImg" src="assets/images/bank_qr_demo.png" alt="Mã VietQR Thanh Toán" style="width: 230px; height: 230px; object-fit: contain;" class="border p-2 rounded-3 mx-auto d-block bg-white shadow-xs">
+          <img id="receiptQRImg" src="assets/images/bank_qr_demo.svg" alt="Mã VietQR Thanh Toán" style="width: 230px; height: 230px; object-fit: contain;" class="border p-2 rounded-3 mx-auto d-block bg-white shadow-xs">
           <div id="qrLoadingSpinner" class="spinner-border text-primary position-absolute top-50 start-50 translate-middle d-none" role="status">
             <span class="visually-hidden">Loading...</span>
           </div>
