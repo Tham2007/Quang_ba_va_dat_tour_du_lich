@@ -1,0 +1,56 @@
+@model DeltaTravel.AspNet.Models.TourCatalogViewModel
+@{
+    Layout = null;
+    ViewData["Title"] = "Delta Travel | Danh mục tour (ASP.NET Core MVC)";
+}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>@ViewData["Title"]</title>
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #1b2937; }
+    header { border-bottom: 1px solid #d8e0e7; padding-bottom: 1rem; margin-bottom: 1.5rem; }
+    .notice { background: #f1f5f9; padding: 1rem; border-left: 4px solid #64748b; margin: 1rem 0; }
+    input { padding: .6rem; width: min(70%, 420px); border: 1px solid #a2afbb; border-radius: 4px; }
+    button { padding: .6rem 1rem; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    th, td { text-align: left; border-bottom: 1px solid #dce2e6; padding: .8rem .5rem; }
+    th { background: #f6f8fa; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Delta Travel | ASP.NET Core MVC</h1>
+    <p>Minh họa kiến trúc <strong>Controller → Model → Razor View</strong> đọc dữ liệu từ Microsoft SQL Server. Trang chính thức của nhóm thuộc phần giao diện do An thiết kế.</p>
+    <p><a href="https://delta-travel-group6-kthp-demo.onrender.com/">Mở giao diện chính thức</a></p>
+  </header>
+  <form action="/mvc/tours" method="get">
+    <label for="q">Tìm tour</label>
+    <input id="q" name="q" value="@Model.Query" maxlength="100" placeholder="Tên tour" />
+    <button type="submit">Tìm kiếm</button>
+  </form>
+  @if (!string.IsNullOrEmpty(Model.StatusMessage))
+  {
+    <div class="notice" role="status">@Model.StatusMessage</div>
+  }
+  else if (Model.Tours.Count == 0)
+  {
+    <p>Không tìm thấy tour phù hợp.</p>
+  }
+  else
+  {
+    <table>
+      <thead><tr><th>Mã tour</th><th>Tên tour</th><th>Danh mục</th><th>Giá tham khảo (VNĐ)</th></tr></thead>
+      <tbody>
+      @foreach (var tour in Model.Tours)
+      {
+        <tr><td>@tour.Id</td><td>@tour.Name</td><td>@tour.Category</td><td>@tour.Price.ToString("N0", new System.Globalization.CultureInfo("vi-VN"))</td></tr>
+      }
+      </tbody>
+    </table>
+  }
+  <footer><small>Chế độ minh họa phục vụ học phần. Không thực hiện giao dịch thanh toán tại đây.</small></footer>
+</body>
+</html>

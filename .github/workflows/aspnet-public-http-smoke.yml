@@ -1,0 +1,64 @@
+name: ASP.NET public HTTPS smoke
+on:
+  push:
+    branches: [feature/aspnet-core-sqlserver-20261110]
+    paths:
+      - "AspNetBackend/**"
+      - ".github/workflows/aspnet-public-http-smoke.yml"
+  pull_request:
+    paths:
+      - "AspNetBackend/**"
+      - ".github/workflows/aspnet-public-http-smoke.yml"
+  workflow_dispatch:
+jobs:
+  public:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Public HTTPS homepage and liveness
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://delta-travel-group6-aspnet-sqlserver.onrender.com"
+          curl --fail --silent --show-error --location --retry 6 --retry-delay 5 --retry-all-errors --max-time 120 "$BASE/" -o /tmp/home.html
+          grep -qi "Delta Travel" /tmp/home.html
+          curl --fail --silent --show-error --location --retry 6 --retry-delay 5 --retry-all-errors --max-time 120 "$BASE/api/v1/health/live" -o /tmp/live.json
+          python3 - <<'PY'
+          import json
+          r=json.load(open("/tmp/live.json"))
+          assert r.get("status")=="live" and "ASP.NET" in r.get("framework",""), r
+          print("PUBLIC_HOME_HTTPS=200")
+          print("ASP_NET_LIVE=200")
+          PY
+      - name: Verify ASP homepage redirects to An's original frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          BACKEND="https://delta-travel-group6-aspnet-sqlserver.onrender.com/"
+          AN="https://delta-travel-group6-kthp-demo.onrender.com/"
+          for i in $(seq 1 18); do
+            location=$(curl -sS --max-time 25 -o /dev/null -w '%{redirect_url}' "$BACKEND" || true)
+            if [ "$location" = "$AN" ]; then
+              echo 'ASP_ROOT_REDIRECTS_TO_AN=true' | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "ASP root is not redirecting to An's frontend" >&2
+          exit 1
+      - name: Database readiness gate (never pretend successful)
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://delta-travel-group6-aspnet-sqlserver.onrender.com"
+          rc=$(curl -sS -L --max-time 90 -w '%{http_code}' -o /tmp/ready.json "$BASE/api/v1/health/ready")
+          cat /tmp/ready.json
+          printf '\n'
+          if [ "$rc" = 200 ]; then
+             echo 'SQLSERVER_READINESS=READY' | tee -a "$GITHUB_STEP_SUMMARY"
+          elif [ "$rc" = 503 ]; then
+             echo 'SQLSERVER_READINESS=NOT_READY. Configure SQLSERVER_CONNECTION_STRING in Render Environment and test real DB operations before public booking.' | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+             echo "Unexpected /ready HTTP: $rc" >&2
+             exit 1
+          fi
