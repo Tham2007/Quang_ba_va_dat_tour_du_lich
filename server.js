@@ -47,26 +47,33 @@ const db = new DatabaseSync(DB_PATH);
 
 // Cấu hình kết nối trực tiếp SmarterASP.NET SQL Server
 let sqlServerPool = null;
+// Optional connection for diagnostics only; booking writes remain on SQLite demo.
+// Credentials must be injected after rotation. Never fall back to a committed password.
 const SQL_SERVER_CONFIG = {
-  user: process.env.DELTA_MSSQL_USER || "db_ad0b71_dattour_admin",
-  password: process.env.DELTA_MSSQL_PASSWORD || "Phamtham312007@",
-  server: process.env.DELTA_MSSQL_SERVER || "sql8020.site4now.net",
-  port: parseInt(process.env.DELTA_MSSQL_PORT || "1433", 10),
-  database: process.env.DELTA_MSSQL_DATABASE || "db_ad0b71_dattour",
+  user: process.env.DELTA_MSSQL_USER,
+  password: process.env.DELTA_MSSQL_PASSWORD,
+  server: process.env.DELTA_MSSQL_SERVER,
+  port: Number.parseInt(process.env.DELTA_MSSQL_PORT || "1433", 10),
+  database: process.env.DELTA_MSSQL_DATABASE,
   options: {
-    encrypt: false,
-    trustServerCertificate: true,
+    encrypt: true,
+    trustServerCertificate: false,
     connectTimeout: 8000
   }
 };
 
 async function initDirectSqlServer() {
+  // No SQL credentials: intentional SQLite demo. Do not attempt network auth.
+  if (!SQL_SERVER_CONFIG.user || !SQL_SERVER_CONFIG.password ||
+      !SQL_SERVER_CONFIG.server || !SQL_SERVER_CONFIG.database) {
+    return;
+  }
   try {
     const mssql = require("mssql");
     sqlServerPool = await mssql.connect(SQL_SERVER_CONFIG);
     console.log("[SQL SERVER] Đã kết nối TRỰC TIẾP thành công tới SmarterASP.NET SQL Server (sql8020.site4now.net:1433 / db_ad0b71_dattour)!");
   } catch (err) {
-    console.warn("[SQL SERVER] Chưa thể kết nối SQL Server trực tiếp:", err.message);
+    console.warn("[SQL SERVER] Optional diagnostic connection unavailable:", err.name);
   }
 }
 
@@ -1099,12 +1106,11 @@ app.get("/api/v1/health/ready", (req, res) => {
   const row = db.prepare("SELECT COUNT(*) AS c FROM tours").get();
   res.json({
     status: "ok",
-    db: sqlServerPool ? "SQL Server (sql8020.site4now.net - ONLINE)" : "connected",
-    sqlServerConnected: Boolean(sqlServerPool),
-    sqlServerHost: "sql8020.site4now.net:1433",
-    sqlServerDb: "db_ad0b71_dattour",
+    db: "SQLite demo (local booking writes)",
+    sqlServerDiagnosticConnection: Boolean(sqlServerPool),
+    writesDatabase: "SQLite demo",
     tours: row.c,
-    catalogMode: sqlServerPool ? "sqlserver_direct" : "sqlite"
+    catalogMode: "sqlite"
   });
 });
 
@@ -1476,16 +1482,21 @@ app.post("/api/v1/bookings/:booking_id/pay", requireAuth, (req, res) => {
   const dup = db.prepare("SELECT id FROM bookings WHERE payment_evidence = ? AND id != ?").get(reference.trim(), b.id);
   if (dup) return res.status(409).json({ detail: "Mã giao dịch đã được sử dụng cho đơn khác." });
 
+  if (["CANCELLED", "COMPLETED"].includes(b.status)) {
+    return res.status(409).json({ detail: "Đơn không nhận thanh toán." });
+  }
+  // A customer-supplied reference is NOT proof of funds received.
+  // Store it for manual bank reconciliation without changing payment status.
   const now = new Date().toISOString();
   db.prepare(`
     UPDATE bookings
-    SET status = 'PAID', payment_evidence = ?, payment_confirmed_at = ?, updated_at = ?
+    SET payment_evidence = ?, updated_at = ?
     WHERE id = ?
-  `).run(reference.trim(), now, now, b.id);
+  `).run(reference.trim(), now, b.id);
 
   const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(b.id);
-  audit(req.user.id, "PAYMENT_SUBMITTED", b.id, { reference: reference.trim() });
-  res.json(bookingDict(updated));
+  audit(req.user.id, "PAYMENT_SUBMITTED_FOR_REVIEW", b.id, { reference: reference.trim() });
+  res.status(202).json({ ...bookingDict(updated), paymentReview: "PENDING_MANUAL_VERIFICATION" });
 });
 
 app.post("/api/v1/bookings/:booking_id/cancel", requireAuth, (req, res) => {
@@ -1843,7 +1854,15 @@ app.post("/api/v1/admin/bookings/:booking_id/confirm-payment", requireAdmin, (re
   const b = db.prepare("SELECT * FROM bookings WHERE id = ?").get(booking_id);
   if (!b) return res.status(404).json({ detail: "Không tìm thấy đơn." });
 
-  const ref = (reference || b.payment_evidence || ("ADM-CONFIRM-" + Date.now())).trim();
+  // Manual confirmation requires a genuine transaction reference reviewed
+  // by the operator against an external bank statement. No fabricated fallback.
+  const ref = String(reference || b.payment_evidence || "").trim();
+  if (ref.length < 8) {
+    return res.status(422).json({ detail: "Phải có mã giao dịch đã đối soát thực tế." });
+  }
+  if (b.status === "CANCELLED") {
+    return res.status(409).json({ detail: "Không xác nhận thanh toán đơn đã hủy." });
+  }
   const now = new Date().toISOString();
 
   db.prepare(`
@@ -2198,7 +2217,7 @@ const server = app.listen(PORT, HOST, () => {
   console.log("==================================================================");
 
   initDirectSqlServer().catch(err => {
-    console.warn("[SQL SERVER] Background init error:", err.message);
+    console.warn("[SQL SERVER] Background initialization failed:", err.name);
   });
 
   if (process.env.THAM_SQLSERVER_CATALOG_API_URL) {
