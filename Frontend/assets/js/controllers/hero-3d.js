@@ -34,6 +34,10 @@
     const section = document.getElementById("hero3DShowcase");
     const canvas = document.getElementById("hero3DCanvas");
     if (!section || !canvas) return;
+    // The original repository does not publish the 150 frame files.
+    // Do not issue guaranteed-404 network requests unless the asset bundle is enabled.
+    // A static hero background remains visible without these optional frames.
+    if (document.documentElement.dataset.enable3dFrames !== "true") return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
