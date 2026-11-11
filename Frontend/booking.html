@@ -339,6 +339,7 @@
   </style>
 </head>
 <body>
+  <div class="delta-demo-notice" role="status" style="position:fixed;bottom:0;left:0;right:0;z-index:99999;padding:6px 12px;background:#19324e;color:white;text-align:center;font:600 12px Arial,sans-serif">Bản demo học phần: không tạo đơn hay thanh toán thật, không chuyển tiền cho tài khoản hiển thị.</div>
 
   <!-- 1. Thanh điều hướng chuẩn Delta Travel với đầy đủ thanh Tab Bar & Công tắc ngôn ngữ -->
   <header class="paper-topbar no-print p-0 sticky-top">
@@ -636,14 +637,14 @@
         <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
           <div class="d-flex align-items-center gap-2">
             <i class="bi bi-qr-code text-primary fs-4"></i>
-            <h6 class="fw-bold mb-0 text-dark" data-i18n="receipt_qr_title">Quét mã VietQR chuyển khoản</h6>
+            <h6 class="fw-bold mb-0 text-dark" data-i18n="receipt_qr_title">QR minh họa, không chuyển khoản</h6>
           </div>
           <span class="badge bg-light text-dark border">DEMO</span>
         </div>
 
         <div class="small text-muted mb-3 text-center" data-i18n="receipt_qr_desc">Mã QR bên dưới chỉ là mô phỏng, không quét hoặc chuyển tiền thật:</div>
         
-        <!-- Ảnh mã VietQR tạo động theo giao dịch thực tế -->
+        <!-- Placeholder unscannable. Never encode a real bank transfer. -->
         <div class="text-center position-relative my-3">
           <img id="receiptQRImg" src="assets/images/bank_qr_demo.svg" alt="Mã VietQR Thanh Toán" style="width: 230px; height: 230px; object-fit: contain;" class="border p-2 rounded-3 mx-auto d-block bg-white shadow-xs">
           <div id="qrLoadingSpinner" class="spinner-border text-primary position-absolute top-50 start-50 translate-middle d-none" role="status">
@@ -651,19 +652,19 @@
           </div>
         </div>
 
-        <!-- Chi tiết thông tin chuyển khoản chuẩn xác -->
+        <!-- Demo transfer layout, no real account details. -->
         <div class="bg-light p-3 rounded-3 border text-start small mt-3">
           <div class="d-flex justify-content-between mb-1.5">
             <span class="text-muted">Ngân hàng:</span>
-            <strong class="text-dark">MBBank (Ngân hàng Quân Đội)</strong>
+            <strong class="text-dark">Ngân hàng mô phỏng</strong>
           </div>
           <div class="d-flex justify-content-between mb-1.5">
             <span class="text-muted">Số tài khoản:</span>
-            <strong class="text-primary font-monospace fs-6">0975703852</strong>
+            <strong class="text-primary font-monospace fs-6">DEMO-NOT-A-REAL-ACCOUNT</strong>
           </div>
           <div class="d-flex justify-content-between mb-1.5">
             <span class="text-muted">Chủ tài khoản:</span>
-            <strong class="text-dark">LE VAN AN</strong>
+            <strong class="text-dark">TÀI KHOẢN DEMO</strong>
           </div>
           <div class="d-flex justify-content-between mb-1.5">
             <span class="text-muted">Số tiền:</span>
@@ -677,10 +678,10 @@
 
         <!-- Nút xác nhận thanh toán chuyển khoản -->
         <div class="mt-3 text-center">
-          <button id="btnConfirmPayment" class="btn btn-success w-100 py-2 rounded-pill fw-bold shadow-sm" onclick="confirmPaymentAction()">
-            <i class="bi bi-check2-circle me-1"></i> <span data-i18n="btn_confirm_paid">Tôi đã hoàn tất chuyển khoản</span>
+          <button id="btnConfirmPayment" class="btn btn-outline-secondary w-100 py-2 rounded-pill fw-bold shadow-sm" onclick="confirmPaymentAction()">
+            <i class="bi bi-check2-circle me-1"></i> <span data-i18n="btn_confirm_paid">Kiểm tra trạng thái thanh toán (DEMO)</span>
           </button>
-          <div class="small text-muted mt-2">Đơn sẽ được đối soát tự động sau khi nhấn xác nhận.</div>
+          <div class="small text-muted mt-2">Chưa kết nối đối soát ngân hàng. Không có xác nhận thanh toán thật.</div>
         </div>
       </div>
 
@@ -1051,17 +1052,9 @@
         }
 
         if (!booking) {
-          const rand = Math.floor(100000 + Math.random() * 900000);
-          booking = {
-            id: `BK${rand}`,
-            reference: `BK${rand}`,
-            tourTitle: displayTitle,
-            customerName: name,
-            customerPhone: phone,
-            totalPrice: Math.max(0, ((adults * currentTour.price) + (children * currentTour.price * 0.75)) - discountAmount),
-            status: "PENDING_PAYMENT",
-            createdAt: new Date().toISOString()
-          };
+          alert(isEn ? "Booking service is offline. No order has been created." :
+            "Máy chủ đặt tour chưa kết nối. Không có đơn thật nào được tạo.");
+          return;
         }
 
         currentBookingData = booking;
@@ -1077,10 +1070,9 @@
         const bookingRef = booking.reference || booking.id;
         const payAmount = booking.totalPrice || ((adults * currentTour.price) + (children * currentTour.price * 0.75) - discountAmount);
         
-        // Tạo mã VietQR động chuẩn NAPAS 247 theo đúng số tiền và mã đặt tour
-        const qrUrl = `https://img.vietqr.io/image/MB-0975703852-compact2.png?amount=${payAmount}&addInfo=${encodeURIComponent("DELTA " + bookingRef)}&accountName=LE%20VAN%20AN`;
+        // Student demo only. Never generate a scannable payment QR.
         const qrImg = document.getElementById("receiptQRImg");
-        if (qrImg) qrImg.src = qrUrl;
+        if (qrImg) qrImg.src = "assets/images/bank_qr_demo.svg";
 
         document.getElementById("receiptRef").textContent = `#${bookingRef}`;
         document.getElementById("receiptTourTitle").textContent = displayTitle;
@@ -1102,50 +1094,9 @@
     }
 
     async function confirmPaymentAction() {
-      if (!currentBookingData) return;
-      const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
-      const btn = document.getElementById("btnConfirmPayment");
-      if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang xác thực chuyển khoản...';
-      }
-
-      try {
-        if (typeof DeltaAPI !== "undefined" && DeltaAPI.payBooking && currentBookingData.id) {
-          await DeltaAPI.payBooking(currentBookingData.id, {
-            payment_evidence: "VIETQR-MB-" + Date.now()
-          });
-        }
-      } catch (_) {}
-
-      currentBookingData.status = "PAID";
-      currentBookingData.paid = true;
-      currentBookingData.paymentConfirmedAt = new Date().toISOString();
-
-      // Cập nhật trong localStorage
-      try {
-        const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
-        const idx = local.findIndex(b => b.id === currentBookingData.id || b.reference === currentBookingData.reference);
-        if (idx !== -1) {
-          local[idx].status = "PAID";
-          local[idx].paid = true;
-          localStorage.setItem("delta_customer_bookings", JSON.stringify(local));
-        }
-      } catch (_) {}
-
-      const statusBadge = document.getElementById("receiptStatusBadge");
-      if (statusBadge) {
-        statusBadge.className = "badge bg-success text-white px-3 py-1.5 rounded-pill";
-        statusBadge.innerHTML = '<i class="bi bi-check2-circle me-1"></i> <span data-i18n="status_paid">ĐÃ THANH TOÁN (PAID)</span>';
-      }
-
-      if (btn) {
-        btn.className = "btn btn-outline-success w-100 py-2 rounded-pill fw-bold";
-        btn.innerHTML = '<i class="bi bi-check-all me-1"></i> ' + (isEn ? "Payment Confirmed Successfully!" : "Đã xác nhận thanh toán thành công!");
-        btn.disabled = true;
-      }
-
-      alert(isEn ? "Payment confirmed! You can now download your official E-Ticket PDF." : "Đã xác nhận thanh toán thành công! Quý khách có thể tải ngay vé điện tử (PDF).");
+      // A customer click or self-supplied reference is not proof of bank receipt.
+      alert("Bản demo chưa tích hợp đối soát ngân hàng. Không thể tự xác nhận đã thanh toán.");
+      return;
     }
 
     function downloadETicketPDF() {
