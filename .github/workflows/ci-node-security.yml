@@ -1,0 +1,44 @@
+name: Node.js demo security regression
+on:
+  push:
+    paths:
+      - 'server.js'
+      - 'test_node_server.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ci-node-security.yml'
+  pull_request:
+    paths:
+      - 'server.js'
+      - 'test_node_server.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ci-node-security.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+jobs:
+  demo-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Reject insecure SQL Server credential defaults
+        shell: bash
+        run: |
+          node - <<'JS'
+          const fs = require('fs');
+          const s = fs.readFileSync('server.js','utf8');
+          if (/password:\s*process\.env\.DELTA_MSSQL_PASSWORD\s*\|\|/.test(s)) throw new Error('Hardcoded SQL password fallback');
+          if (/encrypt:\s*false/.test(s)) throw new Error('SQL Server TLS disabled');
+          if (/SET status\s*=\s*'PAID'[\s\S]{0,150}\.run\(reference\.trim/.test(s)) throw new Error('Unverified self-payment');
+          JS
+      - name: Run Node SQLite demo tests (not cloud SQL Server tests)
+        run: npm test

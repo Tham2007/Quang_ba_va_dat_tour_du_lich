@@ -179,7 +179,9 @@ async function runTests() {
       headers: authHeaders,
       body: { reference: payRef }
     });
-    assert(`POST /api/v1/bookings/${bookingId}/pay`, payRes.status === 200 && payRes.json?.status === "PAID");
+    assert(`POST /api/v1/bookings/${bookingId}/pay requires bank review`,
+    payRes.status === 202 && payRes.json?.paymentReview === "PENDING_MANUAL_VERIFICATION" &&
+    payRes.json?.status !== "PAID");
 
     // 12. Create & cancel 2nd booking
     const idemKey2 = crypto.randomUUID();
