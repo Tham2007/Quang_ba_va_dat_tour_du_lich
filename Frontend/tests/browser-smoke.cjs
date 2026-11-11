@@ -111,69 +111,49 @@ async function main() {
     // Require a demo page to stay a demo even if the user chooses QR.
     assert.equal(await page.evaluate(() => document.body.innerHTML.includes('cardCvv')), false, "CVV input found");
 
-    // KTHP regression: CCCD is required and must contain exactly 12 digits.
-    const documentCases = await page.evaluate(async () => {
-      await openBookingModal(TOURS_DATA[0].id);
-      const input = document.getElementById("customerCCCD");
-      const valid = value => {
-        input.value = value;
-        return input.checkValidity();
-      };
-      return {
-        empty: valid(""),
-        id: valid("000000000000"),
-        passport: valid("B1234567"),
-        text: valid("onlyletters"),
-        short: valid("12345"),
-        punct: valid("<script>")
-      };
-    });
-    assert.deepEqual(documentCases, {
-      empty: false, id: true, passport: false,
-      text: false, short: false, punct: false
-    });
-    const booking = await page.evaluate(async () => {
+    // New An UI navigates to booking.html rather than keeping the old modal on index.
+    // Verify the actual page and ensure sensitive identifiers cannot be persisted by
+    // a client-only demo when there is no connected backend.
+    const indexOffline = await page.evaluate(async () => {
       const count = getLocalBookings().length;
-      await openBookingModal(TOURS_DATA[0].id);
-      document.getElementById("customerName").value = "Khach Hang Test";
-      document.getElementById("customerPhone").value = "0987654321";
-      document.getElementById("customerEmail").value = "demo@example.test";
-      document.getElementById("bookingDepartureDate").value = AppState.currentSchedules[0]?.id || "";
-      setCurrentUser({
-        id: "DEMO-SMOKE-USER",
-        fullName: "Khach Hang Test",
-        email: "demo@example.test",
-        phone: "0987654321",
-        role: "CUSTOMER"
-      });
-      document.getElementById("customerCCCD").value = "onlyletters";
-      await handleBookingSubmission({ preventDefault() {} });
-      const invalidRejected = getLocalBookings().length === count;
-
-      document.getElementById("customerCCCD").value = "000000000000";
-      await handleBookingSubmission({ preventDefault() {} });
-      const bookingBlockedOffline = getLocalBookings().length === count;
-      const identityIsNotStored = !Object.keys(localStorage).some(key =>
-        (localStorage.getItem(key) || "").includes("000000000000")
-      );
-      setCurrentUser(null);
-      const order = {
-        bookingId: "DEMO-SMOKE",
-        isPaid: false,
-        statusCode: "PENDING_DEMO"
-      };
+      const order = { bookingId: "DEMO-SMOKE", isPaid: false, statusCode: "PENDING_DEMO" };
       localStorage.setItem("delta_bookings_v2", JSON.stringify([order]));
       const beforePay = JSON.stringify(getLocalBookings());
       await handleCustomerPayNow(order.bookingId);
       const paymentCouldNotMutateOrder = JSON.stringify(getLocalBookings()) === beforePay;
       localStorage.removeItem("delta_bookings_v2");
-      return { invalidRejected, bookingBlockedOffline, identityIsNotStored, paymentCouldNotMutateOrder };
+      return { count, paymentCouldNotMutateOrder };
     });
-    assert.deepEqual(booking, {
-      invalidRejected: true, bookingBlockedOffline: true, identityIsNotStored: true,
-      paymentCouldNotMutateOrder: true
+    assert(indexOffline.paymentCouldNotMutateOrder, "Offline demo must never self-confirm paid status");
+
+    await page.goto(base + "/booking.html?tourId=DL-HL01", {waitUntil:"domcontentloaded"});
+    await page.locator("#customerFullName").waitFor({state:"attached"});
+    const fields = await page.evaluate(() => ({
+      requiredName:document.getElementById("customerFullName").required,
+      requiredPhone:document.getElementById("customerPhone").required,
+      requiredEmail:document.getElementById("customerEmail").required,
+      noNationalIdentityField:!document.getElementById("customerCCCD"),
+      demoBanner:!!document.querySelector(".delta-demo-notice"),
+      noScannableQr:document.getElementById("receiptQRImg")?.getAttribute("src") === "assets/images/bank_qr_demo.svg"
+    }));
+    assert.deepEqual(fields,{
+      requiredName:true,requiredPhone:true,requiredEmail:true,
+      noNationalIdentityField:true,demoBanner:true,noScannableQr:true
     });
-    console.log("PASS: required CCCD validation, no offline booking/ID persistence and no client-side PAID.");
+    assert.equal(await page.evaluate(() => Object.keys(localStorage).some(key =>
+      (localStorage.getItem(key) || "").includes("000000000000"))), false,
+      "Document number must not persist to localStorage");
+    const before = await page.evaluate(() => localStorage.getItem("delta_customer_bookings"));
+    await page.evaluate(() => {
+      window.alert = () => {};
+      document.getElementById("customerFullName").value = "Student Demo";
+      document.getElementById("customerPhone").value = "0912345678";
+      document.getElementById("customerEmail").value = "student@example.test";
+      return submitBookingOrder();
+    });
+    const after = await page.evaluate(() => localStorage.getItem("delta_customer_bookings"));
+    assert.equal(after,before,"Offline student demo must not create a fake booking");
+    console.log("PASS: current booking page validates required fields; no offline fake order, real QR or ID persistence.");
 
     await page.goto(base + "/admin.html", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1200);
@@ -184,7 +164,7 @@ async function main() {
     await page.evaluate(() => window.handleQuickAdminLogin("USR-01"));
     await page.waitForTimeout(500);
     const unlocked = await page.locator("#adminLayoutWrapper").evaluate(el => getComputedStyle(el).display !== "none");
-    assert(unlocked, "Demo admin shortcut did not show the dashboard");
+    assert.equal(unlocked, false, "Static-only demo must not unlock privileged admin dashboard without a server session");
 
     assert.deepEqual(assetErrors, [], "Missing same-origin assets: " + assetErrors.join(" | "));
     assert.deepEqual(pageErrors, [], "Browser JavaScript exceptions: " + pageErrors.join(" | "));
