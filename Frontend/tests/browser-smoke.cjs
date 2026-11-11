@@ -164,7 +164,7 @@ async function main() {
     await page.evaluate(() => window.handleQuickAdminLogin("USR-01"));
     await page.waitForTimeout(500);
     const unlocked = await page.locator("#adminLayoutWrapper").evaluate(el => getComputedStyle(el).display !== "none");
-    assert(unlocked, "Demo admin shortcut did not show the dashboard");
+    assert.equal(unlocked, false, "Static-only demo must not unlock privileged admin dashboard without a server session");
 
     assert.deepEqual(assetErrors, [], "Missing same-origin assets: " + assetErrors.join(" | "));
     assert.deepEqual(pageErrors, [], "Browser JavaScript exceptions: " + pageErrors.join(" | "));
