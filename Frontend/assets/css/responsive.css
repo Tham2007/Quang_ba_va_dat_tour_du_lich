@@ -179,3 +179,90 @@
     padding: 1.25rem;
   }
 }
+
+/* ==========================================================================
+   BỐ CỤC ĐA DỤNG: MOBILE & MỌI ĐỘ RỘNG DESKTOP
+   ========================================================================== */
+
+/* Nút mở bộ lọc tour nằm cùng hàng với số lượng tour, dễ bấm trên mobile */
+@media (max-width: 575.98px) {
+  .tour-filter-toggle {
+    padding: 0.55rem 0.9rem;
+    font-size: 0.82rem;
+  }
+}
+
+/* Chân trang: badge chứng nhận tự xuống dòng, không tràn ngang */
+.footer-bottom > div {
+  min-width: 0;
+}
+
+.footer-bottom .badge {
+  white-space: normal;
+  text-align: left;
+  line-height: 1.45;
+}
+
+@media (max-width: 767.98px) {
+  .footer-bottom .d-flex.align-items-center.gap-3 {
+    flex-wrap: wrap;
+    gap: 0.5rem !important;
+  }
+}
+
+/* Lưới tour: khoảng cách gọn hơn trên màn hình hẹp */
+@media (max-width: 575.98px) {
+  .tours-control-bar {
+    gap: 0.5rem;
+  }
+  .tour-sort-wrapper,
+  .tour-sort-select {
+    width: 100%;
+  }
+  .tour-sort-select {
+    flex: 1;
+  }
+
+  /* Modal lịch trình gọn hơn trên điện thoại */
+  .modal-itinerary .modal-header {
+    padding: 0.85rem 1rem !important;
+    gap: 0.75rem;
+  }
+  .modal-itinerary .modal-title {
+    font-size: 1.05rem !important;
+  }
+  .modal-itinerary .btn-close-modal {
+    width: 32px;
+    height: 32px;
+  }
+  .modal-itinerary .modal-body {
+    padding: 1rem !important;
+  }
+  .modal-itinerary .itinerary-hero-img {
+    height: 190px;
+  }
+  .itinerary-nav-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .itinerary-nav-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .itinerary-nav-tabs .nav-link {
+    white-space: nowrap;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.85rem;
+  }
+  .modal-itinerary-footer {
+    padding: 0.85rem 1rem !important;
+    gap: 0.75rem;
+  }
+  .itinerary-footer-price .val {
+    font-size: 1.25rem;
+  }
+  .modal-itinerary-footer .btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+}

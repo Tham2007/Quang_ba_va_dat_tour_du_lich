@@ -226,7 +226,8 @@ header.sticky-top.hero-transparent .btn-explore-liquid:hover {
 
 /* Clear cosmic overlay: ZERO white fog donut, transparent center, smooth white transition at bottom */
 .hero-vignette-overlay {
-  background: 
+  background:
+    linear-gradient(90deg, rgba(3, 7, 18, 0.72) 0%, rgba(3, 7, 18, 0.42) 36%, rgba(3, 7, 18, 0) 60%),
     radial-gradient(circle at 65% 50%, transparent 40%, rgba(3, 7, 18, 0.45) 85%),
     linear-gradient(to bottom, rgba(3, 7, 18, 0.5) 0%, transparent 20%, transparent 75%, #ffffff 100%) !important;
   pointer-events: none !important;
@@ -239,29 +240,44 @@ header.sticky-top.hero-transparent .btn-explore-liquid:hover {
   border: 1px solid rgba(255, 255, 255, 0.25) !important;
   color: #ffffff !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+  font-size: 0.76rem !important;
   font-weight: 700 !important;
-  letter-spacing: 0.04em !important;
+  letter-spacing: 0.09em !important;
+  padding: 0.45rem 1.1rem !important;
 }
 
 .hero-3d-title {
   color: #ffffff !important;
-  text-shadow: 0 4px 25px rgba(0, 0, 0, 0.8) !important;
-  font-weight: 900 !important;
-  letter-spacing: -0.02em !important;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45) !important;
+  font-size: clamp(2.3rem, 4.1vw, 4rem) !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.025em !important;
+  line-height: 1.08 !important;
+  margin-bottom: 1.5rem !important;
+  text-wrap: balance;
 }
 
-.hero-3d-title span {
-  background: linear-gradient(135deg, #38bdf8 0%, #60a5fa 50%, #f59e0b 100%) !important;
-  -webkit-background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5)) !important;
+/* Tiêu đề dạng dòng riêng biệt: chữ trắng đồng nhất, không gradient gây viền chữ xấu */
+.hero-3d-title span,
+.hero-3d-title .hero-title-line {
+  display: block !important;
+  background: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+  -webkit-text-fill-color: #ffffff !important;
+  color: #ffffff !important;
+  filter: none !important;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45) !important;
 }
 
 .hero-3d-desc {
-  color: rgba(255, 255, 255, 0.9) !important;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7) !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.55) !important;
+  font-size: clamp(1rem, 1.15vw, 1.15rem) !important;
   font-weight: 500 !important;
-  line-height: 1.7 !important;
+  line-height: 1.75 !important;
+  max-width: 600px !important;
+  margin-bottom: 2rem !important;
 }
 
 /* Hero Action Buttons */
@@ -296,40 +312,10 @@ header.sticky-top.hero-transparent .btn-explore-liquid:hover {
   color: #ffffff !important;
   transform: translateY(-2px) scale(1.02) !important;
 }
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
-  transition: all 0.3s var(--ease-bounce) !important;
-}
 
-.btn-hero-3d-primary:hover {
-  background: #18181b !important;
-  color: var(--g-white) !important;
-  transform: translateY(-3px) scale(1.02) !important;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25) !important;
-}
-
-.btn-hero-3d-primary:active {
-  transform: scale(0.96) !important;
-}
-
-.btn-hero-3d-outline {
-  background: var(--g-white) !important;
-  color: var(--g-black) !important;
-  border: 1.5px solid var(--g-black) !important;
-  border-radius: 9999px !important;
-  font-weight: 700 !important;
-  box-shadow: var(--g-shadow-xs) !important;
-  transition: all 0.3s var(--ease-bounce) !important;
-}
-
-.btn-hero-3d-outline:hover {
-  background: var(--g-black) !important;
-  color: var(--g-white) !important;
-  transform: translateY(-3px) scale(1.02) !important;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18) !important;
-}
-
+.btn-hero-3d-primary:active,
 .btn-hero-3d-outline:active {
-  transform: scale(0.96) !important;
+  transform: scale(0.97) !important;
 }
 
 .hero-scroll-indicator {
@@ -342,6 +328,83 @@ header.sticky-top.hero-transparent .btn-explore-liquid:hover {
 
 .hero-scroll-mouse::after {
   background: var(--g-text-dark) !important;
+}
+
+/* Hero: co giãn chữ theo mọi độ rộng màn hình (mobile / tablet / desktop) */
+@media (max-width: 1199.98px) {
+  .hero-3d-title {
+    font-size: clamp(2.15rem, 5.4vw, 3rem) !important;
+  }
+}
+
+/* Mobile & tablet: lược bỏ hiệu ứng Trái Đất 3D cuộn (chỉ dùng cho PC) */
+@media (max-width: 991.98px) {
+  .hero-3d-showcase {
+    height: auto !important;
+  }
+  .hero-3d-sticky {
+    position: relative !important;
+    height: auto !important;
+    min-height: 0 !important;
+    align-items: flex-start !important;
+    padding: 0 0 2.5rem;
+    background-image:
+      linear-gradient(180deg, rgba(3, 7, 18, 0.82) 0%, rgba(3, 7, 18, 0.62) 55%, rgba(3, 7, 18, 0.4) 100%),
+      url('../images/hero-bg.png') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+  }
+  .hero-3d-canvas,
+  .hero-scroll-indicator {
+    display: none !important;
+  }
+  .hero-3d-content {
+    padding: 78px 1.25rem 0 1.25rem !important;
+    min-height: 0 !important;
+  }
+  #heroPhase2,
+  #heroPhase3 {
+    display: none !important;
+  }
+  .hero-vignette-overlay {
+    background: linear-gradient(to bottom, transparent 45%, rgba(255, 255, 255, 0.4) 88%, #ffffff 100%) !important;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .hero-vignette-overlay {
+    background:
+      linear-gradient(90deg, rgba(3, 7, 18, 0.85) 0%, rgba(3, 7, 18, 0.6) 55%, rgba(3, 7, 18, 0.22) 100%),
+      linear-gradient(to bottom, rgba(3, 7, 18, 0.45) 0%, transparent 25%, transparent 72%, #ffffff 100%) !important;
+  }
+  .hero-3d-content {
+    padding: 78px 1.15rem 0 1.15rem !important;
+    min-height: 0 !important;
+  }
+  .hero-3d-title {
+    font-size: clamp(1.85rem, 7.6vw, 2.35rem) !important;
+    line-height: 1.14 !important;
+    margin-bottom: 1.1rem !important;
+  }
+  .hero-3d-desc {
+    font-size: 0.95rem !important;
+    line-height: 1.7 !important;
+    margin-bottom: 1.6rem !important;
+  }
+  .hero-3d-badge {
+    font-size: 0.66rem !important;
+    letter-spacing: 0.06em !important;
+    margin-bottom: 1rem !important;
+  }
+  .hero-3d-actions {
+    gap: 0.7rem;
+  }
+  .hero-3d-actions .btn-hero-3d-primary,
+  .hero-3d-actions .btn-hero-3d-outline {
+    padding: 0.8rem 1.5rem;
+    font-size: 0.92rem;
+  }
 }
 
 /* ==========================================================================
@@ -698,6 +761,47 @@ section,
   color: var(--g-black) !important;
 }
 
+/* Header chat nền trắng: avatar, chữ và nút đóng phải rõ ràng */
+.chatbot-header .chatbot-avatar-header {
+  background: var(--g-black) !important;
+  border-color: var(--g-black) !important;
+  color: var(--g-white) !important;
+}
+
+.chatbot-header .chatbot-avatar-header .status-dot {
+  border-color: #ffffff !important;
+}
+
+.chatbot-header .chatbot-title-box h6 {
+  color: var(--g-black) !important;
+}
+
+.chatbot-header .chatbot-title-box .badge-model {
+  background: var(--g-border-light) !important;
+  color: var(--g-black) !important;
+  border: 1px solid var(--g-border) !important;
+}
+
+.chatbot-header .chatbot-title-box small {
+  color: var(--g-text-secondary) !important;
+}
+
+.chatbot-header .chatbot-header-btn {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  background: var(--g-white) !important;
+  border: 1px solid var(--g-border) !important;
+  color: var(--g-black) !important;
+  font-size: 1rem;
+}
+
+.chatbot-header .chatbot-header-btn:hover {
+  background: var(--g-black) !important;
+  border-color: var(--g-black) !important;
+  color: var(--g-white) !important;
+}
+
 .chatbot-title,
 .ai-modal-title {
   color: var(--g-black) !important;
@@ -743,14 +847,6 @@ section,
   border-color: var(--g-black) !important;
 }
 
-.chatbot-invite-pill {
-  background: var(--g-white) !important;
-  color: var(--g-black) !important;
-  border: 1px solid var(--g-border) !important;
-  box-shadow: var(--g-shadow-sm) !important;
-  font-weight: 700 !important;
-}
-
 /* ==========================================================================
    9. GOOGLE FLUID SCROLL-TRIGGERED REVEAL ANIMATIONS
    ========================================================================== */
@@ -772,4 +868,147 @@ section,
 .delay-3 { transition-delay: 0.24s; }
 .delay-4 { transition-delay: 0.32s; }
 .delay-5 { transition-delay: 0.40s; }
+
+/* ==========================================================================
+   10. HEADER TRONG SUỐT KHI CUỘN QUA PHẦN TRÁI ĐẤT 3D (GLASS ON SPACE)
+   ========================================================================== */
+header.sticky-top.hero-transparent {
+  background: linear-gradient(180deg, rgba(3, 7, 18, 0.55) 0%, rgba(3, 7, 18, 0.28) 55%, rgba(3, 7, 18, 0) 100%);
+}
+
+header.sticky-top.hero-transparent .topbar {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+  box-shadow: none !important;
+}
+
+header.sticky-top.hero-transparent .topbar a,
+header.sticky-top.hero-transparent .topbar-note {
+  color: rgba(255, 255, 255, 0.9) !important;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.55);
+}
+
+header.sticky-top.hero-transparent .topbar a:hover {
+  color: #ffffff !important;
+}
+
+header.sticky-top.hero-transparent .topbar-divider {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+header.sticky-top.hero-transparent .navbar-delta {
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: none !important;
+}
+
+header.sticky-top.hero-transparent .brand-title {
+  color: #ffffff !important;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.55);
+}
+
+header.sticky-top.hero-transparent .brand-subtitle {
+  color: rgba(255, 255, 255, 0.72) !important;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
+}
+
+header.sticky-top.hero-transparent .liquid-nav-dock {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.26) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(170%) !important;
+  backdrop-filter: blur(18px) saturate(170%) !important;
+}
+
+header.sticky-top.hero-transparent .liquid-nav-link {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+header.sticky-top.hero-transparent .liquid-nav-link:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.16) !important;
+}
+
+header.sticky-top.hero-transparent .liquid-nav-link.active {
+  background: #ffffff !important;
+  color: #000000 !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3) !important;
+}
+
+header.sticky-top.hero-transparent .lang-switch-capsule {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.26) !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+  backdrop-filter: blur(18px) !important;
+}
+
+header.sticky-top.hero-transparent .lang-switch-btn {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+header.sticky-top.hero-transparent .lang-switch-btn.active {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+header.sticky-top.hero-transparent .liquid-btn-icon,
+header.sticky-top.hero-transparent .liquid-user-glass {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.26) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+  backdrop-filter: blur(18px) !important;
+}
+
+header.sticky-top.hero-transparent .liquid-user-glass span {
+  color: #ffffff !important;
+}
+
+header.sticky-top.hero-transparent .liquid-btn-icon:hover,
+header.sticky-top.hero-transparent .liquid-user-glass:hover {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+header.sticky-top.hero-transparent .liquid-user-glass:hover span {
+  color: #000000 !important;
+}
+
+header.sticky-top.hero-transparent .btn-explore-liquid {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1.5px solid #ffffff !important;
+}
+
+header.sticky-top.hero-transparent .btn-explore-liquid:hover {
+  background: #f1f5f9 !important;
+  color: #000000 !important;
+}
+
+/* Nút đăng nhập / đăng ký khi header nằm trên nền tối */
+header.sticky-top.hero-transparent #headerAuthContainer .btn-outline-dark {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
+  color: #ffffff !important;
+}
+
+header.sticky-top.hero-transparent #headerAuthContainer .btn-outline-dark:hover {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+header.sticky-top.hero-transparent #headerAuthContainer .btn-dark {
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+header.sticky-top.hero-transparent #headerAuthContainer .btn-dark:hover {
+  background: #f1f5f9 !important;
+}
 

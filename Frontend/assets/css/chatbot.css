@@ -5,7 +5,7 @@
 /* 1. Nút bong bóng kích hoạt Chatbot nổi (Floating Chat Launcher) */
 .chatbot-launcher {
   position: fixed;
-  bottom: 90px;
+  bottom: 1.5rem;
   right: 1.5rem;
   z-index: 1040;
   display: flex;
@@ -73,33 +73,6 @@
   border: 2.5px solid #ffffff;
   border-radius: 50%;
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
-}
-
-/* Tooltip mời gọi người dùng */
-.chatbot-invite-pill {
-  background: #ffffff;
-  color: var(--primary-color);
-  font-size: 0.82rem;
-  font-weight: 700;
-  padding: 0.5rem 0.95rem;
-  border-radius: var(--radius-full);
-  box-shadow: 0 6px 20px rgba(10, 77, 104, 0.15);
-  border: 1px solid var(--border-color);
-  white-space: nowrap;
-  animation: inviteBounce 3s infinite ease-in-out;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-@keyframes inviteBounce {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-4px);
-  }
 }
 
 /* 2. Cửa sổ Chatbot chính (Chat Window Box) */
@@ -924,5 +897,31 @@
   }
   .ai-chat-input-bar {
     padding: 0.75rem 1rem;
+  }
+}
+
+/* Cửa sổ chat nhỏ trên điện thoại: cân đối 2 bên và không tràn màn hình */
+@media (max-width: 575.98px) {
+  .chatbot-window {
+    left: 0.75rem;
+    right: 0.75rem;
+    width: auto;
+    max-width: none;
+    height: min(74vh, 560px);
+    bottom: 84px;
+  }
+  .chatbot-launcher {
+    right: 0.85rem;
+    bottom: 1rem;
+  }
+  .chatbot-header {
+    padding: 0.75rem 0.9rem;
+  }
+  .chatbot-title-box h6 {
+    font-size: 0.9rem;
+  }
+  .chatbot-header .chatbot-header-btn {
+    width: 32px;
+    height: 32px;
   }
 }

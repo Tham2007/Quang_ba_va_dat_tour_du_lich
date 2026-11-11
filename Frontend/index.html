@@ -54,11 +54,11 @@
     <div class="topbar d-none d-lg-block">
       <div class="container d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center">
-          <a href="tel:19008899"><i class="bi bi-telephone-fill text-warning"></i> Hotline: <strong>1900 8899</strong></a>
+          <a href="tel:0325536936"><i class="bi bi-telephone-fill text-warning"></i> Hotline: <strong>0325536936</strong></a>
           <span class="topbar-divider"></span>
           <a href="mailto:support@deltatravel.vn"><i class="bi bi-envelope-fill"></i> support@deltatravel.vn</a>
-          <span class="topbar-divider"></span>
-          <span class="text-light small"><i class="bi bi-shield-check text-success"></i> <span data-i18n="topbar_commit">Cam kết 100% bảo hiểm & giá chuẩn</span></span>
+          <span class="topbar-divider topbar-divider-note"></span>
+          <span class="topbar-note"><i class="bi bi-shield-check text-success"></i> <span data-i18n="topbar_commit">Cam kết 100% bảo hiểm & giá chuẩn</span></span>
         </div>
         <div class="d-flex align-items-center">
           <div id="topbarAuthContainer" class="d-none d-md-inline-flex align-items-center me-3"></div>
@@ -89,13 +89,13 @@
         </a>
 
         <!-- Thanh Tab Liquid Glass Capsule Dock (Nằm ngang chuẩn, không bao giờ ngắt cột dọc) -->
-        <div class="liquid-nav-dock d-none d-lg-inline-flex" id="liquidNavDock">
+        <div class="liquid-nav-dock d-none d-xl-inline-flex" id="liquidNavDock">
           <a href="#home" class="liquid-nav-link active" onclick="setActiveNavLink(this)" data-i18n="nav_home">Trang chủ</a>
           <a href="javascript:void(0)" onclick="filterToursRegion('north', this)" class="liquid-nav-link" data-i18n="nav_north">Miền Bắc</a>
           <a href="javascript:void(0)" onclick="filterToursRegion('central', this)" class="liquid-nav-link" data-i18n="nav_central">Miền Trung</a>
           <a href="javascript:void(0)" onclick="filterToursRegion('south', this)" class="liquid-nav-link" data-i18n="nav_south">Miền Nam</a>
           <a href="#toursSection" onclick="filterToursRegion('all', this)" class="liquid-nav-link" data-i18n="nav_all_tours">Tất cả tour</a>
-          <a href="my-bookings.html" class="liquid-nav-link position-relative">
+          <a href="my-bookings.html" class="liquid-nav-link position-relative nav-hide-under-1600">
             <span data-i18n="nav_my_bookings">Đơn của tôi</span>
             <span id="navBookingBadge" class="badge rounded-pill bg-warning text-dark ms-1 booking-counter-badge" style="font-size: 10px; display: none;">0</span>
           </a>
@@ -126,12 +126,12 @@
           </button>
 
           <!-- Nút Khám phá Tour Luxury (Hiển thị từ màn hình lớn >= 1200px) -->
-          <a href="#toursSection" class="btn-explore-liquid d-none d-xl-inline-flex">
+          <a href="#toursSection" class="btn-explore-liquid">
             <i class="bi bi-compass"></i> <span data-i18n="btn_explore">Khám phá Tour</span>
           </a>
 
-          <!-- Nút menu mobile chuẩn Liquid Glass (chỉ hiển thị dưới 992px) -->
-          <button class="liquid-btn-icon d-lg-none" type="button" onclick="toggleMobileMenu()" aria-label="Mở Menu">
+          <!-- Nút menu mobile chuẩn Liquid Glass (chỉ hiển thị dưới 1200px) -->
+          <button class="liquid-btn-icon d-xl-none" type="button" onclick="toggleMobileMenu()" aria-label="Mở Menu">
             <i class="bi bi-list fs-5" id="mobileMenuIcon"></i>
           </button>
         </div>
@@ -177,7 +177,9 @@
             <i class="bi bi-award-fill text-warning"></i> <span data-i18n="hero_badge">Thương hiệu lữ hành xuất sắc nhất năm 2026</span>
           </div>
           <h1 class="hero-3d-title">
-            <span data-i18n="hero_title_1">Khám Phá Vẻ Đẹp</span> <span data-i18n="hero_title_2">Việt Nam Cùng</span> <span>Delta Travel</span>
+            <span class="hero-title-line" data-i18n="hero_title_1">Khám Phá Vẻ Đẹp</span>
+            <span class="hero-title-line" data-i18n="hero_title_2">Việt Nam Cùng</span>
+            <span class="hero-title-line hero-title-accent">Delta Travel</span>
           </h1>
           <p class="hero-3d-desc" data-i18n="hero_desc">
             Từ góc nhìn bao la của vũ trụ đến kỳ quan Vịnh Hạ Long, trải nghiệm những hành trình du lịch nghỉ dưỡng trọn vẹn 5 sao với dịch vụ cao cấp và mức giá ưu đãi hàng đầu.
@@ -299,9 +301,9 @@
       <p class="section-subtitle" data-i18n="section_subtitle">Tận hưởng dịch vụ đẳng cấp quốc tế với đội ngũ hướng dẫn viên giàu kinh nghiệm và lịch trình thiết kế tối ưu nhất.</p>
     </div>
 
-    <div class="row g-4 tour-catalog-layout">
+    <div class="row g-4 tour-catalog-layout" id="tourCatalogLayout">
       <aside class="col-12 col-lg-auto tour-sidebar-col" aria-label="Bộ lọc tour">
-        <div class="tour-filter-sidebar">
+        <div class="tour-filter-sidebar" id="tourFilterSidebar">
           <div class="tour-filter-heading">
             <h3><i class="bi bi-sliders"></i> <span data-i18n="filter_heading">Bộ lọc</span></h3>
             <button class="btn btn-link btn-sm" type="button" id="clearTourFilters" data-i18n="filter_reset">Đặt lại</button>
@@ -402,8 +404,8 @@
                 <div class="text-muted" style="font-size: 0.78rem;" data-i18n="support_sub">Hỗ trợ miễn phí hành trình</div>
               </div>
             </div>
-            <a href="tel:19008899" class="btn btn-warning w-100 fw-bold rounded-pill text-dark py-2 shadow-sm d-flex align-items-center justify-content-center gap-2 text-decoration-none">
-              <i class="bi bi-telephone-fill"></i> 1900 8899
+            <a href="tel:0325536936" class="btn btn-warning w-100 fw-bold rounded-pill text-dark py-2 shadow-sm d-flex align-items-center justify-content-center gap-2 text-decoration-none">
+              <i class="bi bi-telephone-fill"></i> 0325536936
             </a>
             <button type="button" onclick="openChatbot()" class="btn btn-outline-dark w-100 fw-bold rounded-pill py-2 mt-2 d-flex align-items-center justify-content-center gap-2 small">
               <i class="bi bi-chat-dots-fill text-primary"></i> <span data-i18n="support_chat">Chat với tư vấn viên</span>
@@ -425,6 +427,11 @@
 
       <div class="col-12 col-lg tour-content-col">
         <div class="tours-control-bar">
+          <button type="button" class="tour-filter-toggle" id="tourFilterToggle" aria-expanded="false" aria-controls="tourFilterSidebar">
+            <i class="bi bi-sliders"></i>
+            <span data-i18n="filter_heading">Bộ lọc</span>
+            <i class="bi bi-chevron-down tour-filter-caret"></i>
+          </button>
           <span class="text-muted small fw-semibold" id="tourResultCount" aria-live="polite">Đang tải tour...</span>
           <div class="tour-sort-wrapper">
             <label for="tourSortSelect"><i class="bi bi-sort-down"></i> <span data-i18n="sort_label">Sắp xếp:</span></label>
@@ -528,12 +535,12 @@
         <p class="section-subtitle mb-0" data-i18n="testi_desc">Hơn 50.000 khách hàng đã trải nghiệm và đánh giá chất lượng chuẩn 5 sao cùng Delta Travel.</p>
       </div>
       <!-- Nút điều hướng Carousel Trước / Sau -->
-      <div class="d-flex align-items-center gap-2">
-        <button type="button" class="btn btn-outline-primary rounded-circle shadow-sm d-flex align-items-center justify-content-center" id="prevTestimonialBtn" style="width: 44px; height: 44px;" onclick="prevTestimonial()" title="Xem đánh giá trước">
-          <i class="bi bi-chevron-left fs-5"></i>
+      <div class="testimonial-nav">
+        <button type="button" class="testimonial-nav-btn" id="prevTestimonialBtn" onclick="prevTestimonial()" title="Xem đánh giá trước" aria-label="Xem đánh giá trước">
+          <i class="bi bi-chevron-left"></i>
         </button>
-        <button type="button" class="btn btn-primary rounded-circle shadow-sm d-flex align-items-center justify-content-center text-white" id="nextTestimonialBtn" style="width: 44px; height: 44px;" onclick="nextTestimonial()" title="Xem đánh giá tiếp theo">
-          <i class="bi bi-chevron-right fs-5"></i>
+        <button type="button" class="testimonial-nav-btn testimonial-nav-primary" id="nextTestimonialBtn" onclick="nextTestimonial()" title="Xem đánh giá tiếp theo" aria-label="Xem đánh giá tiếp theo">
+          <i class="bi bi-chevron-right"></i>
         </button>
       </div>
     </div>
@@ -616,7 +623,7 @@
                   "Chinh phục đỉnh Fansipan và săn mây Sa Pa là trải nghiệm để đời! Khách sạn view thung lũng Mường Hoa siêu đẹp, bữa tối lẩu cá hồi rất tươi ngon. Cảm ơn Delta Travel vì chuyến đi trọn vẹn từng khoảnh khắc."
                 </p>
                 <div class="testimonial-author">
-                  <div class="author-avatar" style="background: linear-gradient(135deg, #10b981, #059669);">HN</div>
+                  <div class="author-avatar">HN</div>
                   <div class="author-info">
                     <h6>Hoàng Nhật Nam</h6>
                     <p>Khách hàng Tour Sa Pa - Fansipan 3N2Đ</p>
@@ -635,7 +642,7 @@
                   "Tour Đà Lạt săn mây đồi chè Cầu Đất và ngắm hoàng hôn cắm trại acoustic cực kỳ chill. Nhóm bạn mình ai cũng tấm tắc khen lịch trình hợp lý, không bị mệt mỏi và chụp được cả ngàn tấm ảnh sống ảo lung linh."
                 </p>
                 <div class="testimonial-author">
-                  <div class="author-avatar" style="background: linear-gradient(135deg, #ec4899, #be185d);">MA</div>
+                  <div class="author-avatar">MA</div>
                   <div class="author-info">
                     <h6>Vũ Thị Mai Anh</h6>
                     <p>Khách hàng Tour Đà Lạt 3N2Đ</p>
@@ -654,7 +661,7 @@
                   "Đi tour Miền Tây sông nước chợ nổi Cái Răng và vườn trái cây Phong Điền rất đậm đà bản sắc. Người miền Tây nồng hậu mến khách, HDV Delta am hiểu tường tận văn hóa Nam Bộ. 10/10 điểm cho chất lượng!"
                 </p>
                 <div class="testimonial-author">
-                  <div class="author-avatar" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">QT</div>
+                  <div class="author-avatar">QT</div>
                   <div class="author-info">
                     <h6>Đặng Quốc Toàn</h6>
                     <p>Khách hàng Tour Miền Tây 2N1Đ</p>
@@ -678,7 +685,7 @@
                   "Chuyến đi Hà Giang mùa hoa tam giác mạch và đi thuyền hẻm Tu Sản sông Nho Quế quá hùng vĩ. Bác tài xế tay lái lụa cực kỳ yên tâm, các điểm nghỉ chân homestay người Tày ấm cúng sạch sẽ."
                 </p>
                 <div class="testimonial-author">
-                  <div class="author-avatar" style="background: linear-gradient(135deg, #f59e0b, #d97706);">BN</div>
+                  <div class="author-avatar">BN</div>
                   <div class="author-info">
                     <h6>Hoàng Bích Ngọc</h6>
                     <p>Khách hàng Tour Hà Giang - Mã Pí Lèng</p>
@@ -697,7 +704,7 @@
                   "Mộc Châu thảo nguyên xanh ngát, đồi chè trái tim và thác Dải Yếm đẹp ngỡ ngàng. Cầu kính Bạch Long dài nhất thế giới rất ấn tượng. Delta Travel tổ chức cực kỳ chuyên nghiệp và đúng giờ."
                 </p>
                 <div class="testimonial-author">
-                  <div class="author-avatar" style="background: linear-gradient(135deg, #0284c7, #0369a1);">ĐL</div>
+                  <div class="author-avatar">ĐL</div>
                   <div class="author-info">
                     <h6>Phạm Đức Long</h6>
                     <p>Khách hàng Tour Mộc Châu 2N1Đ</p>
@@ -716,7 +723,7 @@
                   "Gia đình tôi đã đặt 3 chuyến tour trong năm nay với Delta Travel. Hệ thống website đặt tour rất mượt, hỗ trợ tư vấn AI nhanh chóng và chính sách chăm sóc khách hàng VIP tận tình chu đáo!"
                 </p>
                 <div class="testimonial-author">
-                  <div class="author-avatar" style="background: linear-gradient(135deg, #ef4444, #b91c1c);">TT</div>
+                  <div class="author-avatar">TT</div>
                   <div class="author-info">
                     <h6>Thanh Thủy</h6>
                     <p>Hội viên VIP Delta Travel</p>
@@ -729,10 +736,10 @@
       </div>
 
       <!-- Chỉ số Indicators chuyển slide -->
-      <div class="d-flex justify-content-center gap-2 mt-4" id="testimonialIndicators">
-        <button type="button" data-bs-target="#testimonialsCarousel" data-bs-slide-to="0" class="active rounded-pill" style="width: 28px; height: 8px; border: none; background-color: var(--primary-color, #0284c7); transition: all 0.3s ease;" aria-current="true" aria-label="Nhóm 1"></button>
-        <button type="button" data-bs-target="#testimonialsCarousel" data-bs-slide-to="1" class="rounded-pill" style="width: 12px; height: 8px; border: none; background-color: #cbd5e1; transition: all 0.3s ease;" aria-label="Nhóm 2"></button>
-        <button type="button" data-bs-target="#testimonialsCarousel" data-bs-slide-to="2" class="rounded-pill" style="width: 12px; height: 8px; border: none; background-color: #cbd5e1; transition: all 0.3s ease;" aria-label="Nhóm 3"></button>
+      <div class="testimonial-indicators" id="testimonialIndicators">
+        <button type="button" class="testimonial-dot active" data-bs-target="#testimonialsCarousel" data-bs-slide-to="0" aria-current="true" aria-label="Nhóm 1"></button>
+        <button type="button" class="testimonial-dot" data-bs-target="#testimonialsCarousel" data-bs-slide-to="1" aria-label="Nhóm 2"></button>
+        <button type="button" class="testimonial-dot" data-bs-target="#testimonialsCarousel" data-bs-slide-to="2" aria-label="Nhóm 3"></button>
       </div>
     </div>
   </section>
@@ -935,11 +942,11 @@
           <h5 data-i18n="footer_contact">Liên Hệ Trực Tiếp</h5>
           <ul class="footer-contact-list mb-3">
             <li><i class="bi bi-geo-alt-fill"></i> <span>Tầng 8, Tòa nhà Delta Building, 128 Nguyễn Du, Hà Nội</span></li>
-            <li><i class="bi bi-telephone-fill"></i> <span>Hotline: 1900 8899 - 0988 123 456</span></li>
+            <li><i class="bi bi-telephone-fill"></i> <span>Hotline: 0325536936</span></li>
             <li><i class="bi bi-envelope-fill"></i> <span>contact@deltatravel.vn</span></li>
           </ul>
 
-          <h6 class="text-white small fw-bold mb-2">Đăng ký nhận khuyến mãi:</h6>
+          <h6 class="text-dark small fw-bold mb-2">Đăng ký nhận khuyến mãi:</h6>
           <form class="footer-newsletter d-flex" onsubmit="event.preventDefault(); showToast('Đăng ký nhận tin khuyến mãi thành công!', 'success'); this.reset();">
             <input type="email" class="form-control form-control-sm" placeholder="Email của bạn..." required>
             <button class="btn btn-sm btn-delta-accent" type="submit"><i class="bi bi-send"></i></button>
@@ -1936,7 +1943,7 @@
        13. TIỆN ÍCH NỔI (FLOATING WIDGETS) & TOAST NOTIFICATION
        ========================================================================== -->
   <div class="floating-actions no-print">
-    <a href="tel:19008899" class="floating-btn floating-phone" title="Gọi Hotline 1900 8899">
+    <a href="tel:0325536936" class="floating-btn floating-phone" title="Gọi Hotline 0325536936">
       <i class="bi bi-telephone-fill"></i>
     </a>
     <button class="floating-btn floating-top" id="backToTopBtn" title="Cuộn lên đầu trang">
@@ -2008,7 +2015,7 @@
         </div>
 
         <div class="ai-sidebar-footer">
-          <div class="small fw-bold"><span data-i18n="ai_hotline">Tổng đài 24/7:</span> <a href="tel:19008899" class="text-dark fw-bold text-decoration-none">1900 8899</a></div>
+          <div class="small fw-bold"><span data-i18n="ai_hotline">Tổng đài 24/7:</span> <a href="tel:0325536936" class="text-dark fw-bold text-decoration-none">0325536936</a></div>
           <div class="text-muted small" style="font-size: 11px;" data-i18n="ai_live_sync">Giá vé & chỗ trống đồng bộ theo thời gian thực</div>
         </div>
       </aside>
@@ -2049,9 +2056,6 @@
 
   <!-- BONG BÓNG CHATBOT AI & CỬA SỔ CHAT TRỰC TUYẾN -->
   <div class="chatbot-launcher no-print" id="chatbotLauncher">
-    <div class="chatbot-invite-pill" id="chatbotInvitePill">
-      <span>✨ Hỏi Delta AI về tour, giá vé & ưu đãi!</span>
-    </div>
     <button class="chatbot-btn" id="chatbotLauncherBtn" title="Trò chuyện cùng Delta AI" aria-label="Mở khung trò chuyện AI">
       <span class="chatbot-pulse-ring"></span>
       <span class="chatbot-online-badge"></span>

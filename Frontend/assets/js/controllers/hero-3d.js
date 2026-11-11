@@ -11,6 +11,21 @@
   const FRAME_PREFIX = "ezgif-frame-";
   const FRAME_EXT = ".png";
 
+  // Mỗi khung PNG gốc rất nặng (~500KB), nạp đủ 150 khung sẽ ngốn >1GB RAM.
+  // 1) Chỉ dùng mỗi 2 khung (75 khung) vẫn đủ mượt khi cuộn.
+  // 2) Chỉ giữ một "cửa sổ" khung quanh vị trí đang xem để cuộn mượt.
+  const FRAME_STRIDE = 2;
+  const LAST_FRAME_INDEX = Math.floor((TOTAL_FRAMES - 1) / FRAME_STRIDE) * FRAME_STRIDE + 1;
+  const MAX_CACHED_FRAMES = 20;
+  const PREFETCH_AHEAD = 6;
+  const PREFETCH_BEHIND = 3;
+
+  const snapFrame = (index) => {
+    const clamped = Math.max(1, Math.min(TOTAL_FRAMES, index));
+    const snapped = Math.round((clamped - 1) / FRAME_STRIDE) * FRAME_STRIDE + 1;
+    return Math.max(1, Math.min(LAST_FRAME_INDEX, snapped));
+  };
+
   // Danh sách các đường dẫn dự phòng để tìm ảnh 3D
   const BASE_URLS = [
     "/3d-frames/",
@@ -20,10 +35,13 @@
   ];
 
   let activeBaseUrl = BASE_URLS[0];
-  const images = [];
-  const loadedFlags = new Array(TOTAL_FRAMES + 1).fill(false);
+  const frameCache = new Map();
+  const pendingFrames = new Set();
   let currentFrameIndex = 1;
+  let lastDrawnIndex = 0;
   let isCanvasReady = false;
+  let renderWidth = 0;
+  let renderHeight = 0;
 
   const getFrameUrl = (index, base = activeBaseUrl) => {
     const pad = String(index).padStart(3, "0");
@@ -39,70 +57,172 @@
     // A static hero background remains visible without these optional frames.
     if (document.documentElement.dataset.enable3dFrames !== "true") return;
 
+    // Hiệu ứng Trái Đất 3D chỉ dành cho Desktop; mobile/tablet dùng ảnh tĩnh cho nhẹ
+    if (window.matchMedia("(max-width: 991.98px)").matches) {
+      const onWiden = () => {
+        if (window.innerWidth >= 992) {
+          window.removeEventListener("resize", onWiden);
+          init3DHero();
+        }
+      };
+      window.addEventListener("resize", onWiden, { passive: true });
+      return;
+    }
+
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
+    renderWidth = window.innerWidth;
+    renderHeight = window.innerHeight;
 
     const phase1 = document.getElementById("heroPhase1");
     const phase2 = document.getElementById("heroPhase2");
     const phase3 = document.getElementById("heroPhase3");
+    const scrollIndicator = document.querySelector(".hero-scroll-indicator");
 
-    // Điều chỉnh kích thước canvas theo độ phân giải màn hình (High DPI Retina)
+    // Canvas vẽ ở đúng kích thước CSS (1x) để giảm mạnh số điểm ảnh phải xử lý
     function resizeCanvas() {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const width = window.innerWidth;
-      const height = window.innerHeight;
+      renderWidth = window.innerWidth;
+      renderHeight = window.innerHeight;
 
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-      canvas.style.width = width + "px";
-      canvas.style.height = height + "px";
+      canvas.width = renderWidth;
+      canvas.height = renderHeight;
+      canvas.style.width = renderWidth + "px";
+      canvas.style.height = renderHeight + "px";
 
-      ctx.scale(dpr, dpr);
-      renderFrame(currentFrameIndex);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      lastDrawnIndex = 0;
+      renderFrame(currentFrameIndex, true);
     }
 
-    // Vẽ khung hình lên canvas theo tỷ lệ cover
-    function drawImageCover(img) {
-      if (!img || !img.complete || img.naturalWidth === 0) return;
+    // Vẽ khung hình lên canvas theo tỷ lệ cover (nhận ImageBitmap hoặc Image)
+    function drawImageCover(asset) {
+      if (!asset || !renderWidth || !renderHeight) return;
 
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      const imgWidth = img.naturalWidth;
-      const imgHeight = img.naturalHeight;
+      const imgWidth = asset.width || asset.naturalWidth || 0;
+      const imgHeight = asset.height || asset.naturalHeight || 0;
+      if (!imgWidth || !imgHeight) return;
 
-      const scale = Math.max(width / imgWidth, height / imgHeight);
+      const scale = Math.max(renderWidth / imgWidth, renderHeight / imgHeight);
       const drawWidth = imgWidth * scale;
       const drawHeight = imgHeight * scale;
-      const drawX = (width - drawWidth) / 2;
-      const drawY = (height - drawHeight) / 2;
 
-      ctx.clearRect(0, 0, width, height);
-      ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+      ctx.clearRect(0, 0, renderWidth, renderHeight);
+      ctx.drawImage(asset, (renderWidth - drawWidth) / 2, (renderHeight - drawHeight) / 2, drawWidth, drawHeight);
     }
 
-    // Tìm khung hình gần nhất đã tải xong nếu khung hình hiện tại chưa xong
-    function renderFrame(index) {
-      currentFrameIndex = index;
-      let img = images[index];
+    // Nạp 1 khung: giải mã bằng createImageBitmap (off main-thread) để không giật khi cuộn
+    // Giới hạn số khung giải mã song song để main-thread luôn rảnh khi cuộn nhanh
+    const MAX_PARALLEL_DECODES = 3;
+    const MAX_DECODE_QUEUE = 16;
+    const decodeQueue = [];
+    let activeDecodes = 0;
 
-      if (!img || !img.complete || img.naturalWidth === 0) {
-        // Tìm ảnh gần nhất đã nạp
-        for (let offset = 1; offset < 20; offset++) {
-          const prev = images[Math.max(1, index - offset)];
-          if (prev && prev.complete && prev.naturalWidth > 0) {
-            img = prev;
-            break;
+    function ensureFrame(index) {
+      const frame = snapFrame(index);
+      if (frameCache.has(frame) || pendingFrames.has(frame)) return;
+
+      pendingFrames.add(frame);
+      decodeQueue.push(frame);
+
+      while (decodeQueue.length > MAX_DECODE_QUEUE) {
+        pendingFrames.delete(decodeQueue.shift());
+      }
+
+      processDecodeQueue();
+    }
+
+    function processDecodeQueue() {
+      while (activeDecodes < MAX_PARALLEL_DECODES && decodeQueue.length > 0) {
+        startDecode(decodeQueue.shift());
+      }
+    }
+
+    function startDecode(frame) {
+      activeDecodes += 1;
+
+      const done = (asset) => {
+        activeDecodes -= 1;
+        pendingFrames.delete(frame);
+
+        if (asset) {
+          frameCache.set(frame, asset);
+          trimFrameCache(currentFrameIndex);
+          if (!isCanvasReady) {
+            isCanvasReady = true;
+            resizeCanvas();
+          } else if (frame === currentFrameIndex) {
+            renderFrame(frame, true);
           }
-          const next = images[Math.min(TOTAL_FRAMES, index + offset)];
-          if (next && next.complete && next.naturalWidth > 0) {
-            img = next;
-            break;
-          }
+        }
+
+        processDecodeQueue();
+      };
+
+      const img = new Image();
+      img.decoding = "async";
+      img.onload = () => {
+        if (typeof createImageBitmap === "function") {
+          createImageBitmap(img, { premultiplyAlpha: "none", imageOrientation: "none" })
+            .then(done)
+            .catch(() => done(img));
+        } else {
+          done(img);
+        }
+      };
+      img.onerror = () => done(null);
+      img.src = getFrameUrl(frame);
+    }
+
+    // Chỉ giữ các khung gần vị trí hiện tại, giải phóng bộ nhớ các khung ở xa
+    function trimFrameCache(center) {
+      if (frameCache.size <= MAX_CACHED_FRAMES) return;
+
+      const low = center - (PREFETCH_AHEAD + 2) * FRAME_STRIDE;
+      const high = center + (PREFETCH_AHEAD + 2) * FRAME_STRIDE;
+      frameCache.forEach((asset, index) => {
+        if (index < low || index > high) {
+          if (asset && typeof asset.close === "function") asset.close();
+          frameCache.delete(index);
+        }
+      });
+    }
+
+    // Ưu tiên nạp các khung sắp xuất hiện theo hướng cuộn
+    function prefetchAround(index, direction) {
+      const center = snapFrame(index);
+
+      // Bỏ các khung đã xếp hàng nhưng đã quá xa vị trí hiện tại (cuộn nhanh)
+      for (let i = decodeQueue.length - 1; i >= 0; i--) {
+        if (Math.abs(decodeQueue[i] - center) > (PREFETCH_AHEAD + 2) * FRAME_STRIDE) {
+          pendingFrames.delete(decodeQueue[i]);
+          decodeQueue.splice(i, 1);
         }
       }
 
-      if (img && img.complete) {
-        drawImageCover(img);
+      for (let i = 0; i <= PREFETCH_AHEAD; i++) ensureFrame(center + i * FRAME_STRIDE * direction);
+      for (let i = 1; i <= PREFETCH_BEHIND; i++) ensureFrame(center - i * FRAME_STRIDE * direction);
+    }
+
+    // Vẽ khung hình; nếu khung chưa sẵn sàng thì dùng khung gần nhất đã có
+    function renderFrame(index, force) {
+      const frame = snapFrame(index);
+      currentFrameIndex = frame;
+
+      if (!force && frame === lastDrawnIndex) return;
+
+      let asset = frameCache.get(frame);
+      if (!asset) {
+        for (let step = 1; step <= 20 && !asset; step++) {
+          asset = frameCache.get(snapFrame(frame - step * FRAME_STRIDE))
+            || frameCache.get(snapFrame(frame + step * FRAME_STRIDE))
+            || null;
+        }
+      }
+
+      if (asset) {
+        drawImageCover(asset);
+        lastDrawnIndex = frame;
       }
     }
 
@@ -125,38 +245,9 @@
     probe.src = getFrameUrl(1);
 
     function startPreloading() {
-      // Tải khung hình đầu tiên để vẽ ngay
-      const firstImg = new Image();
-      firstImg.onload = () => {
-        images[1] = firstImg;
-        loadedFlags[1] = true;
-        isCanvasReady = true;
-        resizeCanvas();
-        renderFrame(1);
-      };
-      firstImg.src = getFrameUrl(1);
-
-      // Tải tuần tự các khung hình còn lại trong nền
-      const batchSize = 6;
-      let currentIndex = 2;
-
-      function loadNextBatch() {
-        if (currentIndex > TOTAL_FRAMES) return;
-        const end = Math.min(TOTAL_FRAMES, currentIndex + batchSize);
-        for (let i = currentIndex; i <= end; i++) {
-          const img = new Image();
-          const frameNum = i;
-          img.onload = () => {
-            images[frameNum] = img;
-            loadedFlags[frameNum] = true;
-          };
-          img.src = getFrameUrl(frameNum);
-        }
-        currentIndex = end + 1;
-        setTimeout(loadNextBatch, 25);
-      }
-
-      setTimeout(loadNextBatch, 50);
+      // Khung đầu tiên được ưu tiên tuyệt đối để hero hiện ngay
+      ensureFrame(1);
+      prefetchAround(1, 1);
     }
 
     // Tính toán tiến trình cuộn trang qua Hero section
@@ -172,25 +263,44 @@
       }
     }
 
-    function updateScrollExperience() {
-      const rect = section.getBoundingClientRect();
-      const totalScrollable = section.offsetHeight - window.innerHeight;
+    // Đo kích thước hero một lần khi resize để tránh forced layout ở mỗi khung hình cuộn
+    let heroTop = 0;
+    let heroScrollable = 0;
 
-      if (totalScrollable <= 0) return;
+    function measureHero() {
+      const rect = section.getBoundingClientRect();
+      heroTop = rect.top + window.scrollY;
+      heroScrollable = section.offsetHeight - window.innerHeight;
+    }
+
+    function updateScrollExperience() {
+      // Mobile/tablet: hiệu ứng 3D bị lược bỏ, trả lại trạng thái tĩnh cho nội dung
+      if (window.matchMedia("(max-width: 991.98px)").matches) {
+        [phase1, phase2, phase3].forEach((phase) => {
+          if (!phase) return;
+          phase.style.opacity = "";
+          phase.style.transform = "";
+          phase.style.pointerEvents = "";
+        });
+        return;
+      }
+
+      const rect = section.getBoundingClientRect();
+      if (heroScrollable <= 0) return;
 
       // Tính progress từ 0 đến 1
-      const currentScroll = -rect.top;
-      const progress = Math.max(0, Math.min(1, currentScroll / totalScrollable));
+      const progress = Math.max(0, Math.min(1, (window.scrollY - heroTop) / heroScrollable));
 
-      // 1. Chuyển đổi khung hình 3D từ 1 đến 150 (Ánh xạ đến 85% tiến trình cuộn, 15% còn lại giữ nguyên khung hình 150 tuyệt đẹp)
+      // 1. Chuyển đổi khung hình 3D từ 1 đến 150 (Ánh xạ đến 85% tiến trình cuộn, 15% còn lại giữ nguyên khung hình cuối)
       const frameProgress = Math.min(1, progress / 0.85);
-      const targetFrame = Math.min(TOTAL_FRAMES, Math.max(1, Math.round(frameProgress * (TOTAL_FRAMES - 1)) + 1));
+      const targetFrame = snapFrame(Math.round(frameProgress * (TOTAL_FRAMES - 1)) + 1);
       if (targetFrame !== currentFrameIndex) {
+        const direction = targetFrame > currentFrameIndex ? 1 : -1;
         renderFrame(targetFrame);
+        prefetchAround(targetFrame, direction);
       }
 
       // 2. Tự động mờ dần chuột cuộn khi cuộn về gần cuối để không chèn lên phần tìm kiếm tiếp theo
-      const scrollIndicator = document.querySelector(".hero-scroll-indicator");
       if (scrollIndicator) {
         scrollIndicator.style.opacity = progress > 0.82 ? Math.max(0, 1 - (progress - 0.82) / 0.12).toFixed(2) : "1";
       }
@@ -243,11 +353,14 @@
 
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", () => {
+      measureHero();
       resizeCanvas();
       updateScrollExperience();
     }, { passive: true });
+    window.addEventListener("load", measureHero, { once: true });
 
     // Khởi tạo kích thước ban đầu
+    measureHero();
     resizeCanvas();
     updateScrollExperience();
   }

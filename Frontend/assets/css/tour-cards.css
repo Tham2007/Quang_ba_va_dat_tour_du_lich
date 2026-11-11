@@ -2,45 +2,130 @@
    DELTA TRAVEL - TOUR CARDS & FILTER TABS (tour-cards.css)
    ========================================================================== */
 
-/* Cột bộ lọc bên trái và khu vực kết quả tour */
+/* ==========================================================================
+   BỐ CỤC CATALOG: MẶC ĐỊNH TOUR FULL WIDTH - BẤM "BỘ LỌC" MỚI SỔ RA & ĐẨY TOUR SANG PHẢI
+   ========================================================================== */
+.tour-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 1.05rem;
+  border: 1.5px solid #000000;
+  border-radius: 9999px;
+  background: #ffffff;
+  color: #000000;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Đẩy số lượng tour ra giữa, phần sắp xếp nằm bên phải */
+.tours-control-bar #tourResultCount {
+  margin-right: auto;
+}
+
+.tour-filter-toggle:hover,
+.tour-filter-toggle[aria-expanded="true"] {
+  background: #000000;
+  border-color: #000000;
+  color: #ffffff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.tour-filter-toggle .tour-filter-caret {
+  font-size: 0.75rem;
+  transition: transform 0.3s ease;
+}
+
+.tour-filter-toggle[aria-expanded="true"] .tour-filter-caret {
+  transform: rotate(180deg);
+}
+
 .tour-catalog-layout {
+  --tour-filter-width: 320px;
+  display: flex;
+  flex-wrap: nowrap;
   align-items: stretch;
+  margin-left: 0;
+  margin-right: 0;
 }
 
-/* Phân bổ tỷ lệ cột sidebar bộ lọc và danh sách tour full-width */
+/* Sidebar không dùng gutter để panel sát mép trái, danh sách tour vẫn giữ gutter chuẩn */
+.tour-catalog-layout > .tour-sidebar-col {
+  padding-left: 0;
+  padding-right: 0;
+  margin-bottom: 0;
+}
+
+/* Panel bộ lọc: thu gọn về 0 khi đóng, mở rộng khi bấm nút */
 .tour-sidebar-col {
-  width: 100%;
+  flex: 0 0 auto;
+  width: 0;
+  max-width: 0;
+  overflow: hidden;
+  overflow: clip;
+  opacity: 0;
+  margin-right: 0;
+  transition: width 0.38s cubic-bezier(0.16, 1, 0.3, 1),
+    max-width 0.38s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.25s ease,
+    margin-right 0.38s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@media (min-width: 992px) {
-  .tour-sidebar-col {
-    width: 320px !important;
-    flex: 0 0 320px !important;
-    max-width: 320px !important;
-  }
-  .tour-content-col {
-    flex: 1 1 0% !important;
-    min-width: 0 !important;
-  }
+.tour-catalog-layout.filter-open .tour-sidebar-col {
+  width: var(--tour-filter-width);
+  max-width: var(--tour-filter-width);
+  opacity: 1;
+  margin-right: 1.75rem;
 }
 
-@media (min-width: 992px) {
-  .tour-catalog-layout {
-    align-items: stretch;
-  }
-  .tour-sidebar-col {
-    position: relative;
-    width: 320px !important;
-    flex: 0 0 320px !important;
-    max-width: 320px !important;
-  }
+/* Giữ panel đúng bề rộng để nội dung không bị dồn chữ trong lúc chuyển động */
+.tour-sidebar-col > .tour-filter-sidebar {
+  width: var(--tour-filter-width);
+}
+
+/* Danh sách tour luôn chiếm trọn phần còn lại */
+.tour-content-col {
+  flex: 1 1 0%;
+  width: auto;
+  max-width: none;
+  min-width: 0;
 }
 
 @media (min-width: 1400px) {
+  .tour-catalog-layout {
+    --tour-filter-width: 340px;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .tour-catalog-layout {
+    flex-direction: column;
+  }
   .tour-sidebar-col {
-    width: 340px !important;
-    flex: 0 0 340px !important;
-    max-width: 340px !important;
+    display: none;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+    opacity: 1;
+    margin-right: 0;
+  }
+  .tour-catalog-layout.filter-open .tour-sidebar-col {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    margin-right: 0;
+    margin-bottom: 1.5rem;
+  }
+  .tour-sidebar-col > .tour-filter-sidebar {
+    width: 100%;
+    position: static;
+    max-height: none;
+    overflow: visible;
   }
 }
 

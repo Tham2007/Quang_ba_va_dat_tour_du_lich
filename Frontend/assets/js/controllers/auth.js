@@ -171,7 +171,7 @@ function renderAuthHeader() {
     if (container) container.innerHTML = htmlContent;
     if (topbarContainer) {
       topbarContainer.innerHTML = `
-        <span class="text-light small me-2"><i class="bi bi-person-check text-warning"></i> ${user.fullName}</span>
+        <span class="text-dark small me-2"><i class="bi bi-person-check text-warning"></i> ${user.fullName}</span>
         <a href="javascript:void(0)" onclick="handleUserLogout()" class="text-warning small text-decoration-none">${logoutText}</a>
       `;
     }

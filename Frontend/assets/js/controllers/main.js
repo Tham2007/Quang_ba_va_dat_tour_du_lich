@@ -50,6 +50,8 @@ document.addEventListener("DOMContentLoaded", () => {
   renderDestinations();
   renderTourCards();
   initFilterEvents();
+  initTourFilterPanel();
+  initTestimonialIndicators();
   initBookingListeners();
   updateWishlistCounter();
   initFloatingButtons();
@@ -106,6 +108,35 @@ function filterToursRegion(region, element) {
     section.scrollIntoView({ behavior: "smooth" });
   }
 }
+
+/**
+ * Bật / tắt panel bộ lọc tour (mặc định thu gọn để danh sách tour full màn hình)
+ */
+function toggleTourFilterPanel(forceState) {
+  const layout = document.getElementById("tourCatalogLayout");
+  const toggle = document.getElementById("tourFilterToggle");
+  if (!layout) return;
+
+  const isOpen = typeof forceState === "boolean"
+    ? forceState
+    : !layout.classList.contains("filter-open");
+
+  layout.classList.toggle("filter-open", isOpen);
+  if (toggle) toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+}
+
+function initTourFilterPanel() {
+  const toggle = document.getElementById("tourFilterToggle");
+  if (!toggle) return;
+
+  toggle.addEventListener("click", () => toggleTourFilterPanel());
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") toggleTourFilterPanel(false);
+  });
+}
+
+window.toggleTourFilterPanel = toggleTourFilterPanel;
 
 function openChatbot() {
   if (typeof toggleChatbotWindow === "function") {
@@ -189,7 +220,11 @@ function initNavbarScroll() {
 
     // Khi người dùng đang ở phần Hero 3D thì thanh bar hoàn toàn trong suốt
     if (heroSection) {
-      const heroThreshold = heroSection.offsetTop + heroSection.offsetHeight - 140;
+      // Thời điểm hero (sticky) kết thúc và nội dung trắng bắt đầu trượt lên
+      const heroThreshold = Math.max(
+        0,
+        heroSection.offsetTop + heroSection.offsetHeight - window.innerHeight
+      );
       if (scrollY < heroThreshold) {
         header?.classList.add("hero-transparent");
         navbar?.classList.remove("scrolled");
@@ -1461,6 +1496,22 @@ function prevTestimonial() {
     carousel.prev();
   }
 }
+
+/**
+ * Đồng bộ chấm chuyển trang (indicators) theo slide đang hiển thị
+ */
+function initTestimonialIndicators() {
+  const carouselEl = document.getElementById("testimonialsCarousel");
+  const dots = document.querySelectorAll("#testimonialIndicators .testimonial-dot");
+  if (!carouselEl || dots.length === 0) return;
+
+  carouselEl.addEventListener("slide.bs.carousel", (event) => {
+    dots.forEach((dot, index) => dot.classList.toggle("active", index === event.to));
+  });
+}
+
+window.nextTestimonial = nextTestimonial;
+window.prevTestimonial = prevTestimonial;
 
 // =============================================================================
 // X. HỆ THỐNG ĐẶT LỊCH & TÍNH TIỀN THEO THỜI GIAN THỰC (BOOKING & REAL-TIME PRICING)

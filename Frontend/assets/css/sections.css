@@ -166,13 +166,83 @@
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  background: #000000;
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   font-size: 1.1rem;
+}
+
+/* Nút điều hướng + chấm chuyển trang của khối đánh giá khách hàng */
+.testimonial-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.testimonial-nav-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid #000000;
+  background: #ffffff;
+  color: #000000;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.testimonial-nav-btn:hover {
+  background: #000000;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.testimonial-nav-btn.testimonial-nav-primary {
+  background: #000000;
+  color: #ffffff;
+}
+
+.testimonial-nav-btn.testimonial-nav-primary:hover {
+  background: #18181b;
+}
+
+.testimonial-indicators {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.75rem;
+}
+
+.testimonial-dot {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: none;
+  border-radius: 9999px;
+  background: #cbd5e1;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.testimonial-dot:hover {
+  background: #94a3b8;
+}
+
+.testimonial-dot.active {
+  width: 30px;
+  background: #000000;
+}
+
+.testimonial-dot.active:hover {
+  background: #000000;
 }
 
 .author-info h6 {
@@ -458,26 +528,28 @@
   color: #64748b;
   background: #ffffff !important;
 }
-  color: var(--secondary-light);
-  margin-top: 3px;
-  flex-shrink: 0;
-}
 
 .footer-newsletter input {
   border-radius: var(--radius-md) 0 0 var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.06);
-  color: #ffffff;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #000000;
+}
+
+.footer-newsletter input::placeholder {
+  color: #94a3b8;
 }
 
 .footer-newsletter input:focus {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
+  background: #ffffff;
+  color: #000000;
+  border-color: #000000;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
 }
 
 .footer-newsletter button {
   border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  background: var(--accent-color);
+  background: #000000;
   color: #ffffff;
   font-weight: 700;
 }
@@ -485,9 +557,9 @@
 .footer-bottom {
   margin-top: 3.5rem;
   padding: 1.5rem 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid #e2e8f0;
   font-size: 0.85rem;
-  color: #94a3b8 !important;
+  color: #475569 !important;
 }
 
 .social-links {
@@ -499,8 +571,9 @@
   width: 36px;
   height: 36px;
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.08);
-  color: #cbd5e1;
+  background: #f1f5f9;
+  color: #000000;
+  border: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: center;
