@@ -9,13 +9,16 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import html
 import json
 import os
 import re
 import secrets
+import smtplib
 import uuid
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict, deque
+from email.message import EmailMessage
 from threading import Lock
 from time import monotonic
 from decimal import Decimal
@@ -621,6 +624,96 @@ def logout(request: Request, response: Response, user: Annotated[dict, Depends(_
     return {"status": "logged_out"}
 
 
+def _send_booking_email_smtp(
+    record: dict,
+    *,
+    customer_name: str,
+    customer_phone: str,
+    customer_email: str,
+    departure_at: Any = None,
+) -> dict:
+    to = (customer_email or "").strip()
+    user = (os.getenv("DELTA_SMTP_USER") or os.getenv("SMTP_USER") or "").strip()
+    pw = os.getenv("DELTA_SMTP_PASS") or os.getenv("SMTP_PASS") or ""
+    raw_host = (os.getenv("DELTA_SMTP_HOST") or os.getenv("SMTP_HOST") or "").strip()
+    host = raw_host or ("smtp.gmail.com" if user.lower().endswith("@gmail.com") else "")
+    allow_no_auth = os.getenv("DELTA_SMTP_ALLOW_NO_AUTH") == "1"
+
+    if not to or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", to):
+        return {"sent": False, "configured": bool(host and (allow_no_auth or (user and pw))), "recipient": to, "reason": "INVALID_EMAIL"}
+    if not host or (not allow_no_auth and (not user or not pw)):
+        return {"sent": False, "configured": False, "recipient": to, "reason": "SMTP_NOT_CONFIGURED"}
+
+    port = int(os.getenv("DELTA_SMTP_PORT") or os.getenv("SMTP_PORT") or "465")
+    secure_env = os.getenv("DELTA_SMTP_SECURE") or os.getenv("SMTP_SECURE")
+    use_ssl = (secure_env.lower() == "true") if secure_env is not None else (port == 465)
+    sender = os.getenv("DELTA_SMTP_FROM") or (f"Delta Travel <{user}>" if user else "Delta Travel <no-reply@deltatravel.vn>")
+
+    ref = record.get("reference") or record.get("id")
+    tour_title = record.get("tourTitle") or "Tour Du Lịch Delta Travel"
+    dep_str = departure_at.strftime("%d/%m/%Y") if hasattr(departure_at, "strftime") else str(departure_at or "Theo lịch đã chọn")
+    subtotal = int(record.get("subtotalPrice") or record.get("totalPrice") or 0)
+    discount = int(record.get("discountAmount") or 0)
+    total = int(record.get("totalPrice") or 0)
+    vcode = record.get("voucherCode")
+
+    msg = EmailMessage()
+    msg["Subject"] = f"[Delta Travel] Xác nhận thông tin đặt tour #{ref} - {tour_title}"
+    msg["From"] = sender
+    msg["To"] = to
+    msg.set_content(
+        f"Xin chào {customer_name},\n\n"
+        f"Delta Travel xác nhận đã ghi nhận đơn đặt tour #{ref}:\n"
+        f"- Hành trình: {tour_title}\n"
+        f"- Ngày khởi hành: {dep_str}\n"
+        f"- Số khách: {record.get('seats', 1)} khách\n"
+        f"- Tiền tour ban đầu: {subtotal:,} đ\n"
+        + (f"- Ưu đãi ({vcode}): -{discount:,} đ\n" if discount > 0 else "")
+        + f"- Tổng tiền thanh toán: {total:,} đ\n\n"
+        f"Cảm ơn Quý khách đã đặt tour cùng Delta Travel!"
+    )
+    disc_html = (
+        f'<tr><td style="padding:8px 0;color:#15803d;">Giảm giá ({html.escape(str(vcode or ""))})</td>'
+        f'<td style="padding:8px 0;text-align:right;font-weight:700;color:#15803d;">-{discount:,} đ</td></tr>'
+        if discount > 0 else ""
+    )
+    msg.add_alternative(
+        f"""<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e2e8f0;border-radius:12px;">
+        <h2 style="margin-top:0;color:#0f172a;">Delta Travel - Xác nhận đặt tour #{html.escape(str(ref))}</h2>
+        <p>Xin chào <strong>{html.escape(customer_name)}</strong>,</p>
+        <p>Đơn đặt tour của Quý khách đã được ghi nhận trên hệ thống SQL Server:</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+          <tr><td style="padding:6px 0;color:#64748b;">Hành trình</td><td style="padding:6px 0;text-align:right;font-weight:600;">{html.escape(str(tour_title))}</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;">Ngày khởi hành</td><td style="padding:6px 0;text-align:right;">{html.escape(dep_str)}</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;">Số khách</td><td style="padding:6px 0;text-align:right;">{int(record.get('seats', 1))} khách</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;">SĐT liên hệ</td><td style="padding:6px 0;text-align:right;">{html.escape(customer_phone)}</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;">Tiền tour ban đầu</td><td style="padding:6px 0;text-align:right;">{subtotal:,} đ</td></tr>
+          {disc_html}
+          <tr><td style="padding:8px 0;border-top:2px solid #0f172a;font-weight:700;">Tổng thanh toán</td><td style="padding:8px 0;border-top:2px solid #0f172a;text-align:right;font-weight:800;color:#dc2626;">{total:,} đ</td></tr>
+        </table>
+        </div>""",
+        subtype="html",
+    )
+
+    try:
+        if use_ssl:
+            with smtplib.SMTP_SSL(host, port, timeout=6) as smtp:
+                if user and pw:
+                    smtp.login(user, pw)
+                smtp.send_message(msg)
+        else:
+            with smtplib.SMTP(host, port, timeout=6) as smtp:
+                smtp.ehlo()
+                smtp.starttls()
+                smtp.ehlo()
+                if user and pw:
+                    smtp.login(user, pw)
+                smtp.send_message(msg)
+        return {"sent": True, "configured": True, "recipient": to}
+    except Exception as exc:
+        return {"sent": False, "configured": True, "recipient": to, "reason": "SEND_FAILED", "error": type(exc).__name__}
+
+
 @router.post("/api/v1/bookings", status_code=201)
 def create_booking(body: BookingBody, user: Annotated[dict, Depends(_authenticated)],
                    idempotency_key: Annotated[str, Header(alias="Idempotency-Key")]):
@@ -632,6 +725,8 @@ def create_booking(body: BookingBody, user: Annotated[dict, Depends(_authenticat
         _fail(422, "Email đặt tour phải trùng tài khoản đăng nhập.")
     user_id, fingerprint = int(user["MaNguoiDung"]), _fingerprint(body)
     ident = int(body.schedule_id)
+    created_record = None
+    departure_dt = None
     try:
         with _engine().begin() as conn:
             conn.execute(text("""
@@ -698,7 +793,8 @@ def create_booking(body: BookingBody, user: Annotated[dict, Depends(_authenticat
             select_sql = _booking_select_sql(conn)
             row = conn.execute(text(select_sql + " WHERE d.MaDatTour=:booking AND d.MaKhachHang=:uid"),
                                {"booking": booking_id, "uid": user_id}).mappings().one()
-            return _booking_record(row)
+            created_record = _booking_record(row)
+            departure_dt = row.get("NgayKhoiHanh")
     except IntegrityError:
         # The winner committed the idempotency row; the loser must replay it,
         # never create another booking after a duplicate-key race.
@@ -732,6 +828,16 @@ def create_booking(body: BookingBody, user: Annotated[dict, Depends(_authenticat
         _fail(503, "SQL Server không thể tạo đơn; không tự động thử lại bằng khóa mới.")
     except SQLAlchemyError:
         _fail(503, "SQL Server không thể tạo đơn; không tự động thử lại bằng khóa mới.")
+
+    created_record["customerEmail"] = body.customer_email
+    created_record["emailNotification"] = _send_booking_email_smtp(
+        created_record,
+        customer_name=body.customer_name.strip(),
+        customer_phone=body.customer_phone,
+        customer_email=body.customer_email,
+        departure_at=departure_dt,
+    )
+    return created_record
 
 
 @router.get("/api/v1/bookings")

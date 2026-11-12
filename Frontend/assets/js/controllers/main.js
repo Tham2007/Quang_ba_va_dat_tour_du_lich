@@ -2040,7 +2040,10 @@ async function handleBookingSubmission(e) {
   bootstrap.Modal.getInstance(document.getElementById("bookingModal"))?.hide();
   updateCustomerBookingCounters();
   openCustomerBookingDetail(newOrder.bookingId);
-  showToast(`Đặt tour thành công qua Backend API! Mã đơn: ${newOrder.bookingId}`, "success");
+  const mailSentMsg = sb.emailNotification?.sent
+    ? ` Đã gửi email xác nhận tới ${sb.emailNotification.recipient || email}.`
+    : "";
+  showToast(`Đặt tour thành công qua Backend API! Mã đơn: ${newOrder.bookingId}.${mailSentMsg}`, "success");
 }
 
 function getPaymentMethodLabel(method) {

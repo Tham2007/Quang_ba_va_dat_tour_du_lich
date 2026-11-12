@@ -11,7 +11,7 @@ const testDbPath = path.join(os.tmpdir(), `delta-node-tests-${process.pid}.db`);
 process.env.DELTA_DB_PATH = testDbPath;
 process.env.PORT = "0";
 process.env.HOST = "127.0.0.1";
-const { app, server, db, setSqlServerTestConnection } = require("./server");
+const { app, server, db, setSqlServerTestConnection, setMailTransportForTest } = require("./server");
 
 let BASE_URL;
 
@@ -1092,6 +1092,74 @@ async function runTests() {
         `health=${JSON.stringify(ssHealth.json)} valOk=${ssValOk.status}:${ssValOk.json?.discountAmount} wrong=${ssValWrong.json?.errorCode} create=${ssCreateRes.status} book=${ssBookRes.status} used=${ssUsedBeforeCancel}->${ssUsedAfterCancel}`);
     } finally {
       setSqlServerTestConnection(null, false);
+    }
+
+    // Test gửi Email xác nhận khi đặt tour thành công & khi Admin xác nhận thanh toán
+    const sentMails = [];
+    setMailTransportForTest({
+      async sendMail(mail) {
+        sentMails.push(mail);
+        return { messageId: "test-msg-" + sentMails.length };
+      }
+    });
+    try {
+      const mailRecipient = `khachmail_${Date.now()}@example.com`;
+      const mailBook = await req("/api/v1/bookings", {
+        method: "POST",
+        headers: { ...authHeaders, "Idempotency-Key": "MAIL-IDEM-" + Date.now() },
+        body: {
+          schedule_id: hlSchedId,
+          adults: 1,
+          customer_name: "Nguyễn Văn <MailTest>",
+          customer_phone: "0988112233",
+          customer_email: mailRecipient,
+          voucher_code: "HALONG100K"
+        }
+      });
+      const mailPay = await req(`/api/v1/admin/bookings/${mailBook.json?.id}/confirm-payment`, {
+        method: "POST",
+        headers: adminHeaders,
+        body: { reference: "MAILPAY-" + Date.now() }
+      });
+
+      setMailTransportForTest({
+        async sendMail() {
+          throw new Error("Simulated SMTP timeout");
+        }
+      });
+      const mailFailBook = await req("/api/v1/bookings", {
+        method: "POST",
+        headers: { ...authHeaders, "Idempotency-Key": "MAIL-FAIL-" + Date.now() },
+        body: {
+          schedule_id: hlSchedId,
+          adults: 1,
+          customer_name: "Khách SMTP Lỗi",
+          customer_phone: "0988112244",
+          customer_email: "smtpfail@example.com"
+        }
+      });
+
+      const firstMail = sentMails[0];
+      const secondMail = sentMails[1];
+      assert("Email xác nhận đặt tour & thanh toán gửi đúng địa chỉ mail khách nhập",
+        mailBook.status === 201 &&
+        mailBook.json?.emailNotification?.sent === true &&
+        mailBook.json?.emailNotification?.recipient === mailRecipient &&
+        sentMails.length === 2 &&
+        firstMail?.to === mailRecipient &&
+        firstMail?.subject?.includes(mailBook.json?.reference) &&
+        firstMail?.html?.includes("&lt;MailTest&gt;") &&
+        firstMail?.html?.includes("HALONG100K") &&
+        firstMail?.text?.includes("3.790.000") &&
+        mailPay.status === 200 &&
+        mailPay.json?.emailNotification?.sent === true &&
+        secondMail?.to === mailRecipient &&
+        secondMail?.subject?.includes("Xác nhận thanh toán") &&
+        mailFailBook.status === 201 &&
+        mailFailBook.json?.emailNotification?.sent === false,
+        `count=${sentMails.length} book=${mailBook.status}:${JSON.stringify(mailBook.json?.emailNotification)} pay=${mailPay.status} fail=${mailFailBook.status}:${JSON.stringify(mailFailBook.json?.emailNotification)}`);
+    } finally {
+      setMailTransportForTest(null);
     }
 
     const catalogRequests = [];

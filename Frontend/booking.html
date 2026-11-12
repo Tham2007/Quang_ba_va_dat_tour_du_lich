@@ -757,6 +757,7 @@
         <p class="text-muted small mx-auto mb-0" style="max-width: 640px;">
           Hệ thống Delta Travel đã xác nhận thông tin đơn đặt tour. Quý khách vui lòng chuyển khoản theo mã VietQR hoặc số tài khoản MBBank bên dưới để nhận hóa đơn chứng từ điện tử.
         </p>
+        <div id="receiptEmailBanner" class="mt-3 mx-auto d-none" style="max-width: 640px;"></div>
       </div>
 
       <!-- Bố cục 2 cột rộng rãi cân đối (Khắc phục hoàn toàn lỗi bị nhỏ) -->
@@ -1681,6 +1682,32 @@
       document.getElementById("receiptTourTitle").textContent = displayTitle;
       const custDisplay = booking.customerName ? `${booking.customerName} (${booking.customerPhone || ""})` : "Khách hàng";
       document.getElementById("receiptCustomer").textContent = custDisplay;
+      const emailBanner = document.getElementById("receiptEmailBanner");
+      if (emailBanner) {
+        const mailInfo = booking.emailNotification || null;
+        const recipientEmail = (mailInfo && mailInfo.recipient) || booking.customerEmail || (document.getElementById("customerEmail")?.value || "").trim();
+        emailBanner.textContent = "";
+        if (recipientEmail && mailInfo) {
+          const icon = document.createElement("i");
+          const strong = document.createElement("strong");
+          strong.textContent = recipientEmail;
+          if (mailInfo.sent) {
+            emailBanner.className = "mt-3 mx-auto alert alert-success py-2 px-3 small rounded-3 text-start";
+            icon.className = "bi bi-envelope-check-fill me-1";
+            emailBanner.append(icon, " Đã gửi email xác nhận thông tin tour tới ", strong, ". Vui lòng kiểm tra hộp thư đến (hoặc Spam).");
+          } else if (!mailInfo.configured) {
+            emailBanner.className = "mt-3 mx-auto alert alert-info py-2 px-3 small rounded-3 text-start";
+            icon.className = "bi bi-envelope me-1";
+            emailBanner.append(icon, " Đơn đặt tour đã lưu cho email ", strong, ". (Máy chủ chưa cấu hình SMTP nên chưa tự động gửi email ra ngoài).");
+          } else {
+            emailBanner.className = "mt-3 mx-auto alert alert-warning py-2 px-3 small rounded-3 text-start";
+            icon.className = "bi bi-envelope-exclamation me-1";
+            emailBanner.append(icon, " Đơn đặt tour đã thành công, nhưng gửi email tới ", strong, " tạm thời gặp lỗi kết nối SMTP.");
+          }
+        } else {
+          emailBanner.className = "mt-3 mx-auto d-none";
+        }
+      }
       const rDisc = Number(booking.discountAmount || booking.pricing?.discount || 0);
       const rSub = Number(booking.subtotalPrice || booking.pricing?.subtotal || (payAmount + rDisc));
       const rSubRow = document.getElementById("receiptSubtotalRow");

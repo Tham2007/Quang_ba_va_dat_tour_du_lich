@@ -11,6 +11,7 @@ const { DatabaseSync } = require("node:sqlite");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const https = require("https");
+const nodemailer = require("nodemailer");
 
 // Tự động tải biến môi trường từ .env nếu có
 const envPath = path.resolve(__dirname, ".env");
@@ -1798,6 +1799,219 @@ function audit(actorId, eventType, subjectId, details = {}) {
   }
 }
 
+let cachedMailTransport = null;
+let cachedMailKey = "";
+let testMailTransport = null;
+
+function setMailTransportForTest(transport) {
+  testMailTransport = transport || null;
+}
+
+function escapeHtmlServer(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function getMailTransport() {
+  if (testMailTransport) {
+    const from = process.env.DELTA_SMTP_FROM || process.env.DELTA_SMTP_USER || "Delta Travel <no-reply@deltatravel.vn>";
+    return { transport: testMailTransport, from };
+  }
+  const user = (process.env.DELTA_SMTP_USER || process.env.SMTP_USER || "").trim();
+  const pass = process.env.DELTA_SMTP_PASS || process.env.SMTP_PASS || "";
+  const rawHost = (process.env.DELTA_SMTP_HOST || process.env.SMTP_HOST || "").trim();
+  const host = rawHost || (user.toLowerCase().endsWith("@gmail.com") ? "smtp.gmail.com" : "");
+  const allowNoAuth = process.env.DELTA_SMTP_ALLOW_NO_AUTH === "1";
+
+  if (!host || (!allowNoAuth && (!user || !pass))) {
+    return null;
+  }
+
+  const port = Number.parseInt(process.env.DELTA_SMTP_PORT || process.env.SMTP_PORT || "465", 10);
+  const secureEnv = process.env.DELTA_SMTP_SECURE ?? process.env.SMTP_SECURE;
+  const secure = secureEnv !== undefined ? String(secureEnv).toLowerCase() === "true" : port === 465;
+  const key = `${host}:${port}:${secure}:${user}:${pass.length}`;
+
+  if (!cachedMailTransport || cachedMailKey !== key) {
+    cachedMailTransport = nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: user ? { user, pass } : undefined,
+      connectionTimeout: 5000,
+      greetingTimeout: 5000,
+      socketTimeout: 8000
+    });
+    cachedMailKey = key;
+  }
+
+  const from = process.env.DELTA_SMTP_FROM || (user ? `Delta Travel <${user}>` : "Delta Travel <no-reply@deltatravel.vn>");
+  return { transport: cachedMailTransport, from };
+}
+
+function buildBookingConfirmationEmail({ booking, schedule = null, eventType = "CREATED" }) {
+  const isPaid = eventType === "PAID" || booking.status === "PAID" || booking.paid;
+  const isConfirmed = eventType === "CONFIRMED" || booking.status === "CONFIRMED";
+  const ref = booking.reference || booking.id;
+  const tourTitle = booking.tourTitle || "Tour Du Lịch Delta Travel";
+  const customerName = booking.customerName || "Quý khách";
+  const customerPhone = booking.customerPhone || "";
+  const customerEmail = booking.customerEmail || "";
+  const adults = Number(booking.adults || 1);
+  const children = Number(booking.children || 0);
+  const infants = Number(booking.infants || 0);
+  const subtotal = Number(booking.subtotalPrice ?? booking.totalPrice ?? 0);
+  const discount = Number(booking.discountAmount || 0);
+  const total = Number(booking.totalPrice || 0);
+  const voucherCode = booking.voucherCode || null;
+  const departureRaw = schedule?.departure_at || booking.departureAt || "";
+  const departureDisplay = departureRaw
+    ? new Date(departureRaw).toLocaleDateString("vi-VN", { year: "numeric", month: "2-digit", day: "2-digit" })
+    : "Theo lịch đã chọn";
+
+  const statusText = isPaid
+    ? "Đã xác nhận thanh toán"
+    : isConfirmed
+      ? "Đã xác nhận giữ chỗ"
+      : "Chờ thanh toán (Giữ chỗ 15 phút)";
+
+  const subject = isPaid
+    ? `[Delta Travel] Xác nhận thanh toán & Vé điện tử #${ref}`
+    : isConfirmed
+      ? `[Delta Travel] Xác nhận đơn đặt tour #${ref} - ${tourTitle}`
+      : `[Delta Travel] Xác nhận thông tin đặt tour #${ref} - ${tourTitle}`;
+
+  const guestSummary = [
+    `${adults} người lớn`,
+    children > 0 ? `${children} trẻ em` : null,
+    infants > 0 ? `${infants} em bé` : null
+  ].filter(Boolean).join(", ");
+
+  const discountLineText = discount > 0
+    ? `- Ưu đãi${voucherCode ? ` (${voucherCode})` : ""}: -${formatVndServer(discount)}\n`
+    : "";
+
+  const paymentHintText = (!isPaid && !isConfirmed)
+    ? `\nTHÔNG TIN CHUYỂN KHOẢN GIỮ CHỖ:\n- Ngân hàng: MBBank | STK: 0325536936 | Chủ TK: LE VAN AN\n- Số tiền: ${formatVndServer(total)}\n- Nội dung CK: ${ref}\n`
+    : "";
+
+  const text = [
+    `Xin chào ${customerName},`,
+    "",
+    `Delta Travel xác nhận đã ghi nhận đơn đặt tour của Quý khách với thông tin chi tiết bên dưới:`,
+    `- Mã đơn đặt tour: #${ref}`,
+    `- Trạng thái: ${statusText}`,
+    `- Hành trình: ${tourTitle}`,
+    `- Ngày khởi hành: ${departureDisplay}`,
+    `- Số hành khách: ${guestSummary}`,
+    `- SĐT liên hệ: ${customerPhone}`,
+    `- Email nhận vé: ${customerEmail}`,
+    booking.note ? `- Ghi chú: ${booking.note}` : null,
+    "",
+    `CHI TIẾT THANH TOÁN:`,
+    `- Tiền tour ban đầu: ${formatVndServer(subtotal)}`,
+    discountLineText.trimEnd() || null,
+    `- Tổng tiền thanh toán: ${formatVndServer(total)}`,
+    paymentHintText.trimEnd() || null,
+    "",
+    `Cảm ơn Quý khách đã đồng hành cùng Delta Travel!`,
+    `Hotline hỗ trợ: 0325536936 | Website: https://deltatravel.vn`
+  ].filter(line => line !== null).join("\n");
+
+  const discountRowHtml = discount > 0
+    ? `<tr><td style="padding:8px 0;color:#15803d;">Giảm giá${voucherCode ? ` (${escapeHtmlServer(voucherCode)})` : ""}</td><td style="padding:8px 0;text-align:right;font-weight:700;color:#15803d;">-${escapeHtmlServer(formatVndServer(discount))}</td></tr>`
+    : "";
+
+  const paymentBoxHtml = (!isPaid && !isConfirmed)
+    ? `<div style="margin-top:16px;padding:14px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:13px;color:#78350f;">
+         <strong>Hướng dẫn thanh toán giữ chỗ (MBBank):</strong><br/>
+         Số tài khoản: <strong>0325536936</strong> — Chủ TK: <strong>LE VAN AN</strong><br/>
+         Số tiền: <strong>${escapeHtmlServer(formatVndServer(total))}</strong> — Nội dung CK: <strong>${escapeHtmlServer(ref)}</strong>
+       </div>`
+    : "";
+
+  const html = `
+  <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:620px;margin:0 auto;padding:24px;background:#f8fafc;color:#0f172a;">
+    <div style="background:#ffffff;border-radius:14px;border:1px solid #e2e8f0;overflow:hidden;">
+      <div style="background:#0f172a;color:#ffffff;padding:20px 24px;">
+        <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#f59e0b;font-weight:700;">DELTA TRAVEL</div>
+        <h2 style="margin:6px 0 0;font-size:20px;">${isPaid ? "Xác nhận thanh toán & Vé điện tử" : "Xác nhận thông tin đặt tour"}</h2>
+      </div>
+      <div style="padding:24px;">
+        <p style="margin-top:0;">Xin chào <strong>${escapeHtmlServer(customerName)}</strong>,</p>
+        <p style="color:#475569;line-height:1.5;">Delta Travel đã tiếp nhận đơn đặt tour của Quý khách. Dưới đây là tóm tắt hành trình và chi phí:</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin:14px 0;">
+          <tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;color:#64748b;">Mã đơn đặt tour</td><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;">#${escapeHtmlServer(ref)}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;color:#64748b;">Trạng thái</td><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:600;">${escapeHtmlServer(statusText)}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;color:#64748b;">Tour du lịch</td><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:600;">${escapeHtmlServer(tourTitle)}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;color:#64748b;">Ngày khởi hành</td><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;text-align:right;">${escapeHtmlServer(departureDisplay)}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;color:#64748b;">Hành khách</td><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;text-align:right;">${escapeHtmlServer(guestSummary)}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;color:#64748b;">Điện thoại liên hệ</td><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;text-align:right;">${escapeHtmlServer(customerPhone)}</td></tr>
+          ${booking.note ? `<tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;color:#64748b;">Ghi chú</td><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;text-align:right;">${escapeHtmlServer(booking.note)}</td></tr>` : ""}
+          <tr><td style="padding:8px 0;color:#64748b;">Tiền tour ban đầu</td><td style="padding:8px 0;text-align:right;">${escapeHtmlServer(formatVndServer(subtotal))}</td></tr>
+          ${discountRowHtml}
+          <tr><td style="padding:10px 0 0;border-top:2px solid #0f172a;font-weight:700;">Tổng thanh toán</td><td style="padding:10px 0 0;border-top:2px solid #0f172a;text-align:right;font-size:17px;font-weight:800;color:#dc2626;">${escapeHtmlServer(formatVndServer(total))}</td></tr>
+        </table>
+        ${paymentBoxHtml}
+        <p style="margin:18px 0 0;font-size:12px;color:#64748b;">Nếu cần hỗ trợ thêm, vui lòng liên hệ Delta Travel qua số 0325536936 hoặc phản hồi email này.</p>
+      </div>
+    </div>
+  </div>`;
+
+  return { subject, text, html };
+}
+
+async function sendBookingEmailNotification({ booking, schedule = null, eventType = "CREATED" }) {
+  const to = String(booking?.customerEmail || "").trim();
+  const txInfo = getMailTransport();
+  if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+    return { sent: false, configured: Boolean(txInfo), recipient: to, reason: "INVALID_EMAIL" };
+  }
+  if (!txInfo) {
+    console.warn(`[EMAIL] Chưa cấu hình DELTA_SMTP_USER / DELTA_SMTP_PASS — bỏ qua gửi email tới ${to}.`);
+    return { sent: false, configured: false, recipient: to, reason: "SMTP_NOT_CONFIGURED" };
+  }
+  const { subject, text, html } = buildBookingConfirmationEmail({ booking, schedule, eventType });
+  try {
+    const info = await txInfo.transport.sendMail({
+      from: txInfo.from,
+      to,
+      subject,
+      text,
+      html
+    });
+    audit(booking.userId || null, "BOOKING_EMAIL_SENT", booking.id, {
+      to,
+      eventType,
+      messageId: info?.messageId || null
+    });
+    return {
+      sent: true,
+      configured: true,
+      recipient: to,
+      messageId: info?.messageId || null
+    };
+  } catch (err) {
+    console.warn(`[EMAIL] Lỗi gửi email tới ${to}:`, err.message);
+    audit(booking.userId || null, "BOOKING_EMAIL_FAILED", booking.id, {
+      to,
+      eventType,
+      error: err.message
+    });
+    return {
+      sent: false,
+      configured: true,
+      recipient: to,
+      reason: "SEND_FAILED",
+      error: err.message
+    };
+  }
+}
+
 // Cấu hình Middleware
 app.use(cors({
   origin: true,
@@ -2619,7 +2833,23 @@ app.post("/api/v1/bookings", requireAuthOrGuest, async (req, res) => {
     voucherBackend: usingSsVoucher ? "sqlserver" : "sqlite",
     total: totalPrice
   });
-  res.status(201).json(bookingDict(saved));
+  const savedDto = bookingDict(saved);
+  const emailNotification = await sendBookingEmailNotification({
+    booking: {
+      ...savedDto,
+      customerPhone: saved.customer_phone,
+      customerEmail: saved.customer_email,
+      note: saved.note,
+      userId: saved.user_id
+    },
+    schedule: sched,
+    eventType: "CREATED"
+  });
+  res.status(201).json({
+    ...savedDto,
+    customerEmail: saved.customer_email,
+    emailNotification
+  });
 });
 
 app.get("/api/v1/bookings", requireAuth, (req, res) => {
@@ -3187,10 +3417,27 @@ app.patch("/api/v1/admin/bookings/:booking_id", requireAdmin, async (req, res) =
 
   const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(b.id);
   audit(req.user.id, "BOOKING_STATUS_UPDATED", b.id, { status, reason: reason || null });
-  res.json(bookingDict(updated));
+  let emailNotification = null;
+  if ((status === "PAID" || status === "CONFIRMED") && b.status !== status) {
+    const schedRow = db.prepare("SELECT * FROM schedules WHERE id = ?").get(updated.schedule_id);
+    emailNotification = await sendBookingEmailNotification({
+      booking: {
+        ...bookingDict(updated),
+        customerPhone: updated.customer_phone,
+        customerEmail: updated.customer_email,
+        note: updated.note,
+        userId: updated.user_id
+      },
+      schedule: schedRow,
+      eventType: status
+    });
+  }
+  const resp = bookingDict(updated);
+  if (emailNotification) resp.emailNotification = emailNotification;
+  res.json(resp);
 });
 
-app.post("/api/v1/admin/bookings/:booking_id/confirm-payment", requireAdmin, (req, res) => {
+app.post("/api/v1/admin/bookings/:booking_id/confirm-payment", requireAdmin, async (req, res) => {
   const { booking_id } = req.params;
   const { reference } = req.body || {};
   const b = db.prepare("SELECT * FROM bookings WHERE id = ? OR reference = ?").get(booking_id, booking_id);
@@ -3209,7 +3456,19 @@ app.post("/api/v1/admin/bookings/:booking_id/confirm-payment", requireAdmin, (re
 
   const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(b.id);
   audit(req.user.id, "PAYMENT_MANUALLY_VERIFIED", b.id, { proofReference: ref });
-  res.json(bookingDict(updated));
+  const schedRow = db.prepare("SELECT * FROM schedules WHERE id = ?").get(updated.schedule_id);
+  const emailNotification = await sendBookingEmailNotification({
+    booking: {
+      ...bookingDict(updated),
+      customerPhone: updated.customer_phone,
+      customerEmail: updated.customer_email,
+      note: updated.note,
+      userId: updated.user_id
+    },
+    schedule: schedRow,
+    eventType: "PAID"
+  });
+  res.json({ ...bookingDict(updated), emailNotification });
 });
 
 function parseAdminVoucherInput(body, isPatch = false) {
@@ -4021,4 +4280,4 @@ function setSqlServerTestConnection(pool, ready = false) {
   sqlServerVoucherReady = Boolean(pool && ready);
 }
 
-module.exports = { app, server, db, setSqlServerTestConnection };
+module.exports = { app, server, db, setSqlServerTestConnection, setMailTransportForTest };
