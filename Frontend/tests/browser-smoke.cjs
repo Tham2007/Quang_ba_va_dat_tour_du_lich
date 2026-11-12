@@ -22,8 +22,10 @@ async function main() {
     const page = await ctx.newPage();
     page.on("pageerror", err => pageErrors.push(String(err.message)));
     page.on("response", response => {
-      if (response.url().startsWith(base) && response.status() >= 400) {
-        assetErrors.push(response.status() + " " + response.url());
+      const url = response.url();
+      const isOptional3dProbe = /\/(3d-frames|3D(%20|\s)Image(%20|\s)data)\//.test(url);
+      if (url.startsWith(base) && response.status() >= 400 && !isOptional3dProbe) {
+        assetErrors.push(response.status() + " " + url);
       }
     });
     let ready = false;
