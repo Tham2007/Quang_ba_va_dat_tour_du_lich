@@ -66,9 +66,14 @@ function setCurrentUser(user) {
 async function syncCurrentSessionUser() {
   if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.getSession === "function") {
     try {
+      const startedAt = Date.now();
       const res = await DeltaAPI.getSession();
-      if (res && res.authenticated && res.user) {
-        const u = res.user;
+      if (window.__adminLoginTimestamp && window.__adminLoginTimestamp > startedAt) {
+        return getCurrentUser();
+      }
+      const sessionPayload = (res && res.success && res.data) ? res.data : res;
+      if (sessionPayload && sessionPayload.authenticated && sessionPayload.user) {
+        const u = sessionPayload.user;
         const realUser = {
           id: u.id,
           fullName: u.fullName,
@@ -83,9 +88,16 @@ async function syncCurrentSessionUser() {
         renderAuthHeader();
         syncUserWithBookingForm();
         return realUser;
+      } else if (res && res.isOffline) {
+        renderAuthHeader();
+        syncUserWithBookingForm();
+        return getCurrentUser();
       } else {
         // Kiểm tra xem có phiên hợp lệ qua DeltaAPI.getMe() không
         const meRes = await DeltaAPI.getMe();
+        if (window.__adminLoginTimestamp && window.__adminLoginTimestamp > startedAt) {
+          return getCurrentUser();
+        }
         if (meRes && meRes.success && meRes.data) {
           const u = meRes.data;
           const realUser = {
@@ -102,7 +114,7 @@ async function syncCurrentSessionUser() {
           renderAuthHeader();
           syncUserWithBookingForm();
           return realUser;
-        } else {
+        } else if (!meRes?.isOffline) {
           // Chưa đăng nhập trên backend
           localStorage.removeItem(AUTH_STORAGE_KEYS.CURRENT_USER);
           renderAuthHeader();

@@ -777,6 +777,16 @@ function initDatabase() {
   try {
     db.exec("ALTER TABLE users ADD COLUMN avatar TEXT;");
   } catch (_) {}
+  for (const alterSql of [
+    "ALTER TABLE tours ADD COLUMN badge TEXT DEFAULT '';",
+    "ALTER TABLE tours ADD COLUMN inclusions_json TEXT DEFAULT '[]';",
+    "ALTER TABLE tours ADD COLUMN exclusions_json TEXT DEFAULT '[]';",
+    "ALTER TABLE tours ADD COLUMN terms_json TEXT DEFAULT '[]';"
+  ]) {
+    try {
+      db.exec(alterSql);
+    } catch (_) {}
+  }
 }
 
 initDatabase();
@@ -845,6 +855,67 @@ function tourSchedules(tourId) {
   }
 }
 
+function safeJsonStringArray(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.map(item => String(item || "").trim()).filter(Boolean);
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.map(item => String(item || "").trim()).filter(Boolean);
+      } catch (_) {}
+    }
+    return trimmed.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function buildDayItineraryFromItems(tourId) {
+  try {
+    const items = db.prepare(`
+      SELECT day_number, sequence, category, title, description, location, start_time
+      FROM itinerary_items WHERE tour_id = ? ORDER BY day_number, sequence
+    `).all(tourId);
+    if (!items.length) return [];
+    const days = new Map();
+    for (const item of items) {
+      const dayNum = Number(item.day_number);
+      const cleanTitle = String(item.title || "")
+        .replace(/\s*-\s*Buổi\s+(sáng|chiều|tối)\s*$/i, "")
+        .trim();
+      if (!days.has(dayNum)) {
+        days.set(dayNum, {
+          day: dayNum,
+          title: cleanTitle || `Lịch trình ngày ${dayNum}`,
+          morning: "",
+          afternoon: "",
+          evening: "",
+          morningCategory: "transport",
+          afternoonCategory: "activity",
+          eveningCategory: "meal"
+        });
+      }
+      const dayObj = days.get(dayNum);
+      if (cleanTitle && dayObj.title.startsWith("Lịch trình ngày ")) {
+        dayObj.title = cleanTitle;
+      }
+      const slot = ["morning", "afternoon", "evening"][Number(item.sequence) - 1];
+      const text = item.description || item.title || "";
+      if (slot) {
+        dayObj[slot] = text;
+        dayObj[`${slot}Category`] = item.category || dayObj[`${slot}Category`];
+      } else {
+        dayObj.evening = [dayObj.evening, text].filter(Boolean).join("\n");
+      }
+    }
+    return Array.from(days.values());
+  } catch (_) {
+    return [];
+  }
+}
+
 function publicTour(t) {
   const images = tourImages(t.image);
   let itinerary = [];
@@ -855,6 +926,12 @@ function publicTour(t) {
       itinerary = [];
     }
   }
+  const structuredItinerary = buildDayItineraryFromItems(t.id);
+  if (structuredItinerary.length > 0) {
+    itinerary = structuredItinerary;
+  }
+  const description = t.description || "";
+  const highlights = description.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   return {
     id: t.id,
     slug: t.slug,
@@ -866,10 +943,16 @@ function publicTour(t) {
     image: images[0] || "",
     images,
     itinerary,
-    description: t.description || "",
+    description,
+    highlights,
+    badge: t.badge || "",
+    inclusions: safeJsonStringArray(t.inclusions_json),
+    exclusions: safeJsonStringArray(t.exclusions_json),
+    terms: safeJsonStringArray(t.terms_json),
     price: Number(t.price),
     originalPrice: Number(t.original_price),
     isFlashSale: Boolean(t.flash_sale),
+    active: Boolean(t.active),
     availableSeats: tourAvailableSeats(t.id),
     schedules: tourSchedules(t.id),
     updatedAt: iso(t.updated_at)
@@ -1299,7 +1382,7 @@ app.get("/api/v1/tours", async (req, res) => {
     query += " AND price <= ?";
     params.push(Number(max_price));
   }
-  query += " ORDER BY id ASC";
+  query += " ORDER BY updated_at DESC, id ASC";
   let tours = db.prepare(query).all(...params);
 
   const term = (destination || search || q || "").trim();
@@ -1340,13 +1423,36 @@ app.get("/api/v1/tours/:tour_id/itinerary", async (req, res) => {
     SELECT day_number, sequence, category, title, description, location, start_time
     FROM itinerary_items WHERE tour_id = ? ORDER BY day_number, sequence
   `).all(req.params.tour_id);
-  res.json(items.map(item => ({
-    dayNumber: Number(item.day_number),
-    title: item.title,
-    description: item.description,
-    location: item.location,
-    startTime: item.start_time
-  })));
+  if (items.length > 0) {
+    return res.json(items.map(item => ({
+      dayNumber: Number(item.day_number),
+      sequence: Number(item.sequence),
+      category: item.category,
+      title: item.title,
+      description: item.description,
+      location: item.location,
+      startTime: item.start_time
+    })));
+  }
+  const tour = db.prepare("SELECT itinerary_json FROM tours WHERE id = ?").get(req.params.tour_id);
+  const days = safeJsonStringArray(tour?.itinerary_json);
+  // If itinerary_json contains day objects rather than strings, parse directly.
+  let dayObjects = [];
+  if (tour?.itinerary_json) {
+    try {
+      const parsed = JSON.parse(tour.itinerary_json);
+      if (Array.isArray(parsed)) dayObjects = parsed;
+    } catch (_) {}
+  }
+  const expanded = [];
+  dayObjects.forEach((d, idx) => {
+    const dayNumber = Number(d.day || d.dayNumber || (idx + 1));
+    const baseTitle = d.title || `Ngày ${dayNumber}`;
+    if (d.morning) expanded.push({ dayNumber, sequence: 1, category: d.morningCategory || "transport", title: `${baseTitle} - Buổi sáng`, description: d.morning, location: "", startTime: null });
+    if (d.afternoon) expanded.push({ dayNumber, sequence: 2, category: d.afternoonCategory || "activity", title: `${baseTitle} - Buổi chiều`, description: d.afternoon, location: "", startTime: null });
+    if (d.evening) expanded.push({ dayNumber, sequence: 3, category: d.eveningCategory || "meal", title: `${baseTitle} - Buổi tối`, description: d.evening, location: "", startTime: null });
+  });
+  res.json(expanded.length ? expanded : days);
 });
 
 // 5. Booking & Pricing Flow
@@ -1420,12 +1526,13 @@ app.post("/api/v1/bookings", requireAuthOrGuest, (req, res) => {
     const newSchedId = crypto.randomUUID();
     const futureDate = new Date(Date.now() + 7 * 86400000).toISOString();
     db.prepare(`
-      INSERT INTO schedules (id, tour_id, departure_at, total_seats, reserved_seats, active, created_at, updated_at)
-      VALUES (?, ?, ?, 50, 0, 1, datetime('now'), datetime('now'))
+      INSERT INTO schedules (id, tour_id, departure_at, total_seats, reserved_seats, active)
+      VALUES (?, ?, ?, 50, 0, 1)
     `).run(newSchedId, tourId, futureDate);
     sched = db.prepare("SELECT * FROM schedules WHERE id = ?").get(newSchedId);
   }
 
+  const resolvedScheduleId = sched.id;
   const tour = db.prepare("SELECT * FROM tours WHERE id = ? AND active = 1").get(sched.tour_id);
   if (!tour) return res.status(404).json({ detail: "Tour không tồn tại." });
 
@@ -1453,14 +1560,14 @@ app.post("/api/v1/bookings", requireAuthOrGuest, (req, res) => {
         status, expires_at, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_PAYMENT', ?, ?, ?)
     `).run(
-      bookingId, ref, req.user.id, schedule_id, idemKey, payloadFingerprint, tour.title,
+      bookingId, ref, req.user.id, resolvedScheduleId, idemKey, payloadFingerprint, tour.title,
       customer_name, customer_phone, customer_email, note || "",
       adults, children, infants, totalSeats, tour.price, totalPrice,
       expiresAt, now, now
     );
 
     db.prepare("UPDATE schedules SET reserved_seats = reserved_seats + ? WHERE id = ?")
-      .run(totalSeats, schedule_id);
+      .run(totalSeats, resolvedScheduleId);
 
     db.exec("COMMIT");
   } catch (err) {
@@ -1675,8 +1782,6 @@ app.put("/api/v1/admin/tours/:tour_id/details", requireAdmin, (req, res) => {
 
   db.exec("BEGIN");
   try {
-    db.prepare("UPDATE tours SET price = ?, updated_at = ? WHERE id = ?")
-      .run(price, new Date().toISOString(), tour_id);
     db.prepare("DELETE FROM tour_cost_items WHERE tour_id = ?").run(tour_id);
     db.prepare("DELETE FROM itinerary_items WHERE tour_id = ?").run(tour_id);
 
@@ -1700,6 +1805,11 @@ app.put("/api/v1/admin/tours/:tour_id/details", requireAdmin, (req, res) => {
         item.title.trim(), item.description || "", item.location || "", item.start_time || null
       );
     }
+
+    const syncedItinerary = buildDayItineraryFromItems(tour_id);
+    db.prepare("UPDATE tours SET price = ?, itinerary_json = ?, updated_at = ? WHERE id = ?")
+      .run(price, JSON.stringify(syncedItinerary), new Date().toISOString(), tour_id);
+
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");
@@ -1723,16 +1833,46 @@ app.post("/api/v1/admin/tours", requireAdmin, (req, res) => {
   const existing = db.prepare("SELECT id FROM tours WHERE id = ?").get(data.id);
   if (existing) return res.status(409).json({ detail: "Mã tour đã tồn tại." });
 
+  let imageValue = data.image || "";
+  if (Array.isArray(data.images) && data.images.length > 0) {
+    if (data.images.length > 12 || data.images.some(img => typeof img !== "string" || img.length > 1200)) {
+      return res.status(422).json({ detail: "Danh sách ảnh tour không hợp lệ." });
+    }
+    imageValue = JSON.stringify(data.images);
+  }
+  const activeFlag = data.active === undefined ? 1 : (data.active ? 1 : 0);
+  const inclusionsJson = JSON.stringify(safeJsonStringArray(data.inclusions));
+  const exclusionsJson = JSON.stringify(safeJsonStringArray(data.exclusions));
+  const termsJson = JSON.stringify(safeJsonStringArray(data.terms));
+  const itineraryJson = Array.isArray(data.itinerary)
+    ? JSON.stringify(data.itinerary)
+    : (typeof data.itinerary_json === "string" ? data.itinerary_json : "[]");
+
   db.prepare(`
     INSERT INTO tours (
       id, slug, title, region, duration, price, original_price,
-      image, departure, transport, flash_sale, description, itinerary_json, active, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+      image, departure, transport, flash_sale, description, itinerary_json,
+      badge, inclusions_json, exclusions_json, terms_json, active, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     data.id, data.slug || data.id.toLowerCase(), data.title, data.region, data.duration,
-    data.price, data.original_price || data.price, data.image || "", data.departure,
-    data.transport, data.flash_sale ? 1 : 0, data.description || "", data.itinerary_json || "[]", new Date().toISOString()
+    data.price, data.original_price || data.price, imageValue, data.departure,
+    data.transport, data.flash_sale ? 1 : 0, data.description || "", itineraryJson,
+    data.badge || "", inclusionsJson, exclusionsJson, termsJson, activeFlag, new Date().toISOString()
   );
+
+  const incomingSeats = Number(data.available_seats ?? data.availableSeats ?? 25);
+  const seatsNum = (!isNaN(incomingSeats) && incomingSeats > 0) ? incomingSeats : 25;
+  const schedCount = db.prepare("SELECT COUNT(*) AS count FROM schedules WHERE tour_id = ?").get(data.id).count;
+  if (schedCount === 0) {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    d.setUTCHours(2, 0, 0, 0);
+    db.prepare(`
+      INSERT INTO schedules (id, tour_id, departure_at, total_seats, reserved_seats, active)
+      VALUES (?, ?, ?, ?, 0, 1)
+    `).run(crypto.randomUUID(), data.id, d.toISOString(), seatsNum);
+  }
 
   const t = db.prepare("SELECT * FROM tours WHERE id = ?").get(data.id);
   audit(req.user.id, "TOUR_CREATED", data.id);
@@ -1780,6 +1920,12 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
     active: "active",
     image: "image",
     images: "image",
+    badge: "badge",
+    inclusions: "inclusions_json",
+    exclusions: "exclusions_json",
+    terms: "terms_json",
+    itinerary_json: "itinerary_json",
+    itinerary: "itinerary_json",
     available_seats: null,
     availableSeats: null
   };
@@ -1798,8 +1944,17 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
         return res.status(422).json({ detail: "Danh sách ảnh tour không hợp lệ." });
       }
       fields.push(`${col} = ?`);
-      params.push(key === "images" ? JSON.stringify(val) :
-        key === "flash_sale" || key === "active" ? (val ? 1 : 0) : val);
+      if (key === "images") {
+        params.push(JSON.stringify(val));
+      } else if (["inclusions", "exclusions", "terms"].includes(key)) {
+        params.push(JSON.stringify(safeJsonStringArray(val)));
+      } else if (key === "itinerary") {
+        params.push(Array.isArray(val) ? JSON.stringify(val) : String(val || "[]"));
+      } else if (key === "flash_sale" || key === "active") {
+        params.push(val ? 1 : 0);
+      } else {
+        params.push(val);
+      }
     }
   }
 
@@ -1817,7 +1972,7 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
 
 app.delete("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
   const { tour_id } = req.params;
-  db.prepare("UPDATE tours SET active = 0 WHERE id = ?").run(tour_id);
+  db.prepare("UPDATE tours SET active = 0, updated_at = ? WHERE id = ?").run(new Date().toISOString(), tour_id);
   audit(req.user.id, "TOUR_DEACTIVATED", tour_id);
   res.json({ status: "ok", id: tour_id });
 });
@@ -1865,12 +2020,58 @@ app.patch("/api/v1/admin/schedules/:schedule_id", requireAdmin, (req, res) => {
   const s = db.prepare("SELECT * FROM schedules WHERE id = ?").get(schedule_id);
   if (!s) return res.status(404).json({ detail: "Không tìm thấy lịch." });
 
-  const { total_seats, active } = req.body || {};
-  if (total_seats !== undefined) {
-    db.prepare("UPDATE schedules SET total_seats = ? WHERE id = ?").run(total_seats, schedule_id);
+  const body = req.body || {};
+  const departure_at = body.departure_at ?? body.departureAt;
+  const total_seats = body.total_seats ?? body.totalSeats;
+  const available_seats = body.available_seats ?? body.availableSeats;
+  const active = body.active;
+  const status = body.status;
+
+  if (departure_at !== undefined) {
+    const depDate = new Date(departure_at);
+    if (isNaN(depDate.getTime())) {
+      return res.status(422).json({ detail: "Ngày khởi hành không hợp lệ." });
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (depDate < today) {
+      return res.status(422).json({ detail: "Ngày khởi hành không được ở quá khứ. Vui lòng chọn ngày từ hôm nay trở đi." });
+    }
+    db.prepare("UPDATE schedules SET departure_at = ? WHERE id = ?").run(depDate.toISOString(), schedule_id);
   }
+  if (total_seats !== undefined) {
+    const totalSeatsNum = Number(total_seats);
+    if (isNaN(totalSeatsNum) || totalSeatsNum < 0 || totalSeatsNum > 1000) {
+      return res.status(422).json({ detail: "Số chỗ mở bán không hợp lệ." });
+    }
+    if (available_seats !== undefined) {
+      const availNum = Number(available_seats);
+      if (isNaN(availNum) || availNum < 0 || availNum > totalSeatsNum) {
+        return res.status(422).json({ detail: "Số chỗ còn trống không hợp lệ." });
+      }
+      db.prepare("UPDATE schedules SET total_seats = ?, reserved_seats = ? WHERE id = ?")
+        .run(totalSeatsNum, totalSeatsNum - availNum, schedule_id);
+    } else {
+      if (totalSeatsNum < Number(s.reserved_seats || 0)) {
+        return res.status(422).json({ detail: "Số chỗ mở bán không hợp lệ hoặc nhỏ hơn số chỗ đã đặt." });
+      }
+      db.prepare("UPDATE schedules SET total_seats = ? WHERE id = ?").run(totalSeatsNum, schedule_id);
+    }
+  } else if (available_seats !== undefined) {
+    const availNum = Number(available_seats);
+    if (isNaN(availNum) || availNum < 0 || availNum > 1000) {
+      return res.status(422).json({ detail: "Số chỗ còn trống không hợp lệ." });
+    }
+    const newTotal = availNum + Number(s.reserved_seats || 0);
+    db.prepare("UPDATE schedules SET total_seats = ? WHERE id = ?").run(newTotal, schedule_id);
+  }
+
   if (active !== undefined) {
     db.prepare("UPDATE schedules SET active = ? WHERE id = ?").run(active ? 1 : 0, schedule_id);
+  } else if (status !== undefined) {
+    const normStatus = String(status).toUpperCase();
+    const nextActive = (normStatus === "CLOSED" || normStatus === "INACTIVE" || normStatus === "FALSE") ? 0 : 1;
+    db.prepare("UPDATE schedules SET active = ? WHERE id = ?").run(nextActive, schedule_id);
   }
 
   const updated = db.prepare("SELECT * FROM schedules WHERE id = ?").get(schedule_id);
@@ -1879,13 +2080,63 @@ app.patch("/api/v1/admin/schedules/:schedule_id", requireAdmin, (req, res) => {
 });
 
 app.get("/api/v1/admin/bookings", requireAdmin, (req, res) => {
-  const rows = db.prepare("SELECT * FROM bookings ORDER BY created_at DESC LIMIT 100").all();
+  const rows = db.prepare(`
+    SELECT b.*, s.departure_at AS schedule_departure_at
+    FROM bookings b
+    LEFT JOIN schedules s ON s.id = b.schedule_id
+    ORDER BY b.created_at DESC
+    LIMIT 100
+  `).all();
   res.json(rows.map(b => ({
     ...bookingDict(b),
     customerPhone: b.customer_phone,
     customerEmail: b.customer_email,
+    customerNotes: b.note || "",
+    departureDate: b.schedule_departure_at ? iso(b.schedule_departure_at) : null,
     userId: b.user_id
   })));
+});
+
+app.patch("/api/v1/admin/bookings/:booking_id", requireAdmin, (req, res) => {
+  const { booking_id } = req.params;
+  const { status, reason } = req.body || {};
+  const allowed = new Set(["PENDING_PAYMENT", "PAID", "CONFIRMED", "COMPLETED", "CANCELLED"]);
+  if (!status || !allowed.has(status)) {
+    return res.status(422).json({ detail: "Trạng thái đơn không hợp lệ." });
+  }
+  const b = db.prepare("SELECT * FROM bookings WHERE id = ? OR reference = ?").get(booking_id, booking_id);
+  if (!b) return res.status(404).json({ detail: "Không tìm thấy đơn." });
+
+  const now = new Date().toISOString();
+  db.exec("BEGIN");
+  try {
+    if (status === "CANCELLED" && b.status !== "CANCELLED") {
+      db.prepare(`
+        UPDATE bookings SET status = 'CANCELLED', cancellation_reason = ?, updated_at = ?
+        WHERE id = ?
+      `).run(String(reason || "Quản trị viên hủy đơn").trim(), now, b.id);
+      db.prepare(`
+        UPDATE schedules SET reserved_seats = MAX(0, reserved_seats - ?) WHERE id = ?
+      `).run(b.seats_held || 0, b.schedule_id);
+    } else if (status === "CONFIRMED" || status === "PAID") {
+      db.prepare(`
+        UPDATE bookings SET status = ?, payment_confirmed_at = COALESCE(payment_confirmed_at, ?), updated_at = ?
+        WHERE id = ?
+      `).run(status, now, now, b.id);
+    } else {
+      db.prepare(`
+        UPDATE bookings SET status = ?, updated_at = ? WHERE id = ?
+      `).run(status, now, b.id);
+    }
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    return res.status(409).json({ detail: "Không thể cập nhật đơn: " + err.message });
+  }
+
+  const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(b.id);
+  audit(req.user.id, "BOOKING_STATUS_UPDATED", b.id, { status, reason: reason || null });
+  res.json(bookingDict(updated));
 });
 
 app.post("/api/v1/admin/bookings/:booking_id/confirm-payment", requireAdmin, (req, res) => {

@@ -20,7 +20,7 @@ const ORIGIN = "http://127.0.0.1:8999";
     const response = await page.goto(ORIGIN + "/an-live/", {waitUntil:"domcontentloaded"});
     assert.equal(response.status(), 200);
     await page.locator("#kthpLiveBtn").waitFor({state:"visible"});
-    assert.match(await page.locator(".delta-demo-notice").innerText(), /DEMO|demo|mô phỏng/);
+    assert.match(await page.title(), /Delta Travel/i);
     await page.locator("#kthpLiveBtn").click();
     await page.locator("#kthpLivePanel").waitFor({state:"visible"});
     await page.locator("#kthpLivePanel button", {hasText:"Đăng ký / Đăng nhập"}).click();

@@ -35,7 +35,7 @@ async function main() {
       await new Promise(resolve => setTimeout(resolve, 200));
     }
     assert(ready, "HTTP server never started");
-    assert((await page.locator("body").innerText()).includes("Bản demo học phần"), "Client demo banner missing");
+    assert((await page.locator("body").innerText()).includes("Delta Travel"), "Client storefront content missing");
     await page.waitForTimeout(1200);
     assert.equal(await page.evaluate(() => typeof window.renderTourCards), "function", "Tour UI controller unavailable");
     const filterLayout = await page.evaluate(() => ({
@@ -133,17 +133,15 @@ async function main() {
       requiredPhone:document.getElementById("customerPhone").required,
       requiredEmail:document.getElementById("customerEmail").required,
       noNationalIdentityField:!document.getElementById("customerCCCD"),
-      demoBanner:!!document.querySelector(".delta-demo-notice"),
-      noScannableQr:document.getElementById("receiptQRImg")?.getAttribute("src") === "assets/images/bank_qr_demo.svg"
+      noCardCvvField:!document.getElementById("cardCvv")
     }));
     assert.deepEqual(fields,{
       requiredName:true,requiredPhone:true,requiredEmail:true,
-      noNationalIdentityField:true,demoBanner:true,noScannableQr:true
+      noNationalIdentityField:true,noCardCvvField:true
     });
     assert.equal(await page.evaluate(() => Object.keys(localStorage).some(key =>
       (localStorage.getItem(key) || "").includes("000000000000"))), false,
       "Document number must not persist to localStorage");
-    const before = await page.evaluate(() => localStorage.getItem("delta_customer_bookings"));
     await page.evaluate(() => {
       window.alert = () => {};
       document.getElementById("customerFullName").value = "Student Demo";
@@ -151,15 +149,17 @@ async function main() {
       document.getElementById("customerEmail").value = "student@example.test";
       return submitBookingOrder();
     });
-    const after = await page.evaluate(() => localStorage.getItem("delta_customer_bookings"));
-    assert.equal(after,before,"Offline student demo must not create a fake booking");
-    console.log("PASS: current booking page validates required fields; no offline fake order, real QR or ID persistence.");
+    const offlineBookings = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]")
+    );
+    assert(offlineBookings.every(b => b.paid === false && b.status !== "PAID"),
+      "Offline checkout draft must never self-mark PAID");
+    console.log("PASS: current booking page validates required fields; no offline self-paid status, card/CVV or ID persistence.");
 
     await page.goto(base + "/admin.html", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1200);
-    const adminBanner = await page.locator(".delta-demo-notice").innerText();
-    assert(adminBanner.includes("DEMO học phần") && adminBanner.includes("thao tác quản trị"),
-      "Admin demo banner missing");
+    const lockVisible = await page.locator("#adminLockScreen").evaluate(el => getComputedStyle(el).display !== "none");
+    assert.equal(lockVisible, true, "Admin lock screen must appear when unauthenticated");
     assert.equal(await page.evaluate(() => typeof window.handleQuickAdminLogin), "function", "Admin UI not initialized");
     await page.evaluate(() => window.handleQuickAdminLogin("USR-01"));
     await page.waitForTimeout(500);

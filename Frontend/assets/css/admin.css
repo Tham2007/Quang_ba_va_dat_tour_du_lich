@@ -30,7 +30,7 @@ body.admin-body {
   min-height: 100vh;
   margin: 0;
   padding: 0;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .admin-layout-wrapper {
@@ -767,6 +767,7 @@ body.admin-body {
   align-items: center;
   justify-content: center;
   padding: 20px;
+  overflow-y: auto;
 }
 
 .admin-lock-box {
@@ -879,11 +880,16 @@ body.admin-body {
    Đảm bảo cuộn mượt mà 100%, không bị tràn/cắt chân modal và luôn hiện nút Lưu
    ============================================================================= */
 .modal-dialog-scrollable {
+  height: calc(100vh - 2rem) !important;
+  height: calc(100dvh - 2rem) !important;
   max-height: calc(100vh - 2rem) !important;
+  max-height: calc(100dvh - 2rem) !important;
 }
 
 .modal-dialog-scrollable .modal-content {
-  max-height: calc(100vh - 2rem) !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
@@ -895,17 +901,19 @@ body.admin-body {
 
 .modal-dialog-scrollable .modal-body {
   overflow-y: auto !important;
-  max-height: calc(100vh - 200px) !important;
+  overflow-x: hidden !important;
+  max-height: none !important;
+  min-height: 0 !important;
   flex: 1 1 auto !important;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  padding-right: 12px;
+  padding-right: 16px;
+  padding-bottom: 24px;
 }
 
 .modal-dialog-scrollable .modal-footer {
   flex-shrink: 0 !important;
   background: #ffffff;
-  position: sticky;
-  bottom: 0;
   z-index: 10;
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
 }
@@ -919,17 +927,24 @@ body.admin-body {
   border-radius: 4px;
 }
 .modal-dialog-scrollable .modal-body::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #94a3b8;
   border-radius: 4px;
 }
 .modal-dialog-scrollable .modal-body::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #64748b;
 }
 
 /* Đảm bảo khối Day-by-Day và các Tab không bị giới hạn chiều cao nội dung */
+#adminTourTabsContent,
+#adminTabTourItinerary,
 #adminTourItineraryContainer {
-  overflow-y: visible !important;
+  overflow: visible !important;
   width: 100%;
+  min-height: 0;
+}
+
+.admin-itinerary-day-card {
+  flex-shrink: 0;
 }
 
 .tab-content > .tab-pane {

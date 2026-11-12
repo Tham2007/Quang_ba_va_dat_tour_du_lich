@@ -79,6 +79,7 @@
 .tour-catalog-layout.filter-open .tour-sidebar-col {
   width: var(--tour-filter-width);
   max-width: var(--tour-filter-width);
+  overflow: visible;
   opacity: 1;
   margin-right: 1.75rem;
 }

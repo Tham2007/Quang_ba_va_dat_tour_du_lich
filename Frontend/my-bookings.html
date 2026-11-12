@@ -448,18 +448,23 @@
           const key = String(b.id || b.bookingId || b.reference);
           if (key) {
             const existing = mergedMap.get(key);
-            if (existing) {
-              const isPaid = (b.status === "PAID" || existing.status === "PAID" || existing.paid || b.paid || existing.paymentEvidence || b.payment_evidence);
-              mergedMap.set(key, {
-                ...existing,
-                ...b,
-                status: isPaid ? "PAID" : (b.status || existing.status),
-                paid: isPaid,
-                paymentEvidence: b.payment_evidence || existing.paymentEvidence
-              });
-            } else {
-              mergedMap.set(key, b);
-            }
+            const serverStatus = String(b.status || (existing && existing.status) || "PENDING_PAYMENT").toUpperCase();
+            const isPaid = (
+              serverStatus === "PAID" ||
+              serverStatus === "CONFIRMED" ||
+              serverStatus === "COMPLETED" ||
+              b.paid === true ||
+              (!b.status && existing?.paid === true)
+            );
+            mergedMap.set(key, {
+              ...(existing || {}),
+              ...b,
+              status: serverStatus,
+              statusCode: serverStatus,
+              paid: isPaid,
+              isPaid,
+              paymentEvidence: b.payment_evidence || b.paymentEvidence || existing?.paymentEvidence || null
+            });
           }
         });
         allBookings = Array.from(mergedMap.values());
@@ -526,9 +531,11 @@
           ? new Date(b.createdAt).toLocaleDateString(isEn ? "en-US" : "vi-VN")
           : (isEn ? "Today" : "Hôm nay");
 
-        const isPaid = (status === "PAID" || b.status === "PAID" || b.statusCode === "PAID" || b.paid === true || b.isPaid === true || b.paymentEvidence || b.payment_evidence);
-        const isConfirmed = (status === "CONFIRMED" || b.status === "CONFIRMED" || b.statusCode === "CONFIRMED");
-        const isCancelled = (status === "CANCELLED" || b.status === "CANCELLED" || b.statusCode === "CANCELLED");
+        const normalizedStatus = String(status).toUpperCase();
+        const isCompleted = (normalizedStatus === "COMPLETED");
+        const isConfirmed = (normalizedStatus === "CONFIRMED");
+        const isCancelled = (normalizedStatus === "CANCELLED");
+        const isPaid = (normalizedStatus === "PAID" || isConfirmed || isCompleted || b.paid === true || b.isPaid === true);
 
         let stampClass = "stamp-paid";
         let stampText = isEn ? "PAID" : "ĐÃ THANH TOÁN";
@@ -537,6 +544,9 @@
         if (isCancelled) {
           stampClass = "stamp-cancelled";
           stampText = isEn ? "CANCELLED" : "ĐÃ HỦY ĐƠN";
+        } else if (isCompleted) {
+          stampClass = "stamp-paid";
+          stampText = isEn ? "COMPLETED" : "ĐÃ HOÀN THÀNH";
         } else if (isConfirmed) {
           stampClass = "stamp-paid";
           stampText = isEn ? "CONFIRMED" : "ĐÃ DUYỆT GIỮ CHỖ";
@@ -749,6 +759,19 @@
     window.addEventListener("languageChanged", () => {
       renderBookings();
       if (typeof renderAuthHeader === "function") renderAuthHeader();
+    });
+
+    let __mbLastRefreshAt = 0;
+    window.addEventListener("storage", (e) => {
+      if (["delta_catalog_sync_ts", "delta_customer_bookings", "delta_bookings_v3"].includes(e.key)) {
+        loadBookings();
+      }
+    });
+    window.addEventListener("focus", () => {
+      if (Date.now() - __mbLastRefreshAt > 4000) {
+        __mbLastRefreshAt = Date.now();
+        loadBookings();
+      }
     });
   </script>
 

@@ -444,6 +444,163 @@ async function runTests() {
       filterDaNang2.status === 200 && filterDaNang2.json?.length > 0 &&
       filterDaNang1.json?.[0]?.title?.includes("Đà Nẵng"));
 
+    // Sync Test 1: Admin tạo tour đầy đủ -> Public API + Itinerary + Auto Schedule + Toggle Active
+    const syncTourId = "DL-SYNC" + Math.floor(10 + Math.random() * 89);
+    const syncCreateRes = await req("/api/v1/admin/tours", {
+      method: "POST",
+      headers: adminHeaders,
+      body: {
+        id: syncTourId,
+        title: "Tour Đồng Bộ Đà Lạt 3N2Đ",
+        region: "central",
+        duration: "3N2Đ",
+        price: 3990000,
+        original_price: 4990000,
+        departure: "TP. Hồ Chí Minh",
+        transport: "Xe Limousine VIP",
+        badge: "SIÊU HOT",
+        images: ["assets/images/dalat.png", "assets/images/sapa.png"],
+        inclusions: ["Xe Limousine VIP", "Khách sạn 4 sao"],
+        exclusions: ["Chi phí cá nhân"],
+        terms: ["Hủy trước 10 ngày miễn phí"],
+        itinerary: [
+          { day: 1, title: "Khởi hành Đà Lạt", morning: "Đón khách", afternoon: "Thác Datanla", evening: "Chợ đêm" },
+          { day: 2, title: "Săn mây & Trở về", morning: "Săn mây Cầu Đất", afternoon: "Mua đặc sản", evening: "Trả khách" }
+        ]
+      }
+    });
+    const publicSyncTour = await req(`/api/v1/tours/${syncTourId}`);
+    const publicSyncItinFallback = await req(`/api/v1/tours/${syncTourId}/itinerary`);
+    const publicSyncSchedules = await req(`/api/v1/tours/${syncTourId}/schedules`);
+    assert("Sync 1a: Admin POST tour đầy đủ đồng bộ sang Public API & tự tạo lịch mở bán",
+      syncCreateRes.status === 201 &&
+      publicSyncTour.status === 200 &&
+      publicSyncTour.json?.badge === "SIÊU HOT" &&
+      publicSyncTour.json?.images?.length === 2 &&
+      publicSyncTour.json?.inclusions?.[0] === "Xe Limousine VIP" &&
+      publicSyncTour.json?.exclusions?.[0] === "Chi phí cá nhân" &&
+      publicSyncTour.json?.terms?.[0] === "Hủy trước 10 ngày miễn phí" &&
+      publicSyncTour.json?.itinerary?.length === 2 &&
+      publicSyncTour.json?.itinerary?.[1]?.title === "Săn mây & Trở về" &&
+      publicSyncItinFallback.status === 200 &&
+      publicSyncItinFallback.json?.length === 6 &&
+      publicSyncSchedules.status === 200 &&
+      publicSyncSchedules.json?.length >= 1);
+
+    // Sync Test 1b: PUT /details cập nhật itinerary_items -> Public tour.itinerary & /itinerary cập nhật
+    const syncDetailsRes = await req(`/api/v1/admin/tours/${syncTourId}/details`, {
+      method: "PUT",
+      headers: adminHeaders,
+      body: {
+        price: 3990000,
+        cost_items: [{ category: "accommodation", name: "Khách sạn 4*", amount_per_person: 800000 }],
+        itinerary: [
+          { day_number: 1, sequence: 1, category: "transport", title: "Ngày 1 - Đón khách", description: "Xe đón đoàn", start_time: "07:00" },
+          { day_number: 2, sequence: 1, category: "activity", title: "Ngày 2 - Săn mây", description: "Đồi chè Cầu Đất", start_time: "05:30" },
+          { day_number: 3, sequence: 1, category: "meal", title: "Ngày 3 - Tạm biệt", description: "Ăn trưa & về lại TP", start_time: "11:30" }
+        ]
+      }
+    });
+    const publicTourAfterDetails = await req(`/api/v1/tours/${syncTourId}`);
+    const publicItinStructured = await req(`/api/v1/tours/${syncTourId}/itinerary`);
+    assert("Sync 1b: Admin PUT details đồng bộ lịch trình 3 ngày ra Public API",
+      syncDetailsRes.status === 200 &&
+      publicTourAfterDetails.status === 200 &&
+      publicTourAfterDetails.json?.itinerary?.length === 3 &&
+      publicItinStructured.status === 200 &&
+      publicItinStructured.json?.length === 3 &&
+      publicItinStructured.json?.[1]?.category === "activity");
+
+    // Sync Test 1c: Ẩn tour (active = false) -> Public 404; Mở lại (active = true) -> Public 200
+    const hideTourRes = await req(`/api/v1/admin/tours/${syncTourId}`, {
+      method: "PATCH",
+      headers: adminHeaders,
+      body: { active: false }
+    });
+    const hiddenPublicRes = await req(`/api/v1/tours/${syncTourId}`);
+    const restoreTourRes = await req(`/api/v1/admin/tours/${syncTourId}`, {
+      method: "PATCH",
+      headers: adminHeaders,
+      body: { active: true }
+    });
+    const restoredPublicRes = await req(`/api/v1/tours/${syncTourId}`);
+    assert("Sync 1c: Admin ẩn/hiện tour đồng bộ ngay lập tức trên Public API",
+      hideTourRes.status === 200 &&
+      hiddenPublicRes.status === 404 &&
+      restoreTourRes.status === 200 &&
+      restoredPublicRes.status === 200);
+
+    // Sync Test 2: Admin PATCH schedule đổi ngày khởi hành & số chỗ + đóng/mở lịch
+    const targetSchedId = publicSyncSchedules.json?.[0]?.id;
+    const nextDepartureIso = new Date(Date.now() + 25 * 86400000).toISOString();
+    const patchSchedRes = await req(`/api/v1/admin/schedules/${targetSchedId}`, {
+      method: "PATCH",
+      headers: adminHeaders,
+      body: {
+        departure_at: nextDepartureIso,
+        total_seats: 30,
+        available_seats: 28,
+        status: "OPEN"
+      }
+    });
+    const publicSchedsAfterPatch = await req(`/api/v1/tours/${syncTourId}/schedules`);
+    assert("Sync 2a: Admin PATCH schedule cập nhật ngày khởi hành & số chỗ ra Public",
+      patchSchedRes.status === 200 &&
+      publicSchedsAfterPatch.status === 200 &&
+      publicSchedsAfterPatch.json?.[0]?.departureAt === nextDepartureIso &&
+      publicSchedsAfterPatch.json?.[0]?.totalSeats === 30 &&
+      publicSchedsAfterPatch.json?.[0]?.availableSeats === 28);
+
+    // Sync Test 3: Đặt đơn -> Admin CONFIRMED -> Admin CANCELLED hoàn chỗ tự động
+    const syncBookRes = await req("/api/v1/bookings", {
+      method: "POST",
+      headers: { ...authHeaders, "Idempotency-Key": crypto.randomUUID() },
+      body: {
+        schedule_id: targetSchedId,
+        adults: 2,
+        children: 0,
+        infants: 0,
+        customer_name: "Khách Đồng Bộ",
+        customer_phone: newPhone,
+        customer_email: testEmail
+      }
+    });
+    const syncBookingId = syncBookRes.json?.id;
+    const schedAfterBook = await req(`/api/v1/tours/${syncTourId}/schedules`);
+    const confirmBookRes = await req(`/api/v1/admin/bookings/${syncBookingId}`, {
+      method: "PATCH",
+      headers: adminHeaders,
+      body: { status: "CONFIRMED" }
+    });
+    const cancelBookAdminRes = await req(`/api/v1/admin/bookings/${syncBookingId}`, {
+      method: "PATCH",
+      headers: adminHeaders,
+      body: { status: "CANCELLED", reason: "Khách đổi lịch bay" }
+    });
+    const customerBookAfterCancel = await req(`/api/v1/bookings/${syncBookingId}`, { headers: authHeaders });
+    const schedAfterAdminCancel = await req(`/api/v1/tours/${syncTourId}/schedules`);
+    assert("Sync 3: Admin duyệt & hủy đơn cập nhật khách hàng và hoàn lại chỗ trên lịch",
+      syncBookRes.status === 201 &&
+      schedAfterBook.json?.[0]?.availableSeats === 26 &&
+      confirmBookRes.status === 200 &&
+      confirmBookRes.json?.status === "CONFIRMED" &&
+      cancelBookAdminRes.status === 200 &&
+      cancelBookAdminRes.json?.status === "CANCELLED" &&
+      customerBookAfterCancel.json?.status === "CANCELLED" &&
+      schedAfterAdminCancel.json?.[0]?.availableSeats === 28);
+
+    // Sync Test 2b: Đóng lịch khởi hành -> Public schedules ẩn lịch đó
+    const closeSchedRes = await req(`/api/v1/admin/schedules/${targetSchedId}`, {
+      method: "PATCH",
+      headers: adminHeaders,
+      body: { status: "CLOSED" }
+    });
+    const publicSchedsClosed = await req(`/api/v1/tours/${syncTourId}/schedules`);
+    assert("Sync 2b: Admin đóng lịch khởi hành -> Public schedules không hiển thị lịch CLOSED",
+      closeSchedRes.status === 200 &&
+      publicSchedsClosed.status === 200 &&
+      publicSchedsClosed.json?.length === 0);
+
     const catalogRequests = [];
     catalogMockServer = http.createServer((request, response) => {
       const requestUrl = new URL(request.url, "http://127.0.0.1");

@@ -1088,10 +1088,35 @@
       recalcPrice();
     }
 
+    function setBookingUnavailable(message) {
+      const titleEl = document.getElementById("tourTitleDisplay");
+      if (titleEl) titleEl.textContent = message;
+      const select = document.getElementById("bookingScheduleSelect");
+      if (select) {
+        select.innerHTML = `<option value="">${message}</option>`;
+        select.disabled = true;
+      }
+      const btn = document.querySelector(".paper-btn-submit");
+      if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = "0.6";
+        btn.style.cursor = "not-allowed";
+      }
+    }
+
+    function setBookingSubmitEnabled(enabled) {
+      const btn = document.querySelector(".paper-btn-submit");
+      if (!btn) return;
+      btn.disabled = !enabled;
+      btn.style.opacity = enabled ? "" : "0.6";
+      btn.style.cursor = enabled ? "" : "not-allowed";
+    }
+
     async function initPage() {
       const params = new URLSearchParams(window.location.search);
       const tourId = params.get("tourId") || "DL-HL01";
       const bookingIdParam = params.get("bookingId");
+      const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
 
       // Nếu có mã bookingId trên URL, hiển thị trực tiếp biên lai thanh toán VietQR
       if (bookingIdParam) {
@@ -1116,36 +1141,88 @@
       }
 
       try {
-        // Tìm tour từ DEFAULT_TOURS trước (để có đầy đủ lịch trình chi tiết và thông số)
-        let tour = null;
-        if (typeof DEFAULT_TOURS !== "undefined" && Array.isArray(DEFAULT_TOURS)) {
-          tour = DEFAULT_TOURS.find(t => String(t.id).toUpperCase() === String(tourId).toUpperCase());
+        // Tìm bản local trước (làm fallback khi backend offline)
+        let localTour = null;
+        if (typeof getToursData === "function") {
+          localTour = getToursData().find(t => String(t.id).toUpperCase() === String(tourId).toUpperCase());
+        }
+        if (!localTour && typeof DEFAULT_TOURS !== "undefined" && Array.isArray(DEFAULT_TOURS)) {
+          localTour = DEFAULT_TOURS.find(t => String(t.id).toUpperCase() === String(tourId).toUpperCase());
         }
 
-        // Tải thêm từ API nếu online
-        if (typeof DeltaAPI !== "undefined" && DeltaAPI.fetchTour) {
+        let tour = localTour;
+        let tourUnavailableOnline = false;
+
+        // Tải bản mới nhất từ API nếu backend hoạt động
+        const fetchTourFn = (typeof DeltaAPI !== "undefined") ? (DeltaAPI.fetchTourById || DeltaAPI.fetchTour) : null;
+        if (fetchTourFn) {
           try {
-            const res = await DeltaAPI.fetchTour(tourId);
+            const res = await fetchTourFn(tourId);
             if (res && res.success && res.data) {
-              tour = { ...(tour || {}), ...res.data };
+              tour = { ...(localTour || {}), ...res.data };
+              if (Array.isArray(res.data.images) && res.data.images.length > 0) {
+                tour.images = res.data.images;
+                tour.image = res.data.images[0];
+              }
+            } else if (res && !res.success && !res.isOffline) {
+              tourUnavailableOnline = true;
             }
           } catch (e) {
             console.warn("Lỗi tải API tour:", e);
           }
         }
 
+        if (tourUnavailableOnline || (tour && (tour.active === false || tour.status === "INACTIVE" || tour.status === "DRAFT"))) {
+          const msg = isEn
+            ? "This tour is currently hidden or no longer open for booking."
+            : "Tour này hiện đang tạm ẩn hoặc không còn mở bán.";
+          setBookingUnavailable(msg);
+          showAppNotice(msg, isEn ? "Notice" : "Thông Báo", "warning");
+          return;
+        }
+
+        if (tour && (!Array.isArray(tour.itinerary) || tour.itinerary.length === 0) && typeof DeltaAPI !== "undefined" && typeof DeltaAPI.fetchItinerary === "function") {
+          try {
+            const itRes = await DeltaAPI.fetchItinerary(tour.id);
+            if (itRes && itRes.success && Array.isArray(itRes.data) && itRes.data.length > 0) {
+              const grouped = new Map();
+              itRes.data.forEach(item => {
+                const dayNum = Number(item.dayNumber || item.day || 1);
+                if (!grouped.has(dayNum)) {
+                  grouped.set(dayNum, {
+                    day: dayNum,
+                    title: item.dayTitle || `Lịch trình ngày ${dayNum}`,
+                    morning: "",
+                    afternoon: "",
+                    evening: ""
+                  });
+                }
+                const entry = grouped.get(dayNum);
+                const desc = item.description || item.title || "";
+                const cat = String(item.category || "").toLowerCase();
+                if (cat === "meal" || String(item.title || "").includes("Buổi tối")) {
+                  entry.evening = entry.evening ? `${entry.evening}; ${desc}` : desc;
+                } else if (cat === "activity" || String(item.title || "").includes("Buổi chiều")) {
+                  entry.afternoon = entry.afternoon ? `${entry.afternoon}; ${desc}` : desc;
+                } else {
+                  entry.morning = entry.morning ? `${entry.morning}; ${desc}` : desc;
+                }
+              });
+              tour.itinerary = Array.from(grouped.values());
+            }
+          } catch (e) {
+            console.warn("Lỗi tải lịch trình API:", e);
+          }
+        }
+
         if (!tour) {
-          tour = {
-            id: tourId,
-            title: "Tour Du Thuyền 5 Sao Vịnh Hạ Long – Vịnh Lan Hạ",
-            duration: "3N2Đ",
-            transport: "Du thuyền 5* + Limousine VIP",
-            price: 3890000,
-            image: "assets/images/halong.png"
-          };
+          const msg = isEn ? "Tour not found." : "Không tìm thấy thông tin tour này.";
+          setBookingUnavailable(msg);
+          return;
         }
 
         currentTour = tour;
+        setBookingSubmitEnabled(true);
         renderTourInfo();
         renderBookingItinerary(currentTour);
         await loadSchedules(tour.id);
@@ -1247,20 +1324,32 @@
     async function loadSchedules(tourId) {
       const select = document.getElementById("bookingScheduleSelect");
       const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
+      let backendOnline = false;
       try {
         let schedules = [];
         if (typeof DeltaAPI !== "undefined" && DeltaAPI.fetchSchedules) {
           const res = await DeltaAPI.fetchSchedules(tourId);
-          if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-            schedules = res.data;
+          if (res && !res.isOffline) {
+            backendOnline = true;
+          }
+          if (res && res.success && Array.isArray(res.data)) {
+            schedules = res.data.filter(s => s.status !== "CLOSED" && s.status !== "INACTIVE" && s.active !== false);
           }
         }
 
-        if (schedules.length === 0) {
+        if (!backendOnline && schedules.length === 0 && typeof getSchedulesData === "function") {
+          schedules = getSchedulesData().filter(s =>
+            String(s.tourId || "").toUpperCase() === String(tourId).toUpperCase() &&
+            s.status !== "CLOSED" &&
+            s.status !== "INACTIVE"
+          );
+        }
+
+        if (!backendOnline && schedules.length === 0) {
           schedules = [7, 14, 21].map((d, i) => {
             const date = new Date(Date.now() + d * 86400000);
             return {
-              id: `SCHED-${tourId}-${i+1}`,
+              id: `SCHED-${tourId}-${i + 1}`,
               departureAt: date.toISOString(),
               availableSeats: 25 - i * 4
             };
@@ -1268,13 +1357,29 @@
         }
 
         currentSchedules = schedules;
+        if (schedules.length === 0) {
+          select.innerHTML = `<option value="">${isEn ? "No open departure schedules available" : "Hiện chưa có lịch khởi hành mở bán"}</option>`;
+          select.disabled = true;
+          setBookingSubmitEnabled(false);
+          return;
+        }
+
+        select.disabled = false;
+        setBookingSubmitEnabled(true);
         select.innerHTML = schedules.map(s => {
           const dStr = new Date(s.departureAt).toLocaleDateString(isEn ? "en-US" : "vi-VN");
           const seatsStr = isEn ? `${s.availableSeats} seats left` : `Còn ${s.availableSeats} chỗ`;
-          return `<option value="${s.id}">${dStr} · ${seatsStr}</option>`;
+          return `<option value="${s.id}" ${Number(s.availableSeats) <= 0 ? "disabled" : ""}>${dStr} · ${seatsStr}</option>`;
         }).join("");
       } catch (err) {
-        select.innerHTML = `<option value="DEFAULT">${isEn ? "Departs every Saturday" : "Khởi hành thứ 7 hàng tuần"}</option>`;
+        if (backendOnline) {
+          currentSchedules = [];
+          select.innerHTML = `<option value="">${isEn ? "No open departure schedules available" : "Hiện chưa có lịch khởi hành mở bán"}</option>`;
+          select.disabled = true;
+          setBookingSubmitEnabled(false);
+        } else {
+          select.innerHTML = `<option value="DEFAULT">${isEn ? "Departs every Saturday" : "Khởi hành thứ 7 hàng tuần"}</option>`;
+        }
       }
     }
 
@@ -1425,10 +1530,20 @@
       const name = (document.getElementById("customerFullName")?.value || "").trim();
       const phone = (document.getElementById("customerPhone")?.value || "").trim();
       const email = (document.getElementById("customerEmail")?.value || "").trim();
-      const scheduleId = document.getElementById("bookingScheduleSelect")?.value || "DEFAULT";
+      const scheduleSelect = document.getElementById("bookingScheduleSelect");
+      const scheduleId = scheduleSelect?.value || "";
       const adults = Math.max(1, parseInt(document.getElementById("numAdults")?.value || 1, 10));
       const children = Math.max(0, parseInt(document.getElementById("numChildren")?.value || 0, 10));
       const infants = Math.max(0, parseInt(document.getElementById("numInfants")?.value || 0, 10));
+
+      if (!currentTour || !scheduleId || scheduleSelect?.disabled) {
+        showAppNotice(
+          isEn ? "This tour currently has no open departure schedules available for booking." : "Tour này hiện chưa có lịch khởi hành mở bán khả dụng.",
+          isEn ? "Unavailable" : "Chưa Có Lịch Mở Bán",
+          "warning"
+        );
+        return;
+      }
 
       if (!name || !phone || !email) {
         showAppNotice(
@@ -1771,6 +1886,12 @@
         renderBookingItinerary(currentTour);
         loadSchedules(currentTour.id);
         recalcPrice();
+      }
+    });
+
+    window.addEventListener("storage", (e) => {
+      if (["delta_catalog_sync_ts", "delta_tours_v3", "delta_schedules_v3"].includes(e.key) && !currentBookingData) {
+        initPage();
       }
     });
   </script>

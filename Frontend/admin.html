@@ -394,6 +394,11 @@
                 <div id="adminTourItineraryContainer" class="d-flex flex-column gap-3">
                   <!-- Được sinh tự động bởi renderAdminItineraryDays() -->
                 </div>
+                <div class="d-flex justify-content-end mt-3">
+                  <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 d-flex align-items-center gap-1" onclick="addAdminItineraryDay()">
+                    <i class="bi bi-plus-circle-fill"></i> Thêm Ngày Mới
+                  </button>
+                </div>
               </div>
 
               <!-- TAB 3: ĐIỂM NỔI BẬT & BAO GỒM / LOẠI TRỪ / CHÍNH SÁCH -->
@@ -445,7 +450,7 @@
               </div>
               <div class="col-12">
                 <label class="form-label small fw-bold">Chọn Tour Du Lịch <span class="text-danger">*</span></label>
-                <select class="form-select" id="formSchTourId" required></select>
+                <select class="form-select" id="formSchTourId" onchange="syncScheduleModalTourPrices()" required></select>
               </div>
               <div class="col-12">
                 <label class="form-label small fw-bold">Ngày Giờ Khởi Hành <span class="text-danger">*</span></label>

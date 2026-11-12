@@ -317,10 +317,12 @@ const DeltaAPI = (() => {
     return await request("/admin/bookings");
   }
 
-  async function adminPatchBooking(bookingId, status) {
+  async function adminPatchBooking(bookingId, status, reason) {
+    const body = { status };
+    if (reason) body.reason = reason;
     return await request(`/admin/bookings/${encodeURIComponent(bookingId)}`, {
       method: "PATCH",
-      body: { status }
+      body
     });
   }
 
@@ -409,6 +411,7 @@ const DeltaAPI = (() => {
     checkHealth,
     fetchTours,
     fetchTourById,
+    fetchTour: fetchTourById,
     fetchSchedules,
     fetchItinerary,
     quoteBooking,

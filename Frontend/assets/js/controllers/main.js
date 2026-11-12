@@ -460,6 +460,7 @@ function renderTourCards() {
 
   // 1. Lọc theo từ khóa, vùng miền, mức giá, flash sale
   let filtered = AppState.serverCatalog ? [...TOURS_DATA] : TOURS_DATA.filter(tour => {
+    if (tour.active === false || tour.status === "INACTIVE" || tour.status === "DRAFT") return false;
     // Lọc theo vùng miền
     if (AppState.activeRegion !== "all") {
       if (tour.region !== AppState.activeRegion) return false;
@@ -579,9 +580,19 @@ function renderTourCards() {
     const durationDisplay = isEn
       ? String(tour.duration || "").replace(/N/g, "D").replace(/Đ/g, "N")
       : tour.duration;
-    const badgeText = tour.badge === "FLASH SALE"
-      ? (typeof t === "function" ? t("card_flashsale") : "FLASH SALE")
-      : (typeof t === "function" ? t("card_featured") : (tour.badge || "TOUR NỔI BẬT"));
+    const rawBadge = String(tour.badge || "").trim();
+    const safeCustomBadge = rawBadge.replace(/[&<>"']/g, ch => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    })[ch]);
+    const badgeText = rawBadge
+      ? (rawBadge.toUpperCase() === "FLASH SALE"
+        ? (typeof t === "function" ? t("card_flashsale") : "FLASH SALE")
+        : (rawBadge.toUpperCase() === "TOUR NỔI BẬT"
+          ? (typeof t === "function" ? t("card_featured") : "TOUR NỔI BẬT")
+          : safeCustomBadge))
+      : (tour.isFlashSale
+        ? (typeof t === "function" ? t("card_flashsale") : "FLASH SALE")
+        : (typeof t === "function" ? t("card_featured") : "TOUR NỔI BẬT"));
     const seatsText = seats > 0
       ? (typeof t === "function" ? t("card_left_seats", { n: seats }) : `Còn ${seats} chỗ`)
       : (nextSchedule ? (typeof t === "function" ? t("card_sold_out") : "Hết chỗ") : "---");
@@ -850,11 +861,15 @@ async function searchToursFromApi(page = 1) {
       image: images[0] || "assets/images/halong.png",
       images,
       schedules,
-      availableSeats: schedules[0]?.availableSeats ?? 0,
+      availableSeats: tour.availableSeats ?? schedules[0]?.availableSeats ?? 0,
       originalPrice: tour.originalPrice ?? tour.price,
       rating: tour.rating ?? 0,
       reviewsCount: tour.reviewsCount ?? 0,
-      badge: tour.isFlashSale ? "FLASH SALE" : "TOUR NỔI BẬT",
+      badge: tour.badge || (tour.isFlashSale ? "FLASH SALE" : "TOUR NỔI BẬT"),
+      highlights: Array.isArray(tour.highlights) ? tour.highlights : [],
+      inclusions: Array.isArray(tour.inclusions) ? tour.inclusions : [],
+      exclusions: Array.isArray(tour.exclusions) ? tour.exclusions : [],
+      terms: Array.isArray(tour.terms) ? tour.terms : [],
       itinerary: Array.isArray(tour.itinerary) ? tour.itinerary : []
     };
   }));
@@ -1180,11 +1195,41 @@ function openWishlistModal() {
  */
 async function openItineraryModal(tourId) {
   // Tìm tour an toàn theo id (hỗ trợ cả uppercase, lowercase, string)
-  const tour = TOURS_DATA.find(t => String(t.id).trim().toLowerCase() === String(tourId).trim().toLowerCase());
-  if (!tour) {
-    console.warn("Không tìm thấy tour với mã:", tourId);
+  let tour = TOURS_DATA.find(t => String(t.id).trim().toLowerCase() === String(tourId).trim().toLowerCase())
+    || (AppState.allTours || []).find(t => String(t.id).trim().toLowerCase() === String(tourId).trim().toLowerCase());
+
+  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.fetchTourById === "function" && DeltaAPI.isOnline && DeltaAPI.isOnline()) {
+    try {
+      const freshRes = await DeltaAPI.fetchTourById(tourId);
+      if (freshRes && freshRes.success && freshRes.data) {
+        tour = { ...(tour || {}), ...freshRes.data };
+      } else if (freshRes && !freshRes.success && !freshRes.isOffline) {
+        if (typeof showToast === "function") {
+          showToast(freshRes.error || "Tour này hiện đang tạm ẩn hoặc không còn mở bán.", "warning");
+        }
+        return;
+      }
+    } catch (e) {
+      console.warn("fetchTourById error:", e);
+    }
+  }
+
+  if (!tour || tour.active === false || tour.status === "INACTIVE" || tour.status === "DRAFT") {
+    console.warn("Không tìm thấy hoặc tour đang ẩn:", tourId);
+    if (typeof showToast === "function") {
+      showToast("Tour này hiện đang tạm ẩn hoặc không còn mở bán.", "warning");
+    }
     return;
   }
+
+  const freshImages = Array.isArray(tour.images) && tour.images.length
+    ? tour.images
+    : (tour.image ? [tour.image] : []);
+  tour = {
+    ...tour,
+    images: freshImages,
+    image: freshImages[0] || "assets/images/halong.png"
+  };
 
   const modalEl = document.getElementById("itineraryModal");
   if (!modalEl) return;
@@ -1253,21 +1298,38 @@ async function openItineraryModal(tourId) {
   const priceEl = document.getElementById("itineraryPrice");
   if (priceEl) priceEl.textContent = formatVND(tour.price);
 
-  // Tải lịch trình: Nếu ngôn ngữ là tiếng Anh, ưu tiên dùng TOUR_ITINERARIES_EN
+  // Tải lịch trình: Nếu ngôn ngữ là tiếng Anh, ưu tiên dùng TOUR_ITINERARIES_EN; ngược lại ưu tiên dữ liệu mới nhất từ server/Admin
   let itineraryDays = [];
   if (isEn && typeof window.getTourItineraryDays === "function") {
     itineraryDays = window.getTourItineraryDays(tour, "en");
   }
 
   if (!itineraryDays || itineraryDays.length === 0) {
-    if (typeof DeltaAPI !== "undefined" && DeltaAPI.isOnline() && DeltaAPI.fetchItinerary) {
+    if (Array.isArray(tour.itinerary) && tour.itinerary.length > 0) {
+      itineraryDays = tour.itinerary;
+    } else if (typeof tour.itinerary === "string" && tour.itinerary.trim()) {
+      try {
+        const parsed = JSON.parse(tour.itinerary);
+        if (Array.isArray(parsed) && parsed.length > 0) itineraryDays = parsed;
+      } catch (e) {}
+    } else if (tour.itinerary_json) {
+      try {
+        const parsed = JSON.parse(tour.itinerary_json);
+        if (Array.isArray(parsed) && parsed.length > 0) itineraryDays = parsed;
+      } catch (e) {}
+    }
+  }
+
+  if (!itineraryDays || itineraryDays.length === 0) {
+    if (typeof DeltaAPI !== "undefined" && DeltaAPI.isOnline && DeltaAPI.isOnline() && DeltaAPI.fetchItinerary) {
       try {
         const response = await DeltaAPI.fetchItinerary(tour.id);
         if (response && response.success && Array.isArray(response.data) && response.data.length > 0) {
           const grouped = new Map();
           for (const activity of response.data) {
-            if (!grouped.has(activity.dayNumber)) grouped.set(activity.dayNumber, []);
-            grouped.get(activity.dayNumber).push(activity);
+            const dNum = activity.dayNumber || 1;
+            if (!grouped.has(dNum)) grouped.set(dNum, []);
+            grouped.get(dNum).push(activity);
           }
           itineraryDays = [...grouped.entries()].map(([day, activities]) => ({
             day,
@@ -1278,22 +1340,6 @@ async function openItineraryModal(tourId) {
       } catch (e) {
         console.warn("fetchItinerary error:", e);
       }
-    }
-  }
-
-  if (!itineraryDays || itineraryDays.length === 0) {
-    if (Array.isArray(tour.itinerary) && tour.itinerary.length > 0) {
-      itineraryDays = tour.itinerary;
-    } else if (typeof tour.itinerary === "string") {
-      try {
-        const parsed = JSON.parse(tour.itinerary);
-        if (Array.isArray(parsed) && parsed.length > 0) itineraryDays = parsed;
-      } catch (e) {}
-    } else if (tour.itinerary_json) {
-      try {
-        const parsed = JSON.parse(tour.itinerary_json);
-        if (Array.isArray(parsed) && parsed.length > 0) itineraryDays = parsed;
-      } catch (e) {}
     }
   }
 
@@ -1353,7 +1399,7 @@ async function openItineraryModal(tourId) {
       return `
         <div class="itinerary-day-card">
           <div class="itinerary-day-badge">${dayNum}</div>
-          <h5 class="itinerary-day-title">${dayPrefix}${dayNum}: ${dayTitle}</h5>
+          <h5 class="itinerary-day-title">${dayPrefix}${dayNum}: ${escapeHtml(dayTitle)}</h5>
 
           <!-- Buổi Sáng -->
           <div class="day-period-block">
@@ -1430,7 +1476,7 @@ async function openItineraryModal(tourId) {
   const inclusionsEl = document.getElementById("itineraryInclusions");
   if (inclusionsEl) {
     inclusionsEl.innerHTML = inclusions.map(inc => `
-      <li><i class="bi bi-check-circle-fill"></i> <span>${inc}</span></li>
+      <li><i class="bi bi-check-circle-fill"></i> <span>${escapeHtml(inc)}</span></li>
     `).join("");
   }
 
@@ -1461,7 +1507,31 @@ async function openItineraryModal(tourId) {
   const exclusionsEl = document.getElementById("itineraryExclusions");
   if (exclusionsEl) {
     exclusionsEl.innerHTML = exclusions.map(exc => `
-      <li><i class="bi bi-x-circle-fill"></i> <span>${exc}</span></li>
+      <li><i class="bi bi-x-circle-fill"></i> <span>${escapeHtml(exc)}</span></li>
+    `).join("");
+  }
+
+  const termsListEl = document.querySelector("#tabTerms .policy-list");
+  if (termsListEl) {
+    let terms = [];
+    if (!isEn) {
+      if (Array.isArray(tour.terms)) {
+        terms = tour.terms.map(item => String(item || "").trim()).filter(Boolean);
+      } else if (typeof tour.terms === "string") {
+        terms = tour.terms.split("\n").map(s => s.trim()).filter(Boolean);
+      }
+    }
+    if (terms.length === 0) {
+      terms = [
+        typeof t === "function" ? t("terms_1") : "Hủy tour trước 15 ngày khởi hành: Miễn phí 100% chi phí hủy.",
+        typeof t === "function" ? t("terms_2") : "Hủy tour từ 07 - 14 ngày trước khởi hành: Tính phí 30% giá tour.",
+        typeof t === "function" ? t("terms_3") : "Hủy tour từ 03 - 06 ngày trước khởi hành: Tính phí 50% giá tour.",
+        typeof t === "function" ? t("terms_4") : "Hủy tour trong vòng 48h trước giờ xuất phát: Tính phí 100% giá tour.",
+        typeof t === "function" ? t("terms_5") : "Trường hợp thiên tai bão lũ, hoãn chuyến bay: Delta Travel hỗ trợ bảo lưu 100% tiền cọc hoặc đổi sang tour tương đương."
+      ];
+    }
+    termsListEl.innerHTML = terms.map(line => `
+      <li><i class="bi bi-dot text-primary fs-4"></i> ${escapeHtml(line)}</li>
     `).join("");
   }
 
@@ -2665,4 +2735,86 @@ document.addEventListener("DOMContentLoaded", () => {
 window.addEventListener("languageChanged", () => {
   if (typeof renderTourCards === "function") renderTourCards();
   if (typeof renderDestinations === "function") renderDestinations();
+});
+
+// Tự động đồng bộ dữ liệu tour & lịch khởi hành khi Admin cập nhật ở tab khác
+let __deltaLastCatalogSyncAt = 0;
+let __deltaSeenSyncTs = "";
+try {
+  __deltaSeenSyncTs = localStorage.getItem("delta_catalog_sync_ts") || "";
+} catch (_) {}
+
+async function refreshPublicCatalogFromSync(fromFocus = false) {
+  if (!document.getElementById("toursContainer")) return;
+
+  let currentSyncTs = "";
+  try {
+    currentSyncTs = localStorage.getItem("delta_catalog_sync_ts") || "";
+  } catch (_) {}
+
+  const syncTsChanged = currentSyncTs && currentSyncTs !== __deltaSeenSyncTs;
+  if (fromFocus && !syncTsChanged && (Date.now() - __deltaLastCatalogSyncAt) < 4000) {
+    return;
+  }
+
+  __deltaLastCatalogSyncAt = Date.now();
+  if (currentSyncTs) __deltaSeenSyncTs = currentSyncTs;
+
+  const isServerReady = typeof DeltaAPI !== "undefined" &&
+    ((typeof DeltaAPI.isOnline === "function" && DeltaAPI.isOnline()) || AppState.serverCatalog);
+
+  if (isServerReady && typeof searchToursFromApi === "function") {
+    await searchToursFromApi(AppState.currentPage || 1);
+    if (typeof refreshDestinationCounts === "function") {
+      refreshDestinationCounts();
+    }
+    return;
+  }
+
+  if (!fromFocus && typeof DeltaAPI !== "undefined" && typeof DeltaAPI.checkHealth === "function") {
+    try {
+      const status = await DeltaAPI.checkHealth();
+      if (status && status.online && typeof searchToursFromApi === "function") {
+        await searchToursFromApi(AppState.currentPage || 1);
+        if (typeof refreshDestinationCounts === "function") refreshDestinationCounts();
+        return;
+      }
+    } catch (_) {}
+  }
+
+  if (typeof getToursData === "function" && typeof syncGlobalToursData === "function") {
+    syncGlobalToursData(getToursData());
+    if (typeof renderDestinations === "function") renderDestinations();
+    if (typeof renderTourCards === "function") renderTourCards();
+  }
+}
+
+window.addEventListener("storage", (e) => {
+  if (["delta_catalog_sync_ts", "delta_tours_v3", "delta_schedules_v3"].includes(e.key)) {
+    refreshPublicCatalogFromSync(false);
+  }
+});
+
+window.addEventListener("focus", () => {
+  const isServerReady = (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.isOnline === "function" && DeltaAPI.isOnline()) || AppState.serverCatalog;
+  let syncChanged = false;
+  try {
+    syncChanged = (localStorage.getItem("delta_catalog_sync_ts") || "") !== __deltaSeenSyncTs;
+  } catch (_) {}
+  if (isServerReady || syncChanged) {
+    refreshPublicCatalogFromSync(true);
+  }
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    const isServerReady = (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.isOnline === "function" && DeltaAPI.isOnline()) || AppState.serverCatalog;
+    let syncChanged = false;
+    try {
+      syncChanged = (localStorage.getItem("delta_catalog_sync_ts") || "") !== __deltaSeenSyncTs;
+    } catch (_) {}
+    if (isServerReady || syncChanged) {
+      refreshPublicCatalogFromSync(true);
+    }
+  }
 });

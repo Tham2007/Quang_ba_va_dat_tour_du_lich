@@ -53,6 +53,25 @@ const AdminState = {
 // =============================================================================
 // II. KHỞI TẠO ỨNG DỤNG KHI DOM SẴN SÀNG
 // =============================================================================
+const TEAM_ADMIN_ACCOUNTS = [
+  { id: "USR-01", email: "hongtham@deltatravel.vn", fullName: "Hồng Thắm", role: "ADMIN", title: "Trưởng nhóm", password: "password123" },
+  { id: "USR-02", email: "an.levan@gmail.com", fullName: "Lê Văn An", role: "ADMIN", title: "Quản trị viên", password: "password123" },
+  { id: "USR-03", email: "haidang@deltatravel.vn", fullName: "Lê Hải Đăng", role: "ADMIN", title: "Quản trị viên", password: "password123" },
+  { id: "USR-04", email: "nguyenphuc@deltatravel.vn", fullName: "Nguyễn Phúc", role: "ADMIN", title: "Quản trị viên", password: "password123" },
+  { id: "USR-05", email: "manhle@deltatravel.vn", fullName: "Mạnh Lê", role: "ADMIN", title: "Quản trị viên", password: "password123" }
+];
+
+function getDefaultTourTemplate(tourId) {
+  if (typeof DEFAULT_TOURS === "undefined" || !Array.isArray(DEFAULT_TOURS)) return null;
+  return DEFAULT_TOURS.find(d => String(d.id).toUpperCase() === String(tourId).toUpperCase()) || null;
+}
+
+function broadcastCatalogSync() {
+  try {
+    localStorage.setItem("delta_catalog_sync_ts", String(Date.now()));
+  } catch (_) {}
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   initSidebarNavigation();
   initMobileSidebar();
@@ -62,7 +81,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const isAdminAuthenticated = await checkAdminAuth();
   if (!isAdminAuthenticated) return;
 
-  refreshAdminData();
+  await refreshAdminData();
   renderCurrentTab();
 
   // Tự động mở modal sửa tour nếu có yêu cầu (hỗ trợ điều hướng sâu)
@@ -70,13 +89,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (autoTour) {
     sessionStorage.removeItem("autoOpenTourId");
     setTimeout(() => {
-      openTourModal(autoTour);
-      const tabBtn = document.getElementById("tour-itinerary-tab");
-      if (tabBtn) {
-        try {
-          bootstrap.Tab.getOrCreateInstance(tabBtn).show();
-        } catch (e) {}
-      }
+      openTourModal(autoTour, "itinerary");
     }, 350);
   }
 });
@@ -84,49 +97,53 @@ document.addEventListener("DOMContentLoaded", async () => {
 // =============================================================================
 // III. XÁC THỰC BẢO MẬT & PHÂN QUYỀN (AUTH GUARD)
 // =============================================================================
-async function checkAdminAuth() {
-  let user = (typeof getCurrentUser === "function") ? getCurrentUser() : null;
+function showAdminScreen(authenticatedUser) {
   const lockScreen = document.getElementById("adminLockScreen");
   const mainWrapper = document.getElementById("adminLayoutWrapper");
-  const showLockedScreen = () => {
-    if (lockScreen) lockScreen.style.display = "flex";
-    if (mainWrapper) mainWrapper.style.display = "none";
-    AdminState.currentUser = null;
-  };
+  AdminState.currentUser = authenticatedUser;
+  if (lockScreen) lockScreen.style.display = "none";
+  if (mainWrapper) mainWrapper.style.display = "flex";
+  updateAdminProfileUI(authenticatedUser);
+  return true;
+}
 
-  if (!user || (user.role !== "ADMIN" && user.role !== "OPERATIONS")) {
-    showLockedScreen();
-    return false;
-  }
+function showLockedScreen() {
+  const lockScreen = document.getElementById("adminLockScreen");
+  const mainWrapper = document.getElementById("adminLayoutWrapper");
+  if (lockScreen) lockScreen.style.display = "flex";
+  if (mainWrapper) mainWrapper.style.display = "none";
+  AdminState.currentUser = null;
+}
 
-  const showAdminScreen = authenticatedUser => {
-    AdminState.currentUser = authenticatedUser;
-    if (lockScreen) lockScreen.style.display = "none";
-    if (mainWrapper) mainWrapper.style.display = "flex";
-    updateAdminProfileUI(authenticatedUser);
-    return true;
-  };
+async function checkAdminAuth() {
+  let user = (typeof getCurrentUser === "function") ? getCurrentUser() : null;
 
   if (typeof DeltaAPI === "undefined" || typeof DeltaAPI.getMe !== "function") {
-    return showAdminScreen(user);
+    showLockedScreen();
+    return false;
   }
 
   const session = await DeltaAPI.getMe();
   if (!session.success) {
-    if (session.isOffline) return showAdminScreen(user);
     showLockedScreen();
-    showAdminToast(session.error || "Phiên đăng nhập máy chủ đã hết hạn. Vui lòng đăng nhập lại.", "error");
-    return false;
-  }
-  if (!session.data ||
-      (session.data.role !== "ADMIN" && session.data.role !== "OPERATIONS")) {
-    showLockedScreen();
-    showAdminToast("Tài khoản này không có quyền quản trị trên máy chủ.", "error");
+    if (!session.isOffline && user && (user.role === "ADMIN" || user.role === "OPERATIONS")) {
+      showAdminToast(session.error || "Phiên đăng nhập máy chủ đã hết hạn. Vui lòng đăng nhập lại.", "error");
+    }
     return false;
   }
 
-  user = { ...user, ...session.data };
-  return showAdminScreen(user);
+  if (!session.data ||
+      (session.data.role !== "ADMIN" && session.data.role !== "OPERATIONS")) {
+    showLockedScreen();
+    if (user && (user.role === "ADMIN" || user.role === "OPERATIONS")) {
+      showAdminToast("Tài khoản hiện tại trên máy chủ không có quyền quản trị.", "error");
+    }
+    return false;
+  }
+
+  const mergedUser = { ...(user || {}), ...session.data };
+  if (typeof setCurrentUser === "function") setCurrentUser(mergedUser);
+  return showAdminScreen(mergedUser);
 }
 
 function updateAdminProfileUI(user) {
@@ -177,65 +194,44 @@ async function handleAdminFormLogin(e) {
   }
 
   try {
-    let user = null;
-    let isServerLogin = false;
-
-    // 1. Xác thực qua Backend API nếu có
-    if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.login === "function") {
-      try {
-        const loginRes = await DeltaAPI.login(ident, pass);
-        if (loginRes && loginRes.success && loginRes.data) {
-          if (loginRes.data.role === "ADMIN") {
-            user = loginRes.data;
-            isServerLogin = true;
-          }
-        }
-      } catch (apiErr) {
-        console.warn("Backend auth failed or offline:", apiErr);
-      }
-    }
-
-    // 2. Dự phòng tài khoản quản trị hệ thống
-    if (!user) {
-      const allowedAdmins = [
-        { email: "admin@deltatravel.vn", fullName: "Admin Delta Travel", role: "ADMIN", title: "Quản trị viên trưởng" },
-        { email: "an.levan@gmail.com", fullName: "Lê Văn An", role: "ADMIN", title: "Quản trị viên hệ thống" },
-        { email: "hongtham@deltatravel.vn", fullName: "Hồng Thắm", role: "ADMIN", title: "Trưởng ban quản trị" },
-        { email: "haidang@deltatravel.vn", fullName: "Lê Hải Đăng", role: "ADMIN", title: "Quản trị viên" },
-        { email: "nguyenphuc@deltatravel.vn", fullName: "Nguyễn Phúc", role: "ADMIN", title: "Quản trị viên" },
-        { email: "manhle@deltatravel.vn", fullName: "Mạnh Lê", role: "ADMIN", title: "Quản trị viên" }
-      ];
-      const match = allowedAdmins.find(a => 
-        a.email.toLowerCase() === ident.toLowerCase() || 
-        ident.toLowerCase() === "admin" ||
-        a.email.toLowerCase().startsWith(ident.toLowerCase() + "@")
-      );
-      if (match) {
-        user = {
-          id: "ADMIN-" + Date.now().toString().slice(-4),
-          email: match.email,
-          fullName: match.fullName,
-          role: "ADMIN",
-          title: match.title,
-          phone: "0325536936"
-        };
-      }
-    }
-
-    if (user) {
-      AdminState.currentUser = user;
-      if (typeof setCurrentUser === "function") setCurrentUser(user);
-      const lockScreen = document.getElementById("adminLockScreen");
-      if (lockScreen) lockScreen.style.display = "none";
-      await refreshAdminData();
-      renderCurrentTab();
-      showAdminToast(`Chào mừng ${user.fullName} đã đăng nhập hệ thống quản trị!`, "success");
-    } else {
+    if (typeof DeltaAPI === "undefined" || typeof DeltaAPI.login !== "function") {
       if (errBox) {
-        errBox.textContent = "Tài khoản hoặc mật khẩu quản trị không chính xác.";
+        errBox.textContent = "Máy khách API chưa sẵn sàng. Vui lòng tải lại trang.";
         errBox.classList.remove("d-none");
       }
+      return;
     }
+
+    const loginRes = await DeltaAPI.login(ident, pass);
+    if (!loginRes || !loginRes.success || !loginRes.data) {
+      if (errBox) {
+        errBox.textContent = loginRes?.isOffline
+          ? "Không thể kết nối máy chủ xác thực (http://127.0.0.1:8000). Vui lòng khởi chạy server trước khi đăng nhập Admin."
+          : (loginRes?.error || "Tài khoản hoặc mật khẩu quản trị không chính xác.");
+        errBox.classList.remove("d-none");
+      }
+      return;
+    }
+
+    if (loginRes.data.role !== "ADMIN" && loginRes.data.role !== "OPERATIONS") {
+      if (errBox) {
+        errBox.textContent = "Tài khoản này không có quyền quản trị (ADMIN/OPERATIONS).";
+        errBox.classList.remove("d-none");
+      }
+      return;
+    }
+
+    const teamInfo = TEAM_ADMIN_ACCOUNTS.find(a => a.email.toLowerCase() === String(loginRes.data.email || "").toLowerCase());
+    const user = {
+      ...loginRes.data,
+      title: teamInfo?.title || (loginRes.data.role === "ADMIN" ? "Quản trị viên hệ thống" : "Điều hành viên")
+    };
+    window.__adminLoginTimestamp = Date.now();
+    if (typeof setCurrentUser === "function") setCurrentUser(user);
+    showAdminScreen(user);
+    await refreshAdminData();
+    renderCurrentTab();
+    showAdminToast(`Chào mừng ${user.fullName} đã đăng nhập hệ thống quản trị!`, "success");
   } catch (err) {
     if (errBox) {
       errBox.textContent = "Lỗi đăng nhập: " + (err.message || "Vui lòng thử lại.");
@@ -250,10 +246,11 @@ async function handleAdminFormLogin(e) {
 }
 
 /**
- * Đăng nhập nhanh từ mã thành viên (tương thích ngược)
+ * Đăng nhập nhanh từ mã thành viên trên sidebar (luôn xác thực qua máy chủ)
  */
 async function handleQuickAdminLogin(identifier) {
-  const users = (typeof getAllUsers === "function") ? getAllUsers() : (typeof DEFAULT_DEMO_USERS !== "undefined" ? DEFAULT_DEMO_USERS : []);
+  const localUsers = (typeof getAllUsers === "function") ? getAllUsers() : [];
+  const users = [...localUsers, ...TEAM_ADMIN_ACCOUNTS];
   let targetUser = null;
 
   if (identifier) {
@@ -270,48 +267,48 @@ async function handleQuickAdminLogin(identifier) {
     targetUser = users[0];
   }
 
-  if (targetUser) {
-    let localDemoLogin = typeof DeltaAPI === "undefined" || typeof DeltaAPI.login !== "function";
-    if (!localDemoLogin) {
-      const loginResult = await DeltaAPI.login(targetUser.email, targetUser.password || "password123");
-      if (!loginResult.success && !loginResult.isOffline) {
-        showAdminToast(loginResult.error || "Không thể đăng nhập tài khoản quản trị trên máy chủ.", "error");
-        return;
-      }
-      localDemoLogin = !loginResult.success;
-      if (loginResult.success) {
-        if (loginResult.data?.role !== "ADMIN") {
-          showAdminToast("Tài khoản này không có quyền quản trị trên máy chủ.", "error");
-          return;
-        }
-        targetUser = {
-          ...targetUser,
-          id: loginResult.data.id,
-          fullName: loginResult.data.fullName,
-          email: loginResult.data.email,
-          phone: loginResult.data.phone,
-          role: loginResult.data.role
-        };
-      }
-    }
-
-    if (typeof setCurrentUser === "function") setCurrentUser(targetUser);
-    if (!await checkAdminAuth()) return;
-    refreshAdminData();
-    renderCurrentTab();
-    showAdminToast(
-      localDemoLogin
-        ? "Đang dùng phiên làm việc ngoại tuyến; dữ liệu sẽ tự động đồng bộ khi có kết nối máy chủ."
-        : `Chào mừng ${targetUser.fullName} (${targetUser.title || "Quản trị viên"}) vào phiên làm việc!`,
-      localDemoLogin ? "warning" : "success"
-    );
-  } else {
+  if (!targetUser || typeof DeltaAPI === "undefined" || typeof DeltaAPI.login !== "function") {
     showAdminToast("Không tìm thấy thông tin tài khoản thành viên. Vui lòng thử lại.", "error");
+    return;
   }
+
+  const loginResult = await DeltaAPI.login(targetUser.email, targetUser.password || "password123");
+  if (!loginResult.success) {
+    showAdminToast(
+      loginResult.isOffline
+        ? "Không thể kết nối máy chủ xác thực; không mở khóa quản trị ngoại tuyến."
+        : (loginResult.error || "Không thể đăng nhập tài khoản quản trị trên máy chủ."),
+      "error"
+    );
+    return;
+  }
+
+  if (loginResult.data?.role !== "ADMIN" && loginResult.data?.role !== "OPERATIONS") {
+    showAdminToast("Tài khoản này không có quyền quản trị trên máy chủ.", "error");
+    return;
+  }
+
+  const verifiedUser = {
+    ...targetUser,
+    id: loginResult.data.id,
+    fullName: loginResult.data.fullName,
+    email: loginResult.data.email,
+    phone: loginResult.data.phone,
+    role: loginResult.data.role
+  };
+  window.__adminLoginTimestamp = Date.now();
+  if (typeof setCurrentUser === "function") setCurrentUser(verifiedUser);
+  showAdminScreen(verifiedUser);
+  await refreshAdminData();
+  renderCurrentTab();
+  showAdminToast(`Chào mừng ${verifiedUser.fullName} (${verifiedUser.title || "Quản trị viên"}) vào phiên làm việc!`, "success");
 }
 
-function handleAdminLogout() {
+async function handleAdminLogout() {
   if (confirm("Bạn có chắc chắn muốn đăng xuất khỏi phiên làm việc Quản trị của Delta Travel?")) {
+    if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.logout === "function") {
+      await DeltaAPI.logout().catch(() => {});
+    }
     if (typeof setCurrentUser === "function") setCurrentUser(null);
     window.location.reload();
   }
@@ -326,11 +323,35 @@ function normalizeAdminBooking(b) {
   const cName = b.customerName || b.customer_name || b.customer?.fullName || "Khách Hàng";
   const cPhone = b.customerPhone || b.customer_phone || b.customer?.phone || "Chưa cập nhật";
   const cEmail = b.customerEmail || b.customer_email || b.customer?.email || "";
+  const cNotes = b.customerNotes || b.note || b.notes || b.customer?.notes || "Không có ghi chú";
   const title = b.tourTitle || b.tour_title || "Tour Du Lịch Delta Travel 5 Sao";
-  const total = Number(b.totalPrice || b.total_price || b.pricing?.totalPrice || 0);
-  const isPaid = (b.status === "PAID" || b.statusCode === "PAID" || b.paid === true || b.isPaid === true || b.paymentEvidence || b.payment_evidence);
-  const isCancelled = (b.status === "CANCELLED" || b.statusCode === "CANCELLED");
-  const code = isCancelled ? "CANCELLED" : (isPaid ? "PAID" : "PENDING_PAYMENT");
+  const total = Number(b.totalPrice ?? b.total_price ?? b.pricing?.total ?? b.pricing?.totalPrice ?? 0);
+  const rawStatus = String(b.statusCode || b.status || "").toUpperCase();
+  const isCancelled = rawStatus === "CANCELLED";
+  const isCompleted = rawStatus === "COMPLETED";
+  const isConfirmed = rawStatus === "CONFIRMED";
+  const isPaid = !isCancelled && (
+    rawStatus === "PAID" || isConfirmed || isCompleted ||
+    b.paid === true || b.isPaid === true || Boolean(b.paymentEvidence || b.payment_evidence)
+  );
+  const code = isCancelled
+    ? "CANCELLED"
+    : isCompleted
+      ? "COMPLETED"
+      : isConfirmed
+        ? "CONFIRMED"
+        : isPaid
+          ? "PAID"
+          : (rawStatus === "AWAITING_CASH" ? "AWAITING_CASH" : "PENDING_PAYMENT");
+  const depDateRaw = b.departureDate || b.departure_date || b.createdAt || b.created_at;
+  let departureDate = "-";
+  if (depDateRaw) {
+    const parsedDep = new Date(depDateRaw);
+    departureDate = isNaN(parsedDep.getTime()) ? String(depDateRaw) : parsedDep.toLocaleDateString("vi-VN");
+  }
+  const createdRaw = b.createdAt || b.created_at || new Date().toISOString();
+  const createdParsed = new Date(createdRaw);
+  const createdDisplay = isNaN(createdParsed.getTime()) ? String(createdRaw) : createdParsed.toLocaleString("vi-VN");
 
   return {
     ...b,
@@ -338,23 +359,36 @@ function normalizeAdminBooking(b) {
     bookingId: ref,
     reference: ref,
     tourTitle: title,
+    departureDate,
+    paymentMethod: b.paymentMethod || ((b.paymentEvidence || b.payment_evidence) ? "Chuyển khoản VietQR (MBBank)" : "Chuyển khoản / Chờ đối soát"),
     customer: {
       fullName: cName,
       phone: cPhone,
-      email: cEmail
+      email: cEmail,
+      cccd: b.customer?.cccd || b.cccd || "Đã xác thực",
+      notes: cNotes
+    },
+    passengers: {
+      adults: Number(b.passengers?.adults ?? b.adults ?? 1),
+      children: Number(b.passengers?.children ?? b.children ?? 0),
+      infants: Number(b.passengers?.infants ?? b.infants ?? 0)
     },
     customerName: cName,
     customerPhone: cPhone,
     customerEmail: cEmail,
     pricing: {
+      subtotal: Number(b.pricing?.subtotal ?? total),
+      discount: Number(b.pricing?.discount ?? 0),
+      total,
       totalPrice: total
     },
     totalPrice: total,
     status: code,
     statusCode: code,
     paid: isPaid,
+    isPaid,
     paymentEvidence: b.paymentEvidence || b.payment_evidence || (isPaid ? ("VIETQR-MB-" + ref) : null),
-    createdAt: b.createdAt || b.created_at || new Date().toISOString()
+    createdAt: createdDisplay
   };
 }
 
@@ -369,7 +403,7 @@ function rebuildAdminPayments() {
   });
 
   (AdminState.bookings || []).forEach(b => {
-    const isPaid = (b.status === "PAID" || b.statusCode === "PAID" || b.paid === true || b.isPaid === true || b.paymentEvidence || b.payment_evidence);
+    const isPaid = (b.status === "PAID" || b.statusCode === "PAID" || b.statusCode === "CONFIRMED" || b.statusCode === "COMPLETED" || b.paid === true || b.isPaid === true || b.paymentEvidence || b.payment_evidence);
     const isCancelled = (b.status === "CANCELLED" || b.statusCode === "CANCELLED");
     const pStatus = isCancelled ? "REFUND_REQUIRED" : (isPaid ? "SUCCEEDED" : "INITIATED");
     const payKey = "PAY-" + String(b.bookingId || b.reference || b.id).replace(/[^a-zA-Z0-9]/g, "").slice(-8);
@@ -379,7 +413,7 @@ function rebuildAdminPayments() {
       bookingId: b.bookingId || b.reference || b.id,
       customerName: b.customer?.fullName || b.customerName || "Khách Hàng",
       tourTitle: b.tourTitle || "Tour Du Lịch Delta Travel 5 Sao",
-      amount: b.totalPrice || b.pricing?.totalPrice || 0,
+      amount: b.totalPrice || b.pricing?.total || b.pricing?.totalPrice || 0,
       provider: "QR",
       providerName: "VietQR (MBBank)",
       providerReference: b.paymentEvidence || b.payment_evidence || ("VIETQR-MB-" + (b.bookingId || b.reference || b.id)),
@@ -392,7 +426,7 @@ function rebuildAdminPayments() {
   AdminState.payments = Array.from(paymentMap.values());
 }
 
-function refreshAdminData() {
+async function refreshAdminData() {
   AdminState.tours = (typeof getToursData === "function") ? getToursData() : [];
   AdminState.schedules = (typeof getSchedulesData === "function") ? getSchedulesData() : [];
   AdminState.auditLogs = (typeof getAuditLogsData === "function") ? getAuditLogsData() : [];
@@ -416,100 +450,133 @@ function refreshAdminData() {
 
   // Đồng bộ hai chiều với Backend API nếu máy chủ đang trực tuyến
   if (typeof DeltaAPI !== "undefined") {
+    const tasks = [];
+
     if (typeof DeltaAPI.adminGetTours === "function") {
-      DeltaAPI.adminGetTours().then(res => {
-        if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-          const serverTours = res.data.map(st => {
-            let itinerary = [];
-            try { itinerary = JSON.parse(st.itineraryJson || '[]'); } catch (e) {}
-            return {
-              id: st.id,
-              title: st.title,
-              slug: st.slug,
-              region: st.region,
-              regionName: st.region === 'north' ? 'Miền Bắc' : (st.region === 'central' ? 'Miền Trung' : 'Miền Nam'),
-              image: st.images?.[0] || st.image || 'assets/images/halong.png',
-              images: st.images || (st.image ? [st.image] : []),
-              duration: st.duration,
-              departure: st.departure,
-              transport: st.transport,
-              price: st.price,
-              originalPrice: 0,
-              rating: 5.0,
-              reviewsCount: 100,
-              badge: st.isFlashSale ? 'Ưu đãi' : '',
-              availableSeats: st.availableSeats !== undefined ? st.availableSeats : (st.schedules?.[0]?.availableSeats ?? 20),
-              status: st.active ? 'ACTIVE' : 'INACTIVE',
-              itinerary: itinerary.length > 0 ? itinerary : [
-                { day: 1, title: 'Khám phá điểm đến', morning: 'Khởi hành', afternoon: 'Tham quan', evening: 'Nghỉ ngơi' }
-              ],
-              inclusions: ['Xe đưa đón', 'Khách sạn/du thuyền', 'Bữa ăn', 'Bảo hiểm'],
-              exclusions: ['Chi phí cá nhân', 'Thuế VAT']
-            };
-          });
-          AdminState.tours = serverTours;
-          if (["tours", "schedules", "dashboard"].includes(AdminState.currentTab)) {
-            renderCurrentTab();
+      tasks.push(
+        DeltaAPI.adminGetTours().then(res => {
+          if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+            const serverTours = res.data.map(st => {
+              const defTour = getDefaultTourTemplate(st.id);
+              let itinerary = Array.isArray(st.itinerary) ? st.itinerary : [];
+              if (!itinerary.length && st.itineraryJson) {
+                try { itinerary = JSON.parse(st.itineraryJson || "[]"); } catch (e) {}
+              }
+              if (!itinerary.length && defTour && Array.isArray(defTour.itinerary)) {
+                itinerary = defTour.itinerary;
+              }
+              const highlights = (Array.isArray(st.highlights) && st.highlights.length)
+                ? st.highlights
+                : (st.description ? String(st.description).split(/\r?\n/).map(s => s.trim()).filter(Boolean) : (defTour?.highlights || []));
+              const inclusions = (Array.isArray(st.inclusions) && st.inclusions.length)
+                ? st.inclusions
+                : (defTour?.inclusions || ["Xe đưa đón du lịch đời mới suốt tuyến", "Khách sạn / Du thuyền tiêu chuẩn", "Các bữa ăn theo lịch trình", "Bảo hiểm du lịch trọn gói"]);
+              const exclusions = (Array.isArray(st.exclusions) && st.exclusions.length)
+                ? st.exclusions
+                : (defTour?.exclusions || ["Chi phí cá nhân", "Thuế VAT"]);
+              const terms = (Array.isArray(st.terms) && st.terms.length)
+                ? st.terms
+                : (defTour?.terms || ["Hủy tour trước 15 ngày khởi hành: Miễn phí 100%", "Hủy tour từ 07 - 14 ngày: Phí 30% giá tour", "Hủy tour từ 03 - 06 ngày: Phí 50% giá tour", "Hủy trong vòng 48h trước giờ đi: Phí 100%"]);
+
+              return {
+                id: st.id,
+                title: st.title,
+                slug: st.slug,
+                region: st.region,
+                regionName: st.region === "north" ? "Miền Bắc" : (st.region === "central" ? "Miền Trung" : "Miền Nam"),
+                image: st.images?.[0] || st.image || defTour?.image || "assets/images/halong.png",
+                images: (Array.isArray(st.images) && st.images.length) ? st.images : (st.image ? [st.image] : (defTour?.images || ["assets/images/halong.png"])),
+                duration: st.duration,
+                daysCount: itinerary.length || defTour?.daysCount || 3,
+                departure: st.departure,
+                transport: st.transport,
+                price: Number(st.price) || 0,
+                originalPrice: Number(st.originalPrice) || defTour?.originalPrice || 0,
+                rating: defTour?.rating || 5.0,
+                reviewsCount: defTour?.reviewsCount || 100,
+                badge: st.badge || (st.isFlashSale ? "FLASH SALE" : (defTour?.badge || "")),
+                isFlashSale: Boolean(st.isFlashSale),
+                availableSeats: st.availableSeats !== undefined ? st.availableSeats : (st.schedules?.[0]?.availableSeats ?? 20),
+                status: st.active ? "ACTIVE" : "INACTIVE",
+                highlights,
+                itinerary: itinerary.length > 0 ? itinerary : [
+                  { day: 1, title: "Khám phá điểm đến", morning: "Khởi hành", afternoon: "Tham quan", evening: "Nghỉ ngơi" }
+                ],
+                inclusions,
+                exclusions,
+                terms
+              };
+            });
+            AdminState.tours = serverTours;
           }
-        }
-      }).catch(error => {
-        console.error("Could not load admin tours from API.", error);
-      });
+        }).catch(error => {
+          console.error("Could not load admin tours from API.", error);
+        })
+      );
     }
 
     if (typeof DeltaAPI.adminGetBookings === "function") {
-      DeltaAPI.adminGetBookings().then(res => {
-        const list = (res && res.success && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : []);
-        if (list.length > 0) {
-          list.forEach(sb => {
-            const key = String(sb.id || sb.bookingId || sb.reference);
-            const norm = normalizeAdminBooking(sb);
-            const existing = bookingMap.get(key);
-            if (existing) {
-              const isPaid = (sb.status === "PAID" || existing.paid || sb.paid || existing.paymentEvidence || sb.payment_evidence);
-              bookingMap.set(key, {
-                ...existing,
-                ...norm,
-                status: isPaid ? "PAID" : norm.status,
-                statusCode: isPaid ? "PAID" : norm.statusCode,
-                paid: isPaid,
-                paymentEvidence: sb.payment_evidence || existing.paymentEvidence
-              });
-            } else {
+      tasks.push(
+        DeltaAPI.adminGetBookings().then(res => {
+          const list = (res && res.success && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : []);
+          if (list.length > 0) {
+            list.forEach(sb => {
+              const key = String(sb.id || sb.bookingId || sb.reference);
+              const norm = normalizeAdminBooking(sb);
               bookingMap.set(key, norm);
-            }
-          });
-          AdminState.bookings = Array.from(bookingMap.values());
-          rebuildAdminPayments();
-          if (["bookings", "payments", "dashboard"].includes(AdminState.currentTab)) {
-            renderCurrentTab();
+            });
+            AdminState.bookings = Array.from(bookingMap.values());
+            rebuildAdminPayments();
           }
-        }
-      }).catch(err => {
-        console.warn("Could not load admin bookings from API:", err);
-      });
+        }).catch(err => {
+          console.warn("Could not load admin bookings from API:", err);
+        })
+      );
     }
 
-    if (DeltaAPI.isOnline() && typeof DeltaAPI.adminFetchSchedules === "function") {
-      DeltaAPI.adminFetchSchedules().then(res => {
-        if (!res?.success || !Array.isArray(res.data)) {
-          return;
-        }
-        AdminState.schedules = res.data.map(schedule => ({
-          id: schedule.id,
-          tourId: schedule.tourId,
-          departureAt: schedule.departureAt,
-          totalSeats: schedule.totalSeats,
-          bookedSeats: schedule.totalSeats - schedule.availableSeats,
-          status: schedule.active ? "OPEN" : "CLOSED"
-        }));
-        if (["schedules", "dashboard"].includes(AdminState.currentTab)) {
-          renderCurrentTab();
-        }
-      }).catch(error => {
-        console.error("Could not load admin schedules from API.", error);
-      });
+    if (typeof DeltaAPI.adminFetchSchedules === "function") {
+      tasks.push(
+        DeltaAPI.adminFetchSchedules().then(res => {
+          if (!res?.success || !Array.isArray(res.data)) return;
+          AdminState.schedules = res.data.map(schedule => ({
+            id: schedule.id,
+            tourId: schedule.tourId,
+            tourTitle: AdminState.tours.find(t => t.id === schedule.tourId)?.title || schedule.tourId,
+            departureAt: schedule.departureAt,
+            totalSeats: schedule.totalSeats,
+            bookedSeats: schedule.totalSeats - schedule.availableSeats,
+            status: schedule.active ? "OPEN" : "CLOSED"
+          }));
+        }).catch(error => {
+          console.error("Could not load admin schedules from API.", error);
+        })
+      );
     }
+
+    if (typeof DeltaAPI.adminFetchAudit === "function") {
+      tasks.push(
+        DeltaAPI.adminFetchAudit().then(res => {
+          if (!res?.success || !Array.isArray(res.data) || res.data.length === 0) return;
+          const serverLogs = res.data.map(item => ({
+            id: String(item.id || "").slice(0, 12),
+            timestamp: item.at ? new Date(item.at).toLocaleString("vi-VN") : "-",
+            actor: item.actorId || "ADMIN",
+            action: item.event || "AUDIT",
+            entity: "Server",
+            entityId: item.subjectId || "-",
+            details: item.details && Object.keys(item.details).length ? JSON.stringify(item.details) : "-"
+          }));
+          AdminState.auditLogs = [...serverLogs, ...(AdminState.auditLogs || [])];
+        }).catch(() => {})
+      );
+    }
+
+    await Promise.allSettled(tasks);
+    // Sync schedule tourTitle after both tours & schedules resolve
+    AdminState.schedules = (AdminState.schedules || []).map(schedule => ({
+      ...schedule,
+      tourTitle: AdminState.tours.find(t => t.id === schedule.tourId)?.title || schedule.tourTitle || schedule.tourId
+    }));
   }
 }
 
@@ -957,7 +1024,7 @@ function renderTabDashboard(container) {
                           <div class="text-truncate" style="max-width: 180px;">${b.tourTitle}</div>
                           <div class="text-muted small">${b.departureDate}</div>
                         </td>
-                        <td class="fw-bold text-dark">${b.pricing.total.toLocaleString("vi-VN")} đ</td>
+                        <td class="fw-bold text-dark">${Number(b.pricing?.total ?? b.totalPrice ?? 0).toLocaleString("vi-VN")} đ</td>
                         <td>
                           <span class="admin-badge badge-status-${b.statusCode || 'PENDING_PAYMENT'}">
                             ${b.status}
@@ -1181,8 +1248,11 @@ function renderTabTours(container) {
                   </td>
                   <td class="text-end">
                     <div class="btn-group btn-group-sm">
-                      <button class="btn btn-outline-secondary" onclick="openTourModal('${t.id}')" title="Chỉnh sửa tour">
+                      <button class="btn btn-outline-secondary" onclick="openTourModal('${t.id}', 'basic')" title="Chỉnh sửa tour">
                         <i class="bi bi-pencil"></i>
+                      </button>
+                      <button class="btn btn-outline-primary" onclick="openTourModal('${t.id}', 'itinerary')" title="Chỉnh sửa lịch trình từng ngày">
+                        <i class="bi bi-calendar3-week"></i>
                       </button>
                       <button class="btn btn-outline-warning" onclick="handleToggleTourStatus('${t.id}')" title="Đổi trạng thái Bán/Ẩn">
                         <i class="bi bi-power"></i>
@@ -1226,7 +1296,9 @@ async function handleToggleTourStatus(tourId) {
   }
 
   const tours = AdminState.tours.map(item => item.id === tourId ? { ...item, status } : item);
+  AdminState.tours = tours;
   saveToursData(tours);
+  broadcastCatalogSync();
   addAuditLog("UPDATE_TOUR", "Tour", tourId, `Thay đổi trạng thái tour ${tour.title} thành ${status}`);
   showAdminToast(`Đã chuyển tour ${tourId} sang trạng thái ${status}`, "success");
   renderCurrentTab();
@@ -1249,8 +1321,10 @@ async function handleDeleteTour(tourId) {
   const updated = AdminState.tours.map(item =>
     item.id === tourId ? { ...item, status: "INACTIVE" } : item
   );
+  AdminState.tours = updated;
   AdminState.tourStatusFilter = "ACTIVE";
   saveToursData(updated);
+  broadcastCatalogSync();
   addAuditLog("DELETE_TOUR", "Tour", tourId, `Ẩn tour "${tour.title}" khỏi danh sách đang bán`);
   showAdminToast(`Đã ẩn tour ${tourId}. Có thể xem lại trong mục Tạm ẩn.`, "success");
   renderCurrentTab();
@@ -1302,19 +1376,27 @@ function updateTourImagePreview(url) {
   }
 }
 
-function openTourModal(tourId = null) {
+function openTourModal(tourId = null, initialTab = "basic") {
   AdminState.editingTourId = tourId;
   const tour = tourId ? AdminState.tours.find(t => t.id === tourId) : null;
+  const defTour = tourId ? getDefaultTourTemplate(tourId) : null;
   const modalEl = document.getElementById("adminTourModal");
   if (!modalEl) return;
 
-  // Reset tab active về Tab 1
-  const firstTab = document.querySelector("#adminTourTabs button:first-child");
-  if (firstTab) {
+  const targetTabSelector = initialTab === "itinerary"
+    ? "#tour-itinerary-tab"
+    : initialTab === "policies"
+      ? "#tour-policies-tab"
+      : "#tour-basic-tab";
+  const targetTab = document.querySelector(targetTabSelector) || document.querySelector("#adminTourTabs button:first-child");
+  if (targetTab) {
     try {
-      bootstrap.Tab.getOrCreateInstance(firstTab).show();
+      bootstrap.Tab.getOrCreateInstance(targetTab).show();
     } catch (e) {}
   }
+
+  const modalBody = modalEl.querySelector(".modal-body");
+  if (modalBody) modalBody.scrollTop = 0;
 
   document.getElementById("tourModalTitle").textContent = tour ? `Chỉnh Sửa Toàn Bộ Tour: ${tour.id}` : "Thêm Tour Du Lịch Mới";
   document.getElementById("formTourId").value = tour ? tour.id : ("DL-" + Date.now().toString().slice(-4));
@@ -1329,7 +1411,7 @@ function openTourModal(tourId = null) {
   document.getElementById("formTourPrice").value = tour ? tour.price : "";
   document.getElementById("formTourDeparture").value = tour ? (tour.departure || "") : "Hà Nội / TP.HCM";
   document.getElementById("formTourTransport").value = tour ? (tour.transport || "") : "Xe du lịch đời mới / Máy bay";
-  document.getElementById("formTourSeats").value = tour ? (tour.availableSeats || 20) : 25;
+  document.getElementById("formTourSeats").value = tour ? (tour.availableSeats ?? 20) : 25;
   document.getElementById("formTourStatus").value = tour ? (tour.status || "ACTIVE") : "ACTIVE";
   
   const badgeInput = document.getElementById("formTourBadge");
@@ -1355,27 +1437,34 @@ function openTourModal(tourId = null) {
   // Tab 3: Điểm nổi bật
   const descEl = document.getElementById("formTourDesc");
   if (descEl) {
-    descEl.value = tour ? (Array.isArray(tour.highlights) ? tour.highlights.join("\n") : (tour.highlights || "")) : "";
+    const hl = (Array.isArray(tour?.highlights) && tour.highlights.length) ? tour.highlights : (defTour?.highlights || []);
+    descEl.value = tour ? (Array.isArray(hl) ? hl.join("\n") : (hl || "")) : "";
   }
 
   // Tab 3: Dịch vụ bao gồm & Không bao gồm & Chính sách
   const inclusionsEl = document.getElementById("formTourInclusions");
   if (inclusionsEl) {
-    inclusionsEl.value = tour && Array.isArray(tour.inclusions) ? tour.inclusions.join("\n") : (tour?.inclusions || "Xe đưa đón du lịch đời mới suốt tuyến\nKhách sạn / Du thuyền tiêu chuẩn sang trọng\nCác bữa ăn chính đặc sản theo lịch trình\nVé tham quan tất cả các thắng cảnh trong tour\nHướng dẫn viên giàu kinh nghiệm đồng hành\nBảo hiểm du lịch trọn gói 100.000.000đ");
+    const inc = (Array.isArray(tour?.inclusions) && tour.inclusions.length) ? tour.inclusions : defTour?.inclusions;
+    inclusionsEl.value = Array.isArray(inc) ? inc.join("\n") : (tour?.inclusions || "Xe đưa đón du lịch đời mới suốt tuyến\nKhách sạn / Du thuyền tiêu chuẩn sang trọng\nCác bữa ăn chính đặc sản theo lịch trình\nVé tham quan tất cả các thắng cảnh trong tour\nHướng dẫn viên giàu kinh nghiệm đồng hành\nBảo hiểm du lịch trọn gói 100.000.000đ");
   }
 
   const exclusionsEl = document.getElementById("formTourExclusions");
   if (exclusionsEl) {
-    exclusionsEl.value = tour && Array.isArray(tour.exclusions) ? tour.exclusions.join("\n") : (tour?.exclusions || "Thuế VAT 8% (nếu xuất hóa đơn đỏ)\nChi phí phòng đơn nếu đi 1 mình\nĐồ uống ngoài thực đơn và chi phí cá nhân\nTiền tip cho tài xế và hướng dẫn viên");
+    const exc = (Array.isArray(tour?.exclusions) && tour.exclusions.length) ? tour.exclusions : defTour?.exclusions;
+    exclusionsEl.value = Array.isArray(exc) ? exc.join("\n") : (tour?.exclusions || "Thuế VAT 8% (nếu xuất hóa đơn đỏ)\nChi phí phòng đơn nếu đi 1 mình\nĐồ uống ngoài thực đơn và chi phí cá nhân\nTiền tip cho tài xế và hướng dẫn viên");
   }
 
   const termsEl = document.getElementById("formTourTerms");
   if (termsEl) {
-    termsEl.value = tour && Array.isArray(tour.terms) ? tour.terms.join("\n") : (tour?.terms || "Hủy tour trước 15 ngày khởi hành: Miễn phí 100%\nHủy tour từ 07 - 14 ngày: Phí 30% giá tour\nHủy tour từ 03 - 06 ngày: Phí 50% giá tour\nHủy trong vòng 48h trước giờ đi: Phí 100%\nTrường hợp bão lũ thiên tai: Hỗ trợ bảo lưu dời ngày miễn phí");
+    const trm = (Array.isArray(tour?.terms) && tour.terms.length) ? tour.terms : defTour?.terms;
+    termsEl.value = Array.isArray(trm) ? trm.join("\n") : (tour?.terms || "Hủy tour trước 15 ngày khởi hành: Miễn phí 100%\nHủy tour từ 07 - 14 ngày: Phí 30% giá tour\nHủy tour từ 03 - 06 ngày: Phí 50% giá tour\nHủy trong vòng 48h trước giờ đi: Phí 100%\nTrường hợp bão lũ thiên tai: Hỗ trợ bảo lưu dời ngày miễn phí");
   }
 
-  // Tab 2: Render lịch trình Day-by-Day
-  renderAdminItineraryDays(tour ? tour.itinerary : null);
+  // Tab 2: Render lịch trình Day-by-Day (ưu tiên dữ liệu đầy đủ, không ghi đè thành rỗng)
+  const initialItinerary = (Array.isArray(tour?.itinerary) && tour.itinerary.length > 1)
+    ? tour.itinerary
+    : (Array.isArray(defTour?.itinerary) && defTour.itinerary.length > 0 ? defTour.itinerary : (tour?.itinerary || null));
+  renderAdminItineraryDays(initialItinerary);
   renderAdminCostItems([]);
   if (tour && typeof DeltaAPI !== "undefined" && DeltaAPI.adminFetchTourDetails) {
     DeltaAPI.adminFetchTourDetails(tourId).then(result => {
@@ -1383,8 +1472,26 @@ function openTourModal(tourId = null) {
       renderAdminCostItems(result.data.costItems || []);
       document.getElementById("formTourPrice").value = result.data.tour.price;
       const base = document.getElementById("formTourOriginalPrice");
-      if (base) base.value = result.data.baseCost;
-      renderAdminItineraryDays(groupStructuredItinerary(result.data.itinerary || []));
+      if (base) base.value = result.data.baseCost || result.data.tour.originalPrice || "";
+      const structuredDays = groupStructuredItinerary(result.data.itinerary || []);
+      const serverTourDays = Array.isArray(result.data.tour?.itinerary) ? result.data.tour.itinerary : [];
+      if (structuredDays.length > 0) {
+        renderAdminItineraryDays(structuredDays);
+      } else if (serverTourDays.length > 0) {
+        renderAdminItineraryDays(serverTourDays);
+      }
+      if (Array.isArray(result.data.tour?.inclusions) && result.data.tour.inclusions.length && inclusionsEl) {
+        inclusionsEl.value = result.data.tour.inclusions.join("\n");
+      }
+      if (Array.isArray(result.data.tour?.exclusions) && result.data.tour.exclusions.length && exclusionsEl) {
+        exclusionsEl.value = result.data.tour.exclusions.join("\n");
+      }
+      if (Array.isArray(result.data.tour?.terms) && result.data.tour.terms.length && termsEl) {
+        termsEl.value = result.data.tour.terms.join("\n");
+      }
+      if (result.data.tour?.badge && badgeInput) {
+        badgeInput.value = result.data.tour.badge;
+      }
     }).catch(error => showAdminToast(error.message, "error"));
   }
 
@@ -1395,13 +1502,19 @@ function openTourModal(tourId = null) {
 function groupStructuredItinerary(items) {
   const days = new Map();
   for (const item of items) {
+    const cleanTitle = String(item.title || "")
+      .replace(/\s*-\s*Buổi\s+(sáng|chiều|tối)\s*$/i, "")
+      .trim();
     if (!days.has(item.dayNumber)) {
       days.set(item.dayNumber, {
         day: item.dayNumber,
-        title: `Lịch trình ngày ${item.dayNumber}`
+        title: cleanTitle || `Lịch trình ngày ${item.dayNumber}`
       });
     }
     const day = days.get(item.dayNumber);
+    if (cleanTitle && day.title.startsWith("Lịch trình ngày ")) {
+      day.title = cleanTitle;
+    }
     const slot = ["morning", "afternoon", "evening"][item.sequence - 1];
     if (slot) {
       day[slot] = item.description || item.title;
@@ -1527,7 +1640,7 @@ function renderAdminItineraryDays(itinerary) {
         <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
           <div class="d-flex align-items-center gap-2 flex-grow-1 me-2">
             <span class="badge bg-primary px-3 py-1.5 fs-6 fw-bold">Ngày ${dayNum}</span>
-            <input type="text" class="form-control form-control-sm fw-bold admin-itinerary-title" value="${escapeAdminHtml(item.title || '')}" placeholder="Tiêu đề ngày (VD: Hà Nội - Vịnh Hạ Long - Du Thuyền 5 Sao)" required>
+            <input type="text" class="form-control form-control-sm fw-bold admin-itinerary-title" value="${escapeAdminHtml(item.title || '')}" placeholder="Tiêu đề ngày (VD: Hà Nội - Vịnh Hạ Long - Du Thuyền 5 Sao)">
           </div>
           <button type="button" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1" onclick="removeAdminItineraryDay(this)" title="Xóa ngày này">
             <i class="bi bi-trash3-fill"></i> Xóa ngày
@@ -1595,7 +1708,7 @@ function addAdminItineraryDay() {
       <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
         <div class="d-flex align-items-center gap-2 flex-grow-1 me-2">
           <span class="badge bg-primary px-3 py-1.5 fs-6 fw-bold">Ngày ${nextDay}</span>
-          <input type="text" class="form-control form-control-sm fw-bold admin-itinerary-title" value="" placeholder="Tiêu đề ngày (VD: Khám phá thắng cảnh - Trải nghiệm văn hóa)" required>
+          <input type="text" class="form-control form-control-sm fw-bold admin-itinerary-title" value="" placeholder="Tiêu đề ngày (VD: Khám phá thắng cảnh - Trải nghiệm văn hóa)">
         </div>
         <button type="button" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1" onclick="removeAdminItineraryDay(this)" title="Xóa ngày này">
           <i class="bi bi-trash3-fill"></i> Xóa ngày
@@ -1630,6 +1743,11 @@ function addAdminItineraryDay() {
 
   container.insertAdjacentHTML("beforeend", newDayHtml);
   updateAdminItineraryDayCount();
+  const addedCard = container.lastElementChild;
+  if (addedCard) {
+    addedCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    addedCard.querySelector(".admin-itinerary-title")?.focus();
+  }
 }
 
 function removeAdminItineraryDay(btn) {
@@ -1699,7 +1817,14 @@ async function handleSaveTourSubmit(e) {
     alert("Mỗi tour chỉ được có tối đa 12 ảnh.");
     return;
   }
-  const apiImages = galleryImages.filter(url => !url.startsWith("data:"));
+  const apiImagesRaw = galleryImages.filter(url => !url.startsWith("data:") && url.length <= 1200);
+  const existingTour = AdminState.tours.find(t => t.id === id);
+  const apiImages = apiImagesRaw.length > 0
+    ? apiImagesRaw
+    : (Array.isArray(existingTour?.images) ? existingTour.images.filter(u => !u.startsWith("data:") && u.length <= 1200) : []);
+  if (apiImages.length === 0) {
+    apiImages.push("assets/images/halong.png");
+  }
 
   const descRaw = document.getElementById("formTourDesc")?.value.trim() || "";
   const highlights = descRaw ? descRaw.split("\n").map(s => s.trim()).filter(Boolean) : ["Trải nghiệm tour chất lượng cao của Delta Travel"];
@@ -1759,25 +1884,30 @@ async function handleSaveTourSubmit(e) {
   const tours = [...AdminState.tours];
   const existingIdx = tours.findIndex(t => t.id === id);
 
+  const effectiveOriginalPrice = calculatedBaseCost > 0
+    ? calculatedBaseCost
+    : (originalPrice > 0 ? originalPrice : (tours[existingIdx]?.originalPrice || price));
+  const computedFlashSale = badge.toUpperCase().includes("FLASH SALE");
+
   const tourData = {
     id,
     title,
     slug,
     region,
     regionName,
-    image,
-    images: galleryImages,
+    image: apiImages[0] || image,
+    images: apiImages.length > 0 ? apiImages : galleryImages,
     duration,
     daysCount: itinerary.length || parseInt(duration) || 3,
     departure,
     transport,
-    originalPrice: calculatedBaseCost || originalPrice,
+    originalPrice: effectiveOriginalPrice,
     price,
     childPrice: Math.round(price * 0.65),
     rating: existingIdx !== -1 ? tours[existingIdx].rating : 5.0,
     reviewsCount: existingIdx !== -1 ? tours[existingIdx].reviewsCount : 1,
-    badge: badge || (originalPrice > price ? "Ưu đãi Delta" : ""),
-    isFlashSale: false,
+    badge: badge || (effectiveOriginalPrice > price ? "Ưu đãi Delta" : ""),
+    isFlashSale: computedFlashSale,
     availableSeats,
     status,
     countryCode: "VN",
@@ -1800,9 +1930,14 @@ async function handleSaveTourSubmit(e) {
         duration: tourData.duration,
         departure: tourData.departure,
         transport: tourData.transport,
-        original_price: Math.max(calculatedBaseCost, 1),
+        original_price: Math.max(effectiveOriginalPrice, 1),
         flash_sale: tourData.isFlashSale,
+        badge: tourData.badge,
         description: tourData.highlights.join("\n"),
+        inclusions: tourData.inclusions,
+        exclusions: tourData.exclusions,
+        terms: tourData.terms,
+        itinerary: tourData.itinerary,
         active: status === "ACTIVE",
         images: apiImages,
         available_seats: tourData.availableSeats
@@ -1824,9 +1959,17 @@ async function handleSaveTourSubmit(e) {
         departure: tourData.departure,
         transport: tourData.transport,
         price: tourData.price,
-        original_price: Math.max(calculatedBaseCost, 1),
+        original_price: Math.max(effectiveOriginalPrice, 1),
+        flash_sale: tourData.isFlashSale,
+        badge: tourData.badge,
         images: apiImages,
-        description: tourData.highlights.join("\n")
+        description: tourData.highlights.join("\n"),
+        inclusions: tourData.inclusions,
+        exclusions: tourData.exclusions,
+        terms: tourData.terms,
+        itinerary: tourData.itinerary,
+        active: status === "ACTIVE",
+        available_seats: tourData.availableSeats
       });
       if (!created.success) {
         showAdminToast(created.error || "Không thể tạo tour trên máy chủ.", "error");
@@ -1847,15 +1990,18 @@ async function handleSaveTourSubmit(e) {
     }
   }
 
+  AdminState.tours = tours;
   addAuditLog(
     existingIdx !== -1 ? "UPDATE_TOUR" : "CREATE_TOUR",
     "Tour",
     id,
-    `Đã lưu giá bán ${price.toLocaleString("vi-VN")} đ, giá gốc ${calculatedBaseCost.toLocaleString("vi-VN")} đ và lịch trình ${itinerary.length} ngày.`
+    `Đã lưu giá bán ${price.toLocaleString("vi-VN")} đ, giá gốc ${effectiveOriginalPrice.toLocaleString("vi-VN")} đ và lịch trình ${itinerary.length} ngày.`
   );
-  showAdminToast(`Đã lưu tour ${id}, chi phí và lịch trình.`, "success");
+  showAdminToast(`Đã lưu & đồng bộ tour ${id}, chi phí và lịch trình lên hệ thống khách hàng.`, "success");
   saveToursData(tours);
+  broadcastCatalogSync();
   bootstrap.Modal.getInstance(document.getElementById("adminTourModal"))?.hide();
+  await refreshAdminData();
   renderCurrentTab();
 }
 
@@ -2003,7 +2149,7 @@ async function handleToggleScheduleStatus(schId) {
   if (idx !== -1) {
     const cur = schedules[idx].status || "OPEN";
     const status = (cur === "OPEN") ? "CLOSED" : "OPEN";
-    if (typeof DeltaAPI !== "undefined" && DeltaAPI.isOnline()) {
+    if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.adminPatchSchedule === "function") {
       let response;
       try {
         response = await DeltaAPI.adminPatchSchedule(schId, { active: status === "OPEN" });
@@ -2012,17 +2158,28 @@ async function handleToggleScheduleStatus(schId) {
         showAdminToast("Không thể kết nối máy chủ để cập nhật lịch.", "error");
         return;
       }
-      if (!response?.success) {
+      if (!response?.success && !response?.isOffline) {
         showAdminToast(response?.error || "Không thể cập nhật trạng thái lịch.", "error");
         return;
       }
     }
     schedules[idx].status = status;
+    AdminState.schedules = schedules;
     saveSchedulesData(schedules);
+    broadcastCatalogSync();
     addAuditLog("UPDATE_SCHEDULE", "Schedule", schId, `Chuyển trạng thái lịch ${schId} sang ${schedules[idx].status}`);
     showAdminToast(`Lịch ${schId} đã chuyển sang ${schedules[idx].status}`, "success");
     renderCurrentTab();
   }
+}
+
+function syncScheduleModalTourPrices() {
+  const selectTour = document.getElementById("formSchTourId");
+  const tour = AdminState.tours.find(item => item.id === selectTour?.value);
+  const adultEl = document.getElementById("formSchAdultPrice");
+  const childEl = document.getElementById("formSchChildPrice");
+  if (adultEl) adultEl.value = tour?.price || 3890000;
+  if (childEl) childEl.value = tour ? Math.round(tour.price * 0.75) : 2490000;
 }
 
 function openScheduleModal(scheduleId = null) {
@@ -2038,20 +2195,26 @@ function openScheduleModal(scheduleId = null) {
     `).join("");
   }
 
-  const defaultDate = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 16);
-  const nowMinDate = new Date().toISOString().slice(0, 16);
+  const toLocalDateTimeInput = (isoOrDate) => {
+    const d = isoOrDate ? new Date(isoOrDate) : new Date(Date.now() + 7 * 24 * 3600 * 1000);
+    if (isNaN(d.getTime())) return new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 16);
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 16);
+  };
+  const defaultDate = toLocalDateTimeInput();
+  const nowMinDate = toLocalDateTimeInput(new Date());
   document.getElementById("scheduleModalTitle").textContent = sch ? "Chỉnh Sửa Lịch Khởi Hành" : "Thêm Lịch Khởi Hành Mới";
   document.getElementById("formSchId").value = sch ? sch.id : ("SCH-" + Date.now().toString().slice(-4));
   const dateInput = document.getElementById("formSchDate");
-  dateInput.value = sch ? sch.departureAt.slice(0, 16) : defaultDate;
-  dateInput.min = nowMinDate; // Chặn ngày quá khứ ngay trên giao diện
+  dateInput.value = sch ? toLocalDateTimeInput(sch.departureAt) : defaultDate;
+  dateInput.min = nowMinDate;
+  dateInput.disabled = false;
   document.getElementById("formSchSeats").value = sch ? sch.totalSeats : 30;
   const tour = AdminState.tours.find(item => item.id === (sch?.tourId || selectTour?.value));
   if (selectTour) selectTour.disabled = Boolean(sch);
   document.getElementById("formSchAdultPrice").value = tour?.price || 3890000;
   document.getElementById("formSchChildPrice").value = tour ? Math.round(tour.price * 0.75) : 2490000;
   document.getElementById("formSchStatus").value = sch ? sch.status : "OPEN";
-  document.getElementById("formSchDate").disabled = Boolean(sch);
   document.getElementById("formSchAdultPrice").disabled = true;
   document.getElementById("formSchChildPrice").disabled = true;
 
@@ -2097,11 +2260,12 @@ async function handleSaveScheduleSubmit(e) {
     status
   };
 
-  if (typeof DeltaAPI !== "undefined" && DeltaAPI.isOnline()) {
+  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.adminCreateSchedule === "function") {
     let response;
     try {
       response = idx !== -1
         ? await DeltaAPI.adminPatchSchedule(id, {
+          departure_at: schData.departureAt,
           total_seats: totalSeats,
           active: status === "OPEN"
         })
@@ -2115,20 +2279,22 @@ async function handleSaveScheduleSubmit(e) {
       showAdminToast("Không thể kết nối máy chủ để lưu lịch khởi hành.", "error");
       return;
     }
-    if (!response?.success) {
+    if (!response?.success && !response?.isOffline) {
       showAdminToast(response?.error || "Không thể lưu lịch khởi hành.", "error");
       return;
     }
-    const saved = response.data;
-    schData = {
-      id: saved.id,
-      tourId: saved.tourId,
-      tourTitle,
-      departureAt: saved.departureAt,
-      totalSeats: saved.totalSeats,
-      bookedSeats: saved.totalSeats - saved.availableSeats,
-      status: saved.active ? "OPEN" : "CLOSED"
-    };
+    if (response?.success && response?.data) {
+      const saved = response.data;
+      schData = {
+        id: saved.id,
+        tourId: saved.tourId,
+        tourTitle,
+        departureAt: saved.departureAt,
+        totalSeats: saved.totalSeats,
+        bookedSeats: saved.totalSeats - saved.availableSeats,
+        status: saved.active ? "OPEN" : "CLOSED"
+      };
+    }
   }
 
   if (idx !== -1) {
@@ -2143,6 +2309,7 @@ async function handleSaveScheduleSubmit(e) {
 
   AdminState.schedules = schedules;
   saveSchedulesData(schedules);
+  broadcastCatalogSync();
   bootstrap.Modal.getInstance(document.getElementById("adminScheduleModal"))?.hide();
   renderCurrentTab();
 
@@ -2300,7 +2467,7 @@ function renderTabBookings(container) {
                       ${b.passengers?.adults || 1}L ${b.passengers?.children ? `+ ${b.passengers.children}T` : ''}
                     </span>
                   </td>
-                  <td class="fw-bold text-dark">${b.pricing.total.toLocaleString("vi-VN")} đ</td>
+                  <td class="fw-bold text-dark">${Number(b.pricing?.total ?? b.totalPrice ?? 0).toLocaleString("vi-VN")} đ</td>
                   <td><span class="small text-muted">${b.paymentMethod || 'Chuyển khoản'}</span></td>
                   <td>
                     <span class="admin-badge badge-status-${b.statusCode || 'PAID'}">
@@ -2349,36 +2516,68 @@ function handleBookingStatusFilter(val) {
   renderTabBookings(document.getElementById("adminTabContentContainer"));
 }
 
-function handleQuickConfirmBooking(bookingId) {
+async function handleQuickConfirmBooking(bookingId) {
   const bookings = [...AdminState.bookings];
-  const idx = bookings.findIndex(b => b.bookingId === bookingId);
+  const idx = bookings.findIndex(b => b.bookingId === bookingId || b.id === bookingId || b.reference === bookingId);
   if (idx !== -1) {
-    bookings[idx].status = "ĐÃ XÁC NHẬN";
+    const targetId = bookings[idx].id || bookingId;
+    if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.adminPatchBooking === "function") {
+      const apiRes = await DeltaAPI.adminPatchBooking(targetId, "CONFIRMED").catch(() => null);
+      if (apiRes && !apiRes.success && !apiRes.isOffline) {
+        showAdminToast(apiRes.error || "Không thể duyệt đơn trên máy chủ.", "error");
+        return;
+      }
+    }
+    bookings[idx].status = "CONFIRMED";
     bookings[idx].statusCode = "CONFIRMED";
     bookings[idx].isPaid = true;
+    bookings[idx].paid = true;
+    AdminState.bookings = bookings;
     saveBookingsData(bookings);
 
-    // Cập nhật trạng thái payment tương ứng nếu có
-    const payments = [...AdminState.payments];
-    const pIdx = payments.findIndex(p => p.bookingId === bookingId);
-    if (pIdx !== -1) {
-      payments[pIdx].status = "SUCCEEDED";
-      savePaymentsData(payments);
-    }
+    try {
+      const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
+      const lIdx = local.findIndex(b => b.id === targetId || b.reference === bookingId || b.bookingId === bookingId);
+      if (lIdx !== -1) {
+        local[lIdx].status = "CONFIRMED";
+        local[lIdx].statusCode = "CONFIRMED";
+        local[lIdx].paid = true;
+        localStorage.setItem("delta_customer_bookings", JSON.stringify(local));
+      }
+    } catch (_) {}
 
+    rebuildAdminPayments();
     addAuditLog("CONFIRM_BOOKING", "Booking", bookingId, `Xác nhận giữ chỗ chính thức cho đơn ${bookingId} (${bookings[idx].customer.fullName})`);
     showAdminToast(`Đã duyệt xác nhận đơn ${bookingId}!`, "success");
     renderCurrentTab();
   }
 }
 
-function handleCompleteBooking(bookingId) {
+async function handleCompleteBooking(bookingId) {
   const bookings = [...AdminState.bookings];
-  const idx = bookings.findIndex(b => b.bookingId === bookingId);
+  const idx = bookings.findIndex(b => b.bookingId === bookingId || b.id === bookingId || b.reference === bookingId);
   if (idx !== -1) {
-    bookings[idx].status = "HOÀN THÀNH";
+    const targetId = bookings[idx].id || bookingId;
+    if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.adminPatchBooking === "function") {
+      const apiRes = await DeltaAPI.adminPatchBooking(targetId, "COMPLETED").catch(() => null);
+      if (apiRes && !apiRes.success && !apiRes.isOffline) {
+        showAdminToast(apiRes.error || "Không thể hoàn thành đơn trên máy chủ.", "error");
+        return;
+      }
+    }
+    bookings[idx].status = "COMPLETED";
     bookings[idx].statusCode = "COMPLETED";
+    AdminState.bookings = bookings;
     saveBookingsData(bookings);
+    try {
+      const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
+      const lIdx = local.findIndex(b => b.id === targetId || b.reference === bookingId || b.bookingId === bookingId);
+      if (lIdx !== -1) {
+        local[lIdx].status = "COMPLETED";
+        local[lIdx].statusCode = "COMPLETED";
+        localStorage.setItem("delta_customer_bookings", JSON.stringify(local));
+      }
+    } catch (_) {}
     addAuditLog("COMPLETE_BOOKING", "Booking", bookingId, `Hoàn thành hành trình tour cho đơn ${bookingId}`);
     showAdminToast(`Đơn ${bookingId} đã hoàn thành tour!`, "success");
     renderCurrentTab();
@@ -2415,9 +2614,12 @@ function openBookingDetailModal(bookingId) {
   document.getElementById("detailPaymentMethod").textContent = booking.paymentMethod;
 
   // Bảng giá
-  document.getElementById("detailSubtotal").textContent = (booking.pricing?.subtotal || booking.pricing?.total).toLocaleString("vi-VN") + " đ";
-  document.getElementById("detailDiscount").textContent = (booking.pricing?.discount || 0).toLocaleString("vi-VN") + " đ";
-  document.getElementById("detailGrandTotal").textContent = (booking.pricing?.total || 0).toLocaleString("vi-VN") + " đ";
+  const subtotalVal = Number(booking.pricing?.subtotal ?? booking.pricing?.total ?? booking.totalPrice ?? 0);
+  const discountVal = Number(booking.pricing?.discount ?? 0);
+  const grandTotalVal = Number(booking.pricing?.total ?? booking.totalPrice ?? 0);
+  document.getElementById("detailSubtotal").textContent = subtotalVal.toLocaleString("vi-VN") + " đ";
+  document.getElementById("detailDiscount").textContent = discountVal.toLocaleString("vi-VN") + " đ";
+  document.getElementById("detailGrandTotal").textContent = grandTotalVal.toLocaleString("vi-VN") + " đ";
 
   const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
   modal.show();
@@ -2447,7 +2649,7 @@ function handleQuickCancelReason(reasonText) {
   if (input) input.value = reasonText;
 }
 
-function handleConfirmCancelSubmit(e) {
+async function handleConfirmCancelSubmit(e) {
   e.preventDefault();
   const bookingId = document.getElementById("cancelModalTargetId").value;
   const reason = document.getElementById("cancelReasonInput").value.trim();
@@ -2458,30 +2660,45 @@ function handleConfirmCancelSubmit(e) {
   }
 
   const bookings = [...AdminState.bookings];
-  const idx = bookings.findIndex(b => b.bookingId === bookingId);
+  const idx = bookings.findIndex(b => b.bookingId === bookingId || b.id === bookingId || b.reference === bookingId);
   if (idx !== -1) {
-    bookings[idx].status = "ĐÃ HỦY";
-    bookings[idx].statusCode = "CANCELLED";
-    bookings[idx].cancelReason = reason;
-
-    // Nếu đơn đã thanh toán trước đó, chuyển trạng thái hoàn tiền
-    if (bookings[idx].isPaid) {
-      bookings[idx].refundStatus = "REFUND_REQUIRED";
-      // Cập nhật payment
-      const payments = [...AdminState.payments];
-      const pIdx = payments.findIndex(p => p.bookingId === bookingId);
-      if (pIdx !== -1) {
-        payments[pIdx].status = "REFUND_REQUIRED";
-        payments[pIdx].note = `Đơn hủy: ${reason} (Chờ hoàn tiền)`;
-        savePaymentsData(payments);
+    const targetId = bookings[idx].id || bookingId;
+    if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.adminPatchBooking === "function") {
+      const apiRes = await DeltaAPI.adminPatchBooking(targetId, "CANCELLED", reason).catch(() => null);
+      if (apiRes && !apiRes.success && !apiRes.isOffline) {
+        showAdminToast(apiRes.error || "Không thể hủy đơn trên máy chủ.", "error");
+        return;
       }
     }
 
+    bookings[idx].status = "CANCELLED";
+    bookings[idx].statusCode = "CANCELLED";
+    bookings[idx].cancelReason = reason;
+    AdminState.bookings = bookings;
+
+    if (bookings[idx].isPaid) {
+      bookings[idx].refundStatus = "REFUND_REQUIRED";
+    }
+
+    try {
+      const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
+      const lIdx = local.findIndex(b => b.id === targetId || b.reference === bookingId || b.bookingId === bookingId);
+      if (lIdx !== -1) {
+        local[lIdx].status = "CANCELLED";
+        local[lIdx].statusCode = "CANCELLED";
+        local[lIdx].cancelReason = reason;
+        localStorage.setItem("delta_customer_bookings", JSON.stringify(local));
+      }
+    } catch (_) {}
+
+    rebuildAdminPayments();
     saveBookingsData(bookings);
+    broadcastCatalogSync();
     addAuditLog("CANCEL_BOOKING", "Booking", bookingId, `Hủy đơn ${bookingId} - Lý do: ${reason}`);
     showAdminToast(`Đã hủy đơn ${bookingId} thành công!`, "warning");
 
     bootstrap.Modal.getInstance(document.getElementById("adminCancelModal"))?.hide();
+    await refreshAdminData();
     renderCurrentTab();
   }
 }
@@ -2690,29 +2907,40 @@ function handlePaymentProviderFilter(val) {
 async function adminConfirmOnlinePayment(bookingId, paymentId) {
   if (!confirm(`Xác nhận đơn hàng #${bookingId} đã nhận thanh toán thành công?`)) return;
   const ref = "VIETQR-CONFIRMED-" + Date.now();
+  const bookings = [...(AdminState.bookings || [])];
+  const bIdx = bookings.findIndex(b => b.bookingId === bookingId || b.id === bookingId || b.reference === bookingId);
+  const targetId = (bIdx !== -1 && bookings[bIdx].id) ? bookings[bIdx].id : bookingId;
+
   try {
     if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.adminConfirmPayment === "function") {
-      await DeltaAPI.adminConfirmPayment(bookingId, ref);
+      const apiRes = await DeltaAPI.adminConfirmPayment(targetId, ref);
+      if (apiRes && !apiRes.success && !apiRes.isOffline) {
+        showAdminToast(apiRes.error || "Không thể xác nhận thanh toán trên máy chủ.", "error");
+        return;
+      }
     }
   } catch (err) {
     console.warn("API confirm payment failed, continuing local update:", err);
   }
 
   // Cập nhật booking trong AdminState
-  const bIdx = (AdminState.bookings || []).findIndex(b => b.bookingId === bookingId || b.id === bookingId || b.reference === bookingId);
   if (bIdx !== -1) {
-    AdminState.bookings[bIdx].status = "PAID";
-    AdminState.bookings[bIdx].statusCode = "PAID";
-    AdminState.bookings[bIdx].paid = true;
-    AdminState.bookings[bIdx].paymentEvidence = ref;
+    bookings[bIdx].status = "PAID";
+    bookings[bIdx].statusCode = "PAID";
+    bookings[bIdx].isPaid = true;
+    bookings[bIdx].paid = true;
+    bookings[bIdx].paymentEvidence = ref;
+    AdminState.bookings = bookings;
+    saveBookingsData(bookings);
   }
 
   // Cập nhật localStorage khách hàng nếu có
   try {
     const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
-    const lIdx = local.findIndex(b => b.id === bookingId || b.reference === bookingId);
+    const lIdx = local.findIndex(b => b.id === targetId || b.reference === bookingId || b.bookingId === bookingId);
     if (lIdx !== -1) {
       local[lIdx].status = "PAID";
+      local[lIdx].statusCode = "PAID";
       local[lIdx].paid = true;
       local[lIdx].paymentEvidence = ref;
       localStorage.setItem("delta_customer_bookings", JSON.stringify(local));
@@ -2720,6 +2948,8 @@ async function adminConfirmOnlinePayment(bookingId, paymentId) {
   } catch (_) {}
 
   rebuildAdminPayments();
+  broadcastCatalogSync();
+  addAuditLog("CONFIRM_ONLINE_PAYMENT", "Booking", bookingId, `Xác nhận thanh toán trực tuyến đơn ${bookingId} (Ref: ${ref})`);
   renderCurrentTab();
   showAdminToast(`Đã xác nhận thanh toán đơn #${bookingId} thành công!`, "success");
 }
@@ -2745,7 +2975,7 @@ function openRecordCashModal(paymentId) {
   }
 }
 
-function handleRecordCashSubmit(e) {
+async function handleRecordCashSubmit(e) {
   e.preventDefault();
   const paymentId = document.getElementById("cashTargetPaymentId").value;
   const ref = document.getElementById("cashRefInput").value.trim();
@@ -2754,27 +2984,59 @@ function handleRecordCashSubmit(e) {
   const payments = [...AdminState.payments];
   const pIdx = payments.findIndex(item => item.id === paymentId);
   if (pIdx !== -1) {
-    payments[pIdx].status = "SUCCEEDED";
-    payments[pIdx].reference = ref;
-    payments[pIdx].note = note;
-    savePaymentsData(payments);
-
-    // Cập nhật booking sang PAID / CONFIRMED
     const bookingId = payments[pIdx].bookingId;
-    const bookings = [...AdminState.bookings];
-    const bIdx = bookings.findIndex(b => b.bookingId === bookingId);
-    if (bIdx !== -1) {
-      bookings[bIdx].status = "ĐÃ XÁC NHẬN";
-      bookings[bIdx].statusCode = "CONFIRMED";
-      bookings[bIdx].isPaid = true;
-      saveBookingsData(bookings);
+    const bookings = [...(AdminState.bookings || [])];
+    const bIdx = bookings.findIndex(b => b.bookingId === bookingId || b.id === bookingId || b.reference === bookingId);
+    const targetId = (bIdx !== -1 && bookings[bIdx].id) ? bookings[bIdx].id : bookingId;
 
-      // Đồng bộ xác nhận thanh toán với Backend API nếu có
-      if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.adminConfirmPayment === "function") {
-        DeltaAPI.adminConfirmPayment(bookingId, ref).catch(() => {});
+    // Đồng bộ xác nhận thanh toán và trạng thái CONFIRMED với Backend API nếu có
+    if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.adminConfirmPayment === "function") {
+      const payRes = await DeltaAPI.adminConfirmPayment(targetId, ref).catch(() => null);
+      if (payRes && !payRes.success && !payRes.isOffline) {
+        showAdminToast(payRes.error || "Không thể ghi nhận thu tiền trên máy chủ.", "error");
+        return;
+      }
+      if (typeof DeltaAPI.adminPatchBooking === "function") {
+        const patchRes = await DeltaAPI.adminPatchBooking(targetId, "CONFIRMED").catch(() => null);
+        if (patchRes && !patchRes.success && !patchRes.isOffline) {
+          showAdminToast(patchRes.error || "Không thể cập nhật trạng thái xác nhận đơn.", "error");
+          return;
+        }
       }
     }
 
+    payments[pIdx].status = "SUCCEEDED";
+    payments[pIdx].reference = ref;
+    payments[pIdx].providerReference = ref;
+    payments[pIdx].note = note;
+    AdminState.payments = payments;
+    savePaymentsData(payments);
+
+    // Cập nhật booking sang PAID / CONFIRMED
+    if (bIdx !== -1) {
+      bookings[bIdx].status = "CONFIRMED";
+      bookings[bIdx].statusCode = "CONFIRMED";
+      bookings[bIdx].isPaid = true;
+      bookings[bIdx].paid = true;
+      bookings[bIdx].paymentEvidence = ref;
+      AdminState.bookings = bookings;
+      saveBookingsData(bookings);
+
+      try {
+        const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
+        const lIdx = local.findIndex(b => b.id === targetId || b.reference === bookingId || b.bookingId === bookingId);
+        if (lIdx !== -1) {
+          local[lIdx].status = "CONFIRMED";
+          local[lIdx].statusCode = "CONFIRMED";
+          local[lIdx].paid = true;
+          local[lIdx].paymentEvidence = ref;
+          localStorage.setItem("delta_customer_bookings", JSON.stringify(local));
+        }
+      } catch (_) {}
+    }
+
+    rebuildAdminPayments();
+    broadcastCatalogSync();
     addAuditLog("RECORD_CASH", "Payment", paymentId, `Ghi nhận thu tiền mặt ${payments[pIdx].amount.toLocaleString("vi-VN")} đ cho đơn ${bookingId} (Mã phiếu: ${ref})`);
     showAdminToast(`Ghi nhận thu tiền mặt thành công! Đơn ${bookingId} đã được xác nhận.`, "success");
 

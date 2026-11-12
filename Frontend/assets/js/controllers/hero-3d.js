@@ -54,6 +54,9 @@
     const section = document.getElementById("hero3DShowcase");
     const canvas = document.getElementById("hero3DCanvas");
     if (!section || !canvas) return;
+    // Chỉ tải bộ khung hình 3D tùy chọn khi môi trường bật cờ data-enable3d-frames="true"
+    // để tránh phát sinh hàng trăm request 404 khi thư mục 3d-frames không đi kèm trong repo.
+    if (document.documentElement.dataset.enable3dFrames !== "true") return;
 
     // Hiệu ứng Trái Đất 3D chỉ dành cho Desktop; mobile/tablet dùng ảnh tĩnh cho nhẹ
     if (window.matchMedia("(max-width: 991.98px)").matches) {
@@ -227,7 +230,6 @@
     // Kiểm tra tuần tự và xác định URL cơ sở nào đang hoạt động chính xác
     function testNextBaseUrl(idx) {
       if (idx >= BASE_URLS.length) {
-        startPreloading();
         return;
       }
       const testImg = new Image();
