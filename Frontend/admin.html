@@ -36,83 +36,36 @@
         </div>
         <h3 class="fw-bold text-dark mb-1">Khu Vực Quản Trị Hệ Thống</h3>
         <p class="text-muted small mb-0">
-          Dành riêng cho <strong>Ban Quản Trị Nhóm (5 thành viên)</strong> của Delta Travel.
+          Hệ thống điều hành và quản trị du lịch trực tuyến Delta Travel.
         </p>
       </div>
 
-      <div class="p-3 bg-light rounded-3 border mb-3">
-        <div class="small fw-bold text-dark mb-2 text-uppercase text-muted" style="font-size: 11px; letter-spacing: 0.5px;">
-          <i class="bi bi-people-fill text-primary me-1"></i> Chọn tài khoản thành viên nhóm để đăng nhập:
+      <form id="adminLoginForm" onsubmit="handleAdminFormLogin(event)" class="mb-3">
+        <div class="mb-3">
+          <label class="form-label small fw-bold text-dark mb-1">
+            <i class="bi bi-person-fill me-1 text-muted"></i> Tài khoản / Email quản trị
+          </label>
+          <input type="text" id="adminLoginUsername" class="form-control py-2.5 rounded-3" placeholder="admin@deltatravel.vn hoặc an.levan@gmail.com" required autocomplete="username">
         </div>
-        <div class="d-flex flex-column gap-2">
-          <!-- Thành viên 1: Hồng Thắm (Trưởng nhóm) -->
-          <button type="button" class="btn btn-outline-dark bg-white d-flex align-items-center justify-content-between p-2 rounded-3 text-start hover-shadow" onclick="handleQuickAdminLogin('USR-01')">
-            <div class="d-flex align-items-center gap-2.5">
-              <div class="rounded-circle bg-warning text-dark fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; font-size: 14px;">HT</div>
-              <div>
-                <div class="fw-bold text-dark small mb-0">Hồng Thắm <span class="badge bg-warning text-dark ms-1" style="font-size: 10px;">Trưởng nhóm</span></div>
-                <div class="text-muted" style="font-size: 11px;">hongtham@deltatravel.vn</div>
-              </div>
-            </div>
-            <span class="badge bg-primary-subtle text-primary border small" style="font-size: 11px;">Đăng nhập <i class="bi bi-arrow-right"></i></span>
-          </button>
-
-          <!-- Thành viên 2: Lê Văn An -->
-          <button type="button" class="btn btn-outline-dark bg-white d-flex align-items-center justify-content-between p-2 rounded-3 text-start hover-shadow" onclick="handleQuickAdminLogin('USR-02')">
-            <div class="d-flex align-items-center gap-2.5">
-              <div class="rounded-circle bg-primary text-white fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; font-size: 14px;">LA</div>
-              <div>
-                <div class="fw-bold text-dark small mb-0">Lê Văn An <span class="badge bg-secondary text-white ms-1" style="font-size: 10px;">Bạn</span></div>
-                <div class="text-muted" style="font-size: 11px;">an.levan@gmail.com</div>
-              </div>
-            </div>
-            <span class="badge bg-primary-subtle text-primary border small" style="font-size: 11px;">Đăng nhập <i class="bi bi-arrow-right"></i></span>
-          </button>
-
-          <!-- Thành viên 3: Lê Hải Đăng -->
-          <button type="button" class="btn btn-outline-dark bg-white d-flex align-items-center justify-content-between p-2 rounded-3 text-start hover-shadow" onclick="handleQuickAdminLogin('USR-03')">
-            <div class="d-flex align-items-center gap-2.5">
-              <div class="rounded-circle bg-success text-white fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; font-size: 14px;">HĐ</div>
-              <div>
-                <div class="fw-bold text-dark small mb-0">Lê Hải Đăng <span class="badge bg-light text-dark border ms-1" style="font-size: 10px;">Thành viên</span></div>
-                <div class="text-muted" style="font-size: 11px;">haidang@deltatravel.vn</div>
-              </div>
-            </div>
-            <span class="badge bg-primary-subtle text-primary border small" style="font-size: 11px;">Đăng nhập <i class="bi bi-arrow-right"></i></span>
-          </button>
-
-          <!-- Thành viên 4: Nguyễn Phúc -->
-          <button type="button" class="btn btn-outline-dark bg-white d-flex align-items-center justify-content-between p-2 rounded-3 text-start hover-shadow" onclick="handleQuickAdminLogin('USR-04')">
-            <div class="d-flex align-items-center gap-2.5">
-              <div class="rounded-circle bg-info text-dark fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; font-size: 14px;">NP</div>
-              <div>
-                <div class="fw-bold text-dark small mb-0">Nguyễn Phúc <span class="badge bg-light text-dark border ms-1" style="font-size: 10px;">Thành viên</span></div>
-                <div class="text-muted" style="font-size: 11px;">nguyenphuc@deltatravel.vn</div>
-              </div>
-            </div>
-            <span class="badge bg-primary-subtle text-primary border small" style="font-size: 11px;">Đăng nhập <i class="bi bi-arrow-right"></i></span>
-          </button>
-
-          <!-- Thành viên 5: Mạnh Lê -->
-          <button type="button" class="btn btn-outline-dark bg-white d-flex align-items-center justify-content-between p-2 rounded-3 text-start hover-shadow" onclick="handleQuickAdminLogin('USR-05')">
-            <div class="d-flex align-items-center gap-2.5">
-              <div class="rounded-circle bg-secondary text-white fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; font-size: 14px;">ML</div>
-              <div>
-                <div class="fw-bold text-dark small mb-0">Mạnh Lê (Manh Le) <span class="badge bg-light text-dark border ms-1" style="font-size: 10px;">Thành viên</span></div>
-                <div class="text-muted" style="font-size: 11px;">manhle@deltatravel.vn</div>
-              </div>
-            </div>
-            <span class="badge bg-primary-subtle text-primary border small" style="font-size: 11px;">Đăng nhập <i class="bi bi-arrow-right"></i></span>
-          </button>
+        <div class="mb-3">
+          <label class="form-label small fw-bold text-dark mb-1">
+            <i class="bi bi-key-fill me-1 text-muted"></i> Mật khẩu
+          </label>
+          <input type="password" id="adminLoginPassword" class="form-control py-2.5 rounded-3" placeholder="Nhập mật khẩu..." required autocomplete="current-password">
         </div>
-      </div>
+        <div id="adminLoginError" class="alert alert-danger py-2 px-3 small rounded-3 d-none mb-3" style="font-size: 13px;"></div>
+        <button type="submit" id="btnAdminSubmitLogin" class="btn btn-dark w-100 py-2.5 rounded-pill fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2">
+          <i class="bi bi-box-arrow-in-right"></i>
+          <span>Đăng nhập hệ thống</span>
+        </button>
+      </form>
 
       <div class="d-flex align-items-center justify-content-between pt-1">
         <a href="index.html" class="text-decoration-none small text-muted">
           <i class="bi bi-arrow-left me-1"></i> Quay về Website khách hàng
         </a>
         <span class="text-muted" style="font-size: 11px;">
-          <i class="bi bi-shield-check text-success"></i> Quyền ADMIN đầy đủ
+          <i class="bi bi-shield-check text-success"></i> Quyền ADMIN bảo mật
         </span>
       </div>
     </div>

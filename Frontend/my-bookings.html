@@ -439,10 +439,27 @@
         // 2. Dự phòng thêm đơn hàng từ localStorage
         const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
         const mergedMap = new Map();
-        [...bookings, ...local].forEach(b => {
+        local.forEach(b => {
           const key = b.id || b.bookingId || b.reference;
-          if (key && !mergedMap.has(key)) {
-            mergedMap.set(key, b);
+          if (key) mergedMap.set(String(key), b);
+        });
+
+        bookings.forEach(b => {
+          const key = String(b.id || b.bookingId || b.reference);
+          if (key) {
+            const existing = mergedMap.get(key);
+            if (existing) {
+              const isPaid = (b.status === "PAID" || existing.status === "PAID" || existing.paid || b.paid || existing.paymentEvidence || b.payment_evidence);
+              mergedMap.set(key, {
+                ...existing,
+                ...b,
+                status: isPaid ? "PAID" : (b.status || existing.status),
+                paid: isPaid,
+                paymentEvidence: b.payment_evidence || existing.paymentEvidence
+              });
+            } else {
+              mergedMap.set(key, b);
+            }
           }
         });
         allBookings = Array.from(mergedMap.values());
@@ -509,22 +526,27 @@
           ? new Date(b.createdAt).toLocaleDateString(isEn ? "en-US" : "vi-VN")
           : (isEn ? "Today" : "Hôm nay");
 
+        const isPaid = (status === "PAID" || b.status === "PAID" || b.statusCode === "PAID" || b.paid === true || b.isPaid === true || b.paymentEvidence || b.payment_evidence);
+        const isConfirmed = (status === "CONFIRMED" || b.status === "CONFIRMED" || b.statusCode === "CONFIRMED");
+        const isCancelled = (status === "CANCELLED" || b.status === "CANCELLED" || b.statusCode === "CANCELLED");
+
         let stampClass = "stamp-paid";
         let stampText = isEn ? "PAID" : "ĐÃ THANH TOÁN";
         let isPending = false;
-        let isCancelled = false;
 
-        if (status === "PENDING_PAYMENT" || status === "PENDING_DEMO" || !b.paid) {
+        if (isCancelled) {
+          stampClass = "stamp-cancelled";
+          stampText = isEn ? "CANCELLED" : "ĐÃ HỦY ĐƠN";
+        } else if (isConfirmed) {
+          stampClass = "stamp-paid";
+          stampText = isEn ? "CONFIRMED" : "ĐÃ DUYỆT GIỮ CHỖ";
+        } else if (isPaid) {
+          stampClass = "stamp-paid";
+          stampText = isEn ? "PAID" : "ĐÃ THANH TOÁN";
+        } else {
           stampClass = "stamp-pending";
           stampText = isEn ? "PENDING PAYMENT" : "CHỜ THANH TOÁN";
           isPending = true;
-        } else if (status === "CONFIRMED") {
-          stampClass = "stamp-paid";
-          stampText = isEn ? "CONFIRMED" : "ĐÃ DUYỆT GIỮ CHỖ";
-        } else if (status === "CANCELLED") {
-          stampClass = "stamp-cancelled";
-          stampText = isEn ? "CANCELLED" : "ĐÃ HỦY ĐƠN";
-          isCancelled = true;
         }
 
         const bookingCodeLabel = isEn ? "Booking ID:" : "Mã đơn:";
@@ -582,7 +604,11 @@
                     <a href="booking.html?bookingId=${encodeURIComponent(id)}" class="paper-btn-pay">
                       <i class="bi bi-credit-card-2-front"></i> ${payNowBtn}
                     </a>
-                  ` : ""}
+                  ` : `
+                    <button type="button" class="btn btn-dark btn-sm rounded-pill px-3 py-1.5 fw-semibold" onclick="printSingleTicket('${id}')">
+                      <i class="bi bi-file-earmark-arrow-down me-1"></i> ${isEn ? "Save Invoice" : "Lưu hóa đơn"}
+                    </button>
+                  `}
                   
                   <button type="button" class="paper-btn-print" onclick="printSingleTicket('${id}')">
                     <i class="bi bi-printer"></i> ${printTicketBtn}

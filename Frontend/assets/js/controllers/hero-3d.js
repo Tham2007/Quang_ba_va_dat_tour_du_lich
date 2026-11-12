@@ -29,8 +29,10 @@
   // Danh sách các đường dẫn dự phòng để tìm ảnh 3D
   const BASE_URLS = [
     "/3d-frames/",
+    "3d-frames/",
     "/3D%20Image%20data/",
     "3D%20Image%20data/",
+    "/3D Image data/",
     "../3D%20Image%20data/"
   ];
 
@@ -52,10 +54,6 @@
     const section = document.getElementById("hero3DShowcase");
     const canvas = document.getElementById("hero3DCanvas");
     if (!section || !canvas) return;
-    // The original repository does not publish the 150 frame files.
-    // Do not issue guaranteed-404 network requests unless the asset bundle is enabled.
-    // A static hero background remains visible without these optional frames.
-    if (document.documentElement.dataset.enable3dFrames !== "true") return;
 
     // Hiệu ứng Trái Đất 3D chỉ dành cho Desktop; mobile/tablet dùng ảnh tĩnh cho nhẹ
     if (window.matchMedia("(max-width: 991.98px)").matches) {
@@ -226,23 +224,23 @@
       }
     }
 
-    // Kiểm tra và xác định URL cơ sở nào đang hoạt động
-    const probe = new Image();
-    probe.onload = () => {
-      startPreloading();
-    };
-    probe.onerror = () => {
-      // Thử URL tiếp theo nếu URL đầu thất bại
-      for (let i = 1; i < BASE_URLS.length; i++) {
-        const nextProbe = new Image();
-        nextProbe.onload = () => {
-          activeBaseUrl = BASE_URLS[i];
-          startPreloading();
-        };
-        nextProbe.src = getFrameUrl(1, BASE_URLS[i]);
+    // Kiểm tra tuần tự và xác định URL cơ sở nào đang hoạt động chính xác
+    function testNextBaseUrl(idx) {
+      if (idx >= BASE_URLS.length) {
+        startPreloading();
+        return;
       }
-    };
-    probe.src = getFrameUrl(1);
+      const testImg = new Image();
+      testImg.onload = () => {
+        activeBaseUrl = BASE_URLS[idx];
+        startPreloading();
+      };
+      testImg.onerror = () => {
+        testNextBaseUrl(idx + 1);
+      };
+      testImg.src = getFrameUrl(1, BASE_URLS[idx]);
+    }
+    testNextBaseUrl(0);
 
     function startPreloading() {
       // Khung đầu tiên được ưu tiên tuyệt đối để hero hiện ngay

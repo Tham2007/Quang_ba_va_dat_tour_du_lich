@@ -224,10 +224,17 @@ const DeltaAPI = (() => {
   }
 
   async function payBooking(bookingId, reference) {
-    const ref = (reference && reference.trim()) ? reference.trim() : ("VQR-" + Date.now().toString().slice(-8));
+    let ref = "VQR-" + Date.now().toString().slice(-8);
+    let autoConfirm = false;
+    if (typeof reference === "string" && reference.trim()) {
+      ref = reference.trim();
+    } else if (reference && typeof reference === "object") {
+      ref = reference.reference || reference.payment_evidence || reference.paymentEvidence || ref;
+      autoConfirm = !!reference.auto_confirm;
+    }
     return await request(`/bookings/${encodeURIComponent(bookingId)}/pay`, {
       method: "POST",
-      body: { reference: ref }
+      body: { reference: ref, payment_evidence: ref, auto_confirm: autoConfirm }
     });
   }
 

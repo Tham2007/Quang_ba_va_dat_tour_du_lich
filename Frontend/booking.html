@@ -1536,7 +1536,9 @@
       try {
         if (typeof DeltaAPI !== "undefined" && DeltaAPI.payBooking && currentBookingData.id) {
           await DeltaAPI.payBooking(currentBookingData.id, {
-            payment_evidence: refEvidence
+            reference: refEvidence,
+            payment_evidence: refEvidence,
+            auto_confirm: true
           });
         }
       } catch (err) {
