@@ -173,6 +173,24 @@ const DeltaAPI = (() => {
   }
 
   /**
+   * Lấy danh sách mã ưu đãi công khai còn hiệu lực (có thể lọc theo tourId)
+   */
+  async function fetchPublicVouchers(tourId) {
+    const q = tourId ? `?tour_id=${encodeURIComponent(tourId)}` : "";
+    return await request(`/vouchers${q}`);
+  }
+
+  /**
+   * Xác thực điều kiện áp dụng mã ưu đãi & tính số tiền giảm phía Backend
+   */
+  async function validateVoucher(payload) {
+    return await request("/vouchers/validate", {
+      method: "POST",
+      body: payload
+    });
+  }
+
+  /**
    * Báo giá tính tiền đơn đặt tour từ server
    */
   async function quoteBooking(quoteData) {
@@ -349,6 +367,30 @@ const DeltaAPI = (() => {
     });
   }
 
+  async function adminFetchVouchers() {
+    return await request("/admin/vouchers");
+  }
+
+  async function adminCreateVoucher(voucherData) {
+    return await request("/admin/vouchers", {
+      method: "POST",
+      body: voucherData
+    });
+  }
+
+  async function adminPatchVoucher(voucherId, patchData) {
+    return await request(`/admin/vouchers/${encodeURIComponent(voucherId)}`, {
+      method: "PATCH",
+      body: patchData
+    });
+  }
+
+  async function adminDeleteVoucher(voucherId) {
+    return await request(`/admin/vouchers/${encodeURIComponent(voucherId)}`, {
+      method: "DELETE"
+    });
+  }
+
   async function changePassword(oldPassword, newPassword) {
     return await request("/auth/change-password", {
       method: "POST",
@@ -414,6 +456,8 @@ const DeltaAPI = (() => {
     fetchTour: fetchTourById,
     fetchSchedules,
     fetchItinerary,
+    fetchPublicVouchers,
+    validateVoucher,
     quoteBooking,
     createBooking,
     fetchMyBookings,
@@ -444,6 +488,10 @@ const DeltaAPI = (() => {
     adminGetSchedules: adminFetchSchedules,
     adminCreateSchedule,
     adminPatchSchedule,
+    adminFetchVouchers,
+    adminCreateVoucher,
+    adminPatchVoucher,
+    adminDeleteVoucher,
     changePassword,
     updateProfile,
     fetchFavorites,

@@ -601,6 +601,310 @@ async function runTests() {
       publicSchedsClosed.status === 200 &&
       publicSchedsClosed.json?.length === 0);
 
+    // =========================================================================
+    // VOUCHER / PROMO CODE TESTS (ĐẦY ĐỦ NGHIỆP VỤ & BẢO MẬT BACKEND)
+    // =========================================================================
+    const hlScheds = await req("/api/v1/tours/DL-HL01/schedules");
+    const dnScheds = await req("/api/v1/tours/DL-DN02/schedules");
+    const mcScheds = await req("/api/v1/tours/DL-MC10/schedules");
+    const hlSchedId = hlScheds.json?.[0]?.id;
+    const dnSchedId = dnScheds.json?.[0]?.id;
+    const mcSchedId = mcScheds.json?.[0]?.id;
+
+    // 1. Seeded vouchers check: DELTA10 (chỉ Miền Bắc), HE2026 (chỉ tour biển đảo chỉ định)
+    const vDeltaNorth = await req("/api/v1/vouchers/validate", {
+      method: "POST",
+      headers: authHeaders,
+      body: { code: "DELTA10", tour_id: "DL-HL01", adults: 1 }
+    });
+    const vDeltaCentral = await req("/api/v1/vouchers/validate", {
+      method: "POST",
+      headers: authHeaders,
+      body: { code: "DELTA10", tour_id: "DL-DN02", adults: 1 }
+    });
+    const vHeWrongTour = await req("/api/v1/vouchers/validate", {
+      method: "POST",
+      headers: authHeaders,
+      body: { code: "HE2026", tour_id: "DL-HL01", adults: 1 }
+    });
+    const vHeRightTour = await req("/api/v1/vouchers/validate", {
+      method: "POST",
+      headers: authHeaders,
+      body: { code: "HE2026", tour_id: "DL-DN02", adults: 1 }
+    });
+    assert("Voucher 1: Phạm vi khu vực & tour cụ thể (đúng tour/sai tour)",
+      vDeltaNorth.status === 200 && vDeltaNorth.json?.valid === true && vDeltaNorth.json?.discountAmount === 389000 &&
+      vDeltaCentral.status === 422 && vDeltaCentral.json?.errorCode === "VOUCHER_WRONG_SCOPE" &&
+      vHeWrongTour.status === 422 && vHeWrongTour.json?.errorCode === "VOUCHER_WRONG_TOUR" &&
+      vHeRightTour.status === 200 && vHeRightTour.json?.valid === true && vHeRightTour.json?.discountAmount === 500000);
+
+    // 2. Tạo mã % có trần max_discount, chưa đến hạn, đã hết hạn, ngừng hoạt động, đơn tối thiểu
+    const nowMs = Date.now();
+    const createPctCap = await req("/api/v1/admin/vouchers", {
+      method: "POST",
+      headers: adminHeaders,
+      body: {
+        code: "CAP500K",
+        name: "Giảm 50% tối đa 500K cho DL-HL01",
+        discount_type: "percent",
+        discount_value: 50,
+        max_discount: 500000,
+        min_order_value: 3000000,
+        scope_type: "tours",
+        scope_tour_ids: ["DL-HL01"],
+        start_at: new Date(nowMs - 86400000).toISOString(),
+        end_at: new Date(nowMs + 7 * 86400000).toISOString(),
+        usage_limit: 10,
+        per_user_limit: 1,
+        target_audience: "all",
+        active: true
+      }
+    });
+    const valPctCap = await req("/api/v1/vouchers/validate", {
+      method: "POST",
+      body: { code: "CAP500K", tour_id: "DL-HL01", adults: 1 }
+    });
+    const valLowMin = await req("/api/v1/vouchers/validate", {
+      method: "POST",
+      headers: adminHeaders,
+      body: { code: "VIPTOUR", tour_id: "DL-HL01", adults: 1 }
+    });
+
+    await req("/api/v1/admin/vouchers", {
+      method: "POST",
+      headers: adminHeaders,
+      body: {
+        code: "FUTURE2027",
+        name: "Mã tương lai",
+        discount_type: "fixed",
+        discount_value: 100000,
+        scope_type: "all",
+        start_at: new Date(nowMs + 5 * 86400000).toISOString(),
+        end_at: new Date(nowMs + 20 * 86400000).toISOString(),
+        usage_limit: 10,
+        active: true
+      }
+    });
+    const valFuture = await req("/api/v1/vouchers/validate", {
+      method: "POST",
+      body: { code: "FUTURE2027", tour_id: "DL-HL01", adults: 1 }
+    });
+
+    await req("/api/v1/admin/vouchers", {
+      method: "POST",
+      headers: adminHeaders,
+      body: {
+        code: "EXPIRED2020",
+        name: "Mã hết hạn",
+        discount_type: "fixed",
+        discount_value: 100000,
+        scope_type: "all",
+        start_at: new Date(nowMs - 10 * 86400000).toISOString(),
+        end_at: new Date(nowMs - 1 * 86400000).toISOString(),
+        usage_limit: 10,
+        active: true
+      }
+    });
+    const valExpired = await req("/api/v1/vouchers/validate", {
+      method: "POST",
+      body: { code: "EXPIRED2020", tour_id: "DL-HL01", adults: 1 }
+    });
+
+    const inactiveCreate = await req("/api/v1/admin/vouchers", {
+      method: "POST",
+      headers: adminHeaders,
+      body: {
+        code: "PAUSED10",
+        name: "Mã tạm ngừng",
+        discount_type: "fixed",
+        discount_value: 100000,
+        scope_type: "all",
+        start_at: new Date(nowMs - 86400000).toISOString(),
+        end_at: new Date(nowMs + 10 * 86400000).toISOString(),
+        active: false
+      }
+    });
+    const valInactive = await req("/api/v1/vouchers/validate", {
+      method: "POST",
+      body: { code: "PAUSED10", tour_id: "DL-HL01", adults: 1 }
+    });
+    const valNotExist = await req("/api/v1/vouchers/validate", {
+      method: "POST",
+      body: { code: "KHONGTONTAI99", tour_id: "DL-HL01", adults: 1 }
+    });
+    assert("Voucher 2: Phần trăm có trần max_discount, minOrder, chưa tới hạn, hết hạn, tạm ngừng, không tồn tại",
+      createPctCap.status === 201 &&
+      valPctCap.status === 200 && valPctCap.json?.discountAmount === 500000 && valPctCap.json?.totalPrice === 3390000 &&
+      valLowMin.status === 422 && valLowMin.json?.errorCode === "VOUCHER_MIN_ORDER" &&
+      valFuture.status === 422 && valFuture.json?.errorCode === "VOUCHER_NOT_STARTED" &&
+      valExpired.status === 422 && valExpired.json?.errorCode === "VOUCHER_EXPIRED" &&
+      inactiveCreate.status === 201 && valInactive.status === 422 && valInactive.json?.errorCode === "VOUCHER_INACTIVE" &&
+      valNotExist.status === 422 && valNotExist.json?.errorCode === "VOUCHER_NOT_FOUND",
+      `cap=${createPctCap.status}/${valPctCap.json?.discountAmount} lowMin=${valLowMin.status}/${valLowMin.json?.errorCode} fut=${valFuture.json?.errorCode} exp=${valExpired.json?.errorCode} inact=${inactiveCreate.status}/${valInactive.json?.errorCode} no=${valNotExist.json?.errorCode}`);
+
+    // 3. Mã cố định lớn hơn giá đơn -> tổng tiền thanh toán = 0 (không âm) & chống client giả mạo số tiền giảm
+    await req("/api/v1/admin/vouchers", {
+      method: "POST",
+      headers: adminHeaders,
+      body: {
+        code: "FREEALL",
+        name: "Giảm cố định cực lớn",
+        discount_type: "fixed",
+        discount_value: 5000000,
+        scope_type: "tours",
+        scope_tour_ids: ["DL-MC10"],
+        start_at: new Date(nowMs - 86400000).toISOString(),
+        end_at: new Date(nowMs + 10 * 86400000).toISOString(),
+        usage_limit: 5,
+        per_user_limit: 0,
+        active: true
+      }
+    });
+    const quoteFree = await req("/api/v1/bookings/quote", {
+      method: "POST",
+      body: { schedule_id: mcSchedId, adults: 1, voucher_code: "FREEALL" }
+    });
+    const spoofedBook = await req("/api/v1/bookings", {
+      method: "POST",
+      headers: { ...authHeaders, "Idempotency-Key": crypto.randomUUID() },
+      body: {
+        schedule_id: hlSchedId,
+        adults: 1,
+        customer_name: "Khách Giả Mạo Giá",
+        customer_phone: newPhone,
+        customer_email: testEmail,
+        discount_amount: 3800000,
+        total_price: 90000
+      }
+    });
+    assert("Voucher 3: Tổng tiền không âm (<0) và Backend bỏ qua mọi discount_amount/total_price giả mạo từ Frontend",
+      quoteFree.status === 200 && quoteFree.json?.discountAmount === 1590000 && quoteFree.json?.totalPrice === 0 &&
+      spoofedBook.status === 201 && spoofedBook.json?.discountAmount === 0 && spoofedBook.json?.totalPrice === 3890000,
+      `quote=${quoteFree.status}:${quoteFree.json?.discountAmount}/${quoteFree.json?.totalPrice}:${quoteFree.json?.detail} spoof=${spoofedBook.status}:${spoofedBook.json?.discountAmount}/${spoofedBook.json?.totalPrice}:${spoofedBook.json?.detail}`);
+
+    // 4. Đặt đơn với CAP500K -> dùng lại lần 2 bị chặn (per_user_limit: 1) -> hủy đơn hoàn lại lượt & dùng lại thành công!
+    const bookCap1 = await req("/api/v1/bookings", {
+      method: "POST",
+      headers: { ...authHeaders, "Idempotency-Key": crypto.randomUUID() },
+      body: {
+        schedule_id: hlSchedId,
+        adults: 1,
+        customer_name: "Khách Dùng Mã",
+        customer_phone: newPhone,
+        customer_email: testEmail,
+        voucher_code: "CAP500K",
+        discount_amount: 9999999
+      }
+    });
+    const bookCap2Reuse = await req("/api/v1/bookings", {
+      method: "POST",
+      headers: { ...authHeaders, "Idempotency-Key": crypto.randomUUID() },
+      body: {
+        schedule_id: hlSchedId,
+        adults: 1,
+        customer_name: "Khách Dùng Mã",
+        customer_phone: newPhone,
+        customer_email: testEmail,
+        voucher_code: "CAP500K"
+      }
+    });
+    await req(`/api/v1/bookings/${bookCap1.json?.id}/cancel`, {
+      method: "POST",
+      headers: authHeaders,
+      body: { reason: "Kiểm tra hoàn lượt voucher" }
+    });
+    const bookCap3AfterCancel = await req("/api/v1/bookings", {
+      method: "POST",
+      headers: { ...authHeaders, "Idempotency-Key": crypto.randomUUID() },
+      body: {
+        schedule_id: hlSchedId,
+        adults: 1,
+        customer_name: "Khách Dùng Mã",
+        customer_phone: newPhone,
+        customer_email: testEmail,
+        voucher_code: "CAP500K"
+      }
+    });
+    assert("Voucher 4: Giới hạn lượt dùng/khách hàng & hoàn lại lượt khi hủy đơn",
+      bookCap1.status === 201 && bookCap1.json?.discountAmount === 500000 && bookCap1.json?.totalPrice === 3390000 &&
+      bookCap2Reuse.status === 422 && bookCap2Reuse.json?.errorCode === "VOUCHER_USER_LIMIT_REACHED" &&
+      bookCap3AfterCancel.status === 201 && bookCap3AfterCancel.json?.discountAmount === 500000);
+
+    // 5. Đối tượng áp dụng (logged_in vs new_customer) & Race condition usage_limit = 1
+    const valVipGuest = await req("/api/v1/vouchers/validate", {
+      method: "POST",
+      body: { code: "VIPTOUR", tour_id: "DL-HL01", adults: 2 }
+    });
+    const valVipLogged = await req("/api/v1/vouchers/validate", {
+      method: "POST",
+      headers: authHeaders,
+      body: { code: "VIPTOUR", tour_id: "DL-HL01", adults: 2 }
+    });
+    const valBanMoiExistingUser = await req("/api/v1/vouchers/validate", {
+      method: "POST",
+      headers: authHeaders,
+      body: { code: "BANMOI", tour_id: "DL-HL01", adults: 1 }
+    });
+
+    const raceVoucherRes = await req("/api/v1/admin/vouchers", {
+      method: "POST",
+      headers: adminHeaders,
+      body: {
+        code: "ONEONLY",
+        name: "Chỉ đúng 1 lượt duy nhất",
+        discount_type: "fixed",
+        discount_value: 250000,
+        scope_type: "all",
+        start_at: new Date(nowMs - 86400000).toISOString(),
+        end_at: new Date(nowMs + 10 * 86400000).toISOString(),
+        usage_limit: 1,
+        per_user_limit: 0,
+        active: true
+      }
+    });
+    const [raceA, raceB] = await Promise.all([
+      req("/api/v1/bookings", {
+        method: "POST",
+        headers: { "Idempotency-Key": crypto.randomUUID() },
+        body: {
+          schedule_id: dnSchedId,
+          adults: 1,
+          customer_name: "Race Guest A",
+          customer_phone: "0911000111",
+          customer_email: `race_a_${Date.now()}@test.local`,
+          voucher_code: "ONEONLY"
+        }
+      }),
+      req("/api/v1/bookings", {
+        method: "POST",
+        headers: { "Idempotency-Key": crypto.randomUUID() },
+        body: {
+          schedule_id: dnSchedId,
+          adults: 1,
+          customer_name: "Race Guest B",
+          customer_phone: "0911000222",
+          customer_email: `race_b_${Date.now()}@test.local`,
+          voucher_code: "ONEONLY"
+        }
+      })
+    ]);
+    const raceSuccessCount = [raceA, raceB].filter(r => r.status === 201).length;
+    const raceFailCount = [raceA, raceB].filter(r => r.status === 409 || r.status === 422).length;
+    const adminVouchersAfter = await req("/api/v1/admin/vouchers", { headers: adminHeaders });
+    const oneOnlyAfter = (adminVouchersAfter.json || []).find(v => v.code === "ONEONLY");
+    const delVoucherRes = await req(`/api/v1/admin/vouchers/${raceVoucherRes.json?.id}`, {
+      method: "DELETE",
+      headers: adminHeaders
+    });
+    assert("Voucher 5: Đối tượng áp dụng (logged_in/new_customer), chống race-condition vượt lượt & Admin thống kê/xóa mã",
+      valVipGuest.status === 422 && valVipGuest.json?.errorCode === "VOUCHER_LOGIN_REQUIRED" &&
+      valVipLogged.status === 200 && valVipLogged.json?.discountAmount === Math.round(7780000 * 0.15) &&
+      valBanMoiExistingUser.status === 422 && valBanMoiExistingUser.json?.errorCode === "VOUCHER_NEW_CUSTOMER_ONLY" &&
+      raceSuccessCount === 1 && raceFailCount === 1 &&
+      oneOnlyAfter?.usedCount === 1 && oneOnlyAfter?.stats?.totalDiscountGranted === 250000 &&
+      delVoucherRes.status === 200,
+      `vipG=${valVipGuest.json?.errorCode} vipL=${valVipLogged.status}:${valVipLogged.json?.discountAmount} banmoi=${valBanMoiExistingUser.json?.errorCode} race=${raceSuccessCount}/${raceFailCount}(${raceA.status}:${raceA.json?.detail}|${raceB.status}:${raceB.json?.detail}) used=${oneOnlyAfter?.usedCount} stats=${JSON.stringify(oneOnlyAfter?.stats)} del=${delVoucherRes.status}`);
+
     const catalogRequests = [];
     catalogMockServer = http.createServer((request, response) => {
       const requestUrl = new URL(request.url, "http://127.0.0.1");

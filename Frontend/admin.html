@@ -154,6 +154,13 @@
             </div>
           </a>
 
+          <a href="#vouchers" class="admin-nav-item" data-tab="vouchers">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-tags admin-nav-icon"></i>
+              <span>Quản lý Mã ưu đãi</span>
+            </div>
+          </a>
+
           <a href="#system" class="admin-nav-item" data-tab="system">
             <div class="d-flex align-items-center">
               <i class="bi bi-cpu admin-nav-icon"></i>
@@ -662,6 +669,195 @@
           <button type="submit" class="btn btn-warning fw-bold text-dark">Xác Nhận Hoàn Tiền</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       9. MODAL: THÊM / SỬA MÃ ƯU ĐÃI (VOUCHER / PROMO EDITOR)
+       ========================================================================== -->
+  <div class="modal fade" id="adminVoucherModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <form class="modal-content border-0 rounded-4 shadow-lg" id="adminVoucherForm" onsubmit="handleSaveVoucherSubmit(event)">
+        <div class="modal-header border-bottom p-4">
+          <div>
+            <h5 class="modal-title fw-bold" id="voucherModalTitle">Tạo Mã Ưu Đãi Mới</h5>
+            <small class="text-muted">Thiết lập điều kiện áp dụng, phạm vi tour và hạn mức lượt dùng (đồng bộ trực tiếp sang trang đặt tour).</small>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <input type="hidden" id="formVoucherId">
+        <div class="modal-body p-4">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label small fw-bold">Mã Ưu Đãi <span class="text-danger">*</span></label>
+              <input type="text" class="form-control text-uppercase font-monospace fw-bold" id="formVoucherCode" placeholder="VD: SUMMER20" required>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label small fw-bold">Tên Chương Trình Khuyến Mãi <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="formVoucherName" placeholder="VD: Siêu sale du lịch hè 2026" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-bold">Mô Tả Ngắn</label>
+              <input type="text" class="form-control" id="formVoucherDescription" placeholder="VD: Giảm 10% tối đa 1.000.000đ cho đơn từ 2.000.000đ">
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label small fw-bold">Loại Giảm Giá <span class="text-danger">*</span></label>
+              <select class="form-select" id="formVoucherType" onchange="toggleVoucherMaxCapField()">
+                <option value="percent">Theo phần trăm (%)</option>
+                <option value="fixed">Số tiền cố định (VND)</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small fw-bold">Giá Trị Giảm <span class="text-danger">*</span></label>
+              <input type="number" class="form-control fw-bold" id="formVoucherValue" min="1" placeholder="10 hoặc 500000" required>
+            </div>
+            <div class="col-md-3" id="voucherMaxDiscountGroup">
+              <label class="form-label small fw-bold">Giảm Tối Đa (VND)</label>
+              <input type="number" class="form-control" id="formVoucherMaxDiscount" min="0" placeholder="Để trống nếu không giới hạn">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small fw-bold">Đơn Tối Thiểu (VND)</label>
+              <input type="number" class="form-control" id="formVoucherMinOrder" min="0" value="0">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label small fw-bold">Phạm Vi Áp Dụng <span class="text-danger">*</span></label>
+              <select class="form-select" id="formVoucherScopeType" onchange="toggleVoucherScopeFields()">
+                <option value="all">Tất cả các Tour</option>
+                <option value="region">Theo Khu vực / Danh mục</option>
+                <option value="tours">Chọn Tour cụ thể</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-bold">Đối Tượng Áp Dụng</label>
+              <select class="form-select" id="formVoucherAudience">
+                <option value="all">Tất cả khách hàng</option>
+                <option value="logged_in">Khách đã đăng nhập</option>
+                <option value="new_customer">Khách hàng mới (đặt lần đầu)</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-bold">Trạng Thái Hoạt Động</label>
+              <select class="form-select" id="formVoucherActive">
+                <option value="1">Đang kích hoạt (ACTIVE)</option>
+                <option value="0">Tạm ngừng (INACTIVE)</option>
+              </select>
+            </div>
+
+            <div class="col-12" id="voucherScopeRegionsWrap" style="display: none;">
+              <div class="p-3 bg-light rounded-3 border">
+                <div class="small fw-bold mb-2">Chọn Khu Vực Tour Được Áp Dụng:</div>
+                <div class="d-flex flex-wrap gap-3">
+                  <label class="form-check-label d-flex align-items-center gap-1 small">
+                    <input class="form-check-input voucher-region-cb" type="checkbox" value="north"> Miền Bắc
+                  </label>
+                  <label class="form-check-label d-flex align-items-center gap-1 small">
+                    <input class="form-check-input voucher-region-cb" type="checkbox" value="central"> Miền Trung
+                  </label>
+                  <label class="form-check-label d-flex align-items-center gap-1 small">
+                    <input class="form-check-input voucher-region-cb" type="checkbox" value="south"> Miền Nam
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12" id="voucherScopeToursWrap" style="display: none;">
+              <div class="p-3 bg-light rounded-3 border">
+                <div class="small fw-bold mb-2">Chọn Danh Sách Tour Được Áp Dụng:</div>
+                <div id="voucherScopeToursList" class="row g-2" style="max-height: 190px; overflow-y: auto;"></div>
+              </div>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label small fw-bold">Ngày Bắt Đầu <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" id="formVoucherStartAt" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small fw-bold">Ngày Kết Thúc <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" id="formVoucherEndAt" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small fw-bold">Tổng Lượt Sử Dụng</label>
+              <input type="number" class="form-control" id="formVoucherUsageLimit" min="0" value="100" title="Nhập 0 nếu không giới hạn tổng lượt">
+              <small class="text-muted" style="font-size: 11px;">0 = Không giới hạn</small>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small fw-bold">Giới Hạn / Khách Hàng</label>
+              <input type="number" class="form-control" id="formVoucherPerUserLimit" min="0" value="1" title="Số lượt tối đa mỗi khách hàng được dùng (0 = không giới hạn)">
+              <small class="text-muted" style="font-size: 11px;">0 = Không giới hạn</small>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-top p-3 bg-white">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy Bỏ</button>
+          <button type="submit" class="btn btn-admin-primary px-4">Lưu Mã Ưu Đãi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       10. MODAL: HIỆU QUẢ & LỊCH SỬ SỬ DỤNG MÃ ƯU ĐÃI
+       ========================================================================== -->
+  <div class="modal fade" id="adminVoucherStatsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content border-0 rounded-4 shadow-lg">
+        <div class="modal-header border-bottom p-4">
+          <div>
+            <h5 class="modal-title fw-bold">Hiệu Quả Mã Ưu Đãi: <span id="statsVoucherCode" class="font-monospace text-primary"></span></h5>
+            <small class="text-muted" id="statsVoucherName"></small>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="row g-3 mb-4">
+            <div class="col-md-3 col-6">
+              <div class="p-3 bg-light rounded-3 border text-center">
+                <div class="small text-muted">Lượt đã sử dụng</div>
+                <div class="fs-5 fw-bold text-dark" id="statsVoucherUsed">0</div>
+              </div>
+            </div>
+            <div class="col-md-3 col-6">
+              <div class="p-3 bg-light rounded-3 border text-center">
+                <div class="small text-muted">Đơn đã thanh toán</div>
+                <div class="fs-5 fw-bold text-success" id="statsVoucherPaid">0</div>
+              </div>
+            </div>
+            <div class="col-md-3 col-6">
+              <div class="p-3 bg-light rounded-3 border text-center">
+                <div class="small text-muted">Tổng tiền đã giảm</div>
+                <div class="fs-5 fw-bold text-warning" id="statsVoucherDiscount">0 đ</div>
+              </div>
+            </div>
+            <div class="col-md-3 col-6">
+              <div class="p-3 bg-light rounded-3 border text-center">
+                <div class="small text-muted">Doanh thu mang lại</div>
+                <div class="fs-5 fw-bold text-primary" id="statsVoucherRevenue">0 đ</div>
+              </div>
+            </div>
+          </div>
+
+          <h6 class="fw-bold small text-uppercase text-muted mb-2">Lịch sử đơn hàng áp dụng mã gần đây</h6>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Mã Đơn</th>
+                  <th>Khách Hàng</th>
+                  <th>Trạng Thái</th>
+                  <th class="text-end">Giảm Giá</th>
+                  <th class="text-end">Thành Tiền</th>
+                </tr>
+              </thead>
+              <tbody id="statsVoucherRedemptionsBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer border-top p-3">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+        </div>
+      </div>
     </div>
   </div>
 

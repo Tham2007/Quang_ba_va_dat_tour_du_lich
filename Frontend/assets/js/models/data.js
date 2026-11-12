@@ -22,7 +22,8 @@ const DELTA_STORAGE_KEYS = {
   SYSTEM_INFO: "delta_system_info_v2",
   USERS: "delta_users_v2",
   CURRENT_USER: "delta_current_user_v2",
-  WISHLIST: "delta_wishlist_v2"
+  WISHLIST: "delta_wishlist_v2",
+  VOUCHERS: "delta_vouchers_v1"
 };
 
 // =============================================================================
@@ -1233,34 +1234,104 @@ const DEFAULT_AUDIT_LOGS = [];
 
 const VOUCHERS_DATA = [
   {
-    "code": "DELTA10",
-    "description": "Giảm ngay 10% tổng hóa đơn (Tối đa 1.000.000đ)",
-    "discountType": "percent",
-    "discountValue": 10,
-    "maxDiscount": 1000000,
-    "minOrderValue": 2000000
+    id: "VCH-DELTA10",
+    code: "DELTA10",
+    name: "Ưu đãi khám phá Miền Bắc",
+    description: "Giảm 10% (tối đa 1.000.000đ) cho tour Miền Bắc đơn từ 2.000.000đ",
+    discountType: "percent",
+    discountValue: 10,
+    maxDiscount: 1000000,
+    minOrderValue: 2000000,
+    scopeType: "region",
+    scopeRegions: ["north"],
+    scopeTourIds: [],
+    startAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+    endAt: new Date(Date.now() + 180 * 86400000).toISOString(),
+    usageLimit: 100,
+    usedCount: 0,
+    perUserLimit: 1,
+    targetAudience: "all",
+    active: true
   },
   {
-    "code": "HE2026",
-    "description": "Mã mùa hè: Giảm trực tiếp 500.000đ cho đơn từ 3.000.000đ",
-    "discountType": "fixed",
-    "discountValue": 500000,
-    "minOrderValue": 3000000
+    id: "VCH-HE2026",
+    code: "HE2026",
+    name: "Chào hè biển đảo Miền Trung & Nam",
+    description: "Giảm trực tiếp 500.000đ cho các tour Đà Nẵng, Phú Quốc, Nha Trang, Quy Nhơn, Côn Đảo đơn từ 3.000.000đ",
+    discountType: "fixed",
+    discountValue: 500000,
+    maxDiscount: null,
+    minOrderValue: 3000000,
+    scopeType: "tours",
+    scopeRegions: [],
+    scopeTourIds: ["DL-DN02", "DL-PQ03", "DL-NT12", "DL-QN13", "DL-CD16"],
+    startAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+    endAt: new Date(Date.now() + 180 * 86400000).toISOString(),
+    usageLimit: 50,
+    usedCount: 0,
+    perUserLimit: 1,
+    targetAudience: "all",
+    active: true
   },
   {
-    "code": "VIPTOUR",
-    "description": "Ưu đãi khách hàng VIP: Giảm 15% tổng tiền (Tối đa 1.500.000đ)",
-    "discountType": "percent",
-    "discountValue": 15,
-    "maxDiscount": 1500000,
-    "minOrderValue": 5000000
+    id: "VCH-VIPTOUR",
+    code: "VIPTOUR",
+    name: "Đặc quyền thành viên đăng nhập",
+    description: "Giảm 15% (tối đa 1.500.000đ) cho thành viên đăng nhập đơn từ 5.000.000đ",
+    discountType: "percent",
+    discountValue: 15,
+    maxDiscount: 1500000,
+    minOrderValue: 5000000,
+    scopeType: "all",
+    scopeRegions: [],
+    scopeTourIds: [],
+    startAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+    endAt: new Date(Date.now() + 180 * 86400000).toISOString(),
+    usageLimit: 30,
+    usedCount: 0,
+    perUserLimit: 1,
+    targetAudience: "logged_in",
+    active: true
   },
   {
-    "code": "BANMOI",
-    "description": "Chào bạn mới: Giảm 200.000đ cho mọi đơn đặt tour",
-    "discountType": "fixed",
-    "discountValue": 200000,
-    "minOrderValue": 1500000
+    id: "VCH-BANMOI",
+    code: "BANMOI",
+    name: "Quà tặng khách hàng mới",
+    description: "Giảm 200.000đ cho khách hàng đặt tour lần đầu đơn từ 1.500.000đ",
+    discountType: "fixed",
+    discountValue: 200000,
+    maxDiscount: null,
+    minOrderValue: 1500000,
+    scopeType: "all",
+    scopeRegions: [],
+    scopeTourIds: [],
+    startAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+    endAt: new Date(Date.now() + 180 * 86400000).toISOString(),
+    usageLimit: 100,
+    usedCount: 0,
+    perUserLimit: 1,
+    targetAudience: "new_customer",
+    active: true
+  },
+  {
+    id: "VCH-HL100K",
+    code: "HALONG100K",
+    name: "Ưu đãi Du Thuyền Hạ Long",
+    description: "Giảm ngay 100.000đ riêng cho tour DL-HL01 đơn từ 1.000.000đ",
+    discountType: "fixed",
+    discountValue: 100000,
+    maxDiscount: null,
+    minOrderValue: 1000000,
+    scopeType: "tours",
+    scopeRegions: [],
+    scopeTourIds: ["DL-HL01"],
+    startAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+    endAt: new Date(Date.now() + 180 * 86400000).toISOString(),
+    usageLimit: 50,
+    usedCount: 0,
+    perUserLimit: 2,
+    targetAudience: "all",
+    active: true
   }
 ];
 
@@ -1491,6 +1562,113 @@ function addAuditLog(action, entity, entityId, details, actorOverride) {
   localStorage.setItem(DELTA_STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(logs));
   window.dispatchEvent(new CustomEvent("delta_audit_updated", { detail: logs }));
   return newLog;
+}
+
+function getVouchersData() {
+  try {
+    const raw = localStorage.getItem(DELTA_STORAGE_KEYS.VOUCHERS);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (_) {}
+  localStorage.setItem(DELTA_STORAGE_KEYS.VOUCHERS, JSON.stringify(VOUCHERS_DATA));
+  return [...VOUCHERS_DATA];
+}
+
+function saveVouchersData(vouchers) {
+  localStorage.setItem(DELTA_STORAGE_KEYS.VOUCHERS, JSON.stringify(vouchers || []));
+}
+
+function evaluateLocalVoucher({ code, tour, subtotal, authUser = null, customerEmail = "", customerPhone = "" }) {
+  const normCode = String(code || "").trim().toUpperCase();
+  if (!normCode) {
+    return { valid: false, detail: "Vui lòng nhập mã ưu đãi." };
+  }
+  const list = getVouchersData();
+  const v = list.find(item => String(item.code || "").trim().toUpperCase() === normCode);
+  if (!v) {
+    return { valid: false, detail: `Mã ưu đãi "${normCode}" không tồn tại.` };
+  }
+  if (v.active === false) {
+    return { valid: false, detail: `Mã ưu đãi "${normCode}" hiện đang tạm ngưng hoạt động.` };
+  }
+  const now = Date.now();
+  const startMs = Date.parse(v.startAt);
+  const endRaw = String(v.endAt || "").trim();
+  const endMs = /^\d{4}-\d{2}-\d{2}$/.test(endRaw) ? Date.parse(endRaw + "T23:59:59.999Z") : Date.parse(endRaw);
+  if (!isNaN(startMs) && now < startMs) {
+    return { valid: false, detail: `Mã ưu đãi "${normCode}" chưa đến thời gian áp dụng (bắt đầu từ ${new Date(startMs).toLocaleDateString("vi-VN")}).` };
+  }
+  if (!isNaN(endMs) && now > endMs) {
+    return { valid: false, detail: `Mã ưu đãi "${normCode}" đã hết hạn vào ngày ${new Date(endMs).toLocaleDateString("vi-VN")}.` };
+  }
+  const usageLimit = Number(v.usageLimit || 0);
+  const usedCount = Number(v.usedCount || 0);
+  if (usageLimit > 0 && usedCount >= usageLimit) {
+    return { valid: false, detail: `Mã ưu đãi "${normCode}" đã hết lượt sử dụng.` };
+  }
+  if (tour) {
+    const scope = v.scopeType || "all";
+    if (scope === "region") {
+      const regions = Array.isArray(v.scopeRegions) ? v.scopeRegions : [];
+      if (!regions.includes(tour.region)) {
+        const labels = { north: "Miền Bắc", central: "Miền Trung", south: "Miền Nam" };
+        return { valid: false, detail: `Mã ưu đãi "${normCode}" chỉ áp dụng cho tour thuộc khu vực: ${regions.map(r => labels[r] || r).join(", ")}.` };
+      }
+    } else if (scope === "tours") {
+      const ids = (Array.isArray(v.scopeTourIds) ? v.scopeTourIds : []).map(x => String(x).toUpperCase());
+      if (!ids.includes(String(tour.id || "").toUpperCase())) {
+        return { valid: false, detail: `Mã ưu đãi "${normCode}" không áp dụng cho tour "${tour.title || tour.id}".` };
+      }
+    }
+  }
+  const minOrder = Number(v.minOrderValue || 0);
+  if (minOrder > 0 && subtotal < minOrder) {
+    return { valid: false, detail: `Mã ưu đãi "${normCode}" yêu cầu đơn tối thiểu ${minOrder.toLocaleString("vi-VN")} đ (hiện tại ${subtotal.toLocaleString("vi-VN")} đ).` };
+  }
+  if (v.targetAudience === "logged_in" && !authUser) {
+    return { valid: false, detail: `Mã ưu đãi "${normCode}" chỉ áp dụng cho khách hàng đã đăng nhập tài khoản.` };
+  }
+  let localBookings = [];
+  try {
+    localBookings = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
+  } catch (_) {}
+  const emailLower = String(customerEmail || authUser?.email || "").trim().toLowerCase();
+  const phoneClean = String(customerPhone || authUser?.phone || "").trim();
+  const activeOrders = localBookings.filter(b => b.status !== "CANCELLED" && (
+    (emailLower && String(b.customerEmail || b.customer?.email || "").trim().toLowerCase() === emailLower) ||
+    (phoneClean && String(b.customerPhone || b.customer?.phone || "").trim() === phoneClean)
+  ));
+  if (v.targetAudience === "new_customer" && activeOrders.length > 0) {
+    return { valid: false, detail: `Mã ưu đãi "${normCode}" chỉ dành cho khách hàng đặt tour lần đầu.` };
+  }
+  const perUserLimit = Number(v.perUserLimit || 0);
+  if (perUserLimit > 0) {
+    const usedByUser = activeOrders.filter(b => String(b.voucherCode || "").toUpperCase() === normCode).length;
+    if (usedByUser >= perUserLimit) {
+      return { valid: false, detail: `Bạn đã sử dụng hết ${perUserLimit} lượt áp dụng mã ưu đãi "${normCode}".` };
+    }
+  }
+
+  let discountAmount = 0;
+  if (v.discountType === "percent") {
+    discountAmount = Math.round((subtotal * Math.min(100, Number(v.discountValue) || 0)) / 100);
+    if (v.maxDiscount && Number(v.maxDiscount) > 0) {
+      discountAmount = Math.min(discountAmount, Number(v.maxDiscount));
+    }
+  } else {
+    discountAmount = Number(v.discountValue) || 0;
+  }
+  discountAmount = Math.max(0, Math.min(subtotal, Math.round(discountAmount)));
+  return {
+    valid: true,
+    voucher: v,
+    subtotalPrice: subtotal,
+    discountAmount,
+    totalPrice: Math.max(0, subtotal - discountAmount),
+    message: `Áp dụng thành công mã ${normCode}: Giảm ${discountAmount.toLocaleString("vi-VN")} đ`
+  };
 }
 
 /**

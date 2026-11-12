@@ -23,7 +23,13 @@ const AdminState = {
   schedules: [],
   bookings: [],
   payments: [],
+  vouchers: [],
   auditLogs: [],
+
+  // Vouchers tab filter
+  voucherSearch: "",
+  voucherStatusFilter: "all",
+  editingVoucherId: null,
 
   // Tours tab filter
   tourSearch: "",
@@ -377,11 +383,13 @@ function normalizeAdminBooking(b) {
     customerPhone: cPhone,
     customerEmail: cEmail,
     pricing: {
-      subtotal: Number(b.pricing?.subtotal ?? total),
-      discount: Number(b.pricing?.discount ?? 0),
+      subtotal: Number(b.pricing?.subtotal ?? b.subtotalPrice ?? total),
+      discount: Number(b.pricing?.discount ?? b.discountAmount ?? 0),
       total,
       totalPrice: total
     },
+    voucherCode: b.voucherCode || null,
+    voucherName: b.voucherName || null,
     totalPrice: total,
     status: code,
     statusCode: code,
@@ -429,6 +437,7 @@ function rebuildAdminPayments() {
 async function refreshAdminData() {
   AdminState.tours = (typeof getToursData === "function") ? getToursData() : [];
   AdminState.schedules = (typeof getSchedulesData === "function") ? getSchedulesData() : [];
+  AdminState.vouchers = (typeof getVouchersData === "function") ? getVouchersData() : [];
   AdminState.auditLogs = (typeof getAuditLogsData === "function") ? getAuditLogsData() : [];
 
   const localDefaultBookings = (typeof getBookingsData === "function") ? getBookingsData() : [];
@@ -571,6 +580,17 @@ async function refreshAdminData() {
       );
     }
 
+    if (typeof DeltaAPI.adminFetchVouchers === "function") {
+      tasks.push(
+        DeltaAPI.adminFetchVouchers().then(res => {
+          if (res?.success && Array.isArray(res.data)) {
+            AdminState.vouchers = res.data;
+            if (typeof saveVouchersData === "function") saveVouchersData(res.data);
+          }
+        }).catch(() => {})
+      );
+    }
+
     await Promise.allSettled(tasks);
     // Sync schedule tourTitle after both tours & schedules resolve
     AdminState.schedules = (AdminState.schedules || []).map(schedule => ({
@@ -666,6 +686,15 @@ const COPILOT_PROMPTS = {
       "Đối soát dòng tiền thu được hôm nay"
     ]
   },
+  vouchers: {
+    title: "AI Copilot cho quản trị Mã Ưu Đãi",
+    prompt: "Theo dõi hiệu quả các chương trình khuyến mãi, phạm vi tour áp dụng và tỷ lệ sử dụng mã giảm giá.",
+    suggestions: [
+      "Mã ưu đãi nào đang hoạt động hiệu quả nhất?",
+      "Kiểm tra các mã sắp hết hạn hoặc hết lượt",
+      "Rà soát đơn hàng có áp dụng voucher"
+    ]
+  },
   system: {
     title: "AI Copilot cho production readiness",
     prompt: "Đánh giá trạng thái production hiện tại từ dữ liệu hệ thống có thể kiểm chứng. Nêu rõ integration nào ready và dependency nào còn bên ngoài.",
@@ -740,6 +769,7 @@ function updateTopbarTitle(tabKey) {
     schedules: "Lịch Khởi Hành & Kho Chỗ (Slots)",
     bookings: "Quản Lý Đơn Đặt & Sao Kê Doanh Thu",
     payments: "Thanh Toán & Hoàn Tiền",
+    vouchers: "Quản Lý Mã Ưu Đãi & Khuyến Mãi",
     system: "AI & Trạng Thái Hệ Thống",
     audit: "Nhật Ký Kiểm Toán (Audit Logs)"
   };
@@ -750,6 +780,7 @@ function updateTopbarTitle(tabKey) {
     schedules: "INVENTORY & SEATS",
     bookings: "BOOKING OPERATIONS",
     payments: "PAYMENT RECONCILIATION",
+    vouchers: "PROMOTION CONTROLLER",
     system: "PRODUCTION CONTROL",
     audit: "COMPLIANCE & SECURITY"
   };
@@ -874,6 +905,9 @@ function renderCurrentTab() {
       break;
     case "payments":
       renderTabPayments(container);
+      break;
+    case "vouchers":
+      renderTabVouchers(container);
       break;
     case "system":
       renderTabSystem(container);
@@ -2618,7 +2652,9 @@ function openBookingDetailModal(bookingId) {
   const discountVal = Number(booking.pricing?.discount ?? 0);
   const grandTotalVal = Number(booking.pricing?.total ?? booking.totalPrice ?? 0);
   document.getElementById("detailSubtotal").textContent = subtotalVal.toLocaleString("vi-VN") + " đ";
-  document.getElementById("detailDiscount").textContent = discountVal.toLocaleString("vi-VN") + " đ";
+  document.getElementById("detailDiscount").textContent = discountVal > 0
+    ? (`- ${discountVal.toLocaleString("vi-VN")} đ${booking.voucherCode ? ` (${booking.voucherCode})` : ""}`)
+    : "0 đ";
   document.getElementById("detailGrandTotal").textContent = grandTotalVal.toLocaleString("vi-VN") + " đ";
 
   const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
@@ -3362,6 +3398,465 @@ function renderTabAudit(container) {
 function handleAuditActionFilter(val) {
   AdminState.auditActionFilter = val;
   renderTabAudit(document.getElementById("adminTabContentContainer"));
+}
+
+// =============================================================================
+// XIV-B. TAB QUẢN LÝ MÃ ƯU ĐÃI (VOUCHER / PROMO CONTROLLER)
+// =============================================================================
+function computeVoucherLifecycle(v) {
+  if (!v.active) return "INACTIVE";
+  const now = Date.now();
+  const sMs = Date.parse(v.startAt);
+  const eRaw = String(v.endAt || "").trim();
+  const eMs = /^\d{4}-\d{2}-\d{2}$/.test(eRaw) ? Date.parse(eRaw + "T23:59:59.999Z") : Date.parse(eRaw);
+  if (!isNaN(sMs) && now < sMs) return "SCHEDULED";
+  if (!isNaN(eMs) && now > eMs) return "EXPIRED";
+  if (Number(v.usageLimit || 0) > 0 && Number(v.usedCount || 0) >= Number(v.usageLimit)) return "EXHAUSTED";
+  return "ACTIVE";
+}
+
+function renderTabVouchers(container) {
+  const vouchers = (AdminState.vouchers || []).map(v => ({
+    ...v,
+    lifecycleStatus: v.lifecycleStatus || computeVoucherLifecycle(v)
+  }));
+
+  let filtered = vouchers;
+  if (AdminState.voucherStatusFilter !== "all") {
+    filtered = filtered.filter(v => v.lifecycleStatus === AdminState.voucherStatusFilter);
+  }
+  if (AdminState.voucherSearch.trim()) {
+    const kw = AdminState.voucherSearch.trim().toLowerCase();
+    filtered = filtered.filter(v =>
+      String(v.code || "").toLowerCase().includes(kw) ||
+      String(v.name || "").toLowerCase().includes(kw) ||
+      String(v.description || "").toLowerCase().includes(kw)
+    );
+  }
+
+  const totalCount = vouchers.length;
+  const activeCount = vouchers.filter(v => v.lifecycleStatus === "ACTIVE").length;
+  const totalUsed = vouchers.reduce((s, v) => s + Number(v.usedCount || 0), 0);
+  const totalDiscountGranted = vouchers.reduce((s, v) => s + Number(v.stats?.totalDiscountGranted || 0), 0);
+
+  const scopeLabel = (v) => {
+    const regionMap = { north: "Miền Bắc", central: "Miền Trung", south: "Miền Nam" };
+    if (v.scopeType === "region") {
+      return `<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">Khu vực: ${(v.scopeRegions || []).map(r => regionMap[r] || r).join(", ")}</span>`;
+    }
+    if (v.scopeType === "tours") {
+      const ids = v.scopeTourIds || [];
+      return `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">${ids.length} tour: ${escapeAdminHtml(ids.slice(0, 3).join(", "))}${ids.length > 3 ? "..." : ""}</span>`;
+    }
+    return `<span class="badge bg-secondary-subtle text-secondary-emphasis border">Tất cả Tour</span>`;
+  };
+
+  const audienceLabel = (aud) => {
+    if (aud === "logged_in") return "Thành viên đăng nhập";
+    if (aud === "new_customer") return "Khách hàng mới";
+    return "Mọi khách hàng";
+  };
+
+  const statusBadge = (st) => {
+    if (st === "ACTIVE") return `<span class="admin-badge badge-status-PAID">ĐANG CHẠY</span>`;
+    if (st === "SCHEDULED") return `<span class="admin-badge badge-status-PENDING_PAYMENT">CHƯA ĐẾN HẠN</span>`;
+    if (st === "EXPIRED") return `<span class="admin-badge badge-status-CANCELLED">HẾT HẠN</span>`;
+    if (st === "EXHAUSTED") return `<span class="admin-badge badge-status-REFUND_REQUIRED">HẾT LƯỢT</span>`;
+    return `<span class="admin-badge badge-status-CLOSED">TẠM NGỪNG</span>`;
+  };
+
+  container.innerHTML = `
+    <div class="row g-3 mb-4">
+      <div class="col-md-3 col-6">
+        <div class="kpi-card">
+          <div class="kpi-label">Tổng số mã ưu đãi</div>
+          <div class="kpi-value text-dark">${totalCount}</div>
+          <div class="small text-muted">Toàn hệ thống</div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="kpi-card">
+          <div class="kpi-label">Đang hiệu lực</div>
+          <div class="kpi-value text-success">${activeCount}</div>
+          <div class="small text-muted">Sẵn sàng áp dụng</div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="kpi-card">
+          <div class="kpi-label">Lượt đã sử dụng</div>
+          <div class="kpi-value text-primary">${totalUsed}</div>
+          <div class="small text-muted">Đơn giữ chỗ / đã thanh toán</div>
+        </div>
+      </div>
+      <div class="col-md-3 col-6">
+        <div class="kpi-card">
+          <div class="kpi-label">Tổng ưu đãi đã cấp</div>
+          <div class="kpi-value text-warning">${totalDiscountGranted.toLocaleString("vi-VN")} đ</div>
+          <div class="small text-muted">Tính theo đơn hợp lệ</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-panel mb-4">
+      <div class="admin-panel-body">
+        <div class="row g-3 align-items-center">
+          <div class="col-lg-5">
+            <div class="input-group">
+              <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+              <input type="text" class="form-control border-start-0" placeholder="Tìm theo mã ưu đãi hoặc tên chương trình..." value="${escapeAdminHtml(AdminState.voucherSearch)}" oninput="handleVoucherSearch(this.value)">
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <select class="form-select" onchange="handleVoucherFilter(this.value)">
+              <option value="all" ${AdminState.voucherStatusFilter === 'all' ? 'selected' : ''}>Tất cả trạng thái (${totalCount})</option>
+              <option value="ACTIVE" ${AdminState.voucherStatusFilter === 'ACTIVE' ? 'selected' : ''}>Đang hoạt động</option>
+              <option value="SCHEDULED" ${AdminState.voucherStatusFilter === 'SCHEDULED' ? 'selected' : ''}>Chưa đến hạn</option>
+              <option value="EXPIRED" ${AdminState.voucherStatusFilter === 'EXPIRED' ? 'selected' : ''}>Đã hết hạn</option>
+              <option value="EXHAUSTED" ${AdminState.voucherStatusFilter === 'EXHAUSTED' ? 'selected' : ''}>Đã hết lượt</option>
+              <option value="INACTIVE" ${AdminState.voucherStatusFilter === 'INACTIVE' ? 'selected' : ''}>Tạm ngừng</option>
+            </select>
+          </div>
+          <div class="col-lg-3 text-lg-end">
+            <button type="button" class="btn btn-admin-primary w-100" onclick="openVoucherModal(null)">
+              <i class="bi bi-plus-circle-fill me-1"></i> Tạo Mã Ưu Đãi
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-panel">
+      <div class="admin-panel-body p-0">
+        <div class="admin-table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Mã & Chương Trình</th>
+                <th>Mức Giảm & Điều Kiện</th>
+                <th>Phạm Vi & Đối Tượng</th>
+                <th>Thời Hạn</th>
+                <th>Lượt Dùng & Hiệu Quả</th>
+                <th>Trạng Thái</th>
+                <th class="text-end">Thao Tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filtered.length === 0 ? `
+                <tr><td colspan="7" class="text-center py-4 text-muted">Không có mã ưu đãi nào phù hợp.</td></tr>
+              ` : filtered.map(v => {
+                const discText = v.discountType === "percent"
+                  ? `Giảm <strong>${v.discountValue}%</strong>${v.maxDiscount ? ` (Tối đa ${Number(v.maxDiscount).toLocaleString("vi-VN")} đ)` : ""}`
+                  : `Giảm <strong>${Number(v.discountValue).toLocaleString("vi-VN")} đ</strong>`;
+                const minText = Number(v.minOrderValue || 0) > 0
+                  ? `Đơn từ ${Number(v.minOrderValue).toLocaleString("vi-VN")} đ`
+                  : "Không yêu cầu tối thiểu";
+                const lim = Number(v.usageLimit || 0);
+                const used = Number(v.usedCount || 0);
+                const pct = lim > 0 ? Math.min(100, Math.round((used / lim) * 100)) : 0;
+                const sDate = v.startAt ? new Date(v.startAt).toLocaleDateString("vi-VN") : "-";
+                const eDate = v.endAt ? new Date(v.endAt).toLocaleDateString("vi-VN") : "-";
+                const paidCnt = Number(v.stats?.completedRedemptions || 0);
+                const discSum = Number(v.stats?.totalDiscountGranted || 0);
+                return `
+                  <tr>
+                    <td>
+                      <div class="fw-bold font-monospace text-primary">${escapeAdminHtml(v.code)}</div>
+                      <div class="small fw-semibold text-dark">${escapeAdminHtml(v.name)}</div>
+                      <div class="text-muted" style="font-size: 11px; max-width: 220px;">${escapeAdminHtml(v.description || "")}</div>
+                    </td>
+                    <td class="small">
+                      <div>${discText}</div>
+                      <div class="text-muted">${minText}</div>
+                      <div class="text-muted" style="font-size: 11px;">Giới hạn/khách: ${v.perUserLimit > 0 ? `${v.perUserLimit} lượt` : "Không giới hạn"}</div>
+                    </td>
+                    <td class="small">
+                      <div class="mb-1">${scopeLabel(v)}</div>
+                      <div class="text-muted" style="font-size: 11px;"><i class="bi bi-people me-1"></i>${audienceLabel(v.targetAudience)}</div>
+                    </td>
+                    <td class="small">
+                      <div>Từ: <strong>${sDate}</strong></div>
+                      <div>Đến: <strong>${eDate}</strong></div>
+                    </td>
+                    <td style="min-width: 155px;">
+                      <div class="d-flex justify-content-between small mb-1">
+                        <span>Đã dùng: <strong>${used}</strong>/${lim > 0 ? lim : "∞"}</span>
+                        ${lim > 0 ? `<span>${pct}%</span>` : ""}
+                      </div>
+                      ${lim > 0 ? `<div class="progress" style="height: 5px;"><div class="progress-bar bg-primary" style="width:${pct}%"></div></div>` : ""}
+                      <div class="text-muted mt-1" style="font-size: 11px;">Đã TT: ${paidCnt} đơn · Giảm: ${discSum.toLocaleString("vi-VN")}đ</div>
+                    </td>
+                    <td>${statusBadge(v.lifecycleStatus)}</td>
+                    <td class="text-end text-nowrap">
+                      <button type="button" class="btn btn-sm btn-outline-info" onclick="openVoucherStatsModal('${escapeAdminHtml(v.id)}')" title="Xem hiệu quả & lịch sử">
+                        <i class="bi bi-bar-chart-fill"></i>
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-dark" onclick="openVoucherModal('${escapeAdminHtml(v.id)}')" title="Sửa mã">
+                        <i class="bi bi-pencil-square"></i>
+                      </button>
+                      <button type="button" class="btn btn-sm ${v.active ? 'btn-outline-warning' : 'btn-outline-success'}" onclick="handleToggleVoucherStatus('${escapeAdminHtml(v.id)}')" title="${v.active ? 'Tạm ngừng' : 'Kích hoạt'}">
+                        <i class="bi ${v.active ? 'bi-pause-circle' : 'bi-play-circle'}"></i>
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-danger" onclick="handleDeleteVoucher('${escapeAdminHtml(v.id)}')" title="Xóa mã">
+                        <i class="bi bi-trash3"></i>
+                      </button>
+                    </td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function handleVoucherSearch(val) {
+  AdminState.voucherSearch = val;
+  renderTabVouchers(document.getElementById("adminTabContentContainer"));
+}
+
+function handleVoucherFilter(val) {
+  AdminState.voucherStatusFilter = val;
+  renderTabVouchers(document.getElementById("adminTabContentContainer"));
+}
+
+function toggleVoucherScopeFields() {
+  const scope = document.getElementById("formVoucherScopeType")?.value || "all";
+  const regWrap = document.getElementById("voucherScopeRegionsWrap");
+  const tourWrap = document.getElementById("voucherScopeToursWrap");
+  if (regWrap) regWrap.style.display = scope === "region" ? "block" : "none";
+  if (tourWrap) tourWrap.style.display = scope === "tours" ? "block" : "none";
+}
+
+function toggleVoucherMaxCapField() {
+  const type = document.getElementById("formVoucherType")?.value || "percent";
+  const capGroup = document.getElementById("voucherMaxDiscountGroup");
+  if (capGroup) capGroup.style.display = type === "percent" ? "block" : "none";
+}
+
+function openVoucherModal(voucherId = null) {
+  const modalEl = document.getElementById("adminVoucherModal");
+  if (!modalEl) return;
+
+  const v = voucherId ? (AdminState.vouchers || []).find(item => item.id === voucherId || item.code === voucherId) : null;
+  AdminState.editingVoucherId = v ? v.id : null;
+
+  document.getElementById("voucherModalTitle").textContent = v ? `Chỉnh Sửa Mã Ưu Đãi: ${v.code}` : "Tạo Mã Ưu Đãi Mới";
+  document.getElementById("formVoucherId").value = v ? v.id : "";
+  document.getElementById("formVoucherCode").value = v ? v.code : "";
+  document.getElementById("formVoucherName").value = v ? v.name : "";
+  document.getElementById("formVoucherDescription").value = v ? (v.description || "") : "";
+  document.getElementById("formVoucherType").value = v ? (v.discountType || "percent") : "percent";
+  document.getElementById("formVoucherValue").value = v ? v.discountValue : 10;
+  document.getElementById("formVoucherMaxDiscount").value = (v && v.maxDiscount) ? v.maxDiscount : "";
+  document.getElementById("formVoucherMinOrder").value = v ? (v.minOrderValue || 0) : 0;
+  document.getElementById("formVoucherScopeType").value = v ? (v.scopeType || "all") : "all";
+  document.getElementById("formVoucherAudience").value = v ? (v.targetAudience || "all") : "all";
+  document.getElementById("formVoucherActive").value = v ? (v.active ? "1" : "0") : "1";
+  document.getElementById("formVoucherUsageLimit").value = v ? (v.usageLimit ?? 100) : 100;
+  document.getElementById("formVoucherPerUserLimit").value = v ? (v.perUserLimit ?? 1) : 1;
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const futureStr = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  document.getElementById("formVoucherStartAt").value = v && v.startAt ? String(v.startAt).slice(0, 10) : todayStr;
+  document.getElementById("formVoucherEndAt").value = v && v.endAt ? String(v.endAt).slice(0, 10) : futureStr;
+
+  const selectedRegions = new Set(v?.scopeRegions || []);
+  document.querySelectorAll(".voucher-region-cb").forEach(cb => {
+    cb.checked = selectedRegions.has(cb.value);
+  });
+
+  const toursListEl = document.getElementById("voucherScopeToursList");
+  if (toursListEl) {
+    const selectedTours = new Set((v?.scopeTourIds || []).map(x => String(x).toUpperCase()));
+    const tours = AdminState.tours || [];
+    toursListEl.innerHTML = tours.map(t => `
+      <div class="col-md-6">
+        <label class="form-check-label d-flex align-items-start gap-2 small">
+          <input class="form-check-input voucher-tour-cb mt-1" type="checkbox" value="${escapeAdminHtml(t.id)}" ${selectedTours.has(String(t.id).toUpperCase()) ? "checked" : ""}>
+          <span><strong class="font-monospace">${escapeAdminHtml(t.id)}</strong> - ${escapeAdminHtml(t.title)}</span>
+        </label>
+      </div>
+    `).join("");
+  }
+
+  toggleVoucherMaxCapField();
+  toggleVoucherScopeFields();
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
+}
+
+async function handleSaveVoucherSubmit(e) {
+  e.preventDefault();
+  const id = document.getElementById("formVoucherId").value.trim();
+  const code = document.getElementById("formVoucherCode").value.trim().toUpperCase();
+  const name = document.getElementById("formVoucherName").value.trim();
+  const description = document.getElementById("formVoucherDescription").value.trim();
+  const discountType = document.getElementById("formVoucherType").value;
+  const discountValue = Math.round(Number(document.getElementById("formVoucherValue").value));
+  const maxRaw = document.getElementById("formVoucherMaxDiscount").value.trim();
+  const maxDiscount = (discountType === "percent" && maxRaw !== "" && Number(maxRaw) > 0) ? Math.round(Number(maxRaw)) : null;
+  const minOrderValue = Math.round(Number(document.getElementById("formVoucherMinOrder").value || 0));
+  const scopeType = document.getElementById("formVoucherScopeType").value;
+  const targetAudience = document.getElementById("formVoucherAudience").value;
+  const active = document.getElementById("formVoucherActive").value === "1";
+  const startDate = document.getElementById("formVoucherStartAt").value;
+  const endDate = document.getElementById("formVoucherEndAt").value;
+  const usageLimit = Math.round(Number(document.getElementById("formVoucherUsageLimit").value || 0));
+  const perUserLimit = Math.round(Number(document.getElementById("formVoucherPerUserLimit").value || 0));
+
+  const scopeRegions = Array.from(document.querySelectorAll(".voucher-region-cb:checked")).map(cb => cb.value);
+  const scopeTourIds = Array.from(document.querySelectorAll(".voucher-tour-cb:checked")).map(cb => cb.value);
+
+  if (discountType === "percent" && (discountValue < 1 || discountValue > 100)) {
+    showAdminToast("Mức giảm phần trăm chỉ được từ 1% đến 100%.", "error");
+    return;
+  }
+  if (scopeType === "region" && scopeRegions.length === 0) {
+    showAdminToast("Vui lòng chọn ít nhất 1 khu vực áp dụng.", "error");
+    return;
+  }
+  if (scopeType === "tours" && scopeTourIds.length === 0) {
+    showAdminToast("Vui lòng chọn ít nhất 1 tour áp dụng.", "error");
+    return;
+  }
+  if (endDate < startDate) {
+    showAdminToast("Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.", "error");
+    return;
+  }
+
+  const payload = {
+    code,
+    name,
+    description,
+    discount_type: discountType,
+    discount_value: discountValue,
+    max_discount: maxDiscount,
+    min_order_value: minOrderValue,
+    scope_type: scopeType,
+    scope_regions: scopeRegions,
+    scope_tour_ids: scopeTourIds,
+    start_at: startDate + "T00:00:00.000Z",
+    end_at: endDate + "T23:59:59.999Z",
+    usage_limit: usageLimit,
+    per_user_limit: perUserLimit,
+    target_audience: targetAudience,
+    active
+  };
+
+  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.adminCreateVoucher === "function") {
+    const res = id
+      ? await DeltaAPI.adminPatchVoucher(id, payload).catch(() => null)
+      : await DeltaAPI.adminCreateVoucher(payload).catch(() => null);
+    if (res && !res.success && !res.isOffline) {
+      showAdminToast(res.error || "Không thể lưu mã ưu đãi.", "error");
+      return;
+    }
+    if (res && res.success && res.data) {
+      await refreshAdminData();
+    } else {
+      // Offline fallback
+      const local = [...(AdminState.vouchers || [])];
+      const dto = {
+        id: id || ("VCH-" + Date.now().toString().slice(-6)),
+        code, name, description, discountType, discountValue, maxDiscount, minOrderValue,
+        scopeType, scopeRegions, scopeTourIds,
+        startAt: payload.start_at, endAt: payload.end_at,
+        usageLimit, usedCount: 0, perUserLimit, targetAudience, active
+      };
+      const idx = id ? local.findIndex(item => item.id === id) : -1;
+      if (idx !== -1) local[idx] = { ...local[idx], ...dto };
+      else local.unshift(dto);
+      AdminState.vouchers = local;
+      if (typeof saveVouchersData === "function") saveVouchersData(local);
+    }
+  }
+
+  broadcastCatalogSync();
+  const vModalEl = document.getElementById("adminVoucherModal");
+  if (vModalEl) {
+    const inst = bootstrap.Modal.getOrCreateInstance(vModalEl);
+    inst.hide();
+    if (vModalEl.classList.contains("show")) {
+      vModalEl.addEventListener("shown.bs.modal", () => inst.hide(), { once: true });
+    }
+  }
+  renderCurrentTab();
+  showAdminToast(`Đã lưu mã ưu đãi ${code} thành công!`, "success");
+}
+
+async function handleToggleVoucherStatus(voucherId) {
+  const v = (AdminState.vouchers || []).find(item => item.id === voucherId);
+  if (!v) return;
+  const nextActive = !v.active;
+  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.adminPatchVoucher === "function") {
+    const res = await DeltaAPI.adminPatchVoucher(v.id, { active: nextActive }).catch(() => null);
+    if (res && !res.success && !res.isOffline) {
+      showAdminToast(res.error || "Không thể cập nhật trạng thái mã.", "error");
+      return;
+    }
+    if (res && res.success) await refreshAdminData();
+    else {
+      v.active = nextActive;
+      if (typeof saveVouchersData === "function") saveVouchersData(AdminState.vouchers);
+    }
+  }
+  broadcastCatalogSync();
+  renderCurrentTab();
+  showAdminToast(`Mã ${v.code} đã chuyển sang ${nextActive ? "Đang hoạt động" : "Tạm ngừng"}.`, "info");
+}
+
+async function handleDeleteVoucher(voucherId) {
+  const v = (AdminState.vouchers || []).find(item => item.id === voucherId);
+  if (!v) return;
+  if (!confirm(`Xóa vĩnh viễn mã ưu đãi ${v.code} (${v.name})?`)) return;
+
+  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.adminDeleteVoucher === "function") {
+    const res = await DeltaAPI.adminDeleteVoucher(v.id).catch(() => null);
+    if (res && !res.success && !res.isOffline) {
+      showAdminToast(res.error || "Không thể xóa mã ưu đãi.", "error");
+      return;
+    }
+    if (res && res.success) await refreshAdminData();
+    else {
+      AdminState.vouchers = (AdminState.vouchers || []).filter(item => item.id !== v.id);
+      if (typeof saveVouchersData === "function") saveVouchersData(AdminState.vouchers);
+    }
+  }
+  broadcastCatalogSync();
+  renderCurrentTab();
+  showAdminToast(`Đã xóa mã ưu đãi ${v.code}.`, "success");
+}
+
+function openVoucherStatsModal(voucherId) {
+  const v = (AdminState.vouchers || []).find(item => item.id === voucherId);
+  if (!v) return;
+  const modalEl = document.getElementById("adminVoucherStatsModal");
+  if (!modalEl) return;
+
+  const stats = v.stats || {};
+  document.getElementById("statsVoucherCode").textContent = v.code;
+  document.getElementById("statsVoucherName").textContent = v.name || v.description || "";
+  document.getElementById("statsVoucherUsed").textContent = `${v.usedCount || 0} / ${v.usageLimit > 0 ? v.usageLimit : "∞"}`;
+  document.getElementById("statsVoucherPaid").textContent = String(stats.completedRedemptions || 0);
+  document.getElementById("statsVoucherDiscount").textContent = Number(stats.totalDiscountGranted || 0).toLocaleString("vi-VN") + " đ";
+  document.getElementById("statsVoucherRevenue").textContent = Number(stats.totalRevenue || 0).toLocaleString("vi-VN") + " đ";
+
+  const body = document.getElementById("statsVoucherRedemptionsBody");
+  const recent = stats.recentRedemptions || [];
+  body.innerHTML = recent.length === 0
+    ? `<tr><td colspan="5" class="text-center text-muted py-3">Chưa có đơn hàng nào sử dụng mã ưu đãi này.</td></tr>`
+    : recent.map(r => `
+      <tr>
+        <td class="font-monospace fw-bold">#${escapeAdminHtml(r.bookingRef)}</td>
+        <td>${escapeAdminHtml(r.customerName)}<br><small class="text-muted">${escapeAdminHtml(r.customerEmail)}</small></td>
+        <td><span class="badge ${r.status === 'RELEASED' || r.bookingStatus === 'CANCELLED' ? 'bg-secondary' : 'bg-dark'}">${escapeAdminHtml(r.bookingStatus || r.status)}</span></td>
+        <td class="text-end text-success fw-bold">- ${Number(r.discountAmount || 0).toLocaleString("vi-VN")} đ</td>
+        <td class="text-end fw-bold">${Number(r.bookingTotal || 0).toLocaleString("vi-VN")} đ</td>
+      </tr>
+    `).join("");
+
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
 }
 
 // =============================================================================

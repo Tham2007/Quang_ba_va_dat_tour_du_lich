@@ -1722,6 +1722,7 @@ function calculateOrderPricing() {
     } else if (v.discountType === "fixed") {
       discountAmount = v.discountValue;
     }
+    discountAmount = Math.max(0, Math.min(subtotal, Math.round(discountAmount)));
   }
 
   // Tổng thanh toán cuối cùng (không âm)
@@ -1802,7 +1803,7 @@ function calculateOrderPricing() {
 /**
  * Xử lý kiểm tra và áp dụng mã giảm giá Voucher
  */
-function applyVoucherCode() {
+async function applyVoucherCode() {
   const input = document.getElementById("voucherCodeInput");
   const msgEl = document.getElementById("voucherStatusMsg");
   if (!input || !msgEl) return;
@@ -1811,33 +1812,64 @@ function applyVoucherCode() {
   if (!code) {
     msgEl.className = "voucher-status-msg error";
     msgEl.textContent = "Vui lòng nhập mã giảm giá.";
-    return;
-  }
-
-  const voucher = VOUCHERS_DATA.find(v => v.code === code);
-  if (!voucher) {
-    msgEl.className = "voucher-status-msg error";
-    msgEl.textContent = "Mã voucher không tồn tại hoặc đã hết hạn!";
     AppState.appliedVoucher = null;
     calculateOrderPricing();
     return;
   }
 
-  // Kiểm tra điều kiện đơn hàng tối thiểu
   const pricing = calculateOrderPricing();
-  if (voucher.minOrderValue && pricing.subtotal < voucher.minOrderValue) {
+  const tour = AppState.currentBookingTour;
+  const email = document.getElementById("customerEmail")?.value.trim() || "";
+  const phone = document.getElementById("customerPhone")?.value.trim() || "";
+  const scheduleId = document.getElementById("bookingDepartureDate")?.value || "";
+
+  let validation = null;
+  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.validateVoucher === "function" && tour) {
+    try {
+      const apiRes = await DeltaAPI.validateVoucher({
+        code,
+        tour_id: tour.id,
+        schedule_id: scheduleId,
+        adults: pricing?.adultQty || 1,
+        children: pricing?.childQty || 0,
+        infants: pricing?.infantQty || 0,
+        customer_email: email,
+        customer_phone: phone
+      });
+      if (apiRes && !apiRes.isOffline) {
+        validation = apiRes.success && apiRes.data?.valid
+          ? { valid: true, ...apiRes.data }
+          : { valid: false, detail: apiRes.error || apiRes.data?.detail || "Mã ưu đãi không đủ điều kiện áp dụng." };
+      }
+    } catch (_) {}
+  }
+
+  if (!validation && typeof evaluateLocalVoucher === "function") {
+    let authUser = null;
+    try { authUser = typeof getCurrentUser === "function" ? getCurrentUser() : null; } catch (_) {}
+    validation = evaluateLocalVoucher({
+      code,
+      tour,
+      subtotal: pricing?.subtotal || 0,
+      authUser,
+      customerEmail: email,
+      customerPhone: phone
+    });
+  }
+
+  if (!validation || !validation.valid) {
     msgEl.className = "voucher-status-msg error";
-    msgEl.textContent = `Mã này chỉ áp dụng cho đơn từ ${formatVND(voucher.minOrderValue)}`;
+    msgEl.textContent = validation?.detail || "Mã voucher không hợp lệ hoặc không đủ điều kiện áp dụng.";
     AppState.appliedVoucher = null;
     calculateOrderPricing();
     return;
   }
 
-  AppState.appliedVoucher = voucher;
+  AppState.appliedVoucher = validation.voucher;
   msgEl.className = "voucher-status-msg success";
-  msgEl.textContent = `Áp dụng thành công: ${voucher.description}`;
+  msgEl.textContent = validation.message || `Áp dụng thành công: ${validation.voucher.description || validation.voucher.name}`;
   calculateOrderPricing();
-  showToast("Áp dụng mã giảm giá thành công!", "success");
+  showToast(msgEl.textContent, "success");
 }
 
 // =============================================================================
@@ -1958,6 +1990,7 @@ async function handleBookingSubmission(e) {
     customer_phone: phone,
     customer_email: email,
     customer_identity: cccd,
+    voucher_code: AppState.appliedVoucher?.code || null,
     note: notes || ""
   });
   if (!bookRes.success || !bookRes.data) {

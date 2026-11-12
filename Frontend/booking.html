@@ -703,18 +703,32 @@
             <span class="text-dark" data-i18n="inv_tax_val">Đã bao gồm</span>
           </div>
 
+          <div class="paper-invoice-row">
+            <span class="text-muted">Tiền tour ban đầu:</span>
+            <span id="subtotalPriceDisplay" class="fw-bold text-dark">0 đ</span>
+          </div>
+
+          <div class="paper-invoice-row" id="discountRowDisplay" style="display: none;">
+            <span class="text-success fw-semibold">
+              Giảm giá (<span id="appliedVoucherBadge" class="font-monospace"></span>):
+            </span>
+            <span id="discountAmountDisplay" class="fw-bold text-success">- 0 đ</span>
+          </div>
+
           <!-- Nhập mã giảm giá Voucher -->
           <div class="my-3 pt-3 border-top">
             <div class="input-group input-group-sm">
-              <input type="text" id="voucherCodeInput" class="form-control" placeholder="Mã ưu đãi (VD: DELTA10)" data-i18n-placeholder="inv_voucher_placeholder">
-              <button class="btn btn-outline-dark" type="button" onclick="applyVoucher()" data-i18n="inv_voucher_apply">Áp dụng</button>
+              <input type="text" id="voucherCodeInput" class="form-control text-uppercase" placeholder="Mã ưu đãi (VD: DELTA10)" data-i18n-placeholder="inv_voucher_placeholder">
+              <button class="btn btn-outline-dark" type="button" id="btnApplyVoucher" onclick="applyVoucher()" data-i18n="inv_voucher_apply">Áp dụng</button>
+              <button class="btn btn-outline-secondary" type="button" id="btnClearVoucher" onclick="clearVoucher()" style="display: none;" title="Gỡ mã ưu đãi"><i class="bi bi-x-lg"></i></button>
             </div>
-            <div id="voucherAlert" class="small text-success mt-1" style="display: none;"></div>
+            <div id="voucherAlert" class="small mt-1" style="display: none;"></div>
+            <div id="availableVouchersHint" class="mt-2" style="display: none;"></div>
           </div>
 
           <div class="paper-invoice-total">
             <div>
-              <div class="fw-bold text-uppercase small text-muted" data-i18n="inv_total_label">TỔNG TIỀN NIÊM YẾT:</div>
+              <div class="fw-bold text-uppercase small text-muted" data-i18n="inv_total_label">TỔNG TIỀN SAU GIẢM:</div>
               <div id="totalPriceDisplay" class="fs-3 fw-bold text-dark">0 đ</div>
             </div>
           </div>
@@ -768,6 +782,14 @@
               <span id="receiptStatusBadge" class="badge bg-dark text-white px-3 py-1.5 rounded-pill border">
                 <i class="bi bi-clock-history me-1 text-warning"></i> Chờ thanh toán (PENDING)
               </span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-1" id="receiptSubtotalRow" style="display: none;">
+              <span class="text-muted small">Tiền tour ban đầu:</span>
+              <span id="receiptSubtotal" class="small fw-semibold text-dark">0 đ</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-1 text-success" id="receiptDiscountRow" style="display: none;">
+              <span class="small">Giảm giá ưu đãi <span id="receiptVoucherTag" class="font-monospace"></span>:</span>
+              <strong id="receiptDiscount" class="small">- 0 đ</strong>
             </div>
             <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2">
               <span class="text-muted small fw-bold">Tổng tiền cần thanh toán:</span>
@@ -1022,6 +1044,8 @@
     let currentTour = null;
     let currentSchedules = [];
     let discountAmount = 0;
+    let appliedVoucherCode = "";
+    let appliedVoucherData = null;
     let currentBookingData = null;
     let currentPayAmount = 0;
     let currentTransferNote = "";
@@ -1226,6 +1250,7 @@
         renderTourInfo();
         renderBookingItinerary(currentTour);
         await loadSchedules(tour.id);
+        await loadAvailableVouchersForTour(tour.id);
         recalcPrice();
       } catch (err) {
         console.error("Lỗi khởi tạo booking:", err);
@@ -1383,22 +1408,100 @@
       }
     }
 
+    function calculateBookingSubtotal(adults, children, infants) {
+      if (!currentTour) return 0;
+      const unitPrice = Number(currentTour.price) || 0;
+      const childPrice = Math.floor((unitPrice * 75 + 50) / 100);
+      const infantPrice = Math.floor((unitPrice * 10 + 50) / 100);
+      return (adults * unitPrice) + (children * childPrice) + (infants * infantPrice);
+    }
+
+    async function loadAvailableVouchersForTour(tourId) {
+      const hintEl = document.getElementById("availableVouchersHint");
+      if (!hintEl || !tourId) return;
+      let list = [];
+      if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.fetchPublicVouchers === "function") {
+        try {
+          const res = await DeltaAPI.fetchPublicVouchers(tourId);
+          if (res && res.success && Array.isArray(res.data)) {
+            list = res.data;
+          }
+        } catch (_) {}
+      }
+      if (!list.length && typeof getVouchersData === "function") {
+        const now = Date.now();
+        list = getVouchersData().filter(v => {
+          if (v.active === false) return false;
+          const sMs = Date.parse(v.startAt);
+          const eMs = Date.parse(v.endAt);
+          if (!isNaN(sMs) && now < sMs) return false;
+          if (!isNaN(eMs) && now > eMs) return false;
+          if (v.usageLimit > 0 && (v.usedCount || 0) >= v.usageLimit) return false;
+          if (v.scopeType === "region" && currentTour && !(v.scopeRegions || []).includes(currentTour.region)) return false;
+          if (v.scopeType === "tours" && !(v.scopeTourIds || []).map(x => String(x).toUpperCase()).includes(String(tourId).toUpperCase())) return false;
+          return true;
+        });
+      }
+      if (!list.length) {
+        hintEl.style.display = "none";
+        hintEl.innerHTML = "";
+        return;
+      }
+      hintEl.style.display = "block";
+      hintEl.innerHTML = `
+        <div class="text-muted mb-1" style="font-size: 11px;">Mã ưu đãi gợi ý cho tour này:</div>
+        <div class="d-flex flex-wrap gap-1">
+          ${list.slice(0, 4).map(v => {
+            const label = v.discountType === "percent" ? `-${v.discountValue}%` : `-${Math.round(v.discountValue / 1000)}K`;
+            return `<button type="button" class="btn btn-outline-dark btn-sm py-0 px-2 font-monospace" style="font-size: 11px;" onclick="selectSuggestedVoucher('${String(v.code).replace(/'/g, "")}')" title="${String(v.description || v.name || "").replace(/"/g, "&quot;")}">${v.code} (${label})</button>`;
+          }).join("")}
+        </div>
+      `;
+    }
+
+    function selectSuggestedVoucher(code) {
+      const input = document.getElementById("voucherCodeInput");
+      if (input) input.value = code;
+      applyVoucher();
+    }
+
     function recalcPrice() {
       if (!currentTour) return;
       const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
-      const adults = parseInt(document.getElementById("numAdults")?.value || 1, 10);
-      const children = parseInt(document.getElementById("numChildren")?.value || 0, 10);
-      const infants = parseInt(document.getElementById("numInfants")?.value || 0, 10);
+      const adults = Math.max(1, parseInt(document.getElementById("numAdults")?.value || 1, 10));
+      const children = Math.max(0, parseInt(document.getElementById("numChildren")?.value || 0, 10));
+      const infants = Math.max(0, parseInt(document.getElementById("numInfants")?.value || 0, 10));
 
       const totalGuests = adults + children + infants;
       const guestSummary = isEn
-        ? `${totalGuests} guest(s) (${adults} adult, ${children} child)`
-        : `${totalGuests} khách (${adults} lớn, ${children} trẻ)`;
+        ? `${totalGuests} guest(s) (${adults} adult, ${children} child${infants > 0 ? `, ${infants} infant` : ""})`
+        : `${totalGuests} khách (${adults} lớn, ${children} trẻ${infants > 0 ? `, ${infants} em bé` : ""})`;
       document.getElementById("guestCountDisplay").textContent = guestSummary;
 
-      // Tính tổng tiền: Người lớn 100%, trẻ em 75%, em bé miễn phí
-      const rawTotal = (adults * currentTour.price) + (children * currentTour.price * 0.75);
-      const finalTotal = Math.max(0, rawTotal - discountAmount);
+      const rawTotal = calculateBookingSubtotal(adults, children, infants);
+      const effectiveDiscount = Math.max(0, Math.min(rawTotal, Number(discountAmount) || 0));
+      const finalTotal = Math.max(0, rawTotal - effectiveDiscount);
+
+      const subtotalEl = document.getElementById("subtotalPriceDisplay");
+      if (subtotalEl) subtotalEl.textContent = formatVND(rawTotal);
+
+      const discRow = document.getElementById("discountRowDisplay");
+      const discAmtEl = document.getElementById("discountAmountDisplay");
+      const badgeEl = document.getElementById("appliedVoucherBadge");
+      const clearBtn = document.getElementById("btnClearVoucher");
+      if (discRow && discAmtEl) {
+        if (effectiveDiscount > 0 && appliedVoucherCode) {
+          discRow.style.display = "flex";
+          discAmtEl.textContent = "- " + formatVND(effectiveDiscount);
+          if (badgeEl) badgeEl.textContent = appliedVoucherCode;
+        } else {
+          discRow.style.display = "none";
+          discAmtEl.textContent = "- 0 đ";
+        }
+      }
+      if (clearBtn) {
+        clearBtn.style.display = appliedVoucherCode ? "inline-block" : "none";
+      }
 
       document.getElementById("totalPriceDisplay").textContent = formatVND(finalTotal);
 
@@ -1415,26 +1518,112 @@
       }
     }
 
-    function applyVoucher() {
+    function clearVoucher() {
+      const input = document.getElementById("voucherCodeInput");
+      const alertEl = document.getElementById("voucherAlert");
+      if (input) input.value = "";
+      appliedVoucherCode = "";
+      appliedVoucherData = null;
+      discountAmount = 0;
+      if (alertEl) {
+        alertEl.style.display = "none";
+        alertEl.textContent = "";
+      }
+      recalcPrice();
+    }
+
+    async function applyVoucher(silent = false) {
       const input = document.getElementById("voucherCodeInput");
       const code = (input?.value || "").trim().toUpperCase();
       const alertEl = document.getElementById("voucherAlert");
       const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
 
-      if (code === "DELTA10" || code === "VIPTOUR") {
-        discountAmount = 200000;
-        alertEl.style.display = "block";
-        alertEl.textContent = isEn
-          ? `Promo code ${code} applied successfully: 200,000 VND discount!`
-          : `Áp dụng thành công mã ${code}: Giảm 200.000 đ!`;
-        recalcPrice();
-      } else if (code !== "") {
-        showAppNotice(
-          isEn ? "Invalid or expired promo code." : "Mã ưu đãi không hợp lệ hoặc đã hết hạn.",
-          isEn ? "Notice" : "Thông Báo",
-          "warning"
-        );
+      if (!code) {
+        clearVoucher();
+        if (!silent) {
+          showAppNotice(
+            isEn ? "Please enter a promo code before applying." : "Vui lòng nhập mã ưu đãi trước khi áp dụng.",
+            isEn ? "Notice" : "Thông Báo",
+            "warning"
+          );
+        }
+        return false;
       }
+
+      if (!currentTour) return false;
+      const adults = Math.max(1, parseInt(document.getElementById("numAdults")?.value || 1, 10));
+      const children = Math.max(0, parseInt(document.getElementById("numChildren")?.value || 0, 10));
+      const infants = Math.max(0, parseInt(document.getElementById("numInfants")?.value || 0, 10));
+      const scheduleId = document.getElementById("bookingScheduleSelect")?.value || "";
+      const customerEmail = (document.getElementById("customerEmail")?.value || "").trim();
+      const customerPhone = (document.getElementById("customerPhone")?.value || "").trim();
+      const subtotal = calculateBookingSubtotal(adults, children, infants);
+
+      let result = null;
+      if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.validateVoucher === "function") {
+        try {
+          const apiRes = await DeltaAPI.validateVoucher({
+            code,
+            tour_id: currentTour.id,
+            schedule_id: scheduleId,
+            adults,
+            children,
+            infants,
+            customer_email: customerEmail,
+            customer_phone: customerPhone
+          });
+          if (apiRes && !apiRes.isOffline) {
+            result = apiRes.success && apiRes.data?.valid
+              ? { valid: true, ...apiRes.data }
+              : { valid: false, detail: apiRes.error || apiRes.data?.detail || "Mã ưu đãi không đủ điều kiện áp dụng." };
+          }
+        } catch (_) {}
+      }
+
+      if (!result && typeof evaluateLocalVoucher === "function") {
+        let authUser = null;
+        try {
+          authUser = JSON.parse(localStorage.getItem("delta_auth_user") || "null");
+        } catch (_) {}
+        result = evaluateLocalVoucher({
+          code,
+          tour: currentTour,
+          subtotal,
+          authUser,
+          customerEmail,
+          customerPhone
+        });
+      }
+
+      if (result && result.valid) {
+        appliedVoucherCode = code;
+        appliedVoucherData = result.voucher || null;
+        discountAmount = Number(result.discountAmount || 0);
+        if (alertEl) {
+          alertEl.className = "small text-success fw-semibold mt-1";
+          alertEl.style.display = "block";
+          alertEl.textContent = result.message || (isEn
+            ? `Promo code ${code} applied: -${formatVND(discountAmount)}`
+            : `Áp dụng thành công mã ${code}: Giảm ${formatVND(discountAmount)}`);
+        }
+        recalcPrice();
+        return true;
+      }
+
+      appliedVoucherCode = "";
+      appliedVoucherData = null;
+      discountAmount = 0;
+      const errMsg = (result && result.detail) || (isEn ? "Promo code is not eligible." : "Mã ưu đãi không đủ điều kiện áp dụng.");
+      if (alertEl) {
+        alertEl.className = "small text-danger fw-semibold mt-1";
+        alertEl.style.display = "block";
+        alertEl.textContent = errMsg;
+      }
+      recalcPrice();
+      if (!silent) {
+        showAppNotice(errMsg, isEn ? "Promo Not Eligible" : "Không Thể Áp Dụng Mã", "warning");
+      }
+      return false;
     }
 
     function showBookingReceipt(booking) {
@@ -1492,6 +1681,20 @@
       document.getElementById("receiptTourTitle").textContent = displayTitle;
       const custDisplay = booking.customerName ? `${booking.customerName} (${booking.customerPhone || ""})` : "Khách hàng";
       document.getElementById("receiptCustomer").textContent = custDisplay;
+      const rDisc = Number(booking.discountAmount || booking.pricing?.discount || 0);
+      const rSub = Number(booking.subtotalPrice || booking.pricing?.subtotal || (payAmount + rDisc));
+      const rSubRow = document.getElementById("receiptSubtotalRow");
+      const rDiscRow = document.getElementById("receiptDiscountRow");
+      if (rSubRow) {
+        rSubRow.style.display = rDisc > 0 ? "flex" : "none";
+        document.getElementById("receiptSubtotal").textContent = formatVND(rSub);
+      }
+      if (rDiscRow) {
+        rDiscRow.style.display = rDisc > 0 ? "flex" : "none";
+        document.getElementById("receiptDiscount").textContent = "- " + formatVND(rDisc);
+        const tag = document.getElementById("receiptVoucherTag");
+        if (tag) tag.textContent = booking.voucherCode ? `(${booking.voucherCode})` : "";
+      }
       document.getElementById("receiptTotal").textContent = formatVND(payAmount);
       document.getElementById("receiptTransferAmount").textContent = formatVND(payAmount);
       document.getElementById("receiptTransferNote").textContent = transferNote;
@@ -1558,7 +1761,14 @@
       const tourKey = "tour_title_" + String(tourId).replace(/[^a-zA-Z0-9]/g, "_");
       const displayTitle = (isEn && typeof t === "function" && t(tourKey) !== tourKey) ? t(tourKey) : (currentTour?.title || "Tour Du Lịch Delta Travel 5 Sao");
       const rawPrice = (currentTour && currentTour.price) ? currentTour.price : 2890000;
-      const calculatedTotal = Math.max(0, (adults * rawPrice) + (children * rawPrice * 0.75) - discountAmount);
+      const rawSubtotal = calculateBookingSubtotal(adults, children, infants);
+
+      // Nếu người dùng gõ mã trong ô nhưng chưa bấm "Áp dụng", kiểm tra lại điều kiện trước khi gửi đơn
+      const typedCode = (document.getElementById("voucherCodeInput")?.value || "").trim().toUpperCase();
+      if (typedCode && typedCode !== appliedVoucherCode) {
+        const ok = await applyVoucher(false);
+        if (!ok) return;
+      }
 
       const payload = {
         scheduleId: scheduleId,
@@ -1576,26 +1786,69 @@
         children: children,
         infants: infants,
         seats: adults + children + infants,
+        voucherCode: appliedVoucherCode || null,
+        voucher_code: appliedVoucherCode || null,
         pickupLocation: document.getElementById("pickupLocationInput")?.value || "",
         specialRequests: document.getElementById("customerNotes")?.value || ""
       };
 
       try {
         let booking = null;
+        let backendRejected = false;
         if (typeof DeltaAPI !== "undefined" && DeltaAPI.createBooking) {
           try {
             const res = await DeltaAPI.createBooking(payload);
             if (res && res.success && res.data) {
               booking = res.data;
+            } else if (res && !res.isOffline) {
+              backendRejected = true;
+              const errMsg = res.error || (isEn ? "Cannot place booking due to voucher/availability rule." : "Không thể hoàn tất đặt tour do điều kiện mã ưu đãi hoặc số chỗ đã thay đổi.");
+              if (res.data?.errorCode && String(res.data.errorCode).startsWith("VOUCHER_")) {
+                await applyVoucher(true);
+              }
+              showAppNotice(errMsg, isEn ? "Booking Rejected" : "Không Thể Đặt Tour", "warning");
+              return;
             }
           } catch (apiErr) {
             console.warn("Lỗi gọi API createBooking, chuyển sang lưu trữ cục bộ:", apiErr);
           }
         }
+        if (backendRejected) return;
 
-        // Tự động fallback tạo đơn mượt mà để khách không bao giờ gặp lỗi gián đoạn
+        // Tự động fallback khi backend offline (không bỏ qua kiểm tra voucher)
         if (!booking) {
+          let offlineDiscount = 0;
+          let offlineVoucherCode = null;
+          let offlineVoucherName = null;
+          if (appliedVoucherCode && typeof evaluateLocalVoucher === "function") {
+            let authUser = null;
+            try { authUser = JSON.parse(localStorage.getItem("delta_auth_user") || "null"); } catch (_) {}
+            const vEval = evaluateLocalVoucher({
+              code: appliedVoucherCode,
+              tour: currentTour,
+              subtotal: rawSubtotal,
+              authUser,
+              customerEmail: email,
+              customerPhone: phone
+            });
+            if (!vEval.valid) {
+              showAppNotice(vEval.detail, isEn ? "Promo Not Eligible" : "Không Thể Áp Dụng Mã", "warning");
+              return;
+            }
+            offlineDiscount = vEval.discountAmount;
+            offlineVoucherCode = vEval.voucher.code;
+            offlineVoucherName = vEval.voucher.name;
+            if (typeof getVouchersData === "function" && typeof saveVouchersData === "function") {
+              const vList = getVouchersData();
+              const vIdx = vList.findIndex(x => String(x.code).toUpperCase() === offlineVoucherCode);
+              if (vIdx !== -1) {
+                vList[vIdx].usedCount = Number(vList[vIdx].usedCount || 0) + 1;
+                saveVouchersData(vList);
+              }
+            }
+          }
           const bookingRef = "BK" + Math.floor(100000 + Math.random() * 900000);
+          const finalOfflineTotal = Math.max(0, rawSubtotal - offlineDiscount);
           booking = {
             id: bookingRef,
             reference: bookingRef,
@@ -1611,7 +1864,12 @@
             infants: infants,
             seats: adults + children + infants,
             unitPrice: rawPrice,
-            totalPrice: calculatedTotal,
+            subtotalPrice: rawSubtotal,
+            discountAmount: offlineDiscount,
+            voucherCode: offlineVoucherCode,
+            voucherName: offlineVoucherName,
+            totalPrice: finalOfflineTotal,
+            pricing: { subtotal: rawSubtotal, discount: offlineDiscount, total: finalOfflineTotal },
             status: "PENDING_PAYMENT",
             paid: false,
             paymentEvidence: null,
@@ -1755,9 +2013,10 @@
       const adults = Math.max(1, parseInt(b.adults || document.getElementById("numAdults")?.value || 1, 10));
       const children = Math.max(0, parseInt(b.children || document.getElementById("numChildren")?.value || 0, 10));
       const infants = Math.max(0, parseInt(b.infants || document.getElementById("numInfants")?.value || 0, 10));
-      const unitPrice = (currentTour && currentTour.price) ? currentTour.price : Math.round((b.totalPrice || 2890000) / adults);
-      const subtotal = (adults * unitPrice) + (children * unitPrice * 0.75);
-      const grandTotal = Number(b.totalPrice || currentPayAmount || subtotal);
+      const unitPrice = Number(b.unitPrice) || ((currentTour && currentTour.price) ? currentTour.price : Math.round((b.totalPrice || 2890000) / adults));
+      const invDiscountVal = Number(b.discountAmount || b.pricing?.discount || 0);
+      const grandTotal = Number(b.totalPrice ?? currentPayAmount ?? 0);
+      const subtotal = Number(b.subtotalPrice || b.pricing?.subtotal || (grandTotal + invDiscountVal));
       const tourTitle = b.tourTitle || (currentTour && currentTour.title) || "Tour Du Lịch Delta Travel 5 Sao";
       const depDate = b.departureDate || "30/11/2026";
       const pickupLoc = b.pickupLocation || document.getElementById("pickupLocationInput")?.value || "Khách sạn hoặc Sân bay trung tâm";
@@ -1826,7 +2085,9 @@
 
       tbody.innerHTML = itemsHtml;
       document.getElementById("invSubtotal").textContent = formatVND(subtotal);
-      document.getElementById("invDiscount").textContent = discountAmount ? ("- " + formatVND(discountAmount)) : "- 0 đ";
+      document.getElementById("invDiscount").textContent = invDiscountVal > 0
+        ? (`- ${formatVND(invDiscountVal)}${b.voucherCode ? ` (${b.voucherCode})` : ""}`)
+        : "- 0 đ";
       document.getElementById("invGrandTotal").textContent = formatVND(grandTotal);
       document.getElementById("invCustomerSign").textContent = custName;
 
@@ -1864,7 +2125,16 @@
     }
 
     ["numAdults", "numChildren", "numInfants"].forEach(id => {
-      document.getElementById(id)?.addEventListener("input", recalcPrice);
+      document.getElementById(id)?.addEventListener("input", () => {
+        recalcPrice();
+        if (appliedVoucherCode) applyVoucher(true);
+      });
+    });
+
+    ["customerEmail", "customerPhone"].forEach(id => {
+      document.getElementById(id)?.addEventListener("change", () => {
+        if (appliedVoucherCode) applyVoucher(true);
+      });
     });
 
     document.querySelectorAll(".paper-pay-option input").forEach(radio => {
