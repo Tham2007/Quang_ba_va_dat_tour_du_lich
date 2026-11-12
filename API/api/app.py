@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from api.core import ENV, db_session, fail
+from api.core import ENV, SECURITY_CSP, db_session, fail
 from api.models import Base, engine, Tour
 from api.seed import seed_demo
 from api.routes import auth, tours, bookings, admin, assistant
@@ -79,14 +79,7 @@ async def safe_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     if request.url.path not in ("/docs", "/redoc"):
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
-            "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:; "
-            "img-src 'self' https: data: blob: http:; "
-            "connect-src 'self' https: http:; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
-        )
+        response.headers["Content-Security-Policy"] = SECURITY_CSP
     return response
 
 
@@ -117,13 +110,15 @@ def unknown_api(unknown_path: str):
     fail(404, "API endpoint không tồn tại.")
 
 
-# Serve the official frontend from the repository Frontend directory
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "Frontend"
 THREE_D_DIR = Path(__file__).resolve().parents[2] / "3D Image data"
-
 if THREE_D_DIR.is_dir():
-    app.mount("/3d-frames", StaticFiles(directory=str(THREE_D_DIR)), name="three-d-frames")
-    app.mount("/3D Image data", StaticFiles(directory=str(THREE_D_DIR)), name="three-d-data")
+    for _p, _n in (
+        ("/3d-frames", "three-d-frames"),
+        ("/3D Image data", "three-d-data"),
+    ):
+        app.mount(_p, StaticFiles(directory=str(THREE_D_DIR)), name=_n)
+
 
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon_compat():

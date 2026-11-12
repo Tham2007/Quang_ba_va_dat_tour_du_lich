@@ -267,5 +267,8 @@ if __name__ == "__main__":
         main()
     except Exception as exc:
         # CI errors are safe to paste in an issue and carry no credentials.
-        print(f"FAIL: {type(exc).__name__}: {exc}", file=sys.stderr)
+        pw = os.environ.get("CI_SQLSERVER_SA_PASSWORD", "")
+        msg = f"{type(exc).__name__}: {exc}".replace(pw, "[REDACTED]") if pw else f"{type(exc).__name__}: {exc}"
+        print(f"::error::{msg}", file=sys.stderr)
+        print(f"FAIL: {msg}", file=sys.stderr)
         sys.exit(1)

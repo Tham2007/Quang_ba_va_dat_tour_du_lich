@@ -11,7 +11,7 @@ const testDbPath = path.join(os.tmpdir(), `delta-node-tests-${process.pid}.db`);
 process.env.DELTA_DB_PATH = testDbPath;
 process.env.PORT = "0";
 process.env.HOST = "127.0.0.1";
-const { app, server, db } = require("./server");
+const { app, server, db, setSqlServerTestConnection } = require("./server");
 
 let BASE_URL;
 
@@ -904,6 +904,195 @@ async function runTests() {
       oneOnlyAfter?.usedCount === 1 && oneOnlyAfter?.stats?.totalDiscountGranted === 250000 &&
       delVoucherRes.status === 200,
       `vipG=${valVipGuest.json?.errorCode} vipL=${valVipLogged.status}:${valVipLogged.json?.discountAmount} banmoi=${valBanMoiExistingUser.json?.errorCode} race=${raceSuccessCount}/${raceFailCount}(${raceA.status}:${raceA.json?.detail}|${raceB.status}:${raceB.json?.detail}) used=${oneOnlyAfter?.usedCount} stats=${JSON.stringify(oneOnlyAfter?.stats)} del=${delVoucherRes.status}`);
+
+    // Test chế độ SQL Server trực tiếp bảo toàn đúng 12 bảng (dbo.AUDITLOG: VOUCHER_DEF & VOUCHER_USE)
+    const ssAuditRows = [{
+      MaLog: 1,
+      MaNguoiThucHien: null,
+      HanhDong: "VOUCHER_DEF",
+      DuLieuCu: "SSDELTA10",
+      DuLieuMoi: JSON.stringify({
+        code: "SSDELTA10",
+        name: "SQL Server 10% Miền Bắc",
+        description: "Voucher bảo toàn 12 bảng trong SQL Server",
+        discountType: "percent",
+        discountValue: 10,
+        maxDiscount: 500000,
+        minOrderValue: 1000000,
+        scopeType: "region",
+        scopeRegions: ["north"],
+        scopeTourIds: [],
+        startAt: new Date(Date.now() - 86400000).toISOString(),
+        endAt: new Date(Date.now() + 86400000 * 30).toISOString(),
+        usageLimit: 2,
+        usedCount: 0,
+        perUserLimit: 1,
+        targetAudience: "all",
+        active: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }),
+      ThoiGian: new Date()
+    }];
+    let ssNextLogId = 2;
+    const makeMockReq = () => {
+      const inputs = {};
+      return {
+        input(k, v) { inputs[k] = v; return this; },
+        async query(sql) {
+          const s = sql.replace(/\s+/g, " ").trim();
+          if (s.includes("FROM dbo.AUDITLOG") && s.includes("HanhDong = N'VOUCHER_DEF'")) {
+            const defs = ssAuditRows.filter(r => r.HanhDong === "VOUCHER_DEF");
+            if (s.includes("SELECT TOP 1")) {
+              const match = defs.find(r =>
+                r.MaLog === inputs.numericId || r.DuLieuCu.toUpperCase() === String(inputs.normCode || "").toUpperCase()
+              );
+              return { recordset: match ? [{ ...match }] : [] };
+            }
+            return { recordset: [...defs].reverse().map(r => ({ ...r })) };
+          }
+          if (s.includes("FROM dbo.AUDITLOG") && s.includes("HanhDong = N'VOUCHER_USE'")) {
+            let uses = ssAuditRows.filter(r => r.HanhDong === "VOUCHER_USE");
+            if (inputs.normCode) {
+              uses = uses.filter(r => r.DuLieuCu.toUpperCase() === String(inputs.normCode).toUpperCase());
+            }
+            return { recordset: [...uses].reverse().map(r => ({ ...r })) };
+          }
+          if (s.startsWith("INSERT INTO dbo.AUDITLOG") && s.includes("N'VOUCHER_DEF'")) {
+            const created = {
+              MaLog: ssNextLogId++,
+              MaNguoiThucHien: null,
+              HanhDong: "VOUCHER_DEF",
+              DuLieuCu: inputs.code,
+              DuLieuMoi: inputs.payload,
+              ThoiGian: new Date()
+            };
+            ssAuditRows.push(created);
+            return { recordset: [{ ...created }] };
+          }
+          if (s.startsWith("INSERT INTO dbo.AUDITLOG") && s.includes("N'VOUCHER_USE'")) {
+            ssAuditRows.push({
+              MaLog: ssNextLogId++,
+              MaNguoiThucHien: null,
+              HanhDong: "VOUCHER_USE",
+              DuLieuCu: inputs.maCode,
+              DuLieuMoi: inputs.payload,
+              ThoiGian: new Date()
+            });
+            return { rowsAffected: [1], recordset: [] };
+          }
+          if (s.startsWith("UPDATE dbo.AUDITLOG") && s.includes("HanhDong = N'VOUCHER_DEF'")) {
+            const row = ssAuditRows.find(r => r.MaLog === inputs.maLog && r.HanhDong === "VOUCHER_DEF");
+            if (!row) return { rowsAffected: [0], recordset: [] };
+            if (inputs.expectedUsed !== undefined) {
+              const cur = JSON.parse(row.DuLieuMoi);
+              if (Number(cur.usedCount || 0) !== inputs.expectedUsed) {
+                return { rowsAffected: [0], recordset: [] };
+              }
+              row.DuLieuMoi = inputs.nextPayload;
+              return { rowsAffected: [1], recordset: [] };
+            }
+            row.DuLieuCu = inputs.code ?? row.DuLieuCu;
+            row.DuLieuMoi = inputs.payload;
+            return { rowsAffected: [1], recordset: [] };
+          }
+          if (s.startsWith("UPDATE dbo.AUDITLOG") && s.includes("HanhDong = N'VOUCHER_USE'")) {
+            const released = [];
+            for (const r of ssAuditRows) {
+              if (r.HanhDong === "VOUCHER_USE") {
+                const p = JSON.parse(r.DuLieuMoi);
+                if (p.bookingExternalId === inputs.bookingExtId && p.status === "ACTIVE") {
+                  p.status = "RELEASED";
+                  r.DuLieuMoi = JSON.stringify(p);
+                  released.push({ MaCode: r.DuLieuCu });
+                }
+              }
+            }
+            return { rowsAffected: [released.length], recordset: released };
+          }
+          if (s.startsWith("DELETE FROM dbo.AUDITLOG") && s.includes("N'VOUCHER_DEF'")) {
+            const idx = ssAuditRows.findIndex(r => r.MaLog === inputs.maLog && r.HanhDong === "VOUCHER_DEF");
+            if (idx >= 0) ssAuditRows.splice(idx, 1);
+            return { rowsAffected: [idx >= 0 ? 1 : 0], recordset: [] };
+          }
+          return { recordset: [], rowsAffected: [0] };
+        }
+      };
+    };
+    const mockSqlServerPool = {
+      request: makeMockReq,
+      transaction: () => ({
+        async begin() {},
+        async commit() {},
+        async rollback() {},
+        request: makeMockReq
+      })
+    };
+    setSqlServerTestConnection(mockSqlServerPool, true);
+    try {
+      const ssHealth = await req("/api/v1/health/ready");
+      const ssList = await req("/api/v1/vouchers?tour_id=DL-HL01");
+      const ssValOk = await req("/api/v1/vouchers/validate", {
+        method: "POST",
+        body: { code: "SSDELTA10", tour_id: "DL-HL01", adults: 1 }
+      });
+      const ssValWrong = await req("/api/v1/vouchers/validate", {
+        method: "POST",
+        body: { code: "SSDELTA10", tour_id: "DL-DN02", adults: 1 }
+      });
+      const ssCreateRes = await req("/api/v1/admin/vouchers", {
+        method: "POST",
+        headers: adminHeaders,
+        body: {
+          code: "SSADMIN200",
+          name: "SQL Server Admin Voucher",
+          discountType: "fixed",
+          discountValue: 200000,
+          minOrderValue: 1000000,
+          scopeType: "all",
+          startAt: new Date(Date.now() - 86400000).toISOString(),
+          endAt: new Date(Date.now() + 86400000 * 30).toISOString(),
+          usageLimit: 10,
+          perUserLimit: 1,
+          targetAudience: "all",
+          active: true
+        }
+      });
+      const ssBookRes = await req("/api/v1/bookings", {
+        method: "POST",
+        headers: { ...authHeaders, "Idempotency-Key": "SS-IDEM-" + Date.now() },
+        body: {
+          schedule_id: hlSchedId,
+          adults: 1,
+          customer_name: "SQL Server Buyer",
+          customer_phone: "0988776655",
+          customer_email: `ssbuyer_${Date.now()}@test.local`,
+          voucher_code: "SSDELTA10"
+        }
+      });
+      const ssUsedBeforeCancel = JSON.parse(ssAuditRows[0].DuLieuMoi).usedCount;
+      const ssCancelRes = await req(`/api/v1/bookings/${ssBookRes.json?.id}/cancel`, {
+        method: "POST",
+        headers: authHeaders,
+        body: { reason: "Test release SQL Server voucher" }
+      });
+      const ssUsedAfterCancel = JSON.parse(ssAuditRows[0].DuLieuMoi).usedCount;
+      const ssAdminList = await req("/api/v1/admin/vouchers", { headers: adminHeaders });
+
+      assert("Voucher 6 (SQL Server 12 bảng): Lưu & xử lý qua dbo.AUDITLOG (trừ/hoàn lượt an toàn)",
+        ssHealth.json?.sqlServerConnected === true &&
+        ssHealth.json?.voucherDatabase === "SQL Server" &&
+        ssList.status === 200 && ssList.json?.some(v => v.code === "SSDELTA10") &&
+        ssValOk.status === 200 && ssValOk.json?.discountAmount === 389000 &&
+        ssValWrong.status === 422 && ssValWrong.json?.errorCode === "VOUCHER_WRONG_SCOPE" &&
+        ssCreateRes.status === 201 && ssCreateRes.json?.code === "SSADMIN200" &&
+        ssBookRes.status === 201 && ssBookRes.json?.voucherCode === "SSDELTA10" &&
+        ssUsedBeforeCancel === 1 && ssCancelRes.status === 200 && ssUsedAfterCancel === 0 &&
+        ssAdminList.status === 200 && ssAdminList.json?.some(v => v.code === "SSADMIN200"),
+        `health=${JSON.stringify(ssHealth.json)} valOk=${ssValOk.status}:${ssValOk.json?.discountAmount} wrong=${ssValWrong.json?.errorCode} create=${ssCreateRes.status} book=${ssBookRes.status} used=${ssUsedBeforeCancel}->${ssUsedAfterCancel}`);
+    } finally {
+      setSqlServerTestConnection(null, false);
+    }
 
     const catalogRequests = [];
     catalogMockServer = http.createServer((request, response) => {

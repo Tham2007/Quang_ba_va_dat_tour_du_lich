@@ -45,10 +45,34 @@ if (!fs.existsSync(path.dirname(DB_PATH))) {
 // Khởi tạo Database SQLite
 const db = new DatabaseSync(DB_PATH);
 
-// Cấu hình kết nối trực tiếp SmarterASP.NET SQL Server
+// Tự động nạp biến môi trường từ file .env cục bộ (nếu có) để kết nối SQL Server
+(function loadLocalEnv() {
+  try {
+    const envPath = path.join(__dirname, ".env");
+    if (!fs.existsSync(envPath)) return;
+    const raw = fs.readFileSync(envPath, "utf8");
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx <= 0) continue;
+      const key = trimmed.slice(0, eqIdx).trim();
+      let val = trimmed.slice(eqIdx + 1).trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      if (key && !Object.hasOwn(process.env, key)) {
+        process.env[key] = val;
+      }
+    }
+  } catch {}
+})();
+
+// Cấu hình kết nối trực tiếp SQL Server (bảo toàn đúng 12 bảng gốc)
 let sqlServerPool = null;
-// Optional connection for diagnostics only; booking writes remain on SQLite demo.
-// Credentials must be injected after rotation. Never fall back to a committed password.
+let sqlServerVoucherReady = false;
+// Optional SQL Server connection; used automatically when DELTA_MSSQL_* credentials connect.
+// Credentials must be injected via environment variables. Never fall back to a committed password.
 const SQL_SERVER_CONFIG = {
   user: process.env.DELTA_MSSQL_USER,
   password: process.env.DELTA_MSSQL_PASSWORD,
@@ -62,6 +86,43 @@ const SQL_SERVER_CONFIG = {
   }
 };
 
+function useSqlServerVouchers() {
+  return Boolean(sqlServerPool && sqlServerVoucherReady);
+}
+
+async function ensureSqlServerVoucherSchema(pool) {
+  if (!pool) return false;
+  // Bảo toàn 100% 12 bảng gốc: lưu mã ưu đãi ngay trong bảng dbo.AUDITLOG (HanhDong = 'VOUCHER_DEF')
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM dbo.AUDITLOG WHERE HanhDong = N'VOUCHER_DEF')
+    BEGIN
+      DECLARE @StartIso VARCHAR(32) = CONVERT(VARCHAR(30), DATEADD(day, -7, SYSUTCDATETIME()), 127) + 'Z';
+      DECLARE @EndIso   VARCHAR(32) = CONVERT(VARCHAR(30), DATEADD(day, 180, SYSUTCDATETIME()), 127) + 'Z';
+      DECLARE @NowSeed  VARCHAR(32) = CONVERT(VARCHAR(30), SYSUTCDATETIME(), 127) + 'Z';
+
+      INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
+      VALUES
+      (NULL, N'VOUCHER_DEF', N'DELTA10',
+       CONCAT(N'{"code":"DELTA10","name":"Ưu đãi khám phá Miền Bắc","description":"Giảm 10% (tối đa 1.000.000đ) cho tour Miền Bắc đơn từ 2.000.000đ","discountType":"percent","discountValue":10,"maxDiscount":1000000,"minOrderValue":2000000,"scopeType":"region","scopeRegions":["north"],"scopeTourIds":[],"startAt":"', @StartIso, N'","endAt":"', @EndIso, N'","usageLimit":100,"usedCount":0,"perUserLimit":1,"targetAudience":"all","active":true,"createdAt":"', @NowSeed, N'","updatedAt":"', @NowSeed, N'"}'),
+       GETDATE()),
+      (NULL, N'VOUCHER_DEF', N'HE2026',
+       CONCAT(N'{"code":"HE2026","name":"Chào hè biển đảo Miền Trung & Nam","description":"Giảm trực tiếp 500.000đ cho các tour Đà Nẵng, Phú Quốc, Nha Trang, Quy Nhơn, Côn Đảo đơn từ 3.000.000đ","discountType":"fixed","discountValue":500000,"maxDiscount":null,"minOrderValue":3000000,"scopeType":"tours","scopeRegions":[],"scopeTourIds":["2","3","DL-DN02","DL-PQ03","DL-NT12","DL-QN13","DL-CD16"],"startAt":"', @StartIso, N'","endAt":"', @EndIso, N'","usageLimit":50,"usedCount":0,"perUserLimit":1,"targetAudience":"all","active":true,"createdAt":"', @NowSeed, N'","updatedAt":"', @NowSeed, N'"}'),
+       GETDATE()),
+      (NULL, N'VOUCHER_DEF', N'VIPTOUR',
+       CONCAT(N'{"code":"VIPTOUR","name":"Đặc quyền thành viên đăng nhập","description":"Giảm 15% (tối đa 1.500.000đ) cho thành viên đăng nhập đơn từ 5.000.000đ","discountType":"percent","discountValue":15,"maxDiscount":1500000,"minOrderValue":5000000,"scopeType":"all","scopeRegions":[],"scopeTourIds":[],"startAt":"', @StartIso, N'","endAt":"', @EndIso, N'","usageLimit":30,"usedCount":0,"perUserLimit":1,"targetAudience":"logged_in","active":true,"createdAt":"', @NowSeed, N'","updatedAt":"', @NowSeed, N'"}'),
+       GETDATE()),
+      (NULL, N'VOUCHER_DEF', N'BANMOI',
+       CONCAT(N'{"code":"BANMOI","name":"Quà tặng khách hàng mới","description":"Giảm 200.000đ cho khách hàng đặt tour lần đầu đơn từ 1.500.000đ","discountType":"fixed","discountValue":200000,"maxDiscount":null,"minOrderValue":1500000,"scopeType":"all","scopeRegions":[],"scopeTourIds":[],"startAt":"', @StartIso, N'","endAt":"', @EndIso, N'","usageLimit":100,"usedCount":0,"perUserLimit":1,"targetAudience":"new_customer","active":true,"createdAt":"', @NowSeed, N'","updatedAt":"', @NowSeed, N'"}'),
+       GETDATE()),
+      (NULL, N'VOUCHER_DEF', N'HALONG100K',
+       CONCAT(N'{"code":"HALONG100K","name":"Ưu đãi Du Thuyền Hạ Long","description":"Giảm ngay 100.000đ riêng cho tour Vịnh Hạ Long (DL-HL01) đơn từ 1.000.000đ","discountType":"fixed","discountValue":100000,"maxDiscount":null,"minOrderValue":1000000,"scopeType":"tours","scopeRegions":[],"scopeTourIds":["1","DL-HL01"],"startAt":"', @StartIso, N'","endAt":"', @EndIso, N'","usageLimit":50,"usedCount":0,"perUserLimit":2,"targetAudience":"all","active":true,"createdAt":"', @NowSeed, N'","updatedAt":"', @NowSeed, N'"}'),
+       GETDATE());
+    END;
+  `);
+  sqlServerVoucherReady = true;
+  return true;
+}
+
 async function initDirectSqlServer() {
   // No SQL credentials: intentional SQLite demo. Do not attempt network auth.
   if (!SQL_SERVER_CONFIG.user || !SQL_SERVER_CONFIG.password ||
@@ -71,9 +132,11 @@ async function initDirectSqlServer() {
   try {
     const mssql = require("mssql");
     sqlServerPool = await mssql.connect(SQL_SERVER_CONFIG);
-    console.log("[SQL SERVER] Đã kết nối TRỰC TIẾP thành công tới SmarterASP.NET SQL Server (sql8020.site4now.net:1433 / db_ad0b71_dattour)!");
+    await ensureSqlServerVoucherSchema(sqlServerPool);
+    console.log(`[SQL SERVER] Đã kết nối TRỰC TIẾP thành công tới SQL Server (${SQL_SERVER_CONFIG.server}:${SQL_SERVER_CONFIG.port} / ${SQL_SERVER_CONFIG.database}) và kích hoạt hệ thống Voucher!`);
   } catch (err) {
-    console.warn("[SQL SERVER] Optional diagnostic connection unavailable:", err.name);
+    sqlServerVoucherReady = false;
+    console.warn("[SQL SERVER] Optional connection unavailable:", err.name, err.message);
   }
 }
 
@@ -1322,13 +1385,7 @@ function countUserVoucherRedemptions({ voucherId, userId, customerEmail, custome
   return Number(row?.c || 0);
 }
 
-function validateVoucherForOrder({ code, tour, subtotal, sessionUser = null, resolvedUserId = null, customerEmail = "", customerPhone = "" }) {
-  const normCode = String(code || "").trim().toUpperCase();
-  if (!normCode) {
-    return { ok: false, status: 422, errorCode: "EMPTY_CODE", detail: "Vui lòng nhập mã ưu đãi." };
-  }
-
-  const v = db.prepare("SELECT * FROM vouchers WHERE UPPER(code) = ?").get(normCode);
+function evaluateVoucherRules(v, { normCode, tour, subtotal, sessionUser, priorCustomerCount = 0, userRedemptionsCount = 0 }) {
   if (!v) {
     return { ok: false, status: 422, errorCode: "VOUCHER_NOT_FOUND", detail: `Mã ưu đãi "${normCode}" không tồn tại.` };
   }
@@ -1365,7 +1422,8 @@ function validateVoucherForOrder({ code, tour, subtotal, sessionUser = null, res
       }
     } else if (scopeType === "tours") {
       const allowedTours = safeJsonStringArray(v.scope_tour_ids_json).map(x => String(x).toUpperCase());
-      if (!allowedTours.includes(String(tour.id).toUpperCase())) {
+      const tourCandidates = [tour.id, tour.code, tour.sqlServerTourId].filter(Boolean).map(x => String(x).toUpperCase());
+      if (!tourCandidates.some(tid => allowedTours.includes(tid))) {
         return { ok: false, status: 422, errorCode: "VOUCHER_WRONG_TOUR", detail: `Mã ưu đãi "${normCode}" không áp dụng cho tour "${tour.title}".` };
       }
     }
@@ -1381,32 +1439,17 @@ function validateVoucherForOrder({ code, tour, subtotal, sessionUser = null, res
     };
   }
 
-  const effectiveUserId = sessionUser?.id || resolvedUserId || null;
-  const effectiveEmail = customerEmail || sessionUser?.email || "";
-  const effectivePhone = customerPhone || sessionUser?.phone || "";
   const audience = v.target_audience || "all";
-
   if (audience === "logged_in" && !sessionUser) {
     return { ok: false, status: 422, errorCode: "VOUCHER_LOGIN_REQUIRED", detail: `Mã ưu đãi "${normCode}" chỉ áp dụng cho khách hàng đã đăng nhập tài khoản.` };
   }
-  if (audience === "new_customer") {
-    const priorCount = countPriorCustomerBookings({ userId: effectiveUserId, customerEmail: effectiveEmail, customerPhone: effectivePhone });
-    if (priorCount > 0) {
-      return { ok: false, status: 422, errorCode: "VOUCHER_NEW_CUSTOMER_ONLY", detail: `Mã ưu đãi "${normCode}" chỉ dành cho khách hàng đặt tour lần đầu.` };
-    }
+  if (audience === "new_customer" && priorCustomerCount > 0) {
+    return { ok: false, status: 422, errorCode: "VOUCHER_NEW_CUSTOMER_ONLY", detail: `Mã ưu đãi "${normCode}" chỉ dành cho khách hàng đặt tour lần đầu.` };
   }
 
   const perUserLimit = Number(v.per_user_limit || 0);
-  if (perUserLimit > 0 && (effectiveUserId || effectiveEmail || effectivePhone)) {
-    const userRedemptions = countUserVoucherRedemptions({
-      voucherId: v.id,
-      userId: effectiveUserId,
-      customerEmail: effectiveEmail,
-      customerPhone: effectivePhone
-    });
-    if (userRedemptions >= perUserLimit) {
-      return { ok: false, status: 422, errorCode: "VOUCHER_USER_LIMIT_REACHED", detail: `Bạn đã sử dụng hết ${perUserLimit} lượt áp dụng mã ưu đãi "${normCode}".` };
-    }
+  if (perUserLimit > 0 && userRedemptionsCount >= perUserLimit) {
+    return { ok: false, status: 422, errorCode: "VOUCHER_USER_LIMIT_REACHED", detail: `Bạn đã sử dụng hết ${perUserLimit} lượt áp dụng mã ưu đãi "${normCode}".` };
   }
 
   const { discountAmount, finalTotal } = calculateVoucherDiscount(v, subtotal);
@@ -1420,6 +1463,33 @@ function validateVoucherForOrder({ code, tour, subtotal, sessionUser = null, res
   };
 }
 
+function validateVoucherForOrder({ code, tour, subtotal, sessionUser = null, resolvedUserId = null, customerEmail = "", customerPhone = "" }) {
+  const normCode = String(code || "").trim().toUpperCase();
+  if (!normCode) {
+    return { ok: false, status: 422, errorCode: "EMPTY_CODE", detail: "Vui lòng nhập mã ưu đãi." };
+  }
+
+  const v = db.prepare("SELECT * FROM vouchers WHERE UPPER(code) = ?").get(normCode);
+  const effectiveUserId = sessionUser?.id || resolvedUserId || null;
+  const effectiveEmail = customerEmail || sessionUser?.email || "";
+  const effectivePhone = customerPhone || sessionUser?.phone || "";
+  const priorCustomerCount = v && v.target_audience === "new_customer"
+    ? countPriorCustomerBookings({ userId: effectiveUserId, customerEmail: effectiveEmail, customerPhone: effectivePhone })
+    : 0;
+  const userRedemptionsCount = v && Number(v.per_user_limit || 0) > 0 && (effectiveUserId || effectiveEmail || effectivePhone)
+    ? countUserVoucherRedemptions({ voucherId: v.id, userId: effectiveUserId, customerEmail: effectiveEmail, customerPhone: effectivePhone })
+    : 0;
+
+  return evaluateVoucherRules(v, {
+    normCode,
+    tour,
+    subtotal,
+    sessionUser,
+    priorCustomerCount,
+    userRedemptionsCount
+  });
+}
+
 function releaseBookingVoucherRedemption(bookingId) {
   const activeRedemption = db.prepare(`
     SELECT id, voucher_id FROM voucher_redemptions
@@ -1429,6 +1499,291 @@ function releaseBookingVoucherRedemption(bookingId) {
     db.prepare("UPDATE voucher_redemptions SET status = 'RELEASED' WHERE id = ?").run(activeRedemption.id);
     db.prepare("UPDATE vouchers SET used_count = MAX(0, used_count - 1), updated_at = ? WHERE id = ?")
       .run(new Date().toISOString(), activeRedemption.voucher_id);
+  }
+}
+
+function mapSqlServerVoucherRow(r) {
+  if (!r) return null;
+  let data = {};
+  try {
+    data = typeof r.DuLieuMoi === "string" ? JSON.parse(r.DuLieuMoi) : (r.DuLieuMoi || {});
+  } catch {
+    data = {};
+  }
+  const code = String(data.code || r.DuLieuCu || "").trim().toUpperCase();
+  if (!code) return null;
+  return {
+    id: r.MaLog != null ? String(r.MaLog) : String(r.id),
+    maLog: r.MaLog != null ? Number(r.MaLog) : null,
+    rawPayload: data,
+    code,
+    name: data.name || "",
+    description: data.description || "",
+    discount_type: data.discountType || "percent",
+    discount_value: Number(data.discountValue || 0),
+    max_discount: data.maxDiscount !== null && data.maxDiscount !== undefined ? Number(data.maxDiscount) : null,
+    min_order_value: Number(data.minOrderValue || 0),
+    scope_type: data.scopeType || "all",
+    scope_regions_json: JSON.stringify(Array.isArray(data.scopeRegions) ? data.scopeRegions : []),
+    scope_tour_ids_json: JSON.stringify(Array.isArray(data.scopeTourIds) ? data.scopeTourIds : []),
+    start_at: data.startAt || iso(r.ThoiGian),
+    end_at: data.endAt || iso(r.ThoiGian),
+    usage_limit: Number(data.usageLimit ?? 0),
+    used_count: Number(data.usedCount ?? 0),
+    per_user_limit: Number(data.perUserLimit ?? 1),
+    target_audience: data.targetAudience || "all",
+    active: data.active === false || data.active === 0 ? 0 : 1,
+    created_at: data.createdAt || iso(r.ThoiGian),
+    updated_at: data.updatedAt || iso(r.ThoiGian)
+  };
+}
+
+function buildSqlServerVoucherJson(d, existing = null) {
+  const nowIso = new Date().toISOString();
+  return {
+    code: d.code,
+    name: d.name,
+    description: d.description || "",
+    discountType: d.discount_type,
+    discountValue: Number(d.discount_value),
+    maxDiscount: d.max_discount !== null && d.max_discount !== undefined ? Number(d.max_discount) : null,
+    minOrderValue: Number(d.min_order_value || 0),
+    scopeType: d.scope_type || "all",
+    scopeRegions: Array.isArray(d.scope_regions) ? d.scope_regions : [],
+    scopeTourIds: Array.isArray(d.scope_tour_ids) ? d.scope_tour_ids : [],
+    startAt: toSqlDateValue(d.start_at, false).toISOString(),
+    endAt: toSqlDateValue(d.end_at, true).toISOString(),
+    usageLimit: Number(d.usage_limit ?? 0),
+    usedCount: existing ? Number(existing.used_count || 0) : 0,
+    perUserLimit: Number(d.per_user_limit ?? 1),
+    targetAudience: d.target_audience || "all",
+    active: Boolean(d.active),
+    createdAt: existing?.created_at || nowIso,
+    updatedAt: nowIso
+  };
+}
+
+function ssNewRequest(txOrPool) {
+  return txOrPool.request();
+}
+
+async function ssListActiveVouchers() {
+  const res = await ssNewRequest(sqlServerPool).query(`
+    SELECT MaLog, DuLieuCu, DuLieuMoi, ThoiGian
+    FROM dbo.AUDITLOG
+    WHERE HanhDong = N'VOUCHER_DEF'
+    ORDER BY MaLog DESC
+  `);
+  return (res.recordset || []).map(mapSqlServerVoucherRow).filter(v => v && v.active);
+}
+
+async function ssGetVoucherByIdOrCode(idOrCode, tx = null, lockForUpdate = false) {
+  const req = ssNewRequest(tx || sqlServerPool);
+  const raw = String(idOrCode || "").trim();
+  const numericId = /^\d+$/.test(raw) ? Number.parseInt(raw, 10) : -1;
+  req.input("numericId", numericId);
+  req.input("normCode", raw.toUpperCase());
+  const hint = lockForUpdate ? "WITH (UPDLOCK, HOLDLOCK)" : "";
+  const res = await req.query(`
+    SELECT TOP 1 MaLog, DuLieuCu, DuLieuMoi, ThoiGian
+    FROM dbo.AUDITLOG ${hint}
+    WHERE HanhDong = N'VOUCHER_DEF'
+      AND (MaLog = @numericId OR UPPER(DuLieuCu) = @normCode)
+    ORDER BY MaLog DESC
+  `);
+  return mapSqlServerVoucherRow(res.recordset?.[0] || null);
+}
+
+async function ssListVoucherUses(normCode = null, tx = null) {
+  const req = ssNewRequest(tx || sqlServerPool);
+  let where = "WHERE HanhDong = N'VOUCHER_USE'";
+  if (normCode) {
+    req.input("normCode", normCode.toUpperCase());
+    where += " AND UPPER(DuLieuCu) = @normCode";
+  }
+  const res = await req.query(`
+    SELECT TOP 1000 MaLog, MaNguoiThucHien, DuLieuCu, DuLieuMoi, ThoiGian
+    FROM dbo.AUDITLOG ${where}
+    ORDER BY MaLog DESC
+  `);
+  return (res.recordset || []).map(row => {
+    let p = {};
+    try { p = JSON.parse(row.DuLieuMoi || "{}"); } catch {}
+    return {
+      maLog: row.MaLog,
+      code: String(p.code || row.DuLieuCu || "").toUpperCase(),
+      voucherLogId: p.voucherLogId != null ? String(p.voucherLogId) : null,
+      maDatTour: p.maDatTour ?? null,
+      bookingExternalId: p.bookingExternalId || null,
+      userExternalId: p.userExternalId || null,
+      maNguoiDung: p.maNguoiDung ?? row.MaNguoiThucHien ?? null,
+      email: String(p.email || "").trim().toLowerCase(),
+      phone: String(p.phone || "").trim(),
+      discountAmount: Number(p.discountAmount || 0),
+      bookingTotal: Number(p.bookingTotal || 0),
+      status: String(p.status || "ACTIVE").toUpperCase(),
+      createdAt: p.createdAt || iso(row.ThoiGian)
+    };
+  });
+}
+
+async function ssValidateVoucherForOrder({ code, tour, subtotal, sessionUser = null, resolvedUserId = null, customerEmail = "", customerPhone = "" }, tx = null) {
+  const normCode = String(code || "").trim().toUpperCase();
+  if (!normCode) {
+    return { ok: false, status: 422, errorCode: "EMPTY_CODE", detail: "Vui lòng nhập mã ưu đãi." };
+  }
+  const v = await ssGetVoucherByIdOrCode(normCode, tx, Boolean(tx));
+  const effectiveUserId = sessionUser?.id || resolvedUserId || null;
+  const effectiveEmail = (customerEmail || sessionUser?.email || "").trim().toLowerCase();
+  const effectivePhone = (customerPhone || sessionUser?.phone || "").trim();
+
+  let priorCustomerCount = 0;
+  if (v && v.target_audience === "new_customer") {
+    priorCustomerCount = countPriorCustomerBookings({
+      userId: effectiveUserId,
+      customerEmail: effectiveEmail,
+      customerPhone: effectivePhone
+    });
+    if (priorCustomerCount === 0 && (effectiveUserId || effectiveEmail || effectivePhone)) {
+      const allUses = await ssListVoucherUses(null, tx);
+      const ssActiveMatch = allUses.some(u =>
+        u.status === "ACTIVE" && (
+          (effectiveUserId && (u.userExternalId === String(effectiveUserId) || String(u.maNguoiDung) === String(effectiveUserId))) ||
+          (effectiveEmail && u.email === effectiveEmail) ||
+          (effectivePhone && effectivePhone !== "0900000000" && u.phone === effectivePhone)
+        )
+      );
+      if (ssActiveMatch) priorCustomerCount = 1;
+    }
+  }
+
+  let userRedemptionsCount = 0;
+  if (v && Number(v.per_user_limit || 0) > 0 && (effectiveUserId || effectiveEmail || effectivePhone)) {
+    const uses = await ssListVoucherUses(normCode, tx);
+    userRedemptionsCount = uses.filter(u =>
+      u.status === "ACTIVE" && (
+        (effectiveUserId && (u.userExternalId === String(effectiveUserId) || String(u.maNguoiDung) === String(effectiveUserId))) ||
+        (effectiveEmail && u.email === effectiveEmail) ||
+        (effectivePhone && effectivePhone !== "0900000000" && u.phone === effectivePhone)
+      )
+    ).length;
+  }
+
+  return evaluateVoucherRules(v, {
+    normCode,
+    tour,
+    subtotal,
+    sessionUser,
+    priorCustomerCount,
+    userRedemptionsCount
+  });
+}
+
+async function ssBuildAllAdminVouchersWithStats() {
+  const vouchersRes = await ssNewRequest(sqlServerPool).query(`
+    SELECT MaLog, DuLieuCu, DuLieuMoi, ThoiGian
+    FROM dbo.AUDITLOG
+    WHERE HanhDong = N'VOUCHER_DEF'
+    ORDER BY MaLog DESC
+  `);
+  const allUses = await ssListVoucherUses(null);
+
+  const extIds = [...new Set(allUses.map(u => u.bookingExternalId).filter(Boolean))];
+  const localBookingsMap = new Map();
+  if (extIds.length > 0) {
+    const placeholders = extIds.map(() => "?").join(",");
+    const bRows = db.prepare(`SELECT id, reference, customer_name, status, total_price FROM bookings WHERE id IN (${placeholders})`).all(...extIds);
+    for (const br of bRows) localBookingsMap.set(br.id, br);
+  }
+
+  const byCode = new Map();
+  for (const u of allUses) {
+    if (!byCode.has(u.code)) byCode.set(u.code, []);
+    byCode.get(u.code).push(u);
+  }
+
+  return (vouchersRes.recordset || []).map(row => {
+    const v = mapSqlServerVoucherRow(row);
+    if (!v) return null;
+    const list = byCode.get(v.code) || [];
+    let activeRedemptions = 0;
+    let completedRedemptions = 0;
+    let totalDiscountGranted = 0;
+    let totalRevenue = 0;
+
+    const recentRedemptions = [];
+    for (const u of list) {
+      const lb = u.bookingExternalId ? localBookingsMap.get(u.bookingExternalId) : null;
+      const bStatus = lb?.status || u.status;
+      const bTotal = lb ? Number(lb.total_price || 0) : Number(u.bookingTotal || 0);
+      if (u.status === "ACTIVE" && bStatus !== "CANCELLED") {
+        activeRedemptions += 1;
+        totalDiscountGranted += Number(u.discountAmount || 0);
+        totalRevenue += bTotal;
+        if (["PAID", "CONFIRMED", "COMPLETED"].includes(bStatus)) {
+          completedRedemptions += 1;
+        }
+      }
+      if (recentRedemptions.length < 10) {
+        recentRedemptions.push({
+          bookingId: u.bookingExternalId || (u.maDatTour != null ? String(u.maDatTour) : String(u.maLog)),
+          bookingRef: lb?.reference || (u.maDatTour != null ? `SQL-${u.maDatTour}` : u.bookingExternalId || String(u.maLog)),
+          customerName: lb?.customer_name || u.email || "Khách hàng",
+          customerEmail: u.email || "",
+          bookingStatus: bStatus,
+          discountAmount: Number(u.discountAmount || 0),
+          bookingTotal: bTotal,
+          status: u.status,
+          createdAt: u.createdAt
+        });
+      }
+    }
+
+    return publicVoucher(v, {
+      activeRedemptions,
+      completedRedemptions,
+      totalDiscountGranted,
+      totalRevenue,
+      recentRedemptions
+    });
+  }).filter(Boolean);
+}
+
+async function ssReleaseVoucherByExternalBooking(bookingId) {
+  if (!useSqlServerVouchers() || !bookingId) return;
+  try {
+    const allUses = await ssListVoucherUses(null);
+    const matches = allUses.filter(u => u.bookingExternalId === String(bookingId) && u.status === "ACTIVE");
+    if (matches.length === 0) return;
+
+    const req = ssNewRequest(sqlServerPool);
+    req.input("bookingExtId", String(bookingId));
+    const updRes = await req.query(`
+      UPDATE dbo.AUDITLOG
+      SET DuLieuMoi = JSON_MODIFY(DuLieuMoi, '$.status', N'RELEASED')
+      OUTPUT UPPER(inserted.DuLieuCu) AS MaCode
+      WHERE HanhDong = N'VOUCHER_USE'
+        AND ISJSON(DuLieuMoi) = 1
+        AND JSON_VALUE(CASE WHEN ISJSON(DuLieuMoi) = 1 THEN DuLieuMoi END, '$.bookingExternalId') = @bookingExtId
+        AND JSON_VALUE(CASE WHEN ISJSON(DuLieuMoi) = 1 THEN DuLieuMoi END, '$.status') = N'ACTIVE'
+    `);
+    const releasedCodes = new Map();
+    for (const r of (updRes.recordset || [])) {
+      const c = String(r.MaCode || "").toUpperCase();
+      if (c) releasedCodes.set(c, (releasedCodes.get(c) || 0) + 1);
+    }
+    for (const [code, cnt] of releasedCodes.entries()) {
+      const v = await ssGetVoucherByIdOrCode(code);
+      if (v) {
+        const nextPayload = { ...v.rawPayload, usedCount: Math.max(0, Number(v.used_count || 0) - cnt), updatedAt: new Date().toISOString() };
+        const dReq = ssNewRequest(sqlServerPool);
+        dReq.input("maLog", v.maLog);
+        dReq.input("payload", JSON.stringify(nextPayload));
+        await dReq.query("UPDATE dbo.AUDITLOG SET DuLieuMoi = @payload WHERE MaLog = @maLog AND HanhDong = N'VOUCHER_DEF'");
+      }
+    }
+  } catch (err) {
+    console.warn("[SQL SERVER] Release voucher warning:", err.message);
   }
 }
 
@@ -1586,16 +1941,21 @@ app.get("/api/v1/health/ready", (req, res) => {
     return res.json({
       status: "ok",
       db: "SQL Server (read-only)",
-      catalogMode: "sqlserver_read_only"
+      catalogMode: "sqlserver_read_only",
+      sqlServerConnected: useSqlServerVouchers(),
+      voucherDatabase: useSqlServerVouchers() ? "SQL Server" : "disabled"
     });
   }
 
   const row = db.prepare("SELECT COUNT(*) AS c FROM tours").get();
+  const ssReady = useSqlServerVouchers();
   res.json({
     status: "ok",
-    db: "SQLite demo (local booking writes)",
+    db: ssReady ? "SQL Server (vouchers) + SQLite" : "SQLite demo (local booking writes)",
     sqlServerDiagnosticConnection: Boolean(sqlServerPool),
-    writesDatabase: "SQLite demo",
+    sqlServerConnected: ssReady,
+    voucherDatabase: ssReady ? "SQL Server" : "SQLite demo",
+    writesDatabase: ssReady ? "SQL Server (vouchers) + SQLite" : "SQLite demo",
     tours: row.c,
     catalogMode: "sqlite"
   });
@@ -1854,94 +2214,108 @@ app.get("/api/v1/tours/:tour_id/itinerary", async (req, res) => {
 });
 
 // 5. Vouchers, Booking & Pricing Flow
-app.get("/api/v1/vouchers", (req, res) => {
-  if (process.env.THAM_SQLSERVER_CATALOG_API_URL) {
+app.get("/api/v1/vouchers", async (req, res) => {
+  if (process.env.THAM_SQLSERVER_CATALOG_API_URL && !useSqlServerVouchers()) {
     return res.json([]);
   }
-  const tourId = String(req.query.tour_id || req.query.tourId || "").trim();
-  const tour = tourId ? db.prepare("SELECT * FROM tours WHERE id = ? AND active = 1").get(tourId) : null;
-  const now = Date.now();
-  const rows = db.prepare("SELECT * FROM vouchers WHERE active = 1 ORDER BY created_at DESC").all();
-  const visible = rows
-    .filter(v => {
-      const startMs = Date.parse(v.start_at);
-      const endMs = parseEndTimestamp(v.end_at);
-      if (!isNaN(startMs) && now < startMs) return false;
-      if (!isNaN(endMs) && now > endMs) return false;
-      const limit = Number(v.usage_limit || 0);
-      if (limit > 0 && Number(v.used_count || 0) >= limit) return false;
-      if (tour) {
-        if (v.scope_type === "region") {
-          return safeJsonStringArray(v.scope_regions_json).includes(tour.region);
+  try {
+    const tourId = String(req.query.tour_id || req.query.tourId || "").trim();
+    const tour = tourId ? db.prepare("SELECT * FROM tours WHERE id = ? AND active = 1").get(tourId) : null;
+    const now = Date.now();
+    const rows = useSqlServerVouchers()
+      ? await ssListActiveVouchers()
+      : db.prepare("SELECT * FROM vouchers WHERE active = 1 ORDER BY created_at DESC").all();
+
+    const visible = rows
+      .filter(v => {
+        const startMs = Date.parse(v.start_at);
+        const endMs = parseEndTimestamp(v.end_at);
+        if (!isNaN(startMs) && now < startMs) return false;
+        if (!isNaN(endMs) && now > endMs) return false;
+        const limit = Number(v.usage_limit || 0);
+        if (limit > 0 && Number(v.used_count || 0) >= limit) return false;
+        if (tour) {
+          if (v.scope_type === "region") {
+            return safeJsonStringArray(v.scope_regions_json).includes(tour.region);
+          }
+          if (v.scope_type === "tours") {
+            const ids = safeJsonStringArray(v.scope_tour_ids_json).map(x => String(x).toUpperCase());
+            return ids.includes(String(tour.id).toUpperCase());
+          }
         }
-        if (v.scope_type === "tours") {
-          const ids = safeJsonStringArray(v.scope_tour_ids_json).map(x => String(x).toUpperCase());
-          return ids.includes(String(tour.id).toUpperCase());
-        }
-      }
-      return true;
-    })
-    .map(v => publicVoucher(v));
-  res.json(visible);
+        return true;
+      })
+      .map(v => publicVoucher(v));
+    res.json(visible);
+  } catch (err) {
+    res.status(503).json({ detail: "Không thể tải danh sách mã ưu đãi: " + err.message });
+  }
 });
 
-app.post("/api/v1/vouchers/validate", (req, res) => {
-  if (process.env.THAM_SQLSERVER_CATALOG_API_URL) {
+app.post("/api/v1/vouchers/validate", async (req, res) => {
+  if (process.env.THAM_SQLSERVER_CATALOG_API_URL && !useSqlServerVouchers()) {
     return res.status(503).json({ valid: false, detail: "Chế độ chỉ đọc SQL Server không hỗ trợ xác thực mã ưu đãi." });
   }
-  const body = req.body || {};
-  const code = body.code || body.voucher_code || body.voucherCode || "";
-  const tourId = body.tour_id || body.tourId || "";
-  const scheduleId = body.schedule_id || body.scheduleId || "";
-  const adults = Math.max(1, parseInt(body.adults || 1, 10) || 1);
-  const children = Math.max(0, parseInt(body.children || 0, 10) || 0);
-  const infants = Math.max(0, parseInt(body.infants || 0, 10) || 0);
-  const customerEmail = String(body.customer_email || body.customerEmail || "").trim();
-  const customerPhone = String(body.customer_phone || body.customerPhone || "").trim();
+  try {
+    const body = req.body || {};
+    const code = body.code || body.voucher_code || body.voucherCode || "";
+    const tourId = body.tour_id || body.tourId || "";
+    const scheduleId = body.schedule_id || body.scheduleId || "";
+    const adults = Math.max(1, parseInt(body.adults || 1, 10) || 1);
+    const children = Math.max(0, parseInt(body.children || 0, 10) || 0);
+    const infants = Math.max(0, parseInt(body.infants || 0, 10) || 0);
+    const customerEmail = String(body.customer_email || body.customerEmail || "").trim();
+    const customerPhone = String(body.customer_phone || body.customerPhone || "").trim();
 
-  let tour = tourId ? db.prepare("SELECT * FROM tours WHERE id = ? AND active = 1").get(tourId) : null;
-  if (!tour && scheduleId) {
-    const sched = db.prepare("SELECT * FROM schedules WHERE id = ? AND active = 1").get(scheduleId);
-    if (sched) {
-      tour = db.prepare("SELECT * FROM tours WHERE id = ? AND active = 1").get(sched.tour_id);
+    let tour = tourId ? db.prepare("SELECT * FROM tours WHERE id = ? AND active = 1").get(tourId) : null;
+    if (!tour && scheduleId) {
+      const sched = db.prepare("SELECT * FROM schedules WHERE id = ? AND active = 1").get(scheduleId);
+      if (sched) {
+        tour = db.prepare("SELECT * FROM tours WHERE id = ? AND active = 1").get(sched.tour_id);
+      }
     }
-  }
-  if (!tour) {
-    return res.status(404).json({ valid: false, errorCode: "TOUR_NOT_FOUND", detail: "Không tìm thấy tour để kiểm tra điều kiện mã ưu đãi." });
-  }
+    if (!tour) {
+      return res.status(404).json({ valid: false, errorCode: "TOUR_NOT_FOUND", detail: "Không tìm thấy tour để kiểm tra điều kiện mã ưu đãi." });
+    }
 
-  // Luôn tính tạm tính theo đơn giá thực trong Database, bỏ qua mọi giá/số tiền giảm do client tự gửi
-  const subtotal = calculateTotals(tour.price, adults, children, infants);
-  const sessionUser = getSessionUser(req);
-  const result = validateVoucherForOrder({
-    code,
-    tour,
-    subtotal,
-    sessionUser,
-    resolvedUserId: sessionUser?.id || null,
-    customerEmail,
-    customerPhone
-  });
+    // Luôn tính tạm tính theo đơn giá thực trong Database, bỏ qua mọi giá/số tiền giảm do client tự gửi
+    const subtotal = calculateTotals(tour.price, adults, children, infants);
+    const sessionUser = getSessionUser(req);
+    const params = {
+      code,
+      tour,
+      subtotal,
+      sessionUser,
+      resolvedUserId: sessionUser?.id || null,
+      customerEmail,
+      customerPhone
+    };
+    const result = useSqlServerVouchers()
+      ? await ssValidateVoucherForOrder(params)
+      : validateVoucherForOrder(params);
 
-  if (!result.ok) {
-    return res.status(result.status || 422).json({
-      valid: false,
-      errorCode: result.errorCode,
-      detail: result.detail,
-      subtotalPrice: subtotal,
-      discountAmount: 0,
-      totalPrice: subtotal
+    if (!result.ok) {
+      return res.status(result.status || 422).json({
+        valid: false,
+        errorCode: result.errorCode,
+        detail: result.detail,
+        subtotalPrice: subtotal,
+        discountAmount: 0,
+        totalPrice: subtotal
+      });
+    }
+
+    res.json({
+      valid: true,
+      voucher: result.voucher,
+      subtotalPrice: result.subtotalPrice,
+      discountAmount: result.discountAmount,
+      totalPrice: result.finalTotal,
+      message: `Áp dụng thành công mã ${result.voucher.code}: Giảm ${formatVndServer(result.discountAmount)}`
     });
+  } catch (err) {
+    res.status(503).json({ valid: false, detail: "Lỗi kiểm tra mã ưu đãi trên máy chủ: " + err.message });
   }
-
-  res.json({
-    valid: true,
-    voucher: result.voucher,
-    subtotalPrice: result.subtotalPrice,
-    discountAmount: result.discountAmount,
-    totalPrice: result.finalTotal,
-    message: `Áp dụng thành công mã ${result.voucher.code}: Giảm ${formatVndServer(result.discountAmount)}`
-  });
 });
 
 function calculateTotals(unitPrice, adults, children = 0, infants = 0) {
@@ -1950,70 +2324,77 @@ function calculateTotals(unitPrice, adults, children = 0, infants = 0) {
   return unitPrice * adults + childPrice * children + infantPrice * infants;
 }
 
-app.post("/api/v1/bookings/quote", (req, res) => {
-  const body = req.body || {};
-  const schedule_id = body.schedule_id || body.scheduleId;
-  const adults = Number(body.adults || 0);
-  const children = Number(body.children || 0);
-  const infants = Number(body.infants || 0);
-  const voucherCode = String(body.voucher_code || body.voucherCode || "").trim();
-  const customerEmail = String(body.customer_email || body.customerEmail || "").trim();
-  const customerPhone = String(body.customer_phone || body.customerPhone || "").trim();
+app.post("/api/v1/bookings/quote", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const schedule_id = body.schedule_id || body.scheduleId;
+    const adults = Number(body.adults || 0);
+    const children = Number(body.children || 0);
+    const infants = Number(body.infants || 0);
+    const voucherCode = String(body.voucher_code || body.voucherCode || "").trim();
+    const customerEmail = String(body.customer_email || body.customerEmail || "").trim();
+    const customerPhone = String(body.customer_phone || body.customerPhone || "").trim();
 
-  if (!schedule_id || !Number.isInteger(adults) || adults < 1 || children < 0 || infants < 0) {
-    return res.status(422).json({ detail: "Thông tin tính giá không hợp lệ." });
-  }
-
-  const sched = db.prepare("SELECT * FROM schedules WHERE id = ? AND active = 1").get(schedule_id);
-  if (!sched) return res.status(404).json({ detail: "Lịch khởi hành không tồn tại." });
-
-  const tour = db.prepare("SELECT * FROM tours WHERE id = ? AND active = 1").get(sched.tour_id);
-  if (!tour) return res.status(404).json({ detail: "Tour không tồn tại." });
-
-  const totalSeats = adults + children + infants;
-  const avail = sched.total_seats - (sched.reserved_seats || 0);
-  const subtotalPrice = calculateTotals(tour.price, adults, children, infants);
-
-  let discountAmount = 0;
-  let finalTotal = subtotalPrice;
-  let voucherDto = null;
-  if (voucherCode) {
-    const sessionUser = getSessionUser(req);
-    const vRes = validateVoucherForOrder({
-      code: voucherCode,
-      tour,
-      subtotal: subtotalPrice,
-      sessionUser,
-      resolvedUserId: sessionUser?.id || null,
-      customerEmail,
-      customerPhone
-    });
-    if (!vRes.ok) {
-      return res.status(vRes.status || 422).json({ detail: vRes.detail, errorCode: vRes.errorCode });
+    if (!schedule_id || !Number.isInteger(adults) || adults < 1 || children < 0 || infants < 0) {
+      return res.status(422).json({ detail: "Thông tin tính giá không hợp lệ." });
     }
-    discountAmount = vRes.discountAmount;
-    finalTotal = vRes.finalTotal;
-    voucherDto = vRes.voucher;
-  }
 
-  res.json({
-    scheduleId: sched.id,
-    tourId: tour.id,
-    seats: totalSeats,
-    availableSeats: Math.max(0, avail),
-    unitPrice: tour.price,
-    subtotalPrice,
-    discountAmount,
-    totalPrice: finalTotal,
-    voucher: voucherDto,
-    currency: "VND",
-    pricingRules: { childPercent: 75, infantPercent: 10 },
-    addonsSupported: false,
-    vouchersSupported: true
-  });
+    const sched = db.prepare("SELECT * FROM schedules WHERE id = ? AND active = 1").get(schedule_id);
+    if (!sched) return res.status(404).json({ detail: "Lịch khởi hành không tồn tại." });
+
+    const tour = db.prepare("SELECT * FROM tours WHERE id = ? AND active = 1").get(sched.tour_id);
+    if (!tour) return res.status(404).json({ detail: "Tour không tồn tại." });
+
+    const totalSeats = adults + children + infants;
+    const avail = sched.total_seats - (sched.reserved_seats || 0);
+    const subtotalPrice = calculateTotals(tour.price, adults, children, infants);
+
+    let discountAmount = 0;
+    let finalTotal = subtotalPrice;
+    let voucherDto = null;
+    if (voucherCode) {
+      const sessionUser = getSessionUser(req);
+      const params = {
+        code: voucherCode,
+        tour,
+        subtotal: subtotalPrice,
+        sessionUser,
+        resolvedUserId: sessionUser?.id || null,
+        customerEmail,
+        customerPhone
+      };
+      const vRes = useSqlServerVouchers()
+        ? await ssValidateVoucherForOrder(params)
+        : validateVoucherForOrder(params);
+      if (!vRes.ok) {
+        return res.status(vRes.status || 422).json({ detail: vRes.detail, errorCode: vRes.errorCode });
+      }
+      discountAmount = vRes.discountAmount;
+      finalTotal = vRes.finalTotal;
+      voucherDto = vRes.voucher;
+    }
+
+    res.json({
+      scheduleId: sched.id,
+      tourId: tour.id,
+      seats: totalSeats,
+      availableSeats: Math.max(0, avail),
+      unitPrice: tour.price,
+      subtotalPrice,
+      discountAmount,
+      totalPrice: finalTotal,
+      voucher: voucherDto,
+      currency: "VND",
+      pricingRules: { childPercent: 75, infantPercent: 10 },
+      addonsSupported: false,
+      vouchersSupported: true
+    });
+  } catch (err) {
+    res.status(503).json({ detail: "Lỗi tính báo giá: " + err.message });
+  }
 });
 
-app.post("/api/v1/bookings", requireAuthOrGuest, (req, res) => {
+app.post("/api/v1/bookings", requireAuthOrGuest, async (req, res) => {
   const b = req.body || {};
   const schedule_id = b.schedule_id || b.scheduleId;
   const adults = Number(b.adults ?? 1);
@@ -2071,10 +2452,59 @@ app.post("/api/v1/bookings", requireAuthOrGuest, (req, res) => {
   const now = new Date().toISOString();
   const payloadFingerprint = crypto.createHash("sha256").update(JSON.stringify(req.body)).digest("hex");
 
-  // Transaction lưu booking, giữ chỗ và kiểm soát giới hạn lượt voucher an toàn đồng thời
+  // Transaction lưu booking, giữ chỗ và kiểm soát giới hạn lượt voucher an toàn đồng thời (SQL Server hoặc SQLite)
   let discountAmount = 0;
   let totalPrice = subtotalPrice;
   let appliedVoucher = null;
+  const usingSsVoucher = Boolean(voucherCode && useSqlServerVouchers());
+  let ssTx = null;
+
+  if (usingSsVoucher) {
+    try {
+      ssTx = typeof sqlServerPool.transaction === "function"
+        ? sqlServerPool.transaction()
+        : new (require("mssql")).Transaction(sqlServerPool);
+      await ssTx.begin();
+      const vRes = await ssValidateVoucherForOrder({
+        code: voucherCode,
+        tour,
+        subtotal: subtotalPrice,
+        sessionUser: req.isSessionAuthenticated ? req.user : null,
+        resolvedUserId: req.user.id,
+        customerEmail: customer_email,
+        customerPhone: customer_phone
+      }, ssTx);
+      if (!vRes.ok) {
+        await ssTx.rollback().catch(() => {});
+        return res.status(vRes.status || 422).json({ detail: vRes.detail, errorCode: vRes.errorCode });
+      }
+      const nextUsedPayload = {
+        ...vRes.voucherRow.rawPayload,
+        usedCount: Number(vRes.voucherRow.used_count || 0) + 1,
+        updatedAt: new Date().toISOString()
+      };
+      const qReq = ssNewRequest(ssTx);
+      qReq.input("maLog", vRes.voucherRow.maLog);
+      qReq.input("expectedUsed", Number(vRes.voucherRow.used_count || 0));
+      qReq.input("nextPayload", JSON.stringify(nextUsedPayload));
+      const qRes = await qReq.query(`
+        UPDATE dbo.AUDITLOG
+        SET DuLieuMoi = @nextPayload
+        WHERE MaLog = @maLog AND HanhDong = N'VOUCHER_DEF'
+          AND ISNULL(TRY_CAST(JSON_VALUE(CASE WHEN ISJSON(DuLieuMoi) = 1 THEN DuLieuMoi END, '$.usedCount') AS INT), 0) = @expectedUsed
+      `);
+      if (!qRes.rowsAffected || qRes.rowsAffected[0] !== 1) {
+        await ssTx.rollback().catch(() => {});
+        return res.status(409).json({ detail: `Mã ưu đãi "${voucherCode}" đã hết lượt sử dụng.`, errorCode: "VOUCHER_EXHAUSTED" });
+      }
+      discountAmount = vRes.discountAmount;
+      totalPrice = vRes.finalTotal;
+      appliedVoucher = vRes.voucherRow;
+    } catch (err) {
+      if (ssTx) await ssTx.rollback().catch(() => {});
+      return res.status(503).json({ detail: "Lỗi xác thực mã ưu đãi trên SQL Server: " + err.message });
+    }
+  }
 
   db.exec("BEGIN IMMEDIATE");
   try {
@@ -2082,10 +2512,11 @@ app.post("/api/v1/bookings", requireAuthOrGuest, (req, res) => {
     const avail = freshSched ? (freshSched.total_seats - (freshSched.reserved_seats || 0)) : 0;
     if (!freshSched || totalSeats > avail) {
       db.exec("ROLLBACK");
+      if (ssTx) await ssTx.rollback().catch(() => {});
       return res.status(409).json({ detail: "Không đủ chỗ trống cho số lượng khách này." });
     }
 
-    if (voucherCode) {
+    if (voucherCode && !usingSsVoucher) {
       const vRes = validateVoucherForOrder({
         code: voucherCode,
         tour,
@@ -2132,7 +2563,7 @@ app.post("/api/v1/bookings", requireAuthOrGuest, (req, res) => {
       expiresAt, now, now
     );
 
-    if (appliedVoucher) {
+    if (appliedVoucher && !usingSsVoucher) {
       db.prepare(`
         INSERT INTO voucher_redemptions (
           id, voucher_id, voucher_code, booking_id, user_id, customer_email, customer_phone, discount_amount, status, created_at
@@ -2146,9 +2577,36 @@ app.post("/api/v1/bookings", requireAuthOrGuest, (req, res) => {
     db.prepare("UPDATE schedules SET reserved_seats = reserved_seats + ? WHERE id = ?")
       .run(totalSeats, resolvedScheduleId);
 
+    if (usingSsVoucher && ssTx && appliedVoucher) {
+      const redReq = ssNewRequest(ssTx);
+      const usePayload = {
+        voucherLogId: appliedVoucher.maLog,
+        code: appliedVoucher.code,
+        maDatTour: null,
+        bookingExternalId: bookingId,
+        maNguoiDung: null,
+        userExternalId: String(req.user.id),
+        email: customer_email.trim().toLowerCase(),
+        phone: customer_phone,
+        subtotal: subtotalPrice,
+        discountAmount,
+        bookingTotal: totalPrice,
+        status: "ACTIVE",
+        createdAt: now
+      };
+      redReq.input("maCode", appliedVoucher.code);
+      redReq.input("payload", JSON.stringify(usePayload));
+      await redReq.query(`
+        INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
+        VALUES (NULL, N'VOUCHER_USE', @maCode, @payload, GETDATE())
+      `);
+      await ssTx.commit();
+    }
+
     db.exec("COMMIT");
   } catch (err) {
-    db.exec("ROLLBACK");
+    try { db.exec("ROLLBACK"); } catch {}
+    if (ssTx) await ssTx.rollback().catch(() => {});
     return res.status(409).json({ detail: "Lỗi ghi dữ liệu: " + err.message });
   }
 
@@ -2158,6 +2616,7 @@ app.post("/api/v1/bookings", requireAuthOrGuest, (req, res) => {
     subtotal: subtotalPrice,
     discount: discountAmount,
     voucherCode: appliedVoucher?.code || null,
+    voucherBackend: usingSsVoucher ? "sqlserver" : "sqlite",
     total: totalPrice
   });
   res.status(201).json(bookingDict(saved));
@@ -2229,7 +2688,7 @@ app.post("/api/v1/bookings/:booking_id/pay", requireAuthOrGuest, (req, res) => {
   res.status(202).json({ ...bookingDict(updated), paymentReview: "PENDING_MANUAL_VERIFICATION" });
 });
 
-app.post("/api/v1/bookings/:booking_id/cancel", requireAuth, (req, res) => {
+app.post("/api/v1/bookings/:booking_id/cancel", requireAuth, async (req, res) => {
   const { reason = "Khách hủy đơn" } = req.body || {};
   const b = db.prepare("SELECT * FROM bookings WHERE id = ? AND user_id = ?").get(req.params.booking_id, req.user.id);
   if (!b) return res.status(404).json({ detail: "Đơn không tồn tại." });
@@ -2257,6 +2716,8 @@ app.post("/api/v1/bookings/:booking_id/cancel", requireAuth, (req, res) => {
     db.exec("ROLLBACK");
     return res.status(409).json({ detail: err.message });
   }
+
+  await ssReleaseVoucherByExternalBooking(b.id);
 
   const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(b.id);
   audit(req.user.id, "BOOKING_CANCELLED", b.id, { reason });
@@ -2682,7 +3143,7 @@ app.get("/api/v1/admin/bookings", requireAdmin, (req, res) => {
   })));
 });
 
-app.patch("/api/v1/admin/bookings/:booking_id", requireAdmin, (req, res) => {
+app.patch("/api/v1/admin/bookings/:booking_id", requireAdmin, async (req, res) => {
   const { booking_id } = req.params;
   const { status, reason } = req.body || {};
   const allowed = new Set(["PENDING_PAYMENT", "PAID", "CONFIRMED", "COMPLETED", "CANCELLED"]);
@@ -2718,6 +3179,10 @@ app.patch("/api/v1/admin/bookings/:booking_id", requireAdmin, (req, res) => {
   } catch (err) {
     db.exec("ROLLBACK");
     return res.status(409).json({ detail: "Không thể cập nhật đơn: " + err.message });
+  }
+
+  if (status === "CANCELLED" && b.status !== "CANCELLED") {
+    await ssReleaseVoucherByExternalBooking(b.id);
   }
 
   const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(b.id);
@@ -2935,12 +3400,30 @@ function buildAdminVoucherStats(voucherId) {
   };
 }
 
-app.get("/api/v1/admin/vouchers", requireAdmin, (req, res) => {
-  const rows = db.prepare("SELECT * FROM vouchers ORDER BY created_at DESC").all();
-  res.json(rows.map(v => publicVoucher(v, buildAdminVoucherStats(v.id))));
+function toSqlDateValue(val, isEnd = false) {
+  const s = String(val || "").trim();
+  if (!s) return new Date();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return new Date(`${s}T${isEnd ? "23:59:59.000Z" : "00:00:00.000Z"}`);
+  }
+  const ms = isEnd ? parseEndTimestamp(s) : Date.parse(s);
+  return Number.isFinite(ms) ? new Date(ms) : new Date();
+}
+
+app.get("/api/v1/admin/vouchers", requireAdmin, async (req, res) => {
+  try {
+    if (useSqlServerVouchers()) {
+      const list = await ssBuildAllAdminVouchersWithStats();
+      return res.json(list);
+    }
+    const rows = db.prepare("SELECT * FROM vouchers ORDER BY created_at DESC").all();
+    res.json(rows.map(v => publicVoucher(v, buildAdminVoucherStats(v.id))));
+  } catch (err) {
+    res.status(503).json({ detail: "Lỗi tải mã ưu đãi từ SQL Server: " + err.message });
+  }
 });
 
-app.post("/api/v1/admin/vouchers", requireAdmin, (req, res) => {
+app.post("/api/v1/admin/vouchers", requireAdmin, async (req, res) => {
   const parsed = parseAdminVoucherInput(req.body, false);
   if (parsed.error) return res.status(422).json({ detail: parsed.error });
   const d = parsed.data;
@@ -2956,6 +3439,35 @@ app.post("/api/v1/admin/vouchers", requireAdmin, (req, res) => {
   }
   if (d.scope_type === "tours" && d.scope_tour_ids.length === 0) {
     return res.status(422).json({ detail: "Vui lòng chọn ít nhất 1 tour áp dụng." });
+  }
+
+  if (useSqlServerVouchers()) {
+    try {
+      const existing = await ssGetVoucherByIdOrCode(d.code);
+      if (existing) {
+        return res.status(409).json({ detail: `Mã ưu đãi "${d.code}" đã tồn tại.` });
+      }
+      const payload = buildSqlServerVoucherJson(d);
+      const ssReq = ssNewRequest(sqlServerPool);
+      ssReq.input("code", d.code);
+      ssReq.input("payload", JSON.stringify(payload));
+      const insRes = await ssReq.query(`
+        INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
+        OUTPUT INSERTED.*
+        VALUES (NULL, N'VOUCHER_DEF', @code, @payload, GETDATE())
+      `);
+      const created = mapSqlServerVoucherRow(insRes.recordset?.[0]);
+      audit(req.user.id, "VOUCHER_CREATED", created.id, { code: d.code, backend: "sqlserver_12table" });
+      return res.status(201).json(publicVoucher(created, {
+        activeRedemptions: 0,
+        completedRedemptions: 0,
+        totalDiscountGranted: 0,
+        totalRevenue: 0,
+        recentRedemptions: []
+      }));
+    } catch (err) {
+      return res.status(503).json({ detail: "Lỗi tạo mã ưu đãi trên SQL Server: " + err.message });
+    }
   }
 
   const dup = db.prepare("SELECT id FROM vouchers WHERE UPPER(code) = ?").get(d.code);
@@ -2982,14 +3494,79 @@ app.post("/api/v1/admin/vouchers", requireAdmin, (req, res) => {
   res.status(201).json(publicVoucher(created, buildAdminVoucherStats(id)));
 });
 
-app.patch("/api/v1/admin/vouchers/:voucher_id", requireAdmin, (req, res) => {
+app.patch("/api/v1/admin/vouchers/:voucher_id", requireAdmin, async (req, res) => {
   const { voucher_id } = req.params;
-  const existing = db.prepare("SELECT * FROM vouchers WHERE id = ? OR UPPER(code) = UPPER(?)").get(voucher_id, voucher_id);
-  if (!existing) return res.status(404).json({ detail: "Không tìm thấy mã ưu đãi." });
-
   const parsed = parseAdminVoucherInput(req.body, true);
   if (parsed.error) return res.status(422).json({ detail: parsed.error });
   const d = parsed.data;
+
+  if (useSqlServerVouchers()) {
+    try {
+      const existing = await ssGetVoucherByIdOrCode(voucher_id);
+      if (!existing) return res.status(404).json({ detail: "Không tìm thấy mã ưu đãi." });
+
+      const merged = {
+        code: d.code ?? existing.code,
+        name: d.name ?? existing.name,
+        description: d.description ?? existing.description,
+        discount_type: d.discount_type ?? existing.discount_type,
+        discount_value: d.discount_value ?? existing.discount_value,
+        max_discount: Object.hasOwn(d, "max_discount") ? d.max_discount : existing.max_discount,
+        min_order_value: d.min_order_value ?? existing.min_order_value,
+        scope_type: d.scope_type ?? existing.scope_type,
+        scope_regions: Object.hasOwn(d, "scope_regions") ? d.scope_regions : safeJsonStringArray(existing.scope_regions_json),
+        scope_tour_ids: Object.hasOwn(d, "scope_tour_ids") ? d.scope_tour_ids : safeJsonStringArray(existing.scope_tour_ids_json),
+        start_at: d.start_at ?? existing.start_at,
+        end_at: d.end_at ?? existing.end_at,
+        usage_limit: d.usage_limit ?? existing.usage_limit,
+        per_user_limit: d.per_user_limit ?? existing.per_user_limit,
+        target_audience: d.target_audience ?? existing.target_audience,
+        active: Object.hasOwn(d, "active") ? d.active : existing.active
+      };
+
+      if (merged.discount_type === "percent" && Number(merged.discount_value) > 100) {
+        return res.status(422).json({ detail: "Phần trăm giảm giá chỉ được từ 1% đến 100%." });
+      }
+      if (parseEndTimestamp(merged.end_at) < Date.parse(merged.start_at)) {
+        return res.status(422).json({ detail: "Thời gian kết thúc phải sau hoặc bằng thời gian bắt đầu." });
+      }
+      if (merged.scope_type === "region" && merged.scope_regions.length === 0) {
+        return res.status(422).json({ detail: "Vui lòng chọn ít nhất 1 khu vực áp dụng." });
+      }
+      if (merged.scope_type === "tours" && merged.scope_tour_ids.length === 0) {
+        return res.status(422).json({ detail: "Vui lòng chọn ít nhất 1 tour áp dụng." });
+      }
+      if (Number(merged.usage_limit) > 0 && Number(merged.usage_limit) < Number(existing.used_count || 0)) {
+        return res.status(422).json({ detail: `Tổng lượt sử dụng không được nhỏ hơn số lượt đã dùng (${existing.used_count}).` });
+      }
+
+      const dupCheck = await ssGetVoucherByIdOrCode(merged.code);
+      if (dupCheck && dupCheck.id !== existing.id) {
+        return res.status(409).json({ detail: `Mã ưu đãi "${merged.code}" đã tồn tại.` });
+      }
+
+      const payload = buildSqlServerVoucherJson(merged, existing);
+      const ssReq = ssNewRequest(sqlServerPool);
+      ssReq.input("maLog", existing.maLog);
+      ssReq.input("code", merged.code);
+      ssReq.input("payload", JSON.stringify(payload));
+      await ssReq.query(`
+        UPDATE dbo.AUDITLOG
+        SET DuLieuCu = @code, DuLieuMoi = @payload
+        WHERE MaLog = @maLog AND HanhDong = N'VOUCHER_DEF'
+      `);
+
+      const allWithStats = await ssBuildAllAdminVouchersWithStats();
+      const updated = allWithStats.find(item => item.id === existing.id);
+      audit(req.user.id, "VOUCHER_UPDATED", existing.id, { code: merged.code, active: Boolean(merged.active), backend: "sqlserver_12table" });
+      return res.json(updated);
+    } catch (err) {
+      return res.status(503).json({ detail: "Lỗi cập nhật mã ưu đãi trên SQL Server: " + err.message });
+    }
+  }
+
+  const existing = db.prepare("SELECT * FROM vouchers WHERE id = ? OR UPPER(code) = UPPER(?)").get(voucher_id, voucher_id);
+  if (!existing) return res.status(404).json({ detail: "Không tìm thấy mã ưu đãi." });
 
   const merged = {
     code: d.code ?? existing.code,
@@ -3052,8 +3629,22 @@ app.patch("/api/v1/admin/vouchers/:voucher_id", requireAdmin, (req, res) => {
   res.json(publicVoucher(updated, buildAdminVoucherStats(existing.id)));
 });
 
-app.delete("/api/v1/admin/vouchers/:voucher_id", requireAdmin, (req, res) => {
+app.delete("/api/v1/admin/vouchers/:voucher_id", requireAdmin, async (req, res) => {
   const { voucher_id } = req.params;
+  if (useSqlServerVouchers()) {
+    try {
+      const existing = await ssGetVoucherByIdOrCode(voucher_id);
+      if (!existing) return res.status(404).json({ detail: "Không tìm thấy mã ưu đãi." });
+      const ssReq = ssNewRequest(sqlServerPool);
+      ssReq.input("maLog", existing.maLog);
+      await ssReq.query("DELETE FROM dbo.AUDITLOG WHERE MaLog = @maLog AND HanhDong = N'VOUCHER_DEF'");
+      audit(req.user.id, "VOUCHER_DELETED", existing.id, { code: existing.code, backend: "sqlserver_12table" });
+      return res.json({ status: "ok", id: existing.id, code: existing.code });
+    } catch (err) {
+      return res.status(503).json({ detail: "Lỗi xóa mã ưu đãi trên SQL Server: " + err.message });
+    }
+  }
+
   const existing = db.prepare("SELECT * FROM vouchers WHERE id = ? OR UPPER(code) = UPPER(?)").get(voucher_id, voucher_id);
   if (!existing) return res.status(404).json({ detail: "Không tìm thấy mã ưu đãi." });
 
@@ -3425,4 +4016,9 @@ server.on("error", (err) => {
   process.exit(1);
 });
 
-module.exports = { app, server, db };
+function setSqlServerTestConnection(pool, ready = false) {
+  sqlServerPool = pool;
+  sqlServerVoucherReady = Boolean(pool && ready);
+}
+
+module.exports = { app, server, db, setSqlServerTestConnection };
