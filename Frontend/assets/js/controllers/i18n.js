@@ -343,7 +343,10 @@ const DELTA_TRANSLATIONS = {
     receipt_transfer_note: "Cú pháp chuyển khoản:",
     receipt_btn_print: "In phiếu xác nhận",
     receipt_btn_home: "Về Trang Chủ",
-    receipt_btn_my_bookings: "Xem Đơn Của Tôi"
+    receipt_btn_my_bookings: "Xem Đơn Của Tôi",
+    btn_confirm_paid: "Đã chuyển",
+    btn_save_invoice: "Lưu hóa đơn chứng từ chuẩn quốc tế",
+    btn_zalo_contact: "Liên hệ Zalo: 0325536936"
   },
 
   en: {
@@ -682,7 +685,10 @@ const DELTA_TRANSLATIONS = {
     receipt_transfer_note: "Transfer Reference:",
     receipt_btn_print: "Print Confirmation",
     receipt_btn_home: "Back to Home",
-    receipt_btn_my_bookings: "View My Bookings"
+    receipt_btn_my_bookings: "View My Bookings",
+    btn_confirm_paid: "Paid",
+    btn_save_invoice: "Save Official International Invoice",
+    btn_zalo_contact: "Contact Zalo: 0325536936"
   }
 };
 

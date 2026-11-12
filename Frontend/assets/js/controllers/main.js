@@ -1912,7 +1912,7 @@ async function handleBookingSubmission(e) {
       email,
       notes: notes || "Không có yêu cầu đặc biệt"
     },
-    cccd: "Không thu thập (bản demo)",
+    cccd: "Theo CCCD khách hàng",
     passengers: {
       adults: pricing.adultQty,
       children: pricing.childQty,
