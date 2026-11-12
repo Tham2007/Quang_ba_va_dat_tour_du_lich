@@ -414,6 +414,7 @@
   </main>
 
   <script src="assets/js/services/api.js"></script>
+  <script src="assets/js/services/vietqr-service.js"></script>
   <script>
     let allBookings = [];
     let currentSearch = "";
@@ -641,7 +642,7 @@
             <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px 12px; font-weight:600; color:#475569; background:#f8fafc;">Ngày Khởi Hành:</td><td style="padding:8px 12px; font-weight:700; color:#0284c7;">${b.departureDate || b.departureAt || 'Theo lịch trình'}</td></tr>
             <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px 12px; font-weight:600; color:#475569; background:#f8fafc;">Số Lượng Khách:</td><td style="padding:8px 12px; font-weight:700;">${b.adults || b.passengers?.adults || 1} Người lớn${(b.children || b.passengers?.children) ? ', ' + (b.children || b.passengers?.children) + ' Trẻ em' : ''}</td></tr>
             <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px 12px; font-weight:600; color:#475569; background:#f8fafc;">Tổng Tiền:</td><td style="padding:8px 12px; font-weight:900; color:#dc2626; font-size:16px;">${formatVND(b.totalPrice || b.pricing?.total || 0)}</td></tr>
-            <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px 12px; font-weight:600; color:#475569; background:#f8fafc;">Phương Thức:</td><td style="padding:8px 12px;">${b.paymentMethod || 'Chuyển khoản nhanh VietQR (MBBank)'}</td></tr>
+            <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px 12px; font-weight:600; color:#475569; background:#f8fafc;">Phương Thức:</td><td style="padding:8px 12px;">${b.paymentMethod || 'Chuyển khoản nhanh VietQR (MBBank 0325536936 - LE VAN AN)'}</td></tr>
             <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px 12px; font-weight:600; color:#475569; background:#f8fafc;">Thời Gian Đặt:</td><td style="padding:8px 12px;">${new Date(b.createdAt || Date.now()).toLocaleString('vi-VN')}</td></tr>
           </tbody>
         </table>
@@ -727,6 +728,7 @@
 
   <!-- Kết nối API & Auth -->
   <script src="assets/js/services/api.js"></script>
+  <script src="assets/js/services/vietqr-service.js"></script>
   <script src="assets/js/controllers/auth.js"></script>
 </body>
 </html>

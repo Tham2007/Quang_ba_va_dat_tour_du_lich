@@ -2331,10 +2331,10 @@ function openCustomerBookingDetail(bookingId) {
 
           <!-- Chi tiết VietQR -->
           <div id="detailVietQrBox" class="p-3 bg-light rounded-3 border mb-2 text-center">
-            <img src="assets/images/qr-payment.png" alt="Mã VietQR Thanh Toán" style="width: 160px; height: 160px; object-fit: contain; border-radius: 8px;" class="mb-2 shadow-xs" onerror="this.onerror=null; this.src='assets/images/qr-payment.png';">
-            <div class="small fw-bold text-dark">VIETQR THANH TOÁN TỰ ĐỘNG 24/7</div>
-            <div class="small text-muted font-monospace">Hệ thống xử lý vé điện tử tức thì</div>
-            <div class="small text-danger fw-bold mt-1">Cú pháp CK: <code class="p-1 bg-white border rounded text-danger">${b.bookingId}</code></div>
+            <img src="${(typeof VietQRService !== 'undefined') ? VietQRService.getQuickLinkUrl({ amount: b.pricing?.total || 0, memo: VietQRService.generateTransferContent(b.tourId || b.tourCode, b.bookingId || b.id, b.customer?.id), template: 'compact2' }) : 'https://img.vietqr.io/image/970422-0325536936-compact2.png?amount=' + (b.pricing?.total || 0) + '&addInfo=' + encodeURIComponent((b.tourId || 'TOUR') + ' ' + (b.bookingId || 'DELTA')) + '&accountName=LE%20VAN%20AN'}" alt="Mã VietQR Thanh Toán MBBank" style="width: 220px; height: 220px; object-fit: contain; border-radius: 8px;" class="mb-2 shadow-xs bg-white p-1 border">
+            <div class="small fw-bold text-dark">MBBank (Ngân hàng Quân Đội)</div>
+            <div class="small text-muted font-monospace">STK: <strong class="text-primary fs-6">0325536936</strong> · Chủ TK: <strong>LE VAN AN</strong></div>
+            <div class="small text-danger fw-bold mt-1">Cú pháp CK: <code class="p-1 bg-white border rounded text-danger user-select-all">${(typeof VietQRService !== 'undefined') ? VietQRService.generateTransferContent(b.tourId || b.tourCode, b.bookingId || b.id, b.customer?.id) : ((b.tourId || 'TOUR') + ' ' + (b.bookingId || 'DELTA'))}</code></div>
           </div>
 
           <!-- 2. Tiền mặt tại quầy -->

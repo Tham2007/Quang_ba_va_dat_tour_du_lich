@@ -2002,8 +2002,8 @@ app.post("/api/v1/assistant/chat", async (req, res) => {
         : "Để đặt tour trên Delta Travel:\n1. Chọn tour ưng ý và bấm 'Đặt ngay'.\n2. Chọn Ngày khởi hành phù hợp và số lượng khách (Người lớn, Trẻ em).\n3. Điền thông tin người đại diện đặt vé.\n4. Chọn phương thức thanh toán VietQR MBBank hoặc Thẻ/Tiền mặt.\n5. Nhấn 'Xác nhận đặt tour' để nhận Vé Điện Tử (E-Ticket) ngay lập tức!";
     } else if (/thanh toán|pay/i.test(rawMsg)) {
       guideAnswer = isEn
-        ? "Delta Travel supports official VietQR fast bank transfer (MBBank - Account 0975703852, Account Holder: LE VAN AN), Domestic/International ATM & Visa cards, or direct cash payment at Delta Travel offices."
-        : "Delta Travel hỗ trợ thanh toán chuyển khoản nhanh qua mã VietQR chuẩn NAPAS 247 (MBBank - STK 0975703852, Chủ TK LE VAN AN), thẻ ATM/Visa nội địa & quốc tế, hoặc thanh toán tiền mặt tại quầy giao dịch.";
+        ? "Delta Travel supports official VietQR fast bank transfer (MBBank - Account 0325536936, Account Holder: LE VAN AN), Domestic/International ATM & Visa cards, or direct cash payment at Delta Travel offices."
+        : "Delta Travel hỗ trợ thanh toán chuyển khoản nhanh qua mã VietQR chuẩn NAPAS 247 (MBBank - STK 0325536936, Chủ TK LE VAN AN), thẻ ATM/Visa nội địa & quốc tế, hoặc thanh toán tiền mặt tại quầy giao dịch.";
     } else {
       guideAnswer = isEn
         ? "You can track and manage your bookings anytime under 'My Bookings' on the top navigation bar."
