@@ -1494,11 +1494,16 @@ function openTourModal(tourId = null, initialTab = "basic") {
     termsEl.value = Array.isArray(trm) ? trm.join("\n") : (tour?.terms || "Hủy tour trước 15 ngày khởi hành: Miễn phí 100%\nHủy tour từ 07 - 14 ngày: Phí 30% giá tour\nHủy tour từ 03 - 06 ngày: Phí 50% giá tour\nHủy trong vòng 48h trước giờ đi: Phí 100%\nTrường hợp bão lũ thiên tai: Hỗ trợ bảo lưu dời ngày miễn phí");
   }
 
-  // Tab 2: Render lịch trình Day-by-Day (ưu tiên dữ liệu đầy đủ, không ghi đè thành rỗng)
-  const initialItinerary = (Array.isArray(tour?.itinerary) && tour.itinerary.length > 1)
-    ? tour.itinerary
-    : (Array.isArray(defTour?.itinerary) && defTour.itinerary.length > 0 ? defTour.itinerary : (tour?.itinerary || null));
-  renderAdminItineraryDays(initialItinerary);
+  // Tab 2: Render lịch trình Day-by-Day (ưu tiên dữ liệu đầy đủ từ catalog & API)
+  let initialDays = (Array.isArray(tour?.itinerary) && tour.itinerary.length > 0) ? tour.itinerary : null;
+  if ((!initialDays || initialDays.length === 0) && defTour && Array.isArray(defTour.itinerary) && defTour.itinerary.length > 0) {
+    initialDays = defTour.itinerary;
+  }
+  if ((!initialDays || initialDays.length === 0) && typeof DEFAULT_TOURS !== "undefined") {
+    const def = DEFAULT_TOURS.find(d => String(d.id).toUpperCase() === String(tourId).toUpperCase());
+    if (def && Array.isArray(def.itinerary)) initialDays = def.itinerary;
+  }
+  renderAdminItineraryDays(initialDays);
   renderAdminCostItems([]);
   if (tour && typeof DeltaAPI !== "undefined" && DeltaAPI.adminFetchTourDetails) {
     DeltaAPI.adminFetchTourDetails(tourId).then(result => {
@@ -1506,7 +1511,7 @@ function openTourModal(tourId = null, initialTab = "basic") {
       renderAdminCostItems(result.data.costItems || []);
       document.getElementById("formTourPrice").value = result.data.tour.price;
       const base = document.getElementById("formTourOriginalPrice");
-      if (base) base.value = result.data.baseCost || result.data.tour.originalPrice || "";
+      if (base) base.value = result.data.baseCost || result.data.tour?.originalPrice || "";
       const structuredDays = groupStructuredItinerary(result.data.itinerary || []);
       const serverTourDays = Array.isArray(result.data.tour?.itinerary) ? result.data.tour.itinerary : [];
       if (structuredDays.length > 0) {
@@ -1534,30 +1539,32 @@ function openTourModal(tourId = null, initialTab = "basic") {
 }
 
 function groupStructuredItinerary(items) {
+  if (!Array.isArray(items) || items.length === 0) return [];
   const days = new Map();
   for (const item of items) {
+    const dayNum = Number(item.dayNumber || item.day_number || 1);
     const cleanTitle = String(item.title || "")
       .replace(/\s*-\s*Buổi\s+(sáng|chiều|tối)\s*$/i, "")
       .trim();
-    if (!days.has(item.dayNumber)) {
-      days.set(item.dayNumber, {
-        day: item.dayNumber,
-        title: cleanTitle || `Lịch trình ngày ${item.dayNumber}`
+    if (!days.has(dayNum)) {
+      days.set(dayNum, {
+        day: dayNum,
+        title: (cleanTitle && !cleanTitle.startsWith("Ngày ")) ? cleanTitle : `Lịch trình ngày ${dayNum}`
       });
     }
-    const day = days.get(item.dayNumber);
-    if (cleanTitle && day.title.startsWith("Lịch trình ngày ")) {
+    const day = days.get(dayNum);
+    const cat = String(item.category || "").toLowerCase();
+    const slot = (cat === "morning" || item.sequence === 1) ? "morning" :
+                 (cat === "afternoon" || item.sequence === 2) ? "afternoon" :
+                 (cat === "evening" || item.sequence === 3) ? "evening" :
+                 ["morning", "afternoon", "evening"][(item.sequence || 1) - 1] || "evening";
+    day[slot] = item.description || item.title || "";
+    day[`${slot}Category`] = item.category || "activity";
+    if (cleanTitle && (!day.title || day.title.startsWith("Lịch trình ngày"))) {
       day.title = cleanTitle;
     }
-    const slot = ["morning", "afternoon", "evening"][item.sequence - 1];
-    if (slot) {
-      day[slot] = item.description || item.title;
-      day[`${slot}Category`] = item.category;
-    } else {
-      day.evening = [day.evening, item.description || item.title].filter(Boolean).join("\n");
-    }
   }
-  return [...days.values()];
+  return [...days.values()].sort((a, b) => a.day - b.day);
 }
 
 function renderAdminCostItems(items) {

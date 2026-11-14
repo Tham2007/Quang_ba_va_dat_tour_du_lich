@@ -419,19 +419,37 @@
       line-height: 1;
     }
 
-    /* Print styling */
+    /* Print styling: Chuẩn hóa 1 trang A4 duy nhất cho Hóa Đơn VAT Điện Tử */
     @media print {
-      body {
+      @page {
+        size: A4 portrait;
+        margin: 8mm 10mm;
+      }
+      html, body {
         background: #ffffff !important;
-        padding-top: 0 !important;
-      }
-      .paper-topbar, .no-print {
-        display: none !important;
-      }
-      .paper-sheet {
-        border: none !important;
-        box-shadow: none !important;
+        color: #000000 !important;
         padding: 0 !important;
+        margin: 0 !important;
+        height: auto !important;
+      }
+      body * {
+        visibility: hidden !important;
+      }
+      #officialInvoicePrintContainer,
+      #officialInvoicePrintContainer * {
+        visibility: visible !important;
+      }
+      #officialInvoicePrintContainer {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
       }
     }
   </style>
@@ -699,8 +717,13 @@
           </div>
 
           <div class="paper-invoice-row">
-            <span class="text-muted" data-i18n="inv_tax">Thuế VAT & Phí dịch vụ:</span>
-            <span class="text-dark" data-i18n="inv_tax_val">Đã bao gồm</span>
+            <span class="text-muted">Tạm tính trước thuế:</span>
+            <span id="subtotalDisplay" class="fw-bold">0 đ</span>
+          </div>
+
+          <div class="paper-invoice-row">
+            <span class="text-muted">Thuế GTGT (VAT 10%):</span>
+            <span id="vatAmountDisplay" class="fw-bold text-dark">+ 0 đ</span>
           </div>
 
           <div class="paper-invoice-row">
@@ -728,8 +751,11 @@
 
           <div class="paper-invoice-total">
             <div>
-              <div class="fw-bold text-uppercase small text-muted" data-i18n="inv_total_label">TỔNG TIỀN SAU GIẢM:</div>
+          <div class="paper-invoice-total">
+            <div>
+              <div class="fw-bold text-uppercase small text-muted" data-i18n="inv_total_label">TỔNG CỘNG THANH TOÁN:</div>
               <div id="totalPriceDisplay" class="fs-3 fw-bold text-dark">0 đ</div>
+              <div class="text-muted fw-normal" style="font-size: 11px; margin-top: 2px;">(Đã bao gồm 10% thuế VAT)</div>
             </div>
           </div>
 
@@ -888,9 +914,9 @@
                 Mở ứng dụng ngân hàng bất kỳ quét mã để thanh toán tự động, không cần nhập số tài khoản:
               </p>
 
-              <!-- Ảnh QR to 280px x 280px, sắc nét, không bị thu nhỏ -->
+              <!-- Ảnh QR to 330px x 330px, sắc nét, tối ưu quét bằng app ngân hàng -->
               <div class="position-relative p-2 bg-light rounded-4 border d-inline-block mx-auto" style="max-width: 100%;">
-                <img id="receiptQRImg" src="" alt="Mã VietQR MBBank Thanh Toán" style="width: 280px; height: 280px; max-width: 100%; object-fit: contain; border-radius: 12px;" class="bg-white p-2 border shadow-xs d-block mx-auto">
+                <img id="receiptQRImg" src="" alt="Mã VietQR MBBank Thanh Toán" style="width: 330px; height: 330px; max-width: 100%; object-fit: contain; border-radius: 14px;" class="bg-white p-2.5 border shadow-sm d-block mx-auto">
                 <div id="qrLoadingSpinner" class="spinner-border text-dark position-absolute top-50 start-50 translate-middle d-none" role="status">
                   <span class="visually-hidden">Đang tải mã VietQR...</span>
                 </div>
@@ -922,7 +948,7 @@
           <i class="bi bi-file-earmark-check-fill text-warning fs-5"></i>
           <span>Lưu hóa đơn chứng từ chuẩn quốc tế</span>
         </button>
-        <button class="btn btn-outline-dark px-4 py-2.5 rounded-pill fw-semibold d-inline-flex align-items-center gap-2" onclick="window.print()">
+        <button class="btn btn-outline-dark px-4 py-2.5 rounded-pill fw-semibold d-inline-flex align-items-center gap-2" onclick="printOfficialInvoice()">
           <i class="bi bi-printer fs-5"></i>
           <span>In hóa đơn chứng từ</span>
         </button>
@@ -940,37 +966,37 @@
         </a>
       </div>
 
-      <!-- Khung Hóa Đơn Điện Tử & Chứng Từ Kế Toán Chuẩn Quốc Tế (A4 Chuẩn Thương Mại) -->
-      <div id="officialInvoicePrintContainer" style="display: none; background: #ffffff; color: #000000; padding: 32px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <!-- Khung Hóa Đơn Điện Tử & Chứng Từ Kế Toán Chuẩn Quốc Tế (A4 Chuẩn Thương Mại, Nghị định 123/2020/NĐ-CP & TT 78/2021/TT-BTC) -->
+      <div id="officialInvoicePrintContainer" style="display: none; background: #ffffff; color: #000000; padding: 22px 28px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 820px; margin: 0 auto; box-sizing: border-box;">
         <!-- Header Hóa Đơn Thương Mại -->
-        <div style="border-bottom: 2px solid #0f172a; padding-bottom: 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start;">
+        <div style="border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start;">
           <div>
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-              <h2 style="margin: 0; font-size: 20px; font-weight: 900; letter-spacing: 0.05em; text-transform: uppercase; color: #0f172a;">DELTA TRAVEL INTERNATIONAL</h2>
-              <span style="border: 1px solid #0f172a; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700;">CHỨNG TỪ GỐC</span>
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 3px;">
+              <h2 style="margin: 0; font-size: 18px; font-weight: 900; letter-spacing: 0.05em; text-transform: uppercase; color: #0f172a;">DELTA TRAVEL INTERNATIONAL</h2>
+              <span style="border: 1px solid #0f172a; padding: 1px 6px; border-radius: 10px; font-size: 9.5px; font-weight: 700;">HÓA ĐƠN GTGT GỐC</span>
             </div>
-            <div style="font-size: 13px; font-weight: 700; color: #1e293b;">CÔNG TY CỔ PHẦN DU LỊCH & LỮ HÀNH QUỐC TẾ DELTA TRAVEL</div>
+            <div style="font-size: 12px; font-weight: 700; color: #1e293b;">CÔNG TY CỔ PHẦN DU LỊCH & LỮ HÀNH QUỐC TẾ DELTA TRAVEL</div>
             <div style="font-size: 11px; color: #475569; margin-top: 2px;">Mã số thuế (Tax ID): <strong>0109886688</strong> | Hotline / Zalo: <strong>0325536936</strong></div>
             <div style="font-size: 11px; color: #475569;">Trụ sở: Tòa nhà Discovery Tower, Cầu Giấy, Hà Nội | Website: https://deltatravel.vn</div>
           </div>
-          <div style="text-align: right; min-width: 220px;">
+          <div style="text-align: right; min-width: 210px;">
             <div style="font-size: 11px; color: #64748b;">Mẫu số (Form): <strong>01GTKT0/001</strong></div>
             <div style="font-size: 11px; color: #64748b;">Ký hiệu (Serial): <strong>DT/26E</strong></div>
-            <div style="font-size: 13px; color: #0f172a; font-weight: 800; margin-top: 4px;" id="invNumberDisplay">SỐ HĐ: E-INV-2026-000000</div>
-            <div style="display: inline-block; padding: 4px 12px; border-radius: 16px; font-weight: 800; font-size: 11px; text-transform: uppercase; margin-top: 6px; background: #0f172a; color: #ffffff;" id="invPaymentStatusBadge">ĐÃ THANH TOÁN QUA MBBANK</div>
+            <div style="font-size: 13px; color: #0f172a; font-weight: 800; margin-top: 3px;" id="invNumberDisplay">SỐ HĐ: E-INV-2026-000000</div>
+            <div style="display: inline-block; padding: 2px 10px; border-radius: 12px; font-weight: 800; font-size: 10px; text-transform: uppercase; margin-top: 4px; background: #0f172a; color: #ffffff;" id="invPaymentStatusBadge">ĐÃ THANH TOÁN QUA MBBANK</div>
           </div>
         </div>
 
         <!-- Tiêu đề Hóa Đơn -->
-        <div style="text-align: center; margin-bottom: 22px;">
-          <h3 style="margin: 0; font-size: 19px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; color: #0f172a;">HÓA ĐƠN ĐIỆN TỬ & CHỨNG TỪ KẾ TOÁN CHUẨN QUỐC TẾ</h3>
-          <div style="font-size: 12px; color: #64748b; margin-top: 4px; font-weight: 600;">INTERNATIONAL COMMERCIAL TAX INVOICE & ELECTRONIC ACCOUNTING VOUCHER</div>
-          <div style="font-size: 11px; color: #64748b; margin-top: 2px;" id="invIssueDate">Ngày lập chứng từ: 12/11/2026 | Mã tra cứu CQT: 982143</div>
+        <div style="text-align: center; margin-bottom: 14px;">
+          <h3 style="margin: 0; font-size: 17px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; color: #0f172a;">HÓA ĐƠN GIÁ TRỊ GIA TĂNG (VAT INVOICE)</h3>
+          <div style="font-size: 11.5px; color: #64748b; margin-top: 2px; font-weight: 600;">KIÊM BIÊN LAI XÁC NHẬN ĐẶT TOUR & BẢO HIỂM DU LỊCH ĐIỆN TỬ</div>
+          <div style="font-size: 10.5px; color: #64748b; margin-top: 1px;" id="invIssueDate">Ngày lập chứng từ: 14/11/2026 | Mã tra cứu CQT: BK5201581616</div>
         </div>
 
         <!-- Thông tin khách hàng & Giao dịch -->
-        <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; background: #f8fafc; font-size: 12.5px;">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; background: #f8fafc; font-size: 11.5px; line-height: 1.5;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
             <div><strong>Đơn vị / Khách hàng:</strong> <span id="invCustomerName">...</span></div>
             <div><strong>Mã đặt tour (Booking Ref):</strong> <span id="invBookingCode" style="font-family: monospace; font-weight: 700;">#BK-0000</span></div>
             <div><strong>Số điện thoại / Zalo:</strong> <span id="invCustomerPhone">...</span></div>
@@ -983,15 +1009,15 @@
         </div>
 
         <!-- Bảng kê dịch vụ chuẩn kế toán -->
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12.5px;">
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11.5px;">
           <thead>
             <tr style="background: #0f172a; color: #ffffff;">
-              <th style="padding: 10px; border: 1px solid #0f172a; width: 5%; text-align: center;">STT</th>
-              <th style="padding: 10px; border: 1px solid #0f172a; text-align: left;">Tên dịch vụ / Hạng mục lữ hành</th>
-              <th style="padding: 10px; border: 1px solid #0f172a; width: 10%; text-align: center;">ĐVT</th>
-              <th style="padding: 10px; border: 1px solid #0f172a; width: 10%; text-align: center;">Số lượng</th>
-              <th style="padding: 10px; border: 1px solid #0f172a; width: 18%; text-align: right;">Đơn giá (VND)</th>
-              <th style="padding: 10px; border: 1px solid #0f172a; width: 20%; text-align: right;">Thành tiền (VND)</th>
+              <th style="padding: 7px 8px; border: 1px solid #0f172a; width: 5%; text-align: center;">STT</th>
+              <th style="padding: 7px 8px; border: 1px solid #0f172a; text-align: left;">Tên dịch vụ / Hạng mục lữ hành</th>
+              <th style="padding: 7px 8px; border: 1px solid #0f172a; width: 8%; text-align: center;">ĐVT</th>
+              <th style="padding: 7px 8px; border: 1px solid #0f172a; width: 8%; text-align: center;">Số lượng</th>
+              <th style="padding: 7px 8px; border: 1px solid #0f172a; width: 18%; text-align: right;">Đơn giá (VND)</th>
+              <th style="padding: 7px 8px; border: 1px solid #0f172a; width: 20%; text-align: right;">Thành tiền (VND)</th>
             </tr>
           </thead>
           <tbody id="invItemsBody">
@@ -999,38 +1025,43 @@
           </tbody>
           <tfoot>
             <tr style="border-bottom: 1px solid #cbd5e1;">
-              <td colspan="5" style="padding: 8px 12px; font-weight: 700; text-align: right;">Cộng tiền dịch vụ:</td>
-              <td style="padding: 8px 12px; font-weight: 700; text-align: right;" id="invSubtotal">0 đ</td>
+              <td colspan="5" style="padding: 6px 10px; font-weight: 700; text-align: right;">Cộng tiền dịch vụ (chưa có thuế GTGT):</td>
+              <td style="padding: 6px 10px; font-weight: 700; text-align: right;" id="invSubtotal">0 đ</td>
             </tr>
             <tr style="border-bottom: 1px solid #cbd5e1;">
-              <td colspan="5" style="padding: 8px 12px; font-weight: 600; text-align: right; color: #16a34a;">Chiết khấu ưu đãi / Khuyến mại:</td>
-              <td style="padding: 8px 12px; font-weight: 700; text-align: right; color: #16a34a;" id="invDiscount">- 0 đ</td>
+              <td colspan="5" style="padding: 6px 10px; font-weight: 600; text-align: right; color: #16a34a;">Chiết khấu ưu đãi / Khuyến mại:</td>
+              <td style="padding: 6px 10px; font-weight: 700; text-align: right; color: #16a34a;" id="invDiscount">- 0 đ</td>
             </tr>
             <tr style="border-bottom: 1px solid #cbd5e1;">
-              <td colspan="5" style="padding: 8px 12px; font-weight: 600; text-align: right;">Thuế suất GTGT (VAT):</td>
-              <td style="padding: 8px 12px; font-weight: 600; text-align: right;">Đã bao gồm trong giá</td>
+              <td colspan="5" style="padding: 6px 10px; font-weight: 600; text-align: right;">Thuế suất thuế GTGT: <strong>10%</strong> | Tiền thuế GTGT:</td>
+              <td style="padding: 6px 10px; font-weight: 700; text-align: right;" id="invVatAmount">0 đ</td>
             </tr>
             <tr style="background: #f1f5f9; border-top: 2px solid #0f172a;">
-              <td colspan="5" style="padding: 12px; font-weight: 900; font-size: 14px; text-transform: uppercase;">TỔNG TIỀN THANH TOÁN (TOTAL AMOUNT DUE):</td>
-              <td style="padding: 12px; font-weight: 900; font-size: 16px; text-align: right; color: #0f172a;" id="invGrandTotal">0 đ</td>
+              <td colspan="5" style="padding: 8px 10px; font-weight: 900; font-size: 13px; text-transform: uppercase;">TỔNG CỘNG TIỀN THANH TOÁN (ĐÃ GỒM 10% VAT):</td>
+              <td style="padding: 8px 10px; font-weight: 900; font-size: 14px; text-align: right; color: #0f172a;" id="invGrandTotal">0 đ</td>
+            </tr>
+            <tr>
+              <td colspan="6" style="padding: 6px 10px; font-style: italic; font-size: 11px; background: #ffffff; border-top: 1px solid #cbd5e1;">
+                <strong>Số tiền viết bằng chữ:</strong> <span id="invAmountWords" style="font-weight: 600;">...</span>
+              </td>
             </tr>
           </tfoot>
         </table>
 
         <!-- Chữ ký số và xác thực doanh nghiệp chuẩn quốc tế -->
-        <div style="display: flex; justify-content: space-between; margin-top: 30px; font-size: 12px;">
-          <div style="text-align: center; width: 40%;">
+        <div style="display: flex; justify-content: space-between; margin-top: 16px; font-size: 11px;">
+          <div style="text-align: center; width: 42%;">
             <strong>NGƯỜI MUA HÀNG / KHÁCH HÀNG</strong><br>
-            <span style="font-size: 11px; color: #64748b;">(Ký, ghi rõ họ tên hoặc xác thực điện tử)</span>
-            <div style="margin-top: 45px; font-weight: 700;" id="invCustomerSign">...</div>
+            <span style="font-size: 10px; color: #64748b;">(Ký, ghi rõ họ tên hoặc xác thực điện tử)</span>
+            <div style="margin-top: 36px; font-weight: 700;" id="invCustomerSign">...</div>
           </div>
-          <div style="text-align: center; width: 45%;">
-            <strong>ĐƠN VỊ PHÁT HÀNH HÓA ĐƠN</strong><br>
-            <span style="font-size: 11px; color: #64748b;">(Chữ ký số & Dấu điện tử doanh nghiệp)</span>
-            <div style="margin-top: 15px; border: 1.5px solid #0f172a; border-radius: 8px; padding: 8px; display: inline-block; background: #f8fafc;">
-              <div style="color: #0f172a; font-weight: 900; font-size: 11px; letter-spacing: 0.05em;">DELTA TRAVEL E-INVOICE SEAL</div>
-              <div style="color: #16a34a; font-weight: 700; font-size: 10px;">[DIGITALLY SIGNED & VERIFIED]</div>
-              <div style="font-size: 9px; color: #64748b; margin-top: 2px;">CỔ PHẦN DU LỊCH & LỮ HÀNH QUỐC TẾ DELTA TRAVEL</div>
+          <div style="text-align: center; width: 48%;">
+            <strong>ĐƠN VỊ CUNG CẤP DỊCH VỤ</strong><br>
+            <span style="font-size: 10px; color: #64748b;">(Chữ ký số & Dấu điện tử doanh nghiệp)</span>
+            <div style="margin-top: 8px; border: 1.5px solid #0f172a; border-radius: 6px; padding: 6px 10px; display: inline-block; background: #f8fafc;">
+              <div style="color: #0f172a; font-weight: 900; font-size: 10.5px; letter-spacing: 0.04em;">DELTA TRAVEL INTERNATIONAL</div>
+              <div style="color: #16a34a; font-weight: 700; font-size: 9.5px;">[DIGITALLY SIGNED & VERIFIED]</div>
+              <div style="font-size: 8.5px; color: #64748b; margin-top: 1px;">CỔ PHẦN DU LỊCH & LỮ HÀNH QUỐC TẾ DELTA TRAVEL</div>
             </div>
           </div>
         </div>
@@ -1055,6 +1086,59 @@
 
     function formatVND(n) {
       return Number(n || 0).toLocaleString("vi-VN") + " đ";
+    }
+
+    // Chuyển đổi số tiền thành chữ Tiếng Việt chuẩn hóa cho Hóa Đơn Kế Toán VAT
+    function numberToVietnameseWords(n) {
+      if (!n || isNaN(n)) return "Không đồng";
+      const num = Math.round(Number(n));
+      if (num === 0) return "Không đồng";
+      const digits = ["không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
+      const units = ["", "nghìn", "triệu", "tỷ"];
+
+      function readGroup(g, isHighest) {
+        let h = Math.floor(g / 100);
+        let t = Math.floor((g % 100) / 10);
+        let u = g % 10;
+        let res = "";
+        if (h > 0 || !isHighest) {
+          res += digits[h] + " trăm ";
+        }
+        if (t > 1) {
+          res += digits[t] + " mươi ";
+          if (u === 1) res += "mốt ";
+          else if (u === 5) res += "lăm ";
+          else if (u > 0) res += digits[u] + " ";
+        } else if (t === 1) {
+          res += "mười ";
+          if (u === 5) res += "lăm ";
+          else if (u > 0) res += digits[u] + " ";
+        } else {
+          if (u > 0) {
+            if (h > 0 || !isHighest) res += "lẻ " + digits[u] + " ";
+            else res += digits[u] + " ";
+          }
+        }
+        return res.trim();
+      }
+
+      let s = "";
+      let temp = num;
+      const groups = [];
+      while (temp > 0) {
+        groups.push(temp % 1000);
+        temp = Math.floor(temp / 1000);
+      }
+      for (let i = groups.length - 1; i >= 0; i--) {
+        const g = groups[i];
+        if (g > 0) {
+          const gStr = readGroup(g, i === groups.length - 1);
+          s += gStr + " " + units[i] + " ";
+        }
+      }
+      s = s.trim();
+      s = s.charAt(0).toUpperCase() + s.slice(1) + " đồng chẵn.";
+      return s.replace(/\s+/g, " ");
     }
 
     // Modal thông báo Google Minimal sang trọng (Thay thế alert mặc định xấu của trình duyệt)
@@ -1253,8 +1337,46 @@
         await loadSchedules(tour.id);
         await loadAvailableVouchersForTour(tour.id);
         recalcPrice();
+        autoFillUserProfile();
       } catch (err) {
         console.error("Lỗi khởi tạo booking:", err);
+      }
+    }
+
+    // Tự động điền thông tin cá nhân từ Profile / Session người dùng (hỗ trợ chỉnh sửa linh hoạt)
+    function autoFillUserProfile() {
+      let user = null;
+      if (typeof getCurrentUser === "function") user = getCurrentUser();
+      if (!user) {
+        try {
+          const raw = localStorage.getItem("delta_current_user_v2") || localStorage.getItem("delta_auth_user");
+          if (raw) user = JSON.parse(raw);
+        } catch (_) {}
+      }
+
+      const nameEl = document.getElementById("customerFullName");
+      const phoneEl = document.getElementById("customerPhone");
+      const emailEl = document.getElementById("customerEmail");
+
+      if (user) {
+        if (nameEl && (!nameEl.value || nameEl.value === "Nguyễn Văn A")) {
+          nameEl.value = user.fullName || user.full_name || "";
+        }
+        if (phoneEl && (!phoneEl.value || phoneEl.value === "0901234567")) {
+          phoneEl.value = user.phone || "";
+        }
+        if (emailEl && (!emailEl.value || emailEl.value === "example@email.com")) {
+          emailEl.value = user.email || "";
+        }
+      } else if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.getMe === "function") {
+        DeltaAPI.getMe().then(res => {
+          if (res && res.success && res.data) {
+            const u = res.data;
+            if (nameEl && !nameEl.value) nameEl.value = u.fullName || u.full_name || "";
+            if (phoneEl && !phoneEl.value) phoneEl.value = u.phone || "";
+            if (emailEl && !emailEl.value) emailEl.value = u.email || "";
+          }
+        }).catch(() => {});
       }
     }
 
@@ -1479,12 +1601,23 @@
         : `${totalGuests} khách (${adults} lớn, ${children} trẻ${infants > 0 ? `, ${infants} em bé` : ""})`;
       document.getElementById("guestCountDisplay").textContent = guestSummary;
 
-      const rawTotal = calculateBookingSubtotal(adults, children, infants);
-      const effectiveDiscount = Math.max(0, Math.min(rawTotal, Number(discountAmount) || 0));
-      const finalTotal = Math.max(0, rawTotal - effectiveDiscount);
+      // THUẬT TOÁN TÍNH GIÁ CHUẨN THƯƠNG MẠI: Người lớn 100%, Trẻ em 75%, Em bé 10% + Giảm giá Voucher + 10% THUẾ VAT BẮT BUỘC
+      const rawBookingSubtotal = typeof calculateBookingSubtotal === "function"
+        ? calculateBookingSubtotal(adults, children, infants)
+        : ((adults * currentTour.price) + (children * currentTour.price * 0.75) + (infants * currentTour.price * 0.1));
+      const effectiveDiscount = Math.max(0, Math.min(rawBookingSubtotal, Number(discountAmount) || 0));
+      const subtotal = Math.max(0, rawBookingSubtotal - effectiveDiscount);
+      const vatAmount = Math.round(subtotal * 0.10); // 10% VAT
+      const finalTotal = subtotal + vatAmount;
 
-      const subtotalEl = document.getElementById("subtotalPriceDisplay");
-      if (subtotalEl) subtotalEl.textContent = formatVND(rawTotal);
+      const subtotalEl = document.getElementById("subtotalDisplay");
+      if (subtotalEl) subtotalEl.textContent = formatVND(rawBookingSubtotal);
+
+      const subtotalPriceEl = document.getElementById("subtotalPriceDisplay");
+      if (subtotalPriceEl) subtotalPriceEl.textContent = formatVND(rawBookingSubtotal);
+
+      const vatEl = document.getElementById("vatAmountDisplay");
+      if (vatEl) vatEl.textContent = "+ " + formatVND(vatAmount);
 
       const discRow = document.getElementById("discountRowDisplay");
       const discAmtEl = document.getElementById("discountAmountDisplay");
@@ -1510,8 +1643,9 @@
       if (typeof VietQRService !== "undefined" && finalTotal > 0) {
         let userId = null;
         try {
-          const authUser = JSON.parse(localStorage.getItem("delta_auth_user") || "null");
-          if (authUser) userId = authUser.id || authUser.maNguoiDung || authUser.username;
+          const authUser = (typeof getCurrentUser === "function" ? getCurrentUser() : null) ||
+                           JSON.parse(localStorage.getItem("delta_current_user_v2") || "null");
+          if (authUser) userId = authUser.id || authUser.maNguoiDung || authUser.username || authUser.phone;
         } catch (_) {}
         const estNote = VietQRService.generateTransferContent(currentTour.id, null, userId);
         const estUrl = VietQRService.getQuickLinkUrl({ amount: finalTotal, memo: estNote, template: "compact2" });
@@ -1648,17 +1782,19 @@
       // 1. Tự động lấy [MÃ TOUR] từ tour đang đặt
       const tourId = (currentTour && currentTour.id) || booking.tourId || "DL-HL01";
 
-      // 2. Tự động lấy [ID TÀI KHOẢN] nếu người dùng đã đăng nhập
+      // 2. Tự động lấy [ID TÀI KHOẢN] chuẩn xác từ session / profile / Cloudflare
       let userId = null;
       try {
-        const authUser = JSON.parse(localStorage.getItem("delta_auth_user") || "null");
-        if (authUser) userId = authUser.id || authUser.maNguoiDung || authUser.username;
+        const authUser = (typeof getCurrentUser === "function" ? getCurrentUser() : null) ||
+                         JSON.parse(localStorage.getItem("delta_current_user_v2") || "null") ||
+                         JSON.parse(localStorage.getItem("delta_auth_user") || "null");
+        if (authUser) userId = authUser.id || authUser.maNguoiDung || authUser.username || authUser.phone;
       } catch (_) {}
 
-      // 3. Tự động kết hợp [MÃ TOUR] + [ID TÀI KHOẢN / MÃ ĐƠN] theo chuẩn VietQR NAPAS 247
+      // 3. Tự động kết hợp [ID TÀI KHOẢN CHUẨN] + [MÃ ĐƠN] theo chuẩn VietQR NAPAS 247
       const transferNote = (typeof VietQRService !== "undefined")
         ? VietQRService.generateTransferContent(tourId, bookingRef, userId)
-        : `${tourId} ${bookingRef}`;
+        : `KH ${bookingRef}`;
       currentTransferNote = transferNote;
 
       // 4. Sinh URL mã VietQR Quick Link tối ưu hiệu năng cao nhất (Cloudflare CDN cache tức thì)
@@ -1680,7 +1816,8 @@
       // Điền thông tin chuyển khoản chuẩn xác MBBank
       document.getElementById("receiptRef").textContent = `#${bookingRef}`;
       document.getElementById("receiptTourTitle").textContent = displayTitle;
-      const custDisplay = booking.customerName ? `${booking.customerName} (${booking.customerPhone || ""})` : "Khách hàng";
+      const custPhone = booking.customerPhone || document.getElementById("customerPhone")?.value || "";
+      const custDisplay = custPhone ? `${booking.customerName} (${custPhone})` : (booking.customerName || "Khách hàng");
       document.getElementById("receiptCustomer").textContent = custDisplay;
       const emailBanner = document.getElementById("receiptEmailBanner");
       if (emailBanner) {
@@ -1788,7 +1925,9 @@
       const tourKey = "tour_title_" + String(tourId).replace(/[^a-zA-Z0-9]/g, "_");
       const displayTitle = (isEn && typeof t === "function" && t(tourKey) !== tourKey) ? t(tourKey) : (currentTour?.title || "Tour Du Lịch Delta Travel 5 Sao");
       const rawPrice = (currentTour && currentTour.price) ? currentTour.price : 2890000;
-      const rawSubtotal = calculateBookingSubtotal(adults, children, infants);
+      const rawSubtotal = typeof calculateBookingSubtotal === "function"
+        ? calculateBookingSubtotal(adults, children, infants)
+        : ((adults * rawPrice) + (children * rawPrice * 0.75) + (infants * rawPrice * 0.1));
 
       // Nếu người dùng gõ mã trong ô nhưng chưa bấm "Áp dụng", kiểm tra lại điều kiện trước khi gửi đơn
       const typedCode = (document.getElementById("voucherCodeInput")?.value || "").trim().toUpperCase();
@@ -1796,6 +1935,11 @@
         const ok = await applyVoucher(false);
         if (!ok) return;
       }
+
+      const effectiveDiscount = Math.max(0, Math.min(rawSubtotal, Number(discountAmount) || 0));
+      const subtotal = Math.max(0, rawSubtotal - effectiveDiscount);
+      const vatAmount = Math.round(subtotal * 0.10); // 10% Thuế VAT
+      const calculatedTotal = subtotal + vatAmount;
 
       const payload = {
         scheduleId: scheduleId,
@@ -1815,6 +1959,12 @@
         seats: adults + children + infants,
         voucherCode: appliedVoucherCode || null,
         voucher_code: appliedVoucherCode || null,
+        unitPrice: rawPrice,
+        subtotal: subtotal,
+        discountAmount: effectiveDiscount,
+        vatRate: 10,
+        vatAmount: vatAmount,
+        totalPrice: calculatedTotal,
         pickupLocation: document.getElementById("pickupLocationInput")?.value || "",
         specialRequests: document.getElementById("customerNotes")?.value || ""
       };
@@ -1892,11 +2042,14 @@
             seats: adults + children + infants,
             unitPrice: rawPrice,
             subtotalPrice: rawSubtotal,
+            subtotal: subtotal,
             discountAmount: offlineDiscount,
             voucherCode: offlineVoucherCode,
             voucherName: offlineVoucherName,
-            totalPrice: finalOfflineTotal,
-            pricing: { subtotal: rawSubtotal, discount: offlineDiscount, total: finalOfflineTotal },
+            vatRate: 10,
+            vatAmount: vatAmount,
+            totalPrice: calculatedTotal,
+            pricing: { subtotal: rawSubtotal, discount: offlineDiscount, vatAmount: vatAmount, total: calculatedTotal },
             status: "PENDING_PAYMENT",
             paid: false,
             paymentEvidence: null,
@@ -2028,22 +2181,21 @@
       }, 1000);
     }
 
-    // Xuất & Lưu Hóa Đơn Chứng Từ Chuẩn Quốc Tế
-    function downloadOfficialInvoice() {
-      if (!currentBookingData) {
-        showAppNotice("Chưa có thông tin đơn đặt tour để xuất hóa đơn.", "Thông Báo", "warning");
-        return;
-      }
+    // Chuẩn bị dữ liệu hiển thị Hóa Đơn VAT Điện Tử Chuẩn Quốc Tế
+    function prepareOfficialInvoiceDOM() {
+      if (!currentBookingData) return null;
       const b = currentBookingData;
       const bookingRef = b.reference || b.id || ("BK" + Math.floor(100000 + Math.random() * 900000));
       const isPaid = b.status === "PAID" || b.paid;
       const adults = Math.max(1, parseInt(b.adults || document.getElementById("numAdults")?.value || 1, 10));
       const children = Math.max(0, parseInt(b.children || document.getElementById("numChildren")?.value || 0, 10));
       const infants = Math.max(0, parseInt(b.infants || document.getElementById("numInfants")?.value || 0, 10));
-      const unitPrice = Number(b.unitPrice) || ((currentTour && currentTour.price) ? currentTour.price : Math.round((b.totalPrice || 2890000) / adults));
-      const invDiscountVal = Number(b.discountAmount || b.pricing?.discount || 0);
-      const grandTotal = Number(b.totalPrice ?? currentPayAmount ?? 0);
-      const subtotal = Number(b.subtotalPrice || b.pricing?.subtotal || (grandTotal + invDiscountVal));
+      const unitPrice = Number(b.unitPrice) || ((currentTour && currentTour.price) ? currentTour.price : Math.round(Number(b.totalPrice || 2890000) / adults));
+      const rawSubtotal = (adults * unitPrice) + (children * unitPrice * 0.75) + (infants * unitPrice * 0.1);
+      const discountVal = Number(b.discountAmount || b.pricing?.discount || discountAmount || 0);
+      const subtotal = Math.max(0, rawSubtotal - discountVal);
+      const vatAmount = Math.round(subtotal * 0.10); // 10% VAT
+      const grandTotal = Number(b.totalPrice || (subtotal + vatAmount));
       const tourTitle = b.tourTitle || (currentTour && currentTour.title) || "Tour Du Lịch Delta Travel 5 Sao";
       const depDate = b.departureDate || "30/11/2026";
       const pickupLoc = b.pickupLocation || document.getElementById("pickupLocationInput")?.value || "Khách sạn hoặc Sân bay trung tâm";
@@ -2068,56 +2220,81 @@
       const tbody = document.getElementById("invItemsBody");
       let itemsHtml = `
         <tr style="border-bottom: 1px solid #cbd5e1;">
-          <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">1</td>
-          <td style="padding: 10px; border: 1px solid #cbd5e1;">
+          <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center;">1</td>
+          <td style="padding: 6px 8px; border: 1px solid #cbd5e1;">
             <strong>${tourTitle}</strong><br>
-            <span style="font-size: 11px; color: #64748b;">Tour du lịch trọn gói 5 sao quốc tế (Vé người lớn)</span>
+            <span style="font-size: 10px; color: #64748b;">Tour lữ hành trọn gói tiêu chuẩn 5 sao (Vé người lớn)</span>
           </td>
-          <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">Khách</td>
-          <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; font-weight: 700;">${adults}</td>
-          <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">${formatVND(unitPrice)}</td>
-          <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; font-weight: 700;">${formatVND(adults * unitPrice)}</td>
+          <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center;">Khách</td>
+          <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: 700;">${adults}</td>
+          <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: right;">${formatVND(unitPrice)}</td>
+          <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: right; font-weight: 700;">${formatVND(adults * unitPrice)}</td>
         </tr>
       `;
 
       if (children > 0) {
         itemsHtml += `
           <tr style="border-bottom: 1px solid #cbd5e1;">
-            <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">2</td>
-            <td style="padding: 10px; border: 1px solid #cbd5e1;">
+            <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center;">2</td>
+            <td style="padding: 6px 8px; border: 1px solid #cbd5e1;">
               <strong>Vé trẻ em (5 - 11 tuổi)</strong><br>
-              <span style="font-size: 11px; color: #64748b;">Chính sách giá 75% giá vé người lớn</span>
+              <span style="font-size: 10px; color: #64748b;">Chính sách giá 75% giá vé người lớn</span>
             </td>
-            <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">Khách</td>
-            <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; font-weight: 700;">${children}</td>
-            <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">${formatVND(unitPrice * 0.75)}</td>
-            <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; font-weight: 700;">${formatVND(children * unitPrice * 0.75)}</td>
+            <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center;">Khách</td>
+            <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: 700;">${children}</td>
+            <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: right;">${formatVND(unitPrice * 0.75)}</td>
+            <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: right; font-weight: 700;">${formatVND(children * unitPrice * 0.75)}</td>
           </tr>
         `;
       }
 
       itemsHtml += `
         <tr style="border-bottom: 1px solid #cbd5e1;">
-          <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">${children > 0 ? 3 : 2}</td>
-          <td style="padding: 10px; border: 1px solid #cbd5e1;">
+          <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center;">${children > 0 ? 3 : 2}</td>
+          <td style="padding: 6px 8px; border: 1px solid #cbd5e1;">
             <strong>Bảo hiểm du lịch quốc tế Delta Care</strong><br>
-            <span style="font-size: 11px; color: #64748b;">Hợp đồng bảo hiểm trọn gói quyền lợi tối đa 200.000.000 đ/khách</span>
+            <span style="font-size: 10px; color: #64748b;">Hợp đồng bảo hiểm trọn gói tối đa 200.000.000 đ/khách</span>
           </td>
-          <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">Gói</td>
-          <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; font-weight: 700;">${adults + children + infants}</td>
-          <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; color: #16a34a;">Miễn phí</td>
-          <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; color: #16a34a; font-weight: 700;">0 đ</td>
+          <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center;">Gói</td>
+          <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: 700;">${adults + children + infants}</td>
+          <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: right; color: #16a34a;">Miễn phí</td>
+          <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: right; color: #16a34a; font-weight: 700;">0 đ</td>
         </tr>
       `;
 
       tbody.innerHTML = itemsHtml;
       document.getElementById("invSubtotal").textContent = formatVND(subtotal);
-      document.getElementById("invDiscount").textContent = invDiscountVal > 0
-        ? (`- ${formatVND(invDiscountVal)}${b.voucherCode ? ` (${b.voucherCode})` : ""}`)
+      document.getElementById("invDiscount").textContent = discountVal > 0
+        ? (`- ${formatVND(discountVal)}${b.voucherCode ? ` (${b.voucherCode})` : ""}`)
         : "- 0 đ";
+      document.getElementById("invVatAmount").textContent = "+ " + formatVND(vatAmount);
       document.getElementById("invGrandTotal").textContent = formatVND(grandTotal);
+      document.getElementById("invAmountWords").textContent = numberToVietnameseWords(grandTotal);
       document.getElementById("invCustomerSign").textContent = custName;
 
+      return { bookingRef, grandTotal };
+    }
+
+    // In trực tiếp hóa đơn chứng từ bằng hộp thoại in hệ thống
+    function printOfficialInvoice() {
+      if (!currentBookingData) {
+        showAppNotice("Chưa có thông tin đơn đặt tour để in hóa đơn.", "Thông Báo", "warning");
+        return;
+      }
+      prepareOfficialInvoiceDOM();
+      const el = document.getElementById("officialInvoicePrintContainer");
+      if (el) el.style.display = "block";
+      window.print();
+    }
+
+    // Xuất & Lưu Hóa Đơn Chứng Từ Chuẩn Quốc Tế dạng PDF A4
+    function downloadOfficialInvoice() {
+      if (!currentBookingData) {
+        showAppNotice("Chưa có thông tin đơn đặt tour để xuất hóa đơn.", "Thông Báo", "warning");
+        return;
+      }
+      const prep = prepareOfficialInvoiceDOM();
+      const bookingRef = prep ? prep.bookingRef : "DELTA";
       const el = document.getElementById("officialInvoicePrintContainer");
       if (!el) {
         window.print();
@@ -2127,15 +2304,16 @@
       el.style.display = "block";
       if (typeof html2pdf !== "undefined") {
         const opt = {
-          margin: [8, 8, 8, 8],
-          filename: `Hoa-Don-Chung-Tu-Quoc-Te-${bookingRef}.pdf`,
+          margin: [6, 8, 6, 8],
+          filename: `Hoa-Don-GTGT-${bookingRef}.pdf`,
           image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
         };
         html2pdf().set(opt).from(el).save().then(() => {
           el.style.display = "none";
-          showAppNotice("Đã lưu thành công Hóa đơn chứng từ chuẩn quốc tế dạng PDF!", "Thành Công", "success");
+          showAppNotice("Đã lưu thành công Hóa đơn chứng từ điện tử chuẩn quốc tế dạng PDF!", "Thành Công", "success");
         }).catch(err => {
           console.warn("Lỗi xuất hóa đơn html2pdf:", err);
           el.style.display = "none";

@@ -1,0 +1,342 @@
+{
+  "DL-HL01": [
+    {
+      "day": 1,
+      "title": "Hà Nội - Vịnh Hạ Long - Check-in Du Thuyền 5 Sao - Vịnh Lan Hạ",
+      "morning": "08:00 Xe Limousine đón quý khách tại khu vực Phố Cổ Hà Nội, khởi hành đi Tuần Châu qua cao tốc Hải Phòng hiện đại.",
+      "afternoon": "12:00 Quý khách làm thủ tục lên du thuyền 5 sao, thưởng thức Welcome Drink và nhận phòng ban công hướng vịnh. Thưởng thức bữa trưa hải sản tươi sống khi tàu tiến vào vịnh Lan Hạ.",
+      "evening": "15:30 Trải nghiệm chèo thuyền Kayak tại khu vực Ba Trái Đào. 17:30 Tham gia tiệc hoàng hôn Sunset Party trên Sundeck. 19:00 Dùng bữa tối lãng mạn phong cách hoàng gia, sau đó câu mực đêm cùng thủy thủ đoàn."
+    },
+    {
+      "day": 2,
+      "title": "Làng Cổ Việt Hải - Vườn Quốc Gia Cát Bà - Trải Nghiệm Văn Hóa",
+      "morning": "06:30 Tập Thái Cực Quyền ngắm bình minh trên vịnh. Dùng điểm tâm sáng. 08:30 Cano đưa đoàn khám phá Làng Việt Hải nép mình giữa thung lũng đá vôi.",
+      "afternoon": "12:00 Trải nghiệm đạp xe xuyên rừng nguyên sinh Cát Bà, mát-xa chân bằng cá tự nhiên. Thưởng thức bữa trưa đậm đà phong vị bản địa tại nhà hàng sinh thái.",
+      "evening": "16:00 Tự do tắm biển, thư giãn tại bể sục Jacuzzi bốn mùa trên du thuyền. 19:00 Bữa tiệc nướng BBQ hải sản cao cấp và giao lưu âm nhạc Acoustic trên boong tàu."
+    },
+    {
+      "day": 3,
+      "title": "Hang Sáng Tối - Bữa Trưa Buffet - Tuần Châu - Hà Nội",
+      "morning": "06:30 Chào ngày mới với lớp yoga đón ánh nắng mai. Dùng bữa sáng buffet tự chọn thịnh soạn. 07:45 Khám phá Hang Sáng Tối bằng thuyền nan do cư dân địa phương chèo.",
+      "afternoon": "09:30 Về du thuyền hoàn tất thủ tục trả phòng. Thưởng thức bữa trưa sớm trong khi tàu nhẹ nhàng cập bến cảng Tuần Châu. 12:30 Xe đón đoàn về lại thủ đô Hà Nội.",
+      "evening": "15:30 Đến Hà Nội, trả khách tại điểm hẹn. Hướng dẫn viên Delta Travel chia tay và hẹn gặp lại quý khách trong những hành trình tiếp theo!"
+    }
+  ],
+  "DL-DN02": [
+    {
+      "day": 1,
+      "title": "Đón Sân Bay Đà Nẵng - Bán Đảo Sơn Trà - Chùa Linh Ứng - Biển Mỹ Khê",
+      "morning": "Xe đón quý khách tại sân bay Đà Nẵng, đưa về khách sạn nhận phòng nghỉ ngơi.",
+      "afternoon": "Khởi hành tham quan Bán đảo Sơn Trà, viếng Chùa Linh Ứng Bãi Bụt chiêm bái tượng Phật Bà Quan Âm cao 67m hướng ra biển Đông. Tự do tắm biển Mỹ Khê.",
+      "evening": "Thưởng thức đặc sản Bánh tráng cuốn thịt heo hai đầu da, ngắm Cầu Rồng phun lửa và phun nước lung linh sắc màu."
+    },
+    {
+      "day": 2,
+      "title": "Bà Nà Hills - Cầu Vàng - Làng Pháp - Fantasy Park",
+      "morning": "Cáp treo đạt kỷ lục thế giới lên đỉnh Bà Nà, sải bước check-in Cầu Vàng giữa biển mây bồng bềnh.",
+      "afternoon": "Khám phá Hầm rượu Debay, Vườn hoa Pháp và vui chơi không giới hạn tại Fantasy Park. Ăn trưa buffet Á - Âu đỉnh núi.",
+      "evening": "Trở về trung tâm Đà Nẵng, tự do dạo phố đêm sông Hàn và thưởng thức ẩm thực chợ đêm Sơn Trà."
+    },
+    {
+      "day": 3,
+      "title": "Rừng Dừa Bảy Mẫu - Đô Thị Cổ Hội An - Thả Hoa Đăng Sông Hoài",
+      "morning": "Trải nghiệm chèo thuyền thúng xoay vòng vui nhộn tại Rừng dừa Bảy Mẫu Cẩm Thanh.",
+      "afternoon": "Bách bộ tham quan Phố cổ Hội An: Chùa Cầu, Hội quán Phúc Kiến, Nhà cổ Phùng Hưng.",
+      "evening": "Du thuyền sông Hoài thả hoa đăng lung linh cầu may mắn, dùng bữa tối ẩm thực Cao Lầu và Cơm gà Hội An."
+    },
+    {
+      "day": 4,
+      "title": "Ngũ Hành Sơn - Làng Đá Non Nước - Chợ Hàn - Tiễn Bay",
+      "morning": "Khám phá ngọn Thủy Sơn, vãn cảnh động Huyền Không kỳ bí, ghé thăm Làng đá điêu khắc Non Nước 300 năm tuổi.",
+      "afternoon": "Mua sắm đặc sản chả bò, hải sản khô tại Chợ Hàn. Xe tiễn quý khách ra sân bay Đà Nẵng kết thúc chuyến đi.",
+      "evening": "Về đến điểm xuất phát, hẹn gặp lại quý khách trên những nẻo đường tiếp theo!"
+    }
+  ],
+  "DL-PQ03": [
+    {
+      "day": 1,
+      "title": "Đón Sân Bay Phú Quốc - Suối Tranh - Dinh Cậu - Grand World Không Ngủ",
+      "morning": "Xe và HDV đón khách tại Sân bay Phú Quốc, đưa về resort nhận phòng nghỉ ngơi.",
+      "afternoon": "Thăm thắng cảnh Suối Tranh thanh bình, viếng Dinh Cậu ngắm hoàng hôn ráng chiều biển Tây.",
+      "evening": "Khám phá Grand World Phú Quốc: du ngoạn kênh đào Venice, xem show nhạc nước triệu đô Sắc Màu Venice."
+    },
+    {
+      "day": 2,
+      "title": "Tour 4 Đảo Bằng Cano Cao Tốc - Lặn San Hô - Cáp Treo Hòn Thơm",
+      "morning": "Cano cao tốc đưa đoàn khám phá Hòn Móng Tay, Hòn Gầm Ghì lặn ngắm rạn san hô nguyên sơ đầy sắc màu.",
+      "afternoon": "Ăn trưa hải sản tươi sống tại Hòn Mây Rút Trong. Đi cáp treo vượt biển Hòn Thơm ngắm biển ngọc từ trên cao.",
+      "evening": "Trải nghiệm Sunset Sanato check-in voi đá biển và thưởng thức bữa tối hải sản nướng thơm ngon."
+    },
+    {
+      "day": 3,
+      "title": "Cơ Sở Ngọc Trai - Nhà Thùng Nước Mắm - Tiễn Khách Sân Bay",
+      "morning": "Thăm cơ sở nuôi cấy ngọc trai cao cấp và nhà thùng nước mắm truyền thống Phú Quốc trăm năm.",
+      "afternoon": "Mua sắm đặc sản tiêu chín ngào đường, rượu sim rừng. Xe đưa quý khách ra sân bay Phú Quốc.",
+      "evening": "Đáp chuyến bay về lại TP.HCM / Hà Nội. Kết thúc kỳ nghỉ tuyệt vời tại Đảo Ngọc!"
+    }
+  ],
+  "DL-DL04": [
+    {
+      "day": 1,
+      "title": "TP.HCM - Cao Tốc Dầu Giây - Đà Lạt - Thung Lũng Đèn Phố Đêm",
+      "morning": "Xe Limousine đón quý khách tại TP.HCM, khởi hành lên phố hoa Đà Lạt ngắm đèo Chuối và đèo Bảo Lộc hùng vĩ.",
+      "afternoon": "Đến Đà Lạt nhận phòng khách sạn phong cách cổ điển Pháp, thưởng thức tách trà atiso ấm nóng.",
+      "evening": "Thưởng thức lẩu gà lá é trứ danh, dạo quanh hồ Xuân Hương và chợ đêm Đà Lạt se lạnh."
+    },
+    {
+      "day": 2,
+      "title": "Săn Mây Cầu Đất - Thác Datanla - Ga Xe Lửa Cổ - Quảng Trường Lâm Viên",
+      "morning": "05:00 Khởi hành săn mây tại Đồi chè Cầu Đất với tuabin gió khổng lồ, đón bình minh vàng rực rỡ.",
+      "afternoon": "Chinh phục máng trượt Thác Datanla, ghé thăm Nhà ga Đà Lạt cổ kính - kiến trúc răng cưa độc đáo.",
+      "evening": "Check-in nụ hoa Atiso khổng lồ tại Quảng trường Lâm Viên, nhâm nhi cà phê ngắm toàn cảnh thung lũng đèn đêm."
+    },
+    {
+      "day": 3,
+      "title": "Vườn Dâu Tây Công Nghệ Cao - Thiền Viện Trúc Lâm - Hồ Tuyền Lâm - Về TP.HCM",
+      "morning": "Hái dâu tây chín mọng tại vườn công nghệ cao, vãn cảnh thanh tịnh Thiền Viện Trúc Lâm bên hồ Tuyền Lâm xanh biếc.",
+      "afternoon": "Mua sắm đặc sản mứt dâu, trà atiso, hồng treo gió Đà Lạt. Xe khởi hành về lại TP.HCM.",
+      "evening": "Về đến TP.HCM lúc 20:00, hướng dẫn viên chia tay đoàn và hẹn ngày tái ngộ!"
+    }
+  ],
+  "DL-SP05": [
+    {
+      "day": 1,
+      "title": "Hà Nội - Cao Tốc Nội Bài Lào Cai - Sa Pa - Bản Cát Cát Thác Nước",
+      "morning": "Xe Cabin tình yêu đón quý khách tại Hà Nội, khởi hành đi Sa Pa qua đường cao tốc hiện đại.",
+      "afternoon": "Đến Sa Pa nhận phòng khách sạn, dùng bữa trưa lẩu cá hồi. Thăm Bản Cát Cát, ngắm thác Tiên Sa róc rách.",
+      "evening": "Tự do dạo phố cổ Sa Pa, thăm Nhà thờ Đá, thưởng thức đồ nướng than hồng chợ đêm Sa Pa."
+    },
+    {
+      "day": 2,
+      "title": "Chinh Phục Đỉnh Fansipan 3.143m - Quần Thể Tâm Linh Đại Tượng Phật",
+      "morning": "Đi tàu hỏa leo núi Mường Hoa, tiếp tục đi cáp treo Sun World băng qua thung lũng mây lên đỉnh Fansipan linh thiêng.",
+      "afternoon": "Chạm tay cột mốc Nóc nhà Đông Dương, chiêm bái Đại Tượng Phật A Di Đà bằng đồng lớn nhất Việt Nam.",
+      "evening": "Dùng bữa tối đặc sản lợn bản cắp nách, tắm lá thuốc người Dao Đỏ thư giãn toàn thân."
+    },
+    {
+      "day": 3,
+      "title": "Đèo Ô Quy Hồ - Cổng Trời Sa Pa - Chợ Sa Pa - Về Lại Hà Nội",
+      "morning": "Chinh phục Đèo Ô Quy Hồ - một trong tứ đại đỉnh đèo hiểm trở bậc nhất Việt Nam ngắm thung lũng mây mù.",
+      "afternoon": "Ghé chợ Sa Pa mua nấm hương rừng, thịt trâu gác bếp, đào mận Sa Pa. Xe đưa đoàn về lại thủ đô Hà Nội.",
+      "evening": "19:30 Về đến Hà Nội, kết thúc chuyến phiêu lưu Sa Pa ấn tượng khó quên."
+    }
+  ],
+  "DL-MT06": [
+    {
+      "day": 1,
+      "title": "TP.HCM - Mỹ Tho - Bến Tre - Cần Thơ - Bến Ninh Kiều Về Đêm",
+      "morning": "Xe đón quý khách tại TP.HCM, vượt cầu Rạch Miễu đến xứ dừa Bến Tre du ngoạn sông Tiền.",
+      "afternoon": "Đi xe ngựa đường làng, thưởng thức mật ong hoa nhãn, nghe đờn ca tài tử Nam Bộ. Di chuyển về Tây Đô Cần Thơ.",
+      "evening": "Lên du thuyền Cần Thơ dùng bữa tối ngắm sông Hậu và cầu Cần Thơ lung linh ánh đèn."
+    },
+    {
+      "day": 2,
+      "title": "Chợ Nổi Cái Răng - Rừng Tràm Trà Sư Mùa Nước Nổi - Về TP.HCM",
+      "morning": "05:30 Đi thuyền máy tham quan Chợ nổi Cái Răng thưởng thức hủ tiếu lắc, cà phê kho trên sông.",
+      "afternoon": "Đến rừng tràm Trà Sư, ngồi xuồng ba lá ngắm các loài chim quý hiếm bay rợp bóng mát. Dùng bữa trưa cá lóc nướng trui.",
+      "evening": "Khởi hành về TP.HCM qua cầu Mỹ Thuận, kết thúc hành trình miệt vườn ấm áp tình người!"
+    }
+  ],
+  "DL-NB07": [
+    {
+      "day": 1,
+      "title": "Hà Nội - Cố Đô Hoa Lư - Thắng Cảnh Tràng An - Phố Cổ Hoa Lư Về Đêm",
+      "morning": "08:00 Xe Limousine đón quý khách tại Hà Nội, khởi hành về Ninh Bình thăm Cố đô Hoa Lư thờ vua Đinh - vua Lê.",
+      "afternoon": "Lên thuyền nan xuôi dòng Sào Khê khám phá Quần thể danh thắng Tràng An di sản thế giới UNESCO.",
+      "evening": "Nhận phòng khách sạn, dùng bữa tối thịt dê núi nướng tảng, tự do dạo phố cổ Hoa Lư ngắm tháp Kỳ Lân rực rỡ."
+    },
+    {
+      "day": 2,
+      "title": "Đại Tự Bái Đính - Đỉnh Hang Múa Ngắm Tam Cốc - Hà Nội",
+      "morning": "Viếng Chùa Bái Đính chiêm bái Tượng Phật Di Lặc bằng đồng lớn nhất Đông Nam Á và hành lang La Hán dài nhất.",
+      "afternoon": "Chinh phục đỉnh núi Múa check-in ngắm toàn cảnh dòng Ngô Đồng uốn lượn bên cánh đồng lúa Tam Cốc.",
+      "evening": "16:30 Lên xe về lại thủ đô Hà Nội, trả khách tại điểm hẹn ban đầu."
+    }
+  ],
+  "DL-HG08": [
+    {
+      "day": 1,
+      "title": "Hà Nội - Cột Mốc Km0 - Cổng Trời Quản Bạ - Rừng Thông Yên Minh - Đồng Văn",
+      "morning": "Khởi hành từ Hà Nội theo cao tốc Tuyên Quang lên Hà Giang, check-in Cột mốc Km0 lịch sử.",
+      "afternoon": "Vượt Dốc Bắc Sum lên Cổng trời Quản Bạ ngắm Núi Đôi Cô Tiên tuyệt tác thiên nhiên. Đi qua rừng thông Yên Minh.",
+      "evening": "Đến Phố cổ Đồng Văn nhận phòng, dạo phố cổ và thưởng thức bánh cuốn nóng chan nước xương đậm đà."
+    },
+    {
+      "day": 2,
+      "title": "Cột Cờ Lũng Cú - Dinh Vua Mèo - Đèo Mã Pí Lèng - Sông Nho Quế",
+      "morning": "Chinh phục đỉnh núi Rồng viếng Cột cờ Lũng Cú cực Bắc. Thăm Dinh thự họ Vương (Dinh Vua Mèo) cổ kính.",
+      "afternoon": "Vượt Đèo Mã Pí Lèng hùng vĩ ngắm toàn cảnh hẻm Tu Sản. Đi thuyền máy trên dòng sông Nho Quế xanh màu ngọc bích.",
+      "evening": "Thưởng thức lẩu gà đen vùng cao, giao lưu văn nghệ lửa trại cùng đồng bào vùng cao."
+    },
+    {
+      "day": 3,
+      "title": "Làng Văn Hóa Lũng Cẩm - Dốc Thẩm Mã - Hà Giang - Hà Nội",
+      "morning": "Thăm Làng Lũng Cẩm - bối cảnh bộ phim nổi tiếng 'Chuyện của Pao'. Chụp ảnh trên con Dốc Thẩm Mã uốn lượn.",
+      "afternoon": "Ăn trưa tại TP. Hà Giang, mua mật ong hoa bạc hà và chè Shan Tuyết cổ thụ. Xe khởi hành về Hà Nội.",
+      "evening": "20:00 Về đến Hà Nội, kết thúc chuyến chinh phục cực Bắc hào hùng!"
+    }
+  ],
+  "DL-CB09": [
+    {
+      "day": 1,
+      "title": "Hà Nội - Thái Nguyên - Cao Bằng - Thác Bản Giốc Oai Hùng",
+      "morning": "Khởi hành từ Hà Nội qua đèo Gió, đèo Khau Khang ngắm núi rừng Đông Bắc trập trùng.",
+      "afternoon": "Đến Trùng Khánh, chiêm ngưỡng vẻ đẹp kỳ vĩ của Thác Bản Giốc tung bọt trắng xóa giữa biên cương.",
+      "evening": "Nhận phòng khách sạn, thưởng thức vịt quay 7 vị và rau bò khai xào thịt bò thơm ngon."
+    },
+    {
+      "day": 2,
+      "title": "Động Ngườm Ngao - Làng Rèn Phúc Sen - Suối Lê Nin Núi Các Mác",
+      "morning": "Thám hiểm Động Ngườm Ngao khám phá kiệt tác thạch nhũ hình hoa sen úp ngược.",
+      "afternoon": "Ghé thăm làng nghề rèn dao Phúc Sen truyền thống của người Nùng An, viếng suối Lê Nin Pác Bó.",
+      "evening": "Dạo phố đêm Cao Bằng, thưởng thức bánh áp chao giòn rụm và chè hạt dẻ thơm bùi."
+    },
+    {
+      "day": 3,
+      "title": "Chợ Phiên Vùng Cao - Bắc Kạn - Hà Nội",
+      "morning": "Mua sắm đặc sản miến dong Phia Đén, nấm hương rừng và hạt dẻ Trùng Khánh.",
+      "afternoon": "Lên xe khởi hành về lại Hà Nội, dừng chân ngắm cảnh hồ Ba Bể xanh trong.",
+      "evening": "18:30 Về đến thủ đô Hà Nội, chia tay và hẹn gặp lại quý khách."
+    }
+  ],
+  "DL-MC10": [
+    {
+      "day": 1,
+      "title": "Hà Nội - Đèo Đá Trắng Thung Khe - Mộc Châu - Đồi Chè Trái Tim - Thác Dải Yếm",
+      "morning": "Xe đón quý khách tại Hà Nội, dừng chân check-in Đèo Thung Khe (Đèo Đá Trắng) mù sương.",
+      "afternoon": "Đến Mộc Châu, dạo bước chụp ảnh tại Đồi chè Trái Tim biểu tượng, ngắm Thác Dải Yếm tráng lệ.",
+      "evening": "Thưởng thức đặc sản bê chao Bản Lóng Luông, đốt lửa trại giao lưu văn nghệ cùng đồng bào Thái."
+    },
+    {
+      "day": 2,
+      "title": "Cầu Kính Bạch Long - Rừng Thông Bản Áng - Về Hà Nội",
+      "morning": "Trải nghiệm cảm giác bước đi giữa không trung trên Cầu kính Bạch Long đáy kính trong suốt xuyên núi.",
+      "afternoon": "Ghé thăm Rừng thông Bản Áng được mệnh danh là Đà Lạt thu nhỏ của vùng Tây Bắc.",
+      "evening": "18:00 Về đến Hà Nội, kết thúc chuyến nghỉ dưỡng trong lành tại cao nguyên Mộc Châu."
+    }
+  ],
+  "DL-HU11": [
+    {
+      "day": 1,
+      "title": "Đón Khách - Chùa Thiên Mụ Cổ Kính - Du Thuyền Rồng Sông Hương",
+      "morning": "Xe đón quý khách tại Huế, đưa về khách sạn nghỉ ngơi, dùng bữa trưa cơm niêu Huế.",
+      "afternoon": "Viếng Chùa Thiên Mụ trăm năm ngắm tháp Phước Duyên soi bóng dòng sông Hương thơ mộng.",
+      "evening": "Lên thuyền rồng thưởng thức Ca Huế ngọt ngào, tự tay thả đèn hoa đăng cầu an lành trên sông Hương."
+    },
+    {
+      "day": 2,
+      "title": "Đại Nội Hoàng Cung - Lăng Vua Khải Định - Lăng Vua Tự Đức",
+      "morning": "Khám phá Quần thể Di tích Cố đô Huế: Ngọ Môn, Điện Thái Hòa, Thế Miếu, Hiển Lâm Các.",
+      "afternoon": "Chiêm ngưỡng kiến trúc Đông Tây tinh xảo Lăng Khải Định và nét lãng mạn thi vị của Lăng Tự Đức.",
+      "evening": "Thưởng thức bữa tối phong cách yến tiệc cung đình Huế, dạo phố đi bộ Chu Văn An sầm uất."
+    },
+    {
+      "day": 3,
+      "title": "Làng Hương Thủy Xuân - Chợ Đông Ba Mua Sắm - Tiễn Khách",
+      "morning": "Check-in sống ảo muôn màu sắc tại Làng hương Thủy Xuân, học cách làm nón bài thơ truyền thống.",
+      "afternoon": "Mua sắm đặc sản mè xửng, tôm chua, trà cung đình tại Chợ Đông Ba. Xe tiễn khách ra sân bay/ga Huế.",
+      "evening": "Kết thúc chuyến du hành về miền di sản lịch sử vàng son!"
+    }
+  ],
+  "DL-NT12": [
+    {
+      "day": 1,
+      "title": "Đón Sân Bay Cam Ranh - Tháp Bà Ponagar - Tắm Bùn Khoáng I-Resort",
+      "morning": "Xe đón quý khách tại Sân bay Cam Ranh / Ga Nha Trang, đưa về khách sạn ven đường Trần Phú.",
+      "afternoon": "Chiêm bái quần thể kiến trúc Chăm cổ kính Tháp Bà Ponagar, thư giãn ngâm bùn khoáng I-Resort.",
+      "evening": "Thưởng thức đặc sản Nem nướng Ninh Hòa và dạo phố biển đêm Nha Trang gió mát lộng."
+    },
+    {
+      "day": 2,
+      "title": "Con Đường Xuyên Biển Đảo Điệp Sơn - Bãi Dốc Lết Cát Trắng",
+      "morning": "Cano lướt sóng ra đảo Điệp Sơn, trải nghiệm bước chân trên con đường cát thủy đạo kỳ diệu giữa đại dương.",
+      "afternoon": "Tự do tắm biển tại bãi biển Dốc Lết nước trong như pha lê, thưởng thức ghẹ hoa, mực tươi nướng muối ớt.",
+      "evening": "Bữa tiệc hải sản tôm hùm, dạo chợ đêm Nha Trang mua ngọc trai và yến sào Khánh Hòa."
+    },
+    {
+      "day": 3,
+      "title": "Viện Hải Dương Học - Chùa Long Sơn - Mua Sắm Đặc Sản - Tiễn Bay",
+      "morning": "Khám phá hàng ngàn sinh vật biển kỳ thú tại Viện Hải Dương Học lớn nhất Đông Nam Á.",
+      "afternoon": "Viếng Chùa Long Sơn chiêm bái Tượng Kim Thân Phật Tổ uy nghiêm. Mua đặc sản mực một nắng, chả cá.",
+      "evening": "Xe đưa quý khách ra sân bay Cam Ranh, kết thúc kỳ nghỉ vịnh biển trọn vẹn!"
+    }
+  ],
+  "DL-QN13": [
+    {
+      "day": 1,
+      "title": "Đón Sân Bay Phù Cát - Tháp Đôi Chăm Pa - Ghềnh Ráng Tiên Sa - Hàn Mặc Tử",
+      "morning": "Xe đón quý khách tại sân bay Phù Cát, đưa về trung tâm phố biển Quy Nhơn nhận phòng.",
+      "afternoon": "Thăm Quần thể Ghềnh Ráng Tiên Sa viếng mộ thi sĩ Hàn Mặc Tử, bãi tắm Hoàng Hậu đá trứng độc đáo.",
+      "evening": "Thưởng thức bánh xèo tôm nhảy rau mầm gia truyền, ngắm cảnh biển Quy Nhơn hiền hòa về đêm."
+    },
+    {
+      "day": 2,
+      "title": "Thiên Đường Biển Kỳ Co - Vắt Vẻo Eo Gió - Lặn Ngắm San Hô Hòn Khô",
+      "morning": "Vượt Cầu Thị Nại, cano cao tốc lướt sóng đưa quý khách cập bãi biển Kỳ Co nước xanh trong vắt.",
+      "afternoon": "Dạo bước cung đường đá uốn lượn ven biển Eo Gió ngắm sóng vỗ rì rào. Tắm biển lặn san hô.",
+      "evening": "Thưởng thức đại tiệc hải sản tươi sống làng chài Nhơn Lý: nhum biển, ốc hương, tôm mũ ni nướng."
+    },
+    {
+      "day": 3,
+      "title": "Tịnh Xá Ngọc Hòa Tượng Phật Đôi - Mua Sắm Đặc Sản - Tiễn Bay",
+      "morning": "Chiêm bái Tượng Phật Đôi cao nhất Việt Nam tại Tịnh xá Ngọc Hòa cầu bình an cho gia đạo.",
+      "afternoon": "Mua sắm đặc sản bánh ít lá gai, nem Chợ Huyện, mực rim me. Xe tiễn khách ra sân bay Phù Cát.",
+      "evening": "Đáp chuyến bay về lại điểm khởi hành, hẹn gặp lại quý khách trong các hành trình tiếp theo!"
+    }
+  ],
+  "DL-PY14": [
+    {
+      "day": 1,
+      "title": "Đón Sân Bay Tuy Hòa - Tháp Nhạn Cổ - Bờ Kè Xóm Rớ Rêu Xanh",
+      "morning": "Xe đón quý khách tại sân bay Tuy Hòa, đưa về khách sạn nhận phòng nghỉ ngơi.",
+      "afternoon": "Thăm di tích kiến trúc Tháp Nhạn trên đỉnh núi, ngắm toàn cảnh dòng sông Đà Rằng uốn lượn.",
+      "evening": "Thưởng thức món Mắt cá ngừ đại dương chưng cách thủy đặc sản nức tiếng Phú Yên."
+    },
+    {
+      "day": 2,
+      "title": "Mũi Điện Hải Đăng Đón Bình Minh - Bãi Môn - Vịnh Vũng Rô Tàu Không Số",
+      "morning": "05:00 Khởi hành đi Mũi Điện chinh phục ngọn hải đăng Đại Lãnh đón ánh bình minh sớm nhất đất liền.",
+      "afternoon": "Dạo bước trên bãi cát mịn Bãi Môn, thăm Di tích lịch sử Tàu không số Vịnh Vũng Rô oai hùng.",
+      "evening": "Bữa tối hải sản tươi ngon trên bè nổi Vũng Rô, tự do khám phá phố đêm Tuy Hòa."
+    },
+    {
+      "day": 3,
+      "title": "Ghềnh Đá Đĩa Kỳ Vĩ - Nhà Thờ Mằng Lăng - Bãi Xép Hoa Vàng Cỏ Xanh - Tiễn Khách",
+      "morning": "Chiêm ngưỡng kỳ quan Ghềnh Đá Đĩa, viếng Nhà thờ Mằng Lăng nơi lưu giữ cuốn sách chữ quốc ngữ đầu tiên.",
+      "afternoon": "Ghé Bãi Xép lộng gió thả hồn giữa thảo nguyên xương rồng ngắm sóng biển. Xe tiễn khách ra sân bay.",
+      "evening": "Kết thúc chuyến du ngoạn xứ sở hoa vàng cỏ xanh thanh bình và trù phú!"
+    }
+  ],
+  "DL-TN15": [
+    {
+      "day": 1,
+      "title": "TP.HCM - Tòa Thánh Tây Ninh - Sun World Núi Bà Đen - Về TP.HCM Trong Ngày",
+      "morning": "06:30 Xe Limousine đón quý khách tại trung tâm TP.HCM, khởi hành đi Tây Ninh. Viếng Tòa Thánh Tây Ninh tham dự giờ kinh trưa thiêng liêng và trang nghiêm.",
+      "afternoon": "Trải nghiệm cáp treo lên đỉnh Núi Bà Đen săn mây, chiêm bái Đại Tượng Phật Bà Tây Bổ Đà Sơn, ngắm vườn hoa rực rỡ trên đỉnh núi cao 986m. Dùng bữa trưa buffet phong phú đỉnh núi.",
+      "evening": "16:30 Khởi hành về TP.HCM, thưởng thức món Bò tơ Tây Ninh nướng than hồng trên đường về. 19:30 Về đến TP.HCM, kết thúc chuyến hành hương ý nghĩa!"
+    }
+  ],
+  "DL-CD16": [
+    {
+      "day": 1,
+      "title": "Đón Cảng Bến Đầm / Sân Bay Cỏ Ống - Miếu Bà Phi Yến - Bãi Nhát Ngắm Đỉnh Tình Yêu",
+      "morning": "Xe đón quý khách tại Sân bay Cỏ Ống / Cảng Bến Đầm, đưa về thị trấn Côn Đảo nhận phòng resort ven biển.",
+      "afternoon": "Viếng Miếu Bà Phi Yến (An Sơn Miếu), ngắm bãi biển Bãi Nhát hoang sơ và Đỉnh Tình Yêu lãng mạn.",
+      "evening": "23:00 Viếng Nghĩa trang Hàng Dương, dâng lễ tại mộ Chị Võ Thị Sáu trong không gian trang nghiêm linh thiêng."
+    },
+    {
+      "day": 2,
+      "title": "Di Tích Lịch Sử Nhà Tù Côn Đảo - Bãi Đầm Trầu - Ngắm Hoàng Hôn Bãi Nhát",
+      "morning": "Thăm di tích Nhà tù Côn Đảo: Trại Phú Hải, Chuồng Cọp Pháp, Chuồng Cọp Mỹ, Cầu Tàu 914 lịch sử.",
+      "afternoon": "Nghỉ ngơi tắm biển tại Bãi Đầm Trầu nước xanh biếc, trải nghiệm khoảnh khắc máy bay lướt sát trên bãi biển.",
+      "evening": "Thưởng thức đại tiệc hải sản cua mặt trăng, cá thu một nắng, tự do dạo phố biển đêm thanh bình."
+    },
+    {
+      "day": 3,
+      "title": "Chợ Côn Đảo - Mua Đặc Sản Hạt Bàng - Tiễn Khách Về Đất Liền",
+      "morning": "Ghé Chợ Côn Đảo mua hạt bàng rang muối, mứt hạt bàng gừng, mực một nắng tươi ngon.",
+      "afternoon": "Xe đưa quý khách ra sân bay Cỏ Ống / Cảng Bến Đầm làm thủ tục về lại TP.HCM / Cần Thơ.",
+      "evening": "Về đến điểm xuất phát, kết thúc hành trình về miền đất thiêng đầy cảm xúc!"
+    }
+  ]
+}

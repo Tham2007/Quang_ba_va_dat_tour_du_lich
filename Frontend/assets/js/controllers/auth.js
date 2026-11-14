@@ -869,18 +869,24 @@ async function handleChangePassword(e) {
 // VI. ĐỒNG BỘ AUTO-FILL VỚI FORM ĐẶT TOUR (BOOKING SYNC)
 // =============================================================================
 /**
- * Tự động điền thông tin tài khoản vào form đặt tour nếu đã đăng nhập
+ * Tự động điền thông tin tài khoản vào form đặt tour nếu đã đăng nhập (hỗ trợ cả modal và booking.html)
  */
 function syncUserWithBookingForm() {
   const user = getCurrentUser();
-  const nameInput = document.getElementById("customerName");
+  const nameInput = document.getElementById("customerFullName") || document.getElementById("customerName");
   const emailInput = document.getElementById("customerEmail");
   const phoneInput = document.getElementById("customerPhone");
 
   if (user) {
-    if (nameInput && !nameInput.value) nameInput.value = user.fullName;
-    if (emailInput && !emailInput.value) emailInput.value = user.email;
-    if (phoneInput && !phoneInput.value) phoneInput.value = user.phone;
+    if (nameInput && (!nameInput.value || nameInput.value === "Nguyễn Văn A")) {
+      nameInput.value = user.fullName || user.full_name || "";
+    }
+    if (emailInput && (!emailInput.value || emailInput.value === "example@email.com")) {
+      emailInput.value = user.email || "";
+    }
+    if (phoneInput && (!phoneInput.value || phoneInput.value === "0901234567")) {
+      phoneInput.value = user.phone || "";
+    }
   }
 }
 
@@ -891,16 +897,7 @@ function hookBookingModalForAutoFill() {
   const bookingModalEl = document.getElementById("bookingModal");
   if (bookingModalEl) {
     bookingModalEl.addEventListener("show.bs.modal", () => {
-      const user = getCurrentUser();
-      if (user) {
-        const nameInput = document.getElementById("customerName");
-        const emailInput = document.getElementById("customerEmail");
-        const phoneInput = document.getElementById("customerPhone");
-
-        if (nameInput) nameInput.value = user.fullName;
-        if (emailInput) emailInput.value = user.email;
-        if (phoneInput) phoneInput.value = user.phone;
-      }
+      syncUserWithBookingForm();
     });
   }
 }

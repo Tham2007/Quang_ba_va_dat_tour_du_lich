@@ -11,7 +11,10 @@ const { DatabaseSync } = require("node:sqlite");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const https = require("https");
-const nodemailer = require("nodemailer");
+let nodemailer = null;
+try {
+  nodemailer = require("nodemailer");
+} catch (_) {}
 
 // Tự động tải biến môi trường từ .env nếu có
 const envPath = path.resolve(__dirname, ".env");
@@ -843,7 +846,7 @@ function initDatabase() {
 
   const upsertTour = db.prepare(`
     INSERT INTO tours (id, slug, title, region, duration, price, original_price, image, departure, transport, flash_sale, description, itinerary_json, active, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', 1, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
     ON CONFLICT(id) DO UPDATE SET
       slug = excluded.slug,
       title = excluded.title,
@@ -856,6 +859,7 @@ function initDatabase() {
       transport = excluded.transport,
       flash_sale = excluded.flash_sale,
       description = excluded.description,
+      itinerary_json = CASE WHEN excluded.itinerary_json != '[]' THEN excluded.itinerary_json ELSE tours.itinerary_json END,
       updated_at = excluded.updated_at
   `);
 
@@ -864,9 +868,23 @@ function initDatabase() {
     VALUES (?, ?, ?, ?, 0, 1)
   `);
 
+  // Nạp toàn bộ lịch trình 16 tour từ API/tours_itinerary.json
+  let toursItineraryMap = {};
+  try {
+    const itinPath = path.join(__dirname, "API", "tours_itinerary.json");
+    if (fs.existsSync(itinPath)) {
+      toursItineraryMap = JSON.parse(fs.readFileSync(itinPath, "utf8"));
+    }
+  } catch (e) {
+    console.warn("Lỗi đọc API/tours_itinerary.json:", e.message);
+  }
+
   TOURS_16.forEach((t, i) => {
     const imagesJson = JSON.stringify(t.images);
-    upsertTour.run(t.id, t.slug, t.title, t.region, t.duration, t.price, t.original_price, imagesJson, t.departure, t.transport, t.flash_sale, t.description, now);
+    const tourItin = toursItineraryMap[t.id] || [];
+    const itinJson = JSON.stringify(tourItin);
+
+    upsertTour.run(t.id, t.slug, t.title, t.region, t.duration, t.price, t.original_price, imagesJson, t.departure, t.transport, t.flash_sale, t.description, itinJson, now);
 
     const schedCount = db.prepare("SELECT COUNT(*) AS count FROM schedules WHERE tour_id = ?").get(t.id).count;
     if (schedCount === 0) {
@@ -875,6 +893,26 @@ function initDatabase() {
         d.setUTCHours(2, 0, 0, 0);
         insertSchedule.run(crypto.randomUUID(), t.id, d.toISOString(), t.seats);
       });
+    }
+  });
+
+  // Đồng bộ toàn diện vào bảng 3NF itinerary_items và cập nhật itinerary_json
+  Object.entries(toursItineraryMap).forEach(([tourId, itinList]) => {
+    if (Array.isArray(itinList) && itinList.length > 0) {
+      db.prepare("UPDATE tours SET itinerary_json = ? WHERE id = ?").run(JSON.stringify(itinList), tourId);
+      const existingItinCount = db.prepare("SELECT COUNT(*) AS count FROM itinerary_items WHERE tour_id = ?").get(tourId).count;
+      if (existingItinCount === 0) {
+        const insertItinItem = db.prepare(`
+          INSERT INTO itinerary_items (id, tour_id, day_number, sequence, category, title, description, location, start_time)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        itinList.forEach((d, dIdx) => {
+          const dayNum = d.day || (dIdx + 1);
+          if (d.morning) insertItinItem.run(`ITIN-${tourId}-${dayNum}-1`, tourId, dayNum, 1, "morning", d.title || `Ngày ${dayNum}`, d.morning, "", "08:00");
+          if (d.afternoon) insertItinItem.run(`ITIN-${tourId}-${dayNum}-2`, tourId, dayNum, 2, "afternoon", d.title || `Ngày ${dayNum}`, d.afternoon, "", "14:00");
+          if (d.evening) insertItinItem.run(`ITIN-${tourId}-${dayNum}-3`, tourId, dayNum, 3, "evening", d.title || `Ngày ${dayNum}`, d.evening, "", "19:00");
+        });
+      }
     }
   });
 
@@ -1228,28 +1266,46 @@ function userDict(u) {
 }
 
 function bookingDict(b) {
-  const totalPrice = Number(b.total_price);
+  let tourId = b.tour_id || null;
+  if (!tourId && b.schedule_id) {
+    try {
+      const sched = db.prepare("SELECT tour_id FROM schedules WHERE id = ?").get(b.schedule_id);
+      if (sched) tourId = sched.tour_id;
+    } catch (_) {}
+  }
+  const totalPrice = Number(b.total_price) || 0;
   const discountAmount = Number(b.discount_amount || 0);
-  const subtotalPrice = Number(b.subtotal_price) > 0 ? Number(b.subtotal_price) : (totalPrice + discountAmount);
+  const subtotalPrice = Number(b.subtotal_price) > 0 ? Number(b.subtotal_price) : Math.round(totalPrice / 1.1 + discountAmount);
+  const subtotalAfterDiscount = Math.max(0, subtotalPrice - discountAmount);
+  const vatAmount = Math.max(0, totalPrice - subtotalAfterDiscount);
+
   return {
     id: b.id,
     reference: b.reference,
     scheduleId: b.schedule_id,
+    tourId: tourId,
     tourTitle: b.tour_title,
     customerName: b.customer_name,
+    customerPhone: b.customer_phone || "",
+    customerEmail: b.customer_email || "",
+    pickupLocation: b.pickup_location || "",
     adults: Number(b.adults),
     children: Number(b.children),
     infants: Number(b.infants),
     seats: Number(b.seats_held),
     unitPrice: Number(b.unit_price),
     subtotalPrice,
+    subtotal: subtotalAfterDiscount,
     discountAmount,
     voucherCode: b.voucher_code || null,
     voucherName: b.voucher_name || null,
+    vatRate: 10,
+    vatAmount: vatAmount,
     totalPrice,
     pricing: {
       subtotal: subtotalPrice,
       discount: discountAmount,
+      vatAmount: vatAmount,
       total: totalPrice
     },
     status: b.status,
@@ -1817,6 +1873,7 @@ function escapeHtmlServer(value) {
 }
 
 function getMailTransport() {
+  if (!nodemailer) return null;
   if (testMailTransport) {
     const from = process.env.DELTA_SMTP_FROM || process.env.DELTA_SMTP_USER || "Delta Travel <no-reply@deltatravel.vn>";
     return { transport: testMailTransport, from };
@@ -2532,10 +2589,22 @@ app.post("/api/v1/vouchers/validate", async (req, res) => {
   }
 });
 
+// 5. Booking & Pricing Flow: Thuật toán tính giá tour chuẩn thương mại điện tử
 function calculateTotals(unitPrice, adults, children = 0, infants = 0) {
   const childPrice = Math.floor((unitPrice * 75 + 50) / 100);
   const infantPrice = Math.floor((unitPrice * 10 + 50) / 100);
-  return unitPrice * adults + childPrice * children + infantPrice * infants;
+  return (unitPrice * adults) + (childPrice * children) + (infantPrice * infants);
+}
+
+function calculatePricingBreakdown(unitPrice, adults, children = 0, infants = 0, discount = 0) {
+  const childPrice = Math.floor((unitPrice * 75 + 50) / 100);
+  const infantPrice = Math.floor((unitPrice * 10 + 50) / 100);
+  const rawSubtotal = (unitPrice * adults) + (childPrice * children) + (infantPrice * infants);
+  const subtotal = Math.max(0, rawSubtotal - discount);
+  const vatRate = 10;
+  const vatAmount = Math.round(subtotal * 0.10);
+  const totalPrice = subtotal + vatAmount;
+  return { rawSubtotal, subtotal, vatRate, vatAmount, totalPrice };
 }
 
 app.post("/api/v1/bookings/quote", async (req, res) => {
@@ -2561,17 +2630,18 @@ app.post("/api/v1/bookings/quote", async (req, res) => {
 
     const totalSeats = adults + children + infants;
     const avail = sched.total_seats - (sched.reserved_seats || 0);
-    const subtotalPrice = calculateTotals(tour.price, adults, children, infants);
+    const childPrice = Math.floor((tour.price * 75 + 50) / 100);
+    const infantPrice = Math.floor((tour.price * 10 + 50) / 100);
+    const rawSubtotal = (tour.price * adults) + (childPrice * children) + (infantPrice * infants);
 
     let discountAmount = 0;
-    let finalTotal = subtotalPrice;
     let voucherDto = null;
     if (voucherCode) {
       const sessionUser = getSessionUser(req);
       const params = {
         code: voucherCode,
         tour,
-        subtotal: subtotalPrice,
+        subtotal: rawSubtotal,
         sessionUser,
         resolvedUserId: sessionUser?.id || null,
         customerEmail,
@@ -2584,9 +2654,13 @@ app.post("/api/v1/bookings/quote", async (req, res) => {
         return res.status(vRes.status || 422).json({ detail: vRes.detail, errorCode: vRes.errorCode });
       }
       discountAmount = vRes.discountAmount;
-      finalTotal = vRes.finalTotal;
       voucherDto = vRes.voucher;
     }
+
+    const subtotal = Math.max(0, rawSubtotal - discountAmount);
+    const vatRate = 10;
+    const vatAmount = Math.round(subtotal * 0.10);
+    const finalTotal = subtotal + vatAmount;
 
     res.json({
       scheduleId: sched.id,
@@ -2594,12 +2668,15 @@ app.post("/api/v1/bookings/quote", async (req, res) => {
       seats: totalSeats,
       availableSeats: Math.max(0, avail),
       unitPrice: tour.price,
-      subtotalPrice,
+      subtotalPrice: rawSubtotal,
+      subtotal: subtotal,
       discountAmount,
+      vatRate: 10,
+      vatAmount: vatAmount,
       totalPrice: finalTotal,
       voucher: voucherDto,
       currency: "VND",
-      pricingRules: { childPercent: 75, infantPercent: 10 },
+      pricingRules: { childPercent: 75, infantPercent: 10, vatPercent: 10 },
       addonsSupported: false,
       vouchersSupported: true
     });

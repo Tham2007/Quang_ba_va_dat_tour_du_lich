@@ -46,55 +46,73 @@ const VietQRService = (() => {
   }
 
   /**
-   * Tự động sinh nội dung chuyển khoản thông minh:
-   * Kết hợp [MÃ TOUR] và [ID TÀI KHOẢN / MÃ ĐƠN ĐẶT TOUR]
+   * Tự động sinh nội dung chuyển khoản chuẩn hóa NAPAS 247:
+   * Kết hợp [MÃ ID NGƯỜI DÙNG CHUẨN] và [MÃ ĐƠN ĐẶT TOUR]
+   * Mã ID người dùng cố định theo tài khoản (Cloudflare / Profile), không thay đổi theo từng tour!
    * Ví dụ:
-   * - Tour DL-HL01, User USR-01, Booking BK722879 => "DL-HL01 USR-01 BK722879"
-   * - Tour DL-CB09, Booking BK4556291778          => "DL-CB09 BK4556291778"
-   * - Tour DL-DN02, User USR-01                   => "DL-DN02 USR-01"
+   * - User USR-02, Booking BK5201581616 => "USR02 BK5201581616"
+   * - User Lê Văn An (UUID), Booking BK5201581616 => "KH309675 BK5201581616"
    */
   function generateTransferContent(tourId, bookingId, userId) {
-    let cleanTour = sanitizeTransferText(tourId || "TOUR");
-    if (!cleanTour || cleanTour === "DEFAULT") cleanTour = "DELTA";
-
-    // Trích xuất User ID từ tham số hoặc auth session
+    // 1. Trích xuất ID người dùng chuẩn xác & ổn định từ profile / session / Cloudflare
     let cleanUser = "";
     if (userId) {
-      cleanUser = sanitizeTransferText(userId);
+      cleanUser = sanitizeTransferText(String(userId));
     } else {
       try {
-        const authUser = JSON.parse(localStorage.getItem("delta_auth_user") || "null");
-        if (authUser && (authUser.id || authUser.maNguoiDung || authUser.username)) {
-          cleanUser = sanitizeTransferText(authUser.id || authUser.maNguoiDung || authUser.username);
+        let authUser = null;
+        if (typeof getCurrentUser === "function") {
+          authUser = getCurrentUser();
+        }
+        if (!authUser) {
+          const raw = localStorage.getItem("delta_current_user_v2") || localStorage.getItem("delta_auth_user");
+          if (raw) authUser = JSON.parse(raw);
+        }
+        if (authUser) {
+          const rawId = authUser.id || authUser.maNguoiDung || authUser.username || authUser.phone || "";
+          cleanUser = sanitizeTransferText(String(rawId));
         }
       } catch (_) {}
     }
 
+    // Chuẩn hóa định dạng User ID:
+    if (cleanUser) {
+      if (cleanUser.includes("-") && cleanUser.length > 15) {
+        // Nếu là UUID dài, lấy 6 ký tự cuối gắn tiền tố KH (Ví dụ: KH309675)
+        const pureAlphanum = cleanUser.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+        cleanUser = "KH" + (pureAlphanum.slice(-6) || pureAlphanum.slice(0, 6));
+      } else {
+        cleanUser = cleanUser.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+      }
+    } else {
+      cleanUser = "KHACH";
+    }
+
+    // 2. Trích xuất mã đơn đặt tour (Booking Ref)
     let cleanBooking = "";
     if (bookingId) {
-      cleanBooking = sanitizeTransferText(bookingId);
-      // Rút gọn nếu ID là UUID dài
+      cleanBooking = sanitizeTransferText(String(bookingId));
       if (cleanBooking.includes("-") && cleanBooking.length > 18) {
         const parts = cleanBooking.split("-");
         cleanBooking = "BK" + parts[parts.length - 1];
       }
     }
 
+    // 3. Kết hợp chuẩn hóa: [ID_NGƯỜI_DÙNG] [MÃ_ĐƠN_HÀNG]
     let content = "";
     if (cleanUser && cleanBooking) {
-      // Ưu tiên: [MÃ TOUR] [USER_ID] [MÃ_ĐƠN]
-      content = `${cleanTour} ${cleanUser} ${cleanBooking}`;
+      content = `${cleanUser} ${cleanBooking}`;
     } else if (cleanBooking) {
-      content = `${cleanTour} ${cleanBooking}`;
+      content = `DELTA ${cleanBooking}`;
     } else if (cleanUser) {
-      content = `${cleanTour} ${cleanUser}`;
+      content = `${cleanUser} DATTOUR`;
     } else {
-      content = `${cleanTour} DATTOUR`;
+      content = "DELTA DATTOUR";
     }
 
-    // Giới hạn tối đa 30 ký tự theo chuẩn VietQR NAPAS 247
-    if (content.length > 30) {
-      content = content.substring(0, 30).trim();
+    // Giới hạn tối đa 25 ký tự chuẩn VietQR NAPAS 247
+    if (content.length > 25) {
+      content = content.substring(0, 25).trim();
     }
     return content;
   }
