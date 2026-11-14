@@ -1,7 +1,10 @@
 /**
- * Delta Travel 2.0 - 3D Scroll Canvas & Moving Background Typography
- * Tải và hiển thị chuỗi 150 khung hình 3D xoay vòng mượt mà theo thao tác cuộn trang
- * Kết hợp chữ nghệ thuật mờ khổng lồ chuyển động parallax phía sau
+ * Delta Travel 2.0 - 3D Scroll Canvas & Smooth Physics LERP Engine
+ * Tải và hiển thị chuỗi 150 khung hình 3D xoay vòng mượt mà chuẩn 60fps/120fps.
+ * Tích hợp thuật toán nội suy tuyến tính (LERP - Linear Interpolation) với quán tính vật lý (Momentum Damping):
+ * - Khi cuộn nhẹ: Trái Đất xoay trôi êm ái, giảm tốc tự nhiên, không giật cục, không khựng lại đột ngột.
+ * - Khi cuộn nhanh: Tăng tốc mượt mà, chuyển tiếp tuần tự từng khung hình (Stride = 1).
+ * - Cơ chế Never-Blank: Luôn giữ khung hình gần nhất, không bao giờ nhấp nháy đen hay mất ảnh.
  */
 
 (() => {
@@ -11,20 +14,11 @@
   const FRAME_PREFIX = "ezgif-frame-";
   const FRAME_EXT = ".png";
 
-  // Mỗi khung PNG gốc rất nặng (~500KB), nạp đủ 150 khung sẽ ngốn >1GB RAM.
-  // 1) Chỉ dùng mỗi 2 khung (75 khung) vẫn đủ mượt khi cuộn.
-  // 2) Chỉ giữ một "cửa sổ" khung quanh vị trí đang xem để cuộn mượt.
-  const FRAME_STRIDE = 2;
-  const LAST_FRAME_INDEX = Math.floor((TOTAL_FRAMES - 1) / FRAME_STRIDE) * FRAME_STRIDE + 1;
-  const MAX_CACHED_FRAMES = 20;
-  const PREFETCH_AHEAD = 6;
-  const PREFETCH_BEHIND = 3;
-
-  const snapFrame = (index) => {
-    const clamped = Math.max(1, Math.min(TOTAL_FRAMES, index));
-    const snapped = Math.round((clamped - 1) / FRAME_STRIDE) * FRAME_STRIDE + 1;
-    return Math.max(1, Math.min(LAST_FRAME_INDEX, snapped));
-  };
+  // Stride = 1 để chuyển động liên tục từng khung hình mượt mà nhất
+  const FRAME_STRIDE = 1;
+  const PREFETCH_AHEAD = 18;
+  const PREFETCH_BEHIND = 8;
+  const MAX_CACHED_FRAMES = 150; // Giữ toàn bộ 150 khung trong bộ nhớ sau khi nạp nền
 
   // Danh sách các đường dẫn dự phòng để tìm ảnh 3D
   const BASE_URLS = window.location.pathname.includes("/Frontend/")
@@ -50,12 +44,21 @@
   const pendingFrames = new Set();
   let currentFrameIndex = 1;
   let lastDrawnIndex = 0;
+  let lastSuccessfulAsset = null;
   let isCanvasReady = false;
   let renderWidth = 0;
   let renderHeight = 0;
 
+  // Trạng thái LERP (Linear Interpolation) và quán tính vật lý
+  let targetProgress = 0;
+  let currentProgress = 0;
+  let isRafRunning = false;
+  let heroTop = 0;
+  let heroScrollable = 0;
+
   const getFrameUrl = (index, base = activeBaseUrl) => {
-    const pad = String(index).padStart(3, "0");
+    const clamped = Math.max(1, Math.min(TOTAL_FRAMES, index));
+    const pad = String(clamped).padStart(3, "0");
     return `${base}${FRAME_PREFIX}${pad}${FRAME_EXT}`;
   };
 
@@ -64,7 +67,7 @@
     const canvas = document.getElementById("hero3DCanvas");
     if (!section || !canvas) return;
 
-    // Hiệu ứng Trái Đất 3D chỉ dành cho Desktop; mobile/tablet dùng ảnh tĩnh cho nhẹ
+    // Mobile/tablet dùng ảnh tĩnh nhẹ nhàng
     if (window.matchMedia("(max-width: 991.98px)").matches) {
       const onWiden = () => {
         if (window.innerWidth >= 992) {
@@ -76,7 +79,7 @@
       return;
     }
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
     renderWidth = window.innerWidth;
@@ -87,7 +90,6 @@
     const phase3 = document.getElementById("heroPhase3");
     const scrollIndicator = document.querySelector(".hero-scroll-indicator");
 
-    // Canvas vẽ ở đúng kích thước CSS (1x) để giảm mạnh số điểm ảnh phải xử lý
     function resizeCanvas() {
       renderWidth = window.innerWidth;
       renderHeight = window.innerHeight;
@@ -102,7 +104,7 @@
       renderFrame(currentFrameIndex, true);
     }
 
-    // Vẽ khung hình lên canvas theo tỷ lệ cover (nhận ImageBitmap hoặc Image)
+    // Vẽ hình ảnh phủ kín màn hình (cover) với khả năng giữ lại khung hình gần nhất
     function drawImageCover(asset) {
       if (!asset || !renderWidth || !renderHeight) return;
 
@@ -115,18 +117,24 @@
       const drawHeight = imgHeight * scale;
 
       ctx.clearRect(0, 0, renderWidth, renderHeight);
-      ctx.drawImage(asset, (renderWidth - drawWidth) / 2, (renderHeight - drawHeight) / 2, drawWidth, drawHeight);
+      ctx.drawImage(
+        asset,
+        (renderWidth - drawWidth) / 2,
+        (renderHeight - drawHeight) / 2,
+        drawWidth,
+        drawHeight
+      );
+      lastSuccessfulAsset = asset;
     }
 
-    // Nạp 1 khung: giải mã bằng createImageBitmap (off main-thread) để không giật khi cuộn
-    // Giới hạn số khung giải mã song song để main-thread luôn rảnh khi cuộn nhanh
-    const MAX_PARALLEL_DECODES = 3;
-    const MAX_DECODE_QUEUE = 16;
+    // Hệ thống tải ảnh với hàng đợi tối ưu
+    const MAX_PARALLEL_DECODES = 4;
+    const MAX_DECODE_QUEUE = 32;
     const decodeQueue = [];
     let activeDecodes = 0;
 
     function ensureFrame(index) {
-      const frame = snapFrame(index);
+      const frame = Math.max(1, Math.min(TOTAL_FRAMES, Math.round(index)));
       if (frameCache.has(frame) || pendingFrames.has(frame)) return;
 
       pendingFrames.add(frame);
@@ -154,7 +162,6 @@
 
         if (asset) {
           frameCache.set(frame, asset);
-          trimFrameCache(currentFrameIndex);
           if (!isCanvasReady) {
             isCanvasReady = true;
             resizeCanvas();
@@ -181,62 +188,70 @@
       img.src = getFrameUrl(frame);
     }
 
-    // Chỉ giữ các khung gần vị trí hiện tại, giải phóng bộ nhớ các khung ở xa
-    function trimFrameCache(center) {
-      if (frameCache.size <= MAX_CACHED_FRAMES) return;
+    // Nạp trước các khung lân cận theo hướng cuộn
+    function prefetchAround(index, direction) {
+      const center = Math.max(1, Math.min(TOTAL_FRAMES, Math.round(index)));
 
-      const low = center - (PREFETCH_AHEAD + 2) * FRAME_STRIDE;
-      const high = center + (PREFETCH_AHEAD + 2) * FRAME_STRIDE;
-      frameCache.forEach((asset, index) => {
-        if (index < low || index > high) {
-          if (asset && typeof asset.close === "function") asset.close();
-          frameCache.delete(index);
-        }
-      });
+      // Ưu tiên nạp theo hướng cuộn
+      const stepDir = direction >= 0 ? 1 : -1;
+      for (let i = 1; i <= PREFETCH_AHEAD; i++) {
+        ensureFrame(center + i * stepDir);
+      }
+      for (let i = 1; i <= PREFETCH_BEHIND; i++) {
+        ensureFrame(center - i * stepDir);
+      }
     }
 
-    // Ưu tiên nạp các khung sắp xuất hiện theo hướng cuộn
-    function prefetchAround(index, direction) {
-      const center = snapFrame(index);
-
-      // Bỏ các khung đã xếp hàng nhưng đã quá xa vị trí hiện tại (cuộn nhanh)
-      for (let i = decodeQueue.length - 1; i >= 0; i--) {
-        if (Math.abs(decodeQueue[i] - center) > (PREFETCH_AHEAD + 2) * FRAME_STRIDE) {
-          pendingFrames.delete(decodeQueue[i]);
-          decodeQueue.splice(i, 1);
+    // Tải ngầm tuần tự toàn bộ 150 khung hình trong lúc nhàn rỗi (Idle background preload)
+    function startIdlePreloadAll() {
+      let nextFrameToPreload = 2;
+      function preloadNextBatch() {
+        if (nextFrameToPreload > TOTAL_FRAMES) return;
+        const batchEnd = Math.min(TOTAL_FRAMES, nextFrameToPreload + 4);
+        for (let f = nextFrameToPreload; f <= batchEnd; f++) {
+          ensureFrame(f);
+        }
+        nextFrameToPreload = batchEnd + 1;
+        if (typeof window.requestIdleCallback === "function") {
+          window.requestIdleCallback(preloadNextBatch, { timeout: 1200 });
+        } else {
+          setTimeout(preloadNextBatch, 80);
         }
       }
-
-      for (let i = 0; i <= PREFETCH_AHEAD; i++) ensureFrame(center + i * FRAME_STRIDE * direction);
-      for (let i = 1; i <= PREFETCH_BEHIND; i++) ensureFrame(center - i * FRAME_STRIDE * direction);
+      setTimeout(preloadNextBatch, 300);
     }
 
-    // Vẽ khung hình; nếu khung chưa sẵn sàng thì dùng khung gần nhất đã có
+    // Vẽ khung hình: nếu khung chưa kịp nạp, tự động dùng khung gần nhất có sẵn (Never-Blank)
     function renderFrame(index, force) {
-      const frame = snapFrame(index);
+      const frame = Math.max(1, Math.min(TOTAL_FRAMES, Math.round(index)));
       currentFrameIndex = frame;
 
       if (!force && frame === lastDrawnIndex) return;
 
       let asset = frameCache.get(frame);
       if (!asset) {
-        for (let step = 1; step <= 20 && !asset; step++) {
-          asset = frameCache.get(snapFrame(frame - step * FRAME_STRIDE))
-            || frameCache.get(snapFrame(frame + step * FRAME_STRIDE))
-            || null;
+        // Tìm khung gần nhất trong cache để vẽ, không bao giờ để trống
+        let bestDiff = Infinity;
+        for (const [cachedIdx, cachedAsset] of frameCache.entries()) {
+          const diff = Math.abs(cachedIdx - frame);
+          if (diff < bestDiff) {
+            bestDiff = diff;
+            asset = cachedAsset;
+          }
         }
       }
 
       if (asset) {
         drawImageCover(asset);
         lastDrawnIndex = frame;
+      } else if (lastSuccessfulAsset) {
+        drawImageCover(lastSuccessfulAsset);
       }
     }
 
-    // Kiểm tra tuần tự và xác định URL cơ sở nào đang hoạt động chính xác
+    // Xác định URL hợp lệ
     function testNextBaseUrl(idx) {
       if (idx >= BASE_URLS.length) {
-        // Khi chạy tĩnh độc lập trong thư mục Frontend mà chưa mount 3D Image data, vẽ ảnh nền dự phòng
         const fallbackImg = new Image();
         fallbackImg.onload = () => drawImageCover(fallbackImg);
         fallbackImg.src = "assets/images/hero-bg.png";
@@ -255,78 +270,75 @@
     testNextBaseUrl(0);
 
     function startPreloading() {
-      // Khung đầu tiên được ưu tiên tuyệt đối để hero hiện ngay
+      // Nạp ngay lập tức khung 1 và các khung đầu tiên
       ensureFrame(1);
-      prefetchAround(1, 1);
+      for (let f = 2; f <= 12; f++) ensureFrame(f);
+      startIdlePreloadAll();
     }
 
-    // Tính toán tiến trình cuộn trang qua Hero section
-    let ticking = false;
-
-    function onScroll() {
-      if (!ticking) {
-        requestAnimationFrame(() => {
-          updateScrollExperience();
-          ticking = false;
-        });
-        ticking = true;
-      }
-    }
-
-    // Đo kích thước hero một lần khi resize để tránh forced layout ở mỗi khung hình cuộn
-    let heroTop = 0;
-    let heroScrollable = 0;
-
+    // Đo kích thước hero
     function measureHero() {
       const rect = section.getBoundingClientRect();
       heroTop = rect.top + window.scrollY;
       heroScrollable = section.offsetHeight - window.innerHeight;
     }
 
-    function updateScrollExperience() {
-      // Mobile/tablet: hiệu ứng 3D bị lược bỏ, trả lại trạng thái tĩnh cho nội dung
+    // THUẬT TOÁN LERP & QUÁN TÍNH VẬT LÝ CHO CUỘN CHUỘT BUTTERY SMOOTH
+    function startLerpLoop() {
+      if (isRafRunning) return;
+      isRafRunning = true;
+      requestAnimationFrame(lerpTick);
+    }
+
+    function lerpTick() {
       if (window.matchMedia("(max-width: 991.98px)").matches) {
-        [phase1, phase2, phase3].forEach((phase) => {
-          if (!phase) return;
-          phase.style.opacity = "";
-          phase.style.transform = "";
-          phase.style.pointerEvents = "";
-        });
+        isRafRunning = false;
         return;
       }
 
-      const rect = section.getBoundingClientRect();
-      if (heroScrollable <= 0) return;
+      // Hệ số nội suy LERP (0.082 tạo cảm giác quán tính đầm chắc, mượt mà như Apple / Google Pixel)
+      const ease = 0.082;
+      const delta = targetProgress - currentProgress;
 
-      // Tính progress từ 0 đến 1
-      const progress = Math.max(0, Math.min(1, (window.scrollY - heroTop) / heroScrollable));
+      if (Math.abs(delta) < 0.00015) {
+        currentProgress = targetProgress;
+        isRafRunning = false;
+      } else {
+        currentProgress += delta * ease;
+        requestAnimationFrame(lerpTick);
+      }
 
-      // 1. Chuyển đổi khung hình 3D từ 1 đến 150 (Ánh xạ đến 85% tiến trình cuộn, 15% còn lại giữ nguyên khung hình cuối)
-      const frameProgress = Math.min(1, progress / 0.85);
-      const targetFrame = snapFrame(Math.round(frameProgress * (TOTAL_FRAMES - 1)) + 1);
+      applyProgressExperience(currentProgress, delta >= 0 ? 1 : -1);
+    }
+
+    function applyProgressExperience(progress, direction) {
+      // 1. Chuyển đổi khung hình 3D từ 1 đến 150 (Ánh xạ đến 86% tiến trình cuộn, 14% còn lại giữ nguyên khung hình cuối)
+      const frameProgress = Math.min(1, Math.max(0, progress / 0.86));
+      const floatFrame = 1 + frameProgress * (TOTAL_FRAMES - 1);
+      const targetFrame = Math.max(1, Math.min(TOTAL_FRAMES, Math.round(floatFrame)));
+
       if (targetFrame !== currentFrameIndex) {
-        const direction = targetFrame > currentFrameIndex ? 1 : -1;
         renderFrame(targetFrame);
         prefetchAround(targetFrame, direction);
       }
 
-      // 2. Tự động mờ dần chuột cuộn khi cuộn về gần cuối để không chèn lên phần tìm kiếm tiếp theo
+      // 2. Tự động làm mờ nhẹ chuột cuộn indicator
       if (scrollIndicator) {
         scrollIndicator.style.opacity = progress > 0.82 ? Math.max(0, 1 - (progress - 0.82) / 0.12).toFixed(2) : "1";
       }
 
-      // 4. Chuyển đổi các giai đoạn chữ nổi bật phía trước
+      // 3. Chuyển đổi mượt mà các tầng chữ nổi bật phía trước đồng bộ với Trái Đất
       if (phase1 && phase2 && phase3) {
         if (progress < 0.28) {
           // Giai đoạn 1: Vũ trụ & Địa cầu
           const p1Opacity = Math.max(0, 1 - (progress / 0.24));
-          phase1.style.opacity = p1Opacity;
-          phase1.style.transform = `translateY(${(-progress * 40).toFixed(1)}px)`;
+          phase1.style.opacity = p1Opacity.toFixed(3);
+          phase1.style.transform = `translateY(${(-progress * 45).toFixed(1)}px)`;
           phase1.style.pointerEvents = p1Opacity > 0.2 ? "auto" : "none";
 
-          phase2.style.opacity = 0;
+          phase2.style.opacity = "0";
           phase2.style.pointerEvents = "none";
-          phase3.style.opacity = 0;
+          phase3.style.opacity = "0";
           phase3.style.pointerEvents = "none";
         } else if (progress >= 0.28 && progress < 0.65) {
           // Giai đoạn 2: Vượt tầng mây
@@ -335,44 +347,54 @@
             ? localProgress * 2
             : (1 - localProgress) * 2;
 
-          phase1.style.opacity = 0;
+          phase1.style.opacity = "0";
           phase1.style.pointerEvents = "none";
 
-          phase2.style.opacity = Math.max(0, Math.min(1, p2Opacity));
-          phase2.style.transform = `translateY(${((0.5 - localProgress) * 25).toFixed(1)}px)`;
+          phase2.style.opacity = Math.max(0, Math.min(1, p2Opacity)).toFixed(3);
+          phase2.style.transform = `translateY(${((0.5 - localProgress) * 28).toFixed(1)}px)`;
           phase2.style.pointerEvents = p2Opacity > 0.2 ? "auto" : "none";
 
-          phase3.style.opacity = 0;
+          phase3.style.opacity = "0";
           phase3.style.pointerEvents = "none";
         } else {
-          // Giai đoạn 3: Vịnh Hạ Long thiên đường (hiển thị trọn vẹn, giữ vững khung hình)
+          // Giai đoạn 3: Vịnh Hạ Long thiên đường
           const localProgress = Math.min(1, (progress - 0.65) / 0.20);
           const p3Opacity = Math.min(1, localProgress);
 
-          phase1.style.opacity = 0;
+          phase1.style.opacity = "0";
           phase1.style.pointerEvents = "none";
-          phase2.style.opacity = 0;
+          phase2.style.opacity = "0";
           phase2.style.pointerEvents = "none";
 
-          phase3.style.opacity = p3Opacity;
-          phase3.style.transform = `translateY(${((1 - localProgress) * 20).toFixed(1)}px)`;
+          phase3.style.opacity = p3Opacity.toFixed(3);
+          phase3.style.transform = `translateY(${((1 - localProgress) * 24).toFixed(1)}px)`;
           phase3.style.pointerEvents = p3Opacity > 0.2 ? "auto" : "none";
         }
       }
+    }
+
+    function onScroll() {
+      if (heroScrollable <= 0) return;
+      targetProgress = Math.max(0, Math.min(1, (window.scrollY - heroTop) / heroScrollable));
+      startLerpLoop();
     }
 
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", () => {
       measureHero();
       resizeCanvas();
-      updateScrollExperience();
+      targetProgress = Math.max(0, Math.min(1, (window.scrollY - heroTop) / Math.max(1, heroScrollable)));
+      currentProgress = targetProgress;
+      applyProgressExperience(currentProgress, 1);
     }, { passive: true });
     window.addEventListener("load", measureHero, { once: true });
 
-    // Khởi tạo kích thước ban đầu
+    // Khởi tạo ban đầu
     measureHero();
     resizeCanvas();
-    updateScrollExperience();
+    targetProgress = Math.max(0, Math.min(1, (window.scrollY - heroTop) / Math.max(1, heroScrollable)));
+    currentProgress = targetProgress;
+    applyProgressExperience(currentProgress, 1);
   }
 
   // Khởi động khi tài liệu sẵn sàng
@@ -382,4 +404,3 @@
     init3DHero();
   }
 })();
-

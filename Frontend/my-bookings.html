@@ -724,7 +724,7 @@
             isEn ? "Cancel Booking" : "Xác Nhận Hủy Đơn",
             { danger: true, confirmText: isEn ? "Yes, Cancel" : "Hủy Đơn Này", cancelText: isEn ? "Keep Booking" : "Giữ Lại Đơn" }
           )
-        : confirm("Quý khách có chắc chắn muốn hủy đơn đặt tour này?");
+        : true;
       if (!confirmed) return;
 
       try {
@@ -746,8 +746,6 @@
             isEn ? "Cancelled" : "Thành Công",
             "success"
           );
-        } else {
-          alert("Đã hủy đơn đặt tour thành công.");
         }
       } catch (err) {
         const errMsg = (err && err.message) || (isEn ? "Please contact hotline 0325536936." : "Vui lòng liên hệ tổng đài 0325536936");
@@ -757,8 +755,6 @@
             isEn ? "Cancellation Error" : "Lỗi Hủy Đơn",
             "error"
           );
-        } else {
-          alert("Lỗi hủy đơn: " + errMsg);
         }
       }
     }

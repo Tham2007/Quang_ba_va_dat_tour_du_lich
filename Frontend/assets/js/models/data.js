@@ -1407,10 +1407,27 @@ function getToursData() {
       if (Array.isArray(parsed) && parsed.length >= DEFAULT_TOURS.length) {
         let updated = false;
         parsed.forEach(t => {
-          if (!t.images || !t.images.length) {
-            const def = DEFAULT_TOURS.find(d => d.id === t.id);
-            if (def && def.images) {
+          const def = DEFAULT_TOURS.find(d => String(d.id).toUpperCase() === String(t.id).toUpperCase());
+          if (def) {
+            if (!t.images || !t.images.length) {
               t.images = def.images;
+              updated = true;
+            }
+            if (!t.itinerary || !t.itinerary.length || (Array.isArray(def.itinerary) && t.itinerary.length < def.itinerary.length)) {
+              t.itinerary = def.itinerary;
+              t.daysCount = def.daysCount || def.itinerary.length;
+              updated = true;
+            }
+            if (!t.highlights || !t.highlights.length) {
+              t.highlights = def.highlights;
+              updated = true;
+            }
+            if (!t.inclusions || !t.inclusions.length) {
+              t.inclusions = def.inclusions;
+              updated = true;
+            }
+            if (!t.exclusions || !t.exclusions.length) {
+              t.exclusions = def.exclusions;
               updated = true;
             }
           }

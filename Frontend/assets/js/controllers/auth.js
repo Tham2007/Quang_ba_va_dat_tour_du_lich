@@ -590,7 +590,7 @@ async function handleUserLogout() {
         isEn ? "Sign Out" : "Đăng Xuất",
         { danger: true, confirmText: isEn ? "Sign Out" : "Đăng xuất", cancelText: isEn ? "Cancel" : "Ở lại" }
       )
-    : confirm("Bạn có chắc chắn muốn đăng xuất tài khoản?");
+    : true;
   if (ok) {
     if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.logout === "function") {
       DeltaAPI.logout().catch(() => {});
@@ -721,8 +721,6 @@ function handleUserAvatarUpload(e) {
   if (!file.type.startsWith("image/")) {
     if (typeof showAppNotice === "function") {
       showAppNotice("Vui lòng chọn một tệp hình ảnh (JPG, PNG, WebP) hợp lệ!", "Tệp Không Hợp Lệ", "warning");
-    } else {
-      alert("Vui lòng chọn một tệp hình ảnh (JPG, PNG, WebP) hợp lệ!");
     }
     return;
   }
@@ -804,8 +802,6 @@ async function handleProfileUpdate(e) {
   if (!newName || newName.length < 2) {
     if (typeof showAppNotice === "function") {
       showAppNotice("Vui lòng nhập họ và tên hợp lệ (tối thiểu 2 ký tự).", "Thông Tin Thiếu", "warning");
-    } else {
-      alert("Vui lòng nhập họ và tên hợp lệ (tối thiểu 2 ký tự).");
     }
     return;
   }
@@ -814,8 +810,6 @@ async function handleProfileUpdate(e) {
   if (!newPhone || !phoneRegex.test(newPhone)) {
     if (typeof showAppNotice === "function") {
       showAppNotice("Số điện thoại không hợp lệ (10 số, bắt đầu 03, 05, 07, 08, 09).", "Số Điện Thoại Sai Định Dạng", "warning");
-    } else {
-      alert("Số điện thoại không hợp lệ (10 số, bắt đầu 03, 05, 07, 08, 09).");
     }
     return;
   }
@@ -828,8 +822,6 @@ async function handleProfileUpdate(e) {
         showAppNotice(res.error || "Không thể cập nhật hồ sơ trên máy chủ.", "Lỗi Cập Nhật", "error");
       } else if (typeof showToast === "function") {
         showToast(res.error || "Không thể cập nhật hồ sơ trên máy chủ.", "error");
-      } else {
-        alert(res.error || "Không thể cập nhật hồ sơ.");
       }
       return;
     }
@@ -865,8 +857,6 @@ async function handleChangePassword(e) {
   if (!newPass || newPass.length < 6) {
     if (typeof showAppNotice === "function") {
       showAppNotice("Mật khẩu mới phải có tối thiểu 6 ký tự!", "Mật Khẩu Quá Ngắn", "warning");
-    } else {
-      alert("Mật khẩu mới phải có tối thiểu 6 ký tự!");
     }
     return;
   }
@@ -874,8 +864,6 @@ async function handleChangePassword(e) {
   if (newPass !== confirmNewPass) {
     if (typeof showAppNotice === "function") {
       showAppNotice("Mật khẩu xác nhận không khớp!", "Mật Khẩu Không Khớp", "warning");
-    } else {
-      alert("Mật khẩu xác nhận không khớp!");
     }
     return;
   }
@@ -889,8 +877,6 @@ async function handleChangePassword(e) {
         showAppNotice(errMsg, "Đổi Mật Khẩu Thất Bại", "error");
       } else if (typeof showToast === "function") {
         showToast(errMsg, "error");
-      } else {
-        alert(errMsg);
       }
       return;
     }

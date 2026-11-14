@@ -196,6 +196,7 @@
   function ensureModalDOM() {
     injectDialogStyles();
     if (!modalOverlay) {
+      const container = document.body || document.documentElement;
       modalOverlay = document.createElement('div');
       modalOverlay.className = 'app-modal-overlay';
       modalOverlay.innerHTML = `
@@ -206,16 +207,17 @@
           <div class="app-modal-actions" id="appModalActions"></div>
         </div>
       `;
-      document.body.appendChild(modalOverlay);
+      container.appendChild(modalOverlay);
     }
   }
 
   function ensureToastContainer() {
     injectDialogStyles();
     if (!toastContainer) {
+      const container = document.body || document.documentElement;
       toastContainer = document.createElement('div');
       toastContainer.className = 'app-toast-container';
-      document.body.appendChild(toastContainer);
+      container.appendChild(toastContainer);
     }
   }
 

@@ -313,7 +313,7 @@ async function handleQuickAdminLogin(identifier) {
 async function handleAdminLogout() {
   const ok = typeof showAppConfirm === "function"
     ? await showAppConfirm("Bạn có chắc chắn muốn đăng xuất khỏi phiên làm việc Quản trị của Delta Travel?", "Đăng Xuất Quản Trị", { danger: true, confirmText: "Đăng xuất", cancelText: "Hủy" })
-    : confirm("Bạn có chắc chắn muốn đăng xuất khỏi phiên làm việc Quản trị của Delta Travel?");
+    : true;
   if (ok) {
     if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.logout === "function") {
       await DeltaAPI.logout().catch(() => {});
@@ -1347,7 +1347,7 @@ async function handleDeleteTour(tourId) {
 
   const confirmed = typeof showAppConfirm === "function"
     ? await showAppConfirm(`Bạn có chắc chắn muốn ẩn tour "${tour.title}" (${tour.id})? Tour sẽ không còn xuất hiện trong danh sách đang bán nhưng có thể xem lại ở mục Tạm ẩn.`, "Xác Nhận Ẩn Tour", { danger: true, confirmText: "Tạm ẩn tour", cancelText: "Hủy" })
-    : confirm(`Bạn có chắc chắn muốn ẩn tour "${tour.title}" (${tour.id})? Tour sẽ không còn xuất hiện trong danh sách đang bán nhưng có thể xem lại ở mục Tạm ẩn.`);
+    : true;
   if (!confirmed) return;
 
   if (typeof DeltaAPI !== "undefined" && DeltaAPI.adminDeleteTour) {
@@ -1383,8 +1383,6 @@ function handleTourImageFileSelect(e) {
   if (!file.type.startsWith("image/")) {
     if (typeof showAppNotice === "function") {
       showAppNotice("Vui lòng chọn file hình ảnh hợp lệ (JPG, PNG, WebP)!", "File Không Hợp Lệ", "warning");
-    } else {
-      alert("Vui lòng chọn file hình ảnh hợp lệ (JPG, PNG, WebP)!");
     }
     return;
   }
@@ -1504,14 +1502,13 @@ function openTourModal(tourId = null, initialTab = "basic") {
     termsEl.value = Array.isArray(trm) ? trm.join("\n") : (tour?.terms || "Hủy tour trước 15 ngày khởi hành: Miễn phí 100%\nHủy tour từ 07 - 14 ngày: Phí 30% giá tour\nHủy tour từ 03 - 06 ngày: Phí 50% giá tour\nHủy trong vòng 48h trước giờ đi: Phí 100%\nTrường hợp bão lũ thiên tai: Hỗ trợ bảo lưu dời ngày miễn phí");
   }
 
-  // Tab 2: Render lịch trình Day-by-Day (ưu tiên dữ liệu đầy đủ từ catalog & API)
+  // Tab 2: Render lịch trình Day-by-Day (ưu tiên dữ liệu đầy đủ nhất từ catalog & API)
   let initialDays = (Array.isArray(tour?.itinerary) && tour.itinerary.length > 0) ? tour.itinerary : null;
-  if ((!initialDays || initialDays.length === 0) && defTour && Array.isArray(defTour.itinerary) && defTour.itinerary.length > 0) {
-    initialDays = defTour.itinerary;
-  }
-  if ((!initialDays || initialDays.length === 0) && typeof DEFAULT_TOURS !== "undefined") {
-    const def = DEFAULT_TOURS.find(d => String(d.id).toUpperCase() === String(tourId).toUpperCase());
-    if (def && Array.isArray(def.itinerary)) initialDays = def.itinerary;
+  const defItinerary = (defTour && Array.isArray(defTour.itinerary) && defTour.itinerary.length > 0)
+    ? defTour.itinerary
+    : (typeof DEFAULT_TOURS !== "undefined" ? DEFAULT_TOURS.find(d => String(d.id).toUpperCase() === String(tourId).toUpperCase())?.itinerary : null);
+  if (Array.isArray(defItinerary) && (!initialDays || initialDays.length < defItinerary.length)) {
+    initialDays = defItinerary;
   }
   renderAdminItineraryDays(initialDays);
   renderAdminCostItems([]);
@@ -1528,6 +1525,8 @@ function openTourModal(tourId = null, initialTab = "basic") {
         renderAdminItineraryDays(structuredDays);
       } else if (serverTourDays.length > 0) {
         renderAdminItineraryDays(serverTourDays);
+      } else if (initialDays && initialDays.length > 0) {
+        renderAdminItineraryDays(initialDays);
       }
       if (Array.isArray(result.data.tour?.inclusions) && result.data.tour.inclusions.length && inclusionsEl) {
         inclusionsEl.value = result.data.tour.inclusions.join("\n");
@@ -1809,8 +1808,6 @@ function removeAdminItineraryDay(btn) {
   if (allCards.length <= 1) {
     if (typeof showAppNotice === "function") {
       showAppNotice("Lịch trình tour cần tối thiểu ít nhất 1 ngày!", "Lịch Trình Tối Thiểu", "warning");
-    } else {
-      alert("Lịch trình tour cần tối thiểu ít nhất 1 ngày!");
     }
     return;
   }
@@ -1871,8 +1868,6 @@ async function handleSaveTourSubmit(e) {
   if (galleryImages.length > 12) {
     if (typeof showAppNotice === "function") {
       showAppNotice("Mỗi tour chỉ được có tối đa 12 ảnh.", "Giới Hạn Ảnh", "warning");
-    } else {
-      alert("Mỗi tour chỉ được có tối đa 12 ảnh.");
     }
     return;
   }
@@ -1935,8 +1930,6 @@ async function handleSaveTourSubmit(e) {
   if (!title || price <= calculatedBaseCost) {
     if (typeof showAppNotice === "function") {
       showAppNotice("Giá bán phải cao hơn tổng giá gốc nội bộ. Vui lòng kiểm tra các khoản chi.", "Giá Bán Không Hợp Lệ", "warning");
-    } else {
-      alert("Giá bán phải cao hơn tổng giá gốc nội bộ. Vui lòng kiểm tra các khoản chi.");
     }
     return;
   }
@@ -2722,8 +2715,6 @@ async function handleConfirmCancelSubmit(e) {
   if (!reason || reason.length < 3) {
     if (typeof showAppNotice === "function") {
       showAppNotice("Vui lòng nhập lý do hủy đơn (tối thiểu 3 ký tự)!", "Cần Nhập Lý Do", "warning");
-    } else {
-      alert("Vui lòng nhập lý do hủy đơn (tối thiểu 3 ký tự)!");
     }
     return;
   }
@@ -2976,7 +2967,7 @@ function handlePaymentProviderFilter(val) {
 async function adminConfirmOnlinePayment(bookingId, paymentId) {
   const confirmed = typeof showAppConfirm === "function"
     ? await showAppConfirm(`Xác nhận đơn hàng #${bookingId} đã nhận thanh toán thành công qua MBBank?`, "Xác Nhận Thanh Toán", { confirmText: "Đã Nhận Tiền", cancelText: "Kiểm tra lại" })
-    : confirm(`Xác nhận đơn hàng #${bookingId} đã nhận thanh toán thành công?`);
+    : true;
   if (!confirmed) return;
   const ref = "VIETQR-CONFIRMED-" + Date.now();
   const bookings = [...(AdminState.bookings || [])];
@@ -3320,7 +3311,7 @@ async function testLiveAiConnection() {
 async function handleFactoryReset() {
   const ok = typeof showAppConfirm === "function"
     ? await showAppConfirm("CẢNH BÁO: Bạn có chắc chắn muốn khôi phục toàn bộ hệ thống về dữ liệu mẫu mặc định? Mọi thay đổi bạn đã tạo sẽ được nạp lại về trạng thái ban đầu.", "Khôi Phục Dữ Liệu Mẫu", { danger: true, confirmText: "Khôi phục dữ liệu", cancelText: "Hủy bỏ" })
-    : confirm("CẢNH BÁO: Bạn có chắc chắn muốn khôi phục toàn bộ hệ thống về dữ liệu mẫu mặc định? Mọi thay đổi bạn đã tạo sẽ được nạp lại về trạng thái ban đầu.");
+    : true;
   if (ok) {
     if (typeof resetDeltaDataToDefaults === "function") {
       resetDeltaDataToDefaults();
@@ -3850,7 +3841,7 @@ async function handleDeleteVoucher(voucherId) {
   if (!v) return;
   const ok = typeof showAppConfirm === "function"
     ? await showAppConfirm(`Xóa vĩnh viễn mã ưu đãi ${v.code} (${v.name})?`, "Xác Nhận Xóa Mã Ưu Đãi", { danger: true, confirmText: "Xóa mã", cancelText: "Giữ lại" })
-    : confirm(`Xóa vĩnh viễn mã ưu đãi ${v.code} (${v.name})?`);
+    : true;
   if (!ok) return;
 
   if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.adminDeleteVoucher === "function") {

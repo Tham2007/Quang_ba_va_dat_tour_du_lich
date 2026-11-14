@@ -1418,13 +1418,19 @@
         days = window.getTourItineraryDays(tour, "en");
       }
 
+      const def = typeof DEFAULT_TOURS !== "undefined"
+        ? DEFAULT_TOURS.find(d => String(d.id).toUpperCase() === String(tour.id).toUpperCase())
+        : null;
+
       if (!days || days.length === 0) {
         if (Array.isArray(tour.itinerary) && tour.itinerary.length > 0) {
           days = tour.itinerary;
-        } else if (typeof DEFAULT_TOURS !== "undefined") {
-          const def = DEFAULT_TOURS.find(d => String(d.id).toUpperCase() === String(tour.id).toUpperCase());
-          if (def && Array.isArray(def.itinerary)) days = def.itinerary;
+        } else if (def && Array.isArray(def.itinerary)) {
+          days = def.itinerary;
         }
+      }
+      if (def && Array.isArray(def.itinerary) && days && days.length < def.itinerary.length) {
+        days = def.itinerary;
       }
 
       if (!days || days.length === 0) {

@@ -2653,8 +2653,6 @@ function handleCustomerConfirmCancel(e) {
   if (!reason) {
     if (typeof showAppNotice === "function") {
       showAppNotice("Vui lòng nhập lý do hủy đơn!", "Cần Nhập Lý Do", "warning");
-    } else {
-      alert("Vui lòng nhập lý do hủy đơn!");
     }
     return;
   }
