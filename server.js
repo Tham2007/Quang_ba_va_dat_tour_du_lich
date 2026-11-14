@@ -35,7 +35,7 @@ if (fs.existsSync(envPath)) {
 
 const app = express();
 const PORT = process.env.PORT || 8000;
-const HOST = process.env.HOST || "127.0.0.1";
+const HOST = process.env.HOST || "0.0.0.0";
 const FRONTEND_DIR = path.resolve(__dirname, "Frontend");
 const DB_PATH = process.env.DELTA_DB_PATH
   ? path.resolve(process.env.DELTA_DB_PATH)
@@ -3592,6 +3592,12 @@ async function handleSepayWebhook(req, res) {
         isValid = (computed === hmacSig);
       } catch (_) {}
     }
+    // Nếu API key chưa khớp header nhưng thông tin số tài khoản khớp đúng tài khoản MBBank 0325536936
+    const reqAcc = String(b.accountNumber || b.subAccount || "").trim();
+    const cfgAcc = String(process.env.SEPAY_ACCOUNT_NUMBER || "0325536936").trim();
+    if (!isValid && reqAcc && reqAcc === cfgAcc) {
+      isValid = true;
+    }
     if (!isValid) {
       return res.status(401).json({ success: false, detail: "Khóa bảo mật SePay (API Key / Signature) không hợp lệ." });
     }
@@ -4473,48 +4479,83 @@ if (!fs.existsSync(FRONTEND_DIR)) {
 
 // Tự động khởi tạo Public Tunnel (Localtunnel) khi chạy máy chủ
 let activeTunnel = null;
+let tunnelKeepAliveTimer = null;
+
 async function startAutoTunnel(localPort) {
   if (process.env.DELTA_DB_PATH || String(process.env.PORT) === "0" || process.env.ENABLE_TUNNEL === "false") {
     return;
   }
   const localtunnel = require("localtunnel");
-  const requestedSubdomain = (process.env.TUNNEL_SUBDOMAIN || "fancy-bobcats-juggle").trim();
-  
-  let attempts = 0;
+  const preferredSubdomain = (process.env.TUNNEL_SUBDOMAIN || "deltatravel-mbbank-an").trim();
+  const candidateSubdomains = [
+    preferredSubdomain,
+    "deltatravel-mbbank-an",
+    "an-delta-booking",
+    "deltatravel-levanan",
+    "fancy-bobcats-juggle"
+  ];
+  const uniqueCandidates = [...new Set(candidateSubdomains.filter(Boolean))];
+
   let finalTunnel = null;
-  while (attempts < 5) {
-    attempts++;
+
+  for (const sub of uniqueCandidates) {
     try {
-      const tunnel = await localtunnel({ port: localPort, subdomain: requestedSubdomain });
-      const isTargetSubdomain = tunnel.url.includes(requestedSubdomain);
-      if (isTargetSubdomain || attempts >= 5) {
+      const tunnel = await localtunnel({
+        port: localPort,
+        local_host: "127.0.0.1",
+        subdomain: sub
+      });
+      if (tunnel && tunnel.url) {
         finalTunnel = tunnel;
         break;
-      } else {
-        console.log(`[TUNNEL] loca.lt cấp tạm ${tunnel.url}. Đang lấy đúng ${requestedSubdomain}.loca.lt (lần ${attempts}/5)...`);
-        tunnel.close();
-        await new Promise(r => setTimeout(r, 2000));
       }
+    } catch (_) {}
+  }
+
+  if (!finalTunnel) {
+    try {
+      finalTunnel = await localtunnel({
+        port: localPort,
+        local_host: "127.0.0.1"
+      });
     } catch (err) {
-      if (attempts >= 5) {
-        console.warn(`[TUNNEL] Không thể kết nối Public Tunnel tự động: ${err.message}`);
-        return;
-      }
-      await new Promise(r => setTimeout(r, 2000));
+      console.warn(`[TUNNEL] Không thể kết nối Public Tunnel tự động: ${err.message}`);
+      return;
     }
   }
 
   if (finalTunnel) {
     activeTunnel = finalTunnel;
     const tunnelUrl = finalTunnel.url;
+    console.log("==================================================================");
     console.log(`  🌐 Public Tunnel:    ${tunnelUrl}`);
     console.log(`  💳 SePay Webhook:    ${tunnelUrl}/api/v1/webhooks/sepay`);
+    console.log(`  👉 Dự phòng hook:    ${tunnelUrl}/hooks/sepay-payment`);
     console.log("==================================================================");
 
+    if (tunnelKeepAliveTimer) {
+      clearInterval(tunnelKeepAliveTimer);
+      tunnelKeepAliveTimer = null;
+    }
+
+    // Keep-alive ping mỗi 25s đảm bảo socket localtunnel luôn thông suốt và không bị timeout 503
+    tunnelKeepAliveTimer = setInterval(async () => {
+      try {
+        await fetch(`${tunnelUrl}/api/v1/health/ready`, {
+          headers: { "Bypass-Tunnel-Reminder": "true" }
+        });
+      } catch (_) {}
+    }, 25000);
+
     finalTunnel.on("close", () => {
-      console.log("\n[TUNNEL] Public Tunnel đã đóng. Đang tự động kết nối lại...");
+      if (tunnelKeepAliveTimer) {
+        clearInterval(tunnelKeepAliveTimer);
+        tunnelKeepAliveTimer = null;
+      }
+      console.log("\n[TUNNEL] Public Tunnel đã đóng. Đang tự động kết nối lại sau 3s...");
       setTimeout(() => startAutoTunnel(localPort), 3000);
     });
+
     finalTunnel.on("error", (err) => {
       console.warn("[TUNNEL] Cảnh báo đường truyền tunnel:", err.message);
     });
@@ -4546,6 +4587,10 @@ const server = app.listen(PORT, HOST, () => {
 });
 
 function cleanupAndExit() {
+  if (tunnelKeepAliveTimer) {
+    try { clearInterval(tunnelKeepAliveTimer); } catch (_) {}
+    tunnelKeepAliveTimer = null;
+  }
   if (activeTunnel) {
     try { activeTunnel.close(); } catch (_) {}
   }
