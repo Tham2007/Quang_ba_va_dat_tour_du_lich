@@ -4465,6 +4465,34 @@ if (!fs.existsSync(FRONTEND_DIR)) {
   app.use(express.static(FRONTEND_DIR));
 }
 
+// Tự động khởi tạo Public Tunnel (Localtunnel) khi chạy máy chủ
+let activeTunnel = null;
+async function startAutoTunnel(localPort) {
+  if (process.env.DELTA_DB_PATH || String(process.env.PORT) === "0" || process.env.ENABLE_TUNNEL === "false") {
+    return;
+  }
+  try {
+    const localtunnel = require("localtunnel");
+    const requestedSubdomain = process.env.TUNNEL_SUBDOMAIN || "fancy-bobcats-juggle";
+    const tunnel = await localtunnel({ port: localPort, subdomain: requestedSubdomain });
+    activeTunnel = tunnel;
+    const tunnelUrl = tunnel.url;
+    console.log(`  🌐 Public Tunnel:    ${tunnelUrl}`);
+    console.log(`  💳 SePay Webhook:    ${tunnelUrl}/api/v1/webhooks/sepay`);
+    console.log("==================================================================");
+
+    tunnel.on("close", () => {
+      console.log("\n[TUNNEL] Public Tunnel đã đóng.");
+    });
+    tunnel.on("error", (err) => {
+      console.warn("[TUNNEL] Cảnh báo đường truyền tunnel:", err.message);
+    });
+  } catch (err) {
+    console.warn(`[TUNNEL] Không thể kết nối Public Tunnel tự động: ${err.message}`);
+    console.warn(`[TUNNEL] Bạn có thể chạy thủ công qua lệnh: npm run tunnel`);
+  }
+}
+
 // Khởi động Server
 const server = app.listen(PORT, HOST, () => {
   const addr = server.address();
@@ -4476,6 +4504,8 @@ const server = app.listen(PORT, HOST, () => {
   console.log(`  Kiểm tra hệ thống:  http://${HOST}:${port}/api/v1/health/ready`);
   console.log("==================================================================");
 
+  startAutoTunnel(port).catch(() => {});
+
   initDirectSqlServer().catch(err => {
     console.warn("[SQL SERVER] Background initialization failed:", err.name);
   });
@@ -4486,6 +4516,17 @@ const server = app.listen(PORT, HOST, () => {
     });
   }
 });
+
+function cleanupAndExit() {
+  if (activeTunnel) {
+    try { activeTunnel.close(); } catch (_) {}
+  }
+  server.close(() => {
+    process.exit(0);
+  });
+}
+process.on("SIGINT", cleanupAndExit);
+process.on("SIGTERM", cleanupAndExit);
 
 server.on("error", (err) => {
   if (err.code === "EADDRINUSE") {
