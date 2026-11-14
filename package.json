@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "tunnel": "npx localtunnel --port 8000 --subdomain fancy-bobcats-juggle",
     "test": "node test_node_server.js"
   },
   "repository": {
