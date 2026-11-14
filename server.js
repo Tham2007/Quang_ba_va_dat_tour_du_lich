@@ -4477,25 +4477,47 @@ async function startAutoTunnel(localPort) {
   if (process.env.DELTA_DB_PATH || String(process.env.PORT) === "0" || process.env.ENABLE_TUNNEL === "false") {
     return;
   }
-  try {
-    const localtunnel = require("localtunnel");
-    const requestedSubdomain = process.env.TUNNEL_SUBDOMAIN || "fancy-bobcats-juggle";
-    const tunnel = await localtunnel({ port: localPort, subdomain: requestedSubdomain });
-    activeTunnel = tunnel;
-    const tunnelUrl = tunnel.url;
+  const localtunnel = require("localtunnel");
+  const requestedSubdomain = (process.env.TUNNEL_SUBDOMAIN || "fancy-bobcats-juggle").trim();
+  
+  let attempts = 0;
+  let finalTunnel = null;
+  while (attempts < 5) {
+    attempts++;
+    try {
+      const tunnel = await localtunnel({ port: localPort, subdomain: requestedSubdomain });
+      const isTargetSubdomain = tunnel.url.includes(requestedSubdomain);
+      if (isTargetSubdomain || attempts >= 5) {
+        finalTunnel = tunnel;
+        break;
+      } else {
+        console.log(`[TUNNEL] loca.lt cấp tạm ${tunnel.url}. Đang lấy đúng ${requestedSubdomain}.loca.lt (lần ${attempts}/5)...`);
+        tunnel.close();
+        await new Promise(r => setTimeout(r, 2000));
+      }
+    } catch (err) {
+      if (attempts >= 5) {
+        console.warn(`[TUNNEL] Không thể kết nối Public Tunnel tự động: ${err.message}`);
+        return;
+      }
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+
+  if (finalTunnel) {
+    activeTunnel = finalTunnel;
+    const tunnelUrl = finalTunnel.url;
     console.log(`  🌐 Public Tunnel:    ${tunnelUrl}`);
     console.log(`  💳 SePay Webhook:    ${tunnelUrl}/api/v1/webhooks/sepay`);
     console.log("==================================================================");
 
-    tunnel.on("close", () => {
-      console.log("\n[TUNNEL] Public Tunnel đã đóng.");
+    finalTunnel.on("close", () => {
+      console.log("\n[TUNNEL] Public Tunnel đã đóng. Đang tự động kết nối lại...");
+      setTimeout(() => startAutoTunnel(localPort), 3000);
     });
-    tunnel.on("error", (err) => {
+    finalTunnel.on("error", (err) => {
       console.warn("[TUNNEL] Cảnh báo đường truyền tunnel:", err.message);
     });
-  } catch (err) {
-    console.warn(`[TUNNEL] Không thể kết nối Public Tunnel tự động: ${err.message}`);
-    console.warn(`[TUNNEL] Bạn có thể chạy thủ công qua lệnh: npm run tunnel`);
   }
 }
 
