@@ -1162,6 +1162,41 @@ async function runTests() {
       setMailTransportForTest(null);
     }
 
+    // Test SePay Webhook tự động kích hoạt thanh toán khi nhận tiền
+    const sepayTestBook = await req("/api/v1/bookings", {
+      method: "POST",
+      headers: { ...authHeaders, "Idempotency-Key": "SEPAY-TEST-" + Date.now() },
+      body: {
+        schedule_id: hlSchedId,
+        adults: 1,
+        customer_name: "Khách SePay Test",
+        customer_phone: "0933445566",
+        customer_email: "sepaytest@example.com"
+      }
+    });
+    const sepayRef = sepayTestBook.json?.reference;
+    const sepayWebhookRes = await req("/api/v1/webhooks/sepay", {
+      method: "POST",
+      body: {
+        id: 999991,
+        gateway: "MBBank",
+        transactionDate: "2026-11-14 23:30:00",
+        accountNumber: "0325536936",
+        content: `KH9999 ${sepayRef}`,
+        transferType: "in",
+        transferAmount: sepayTestBook.json?.totalPrice,
+        referenceCode: "FT-TEST-SEPAY-01"
+      }
+    });
+    const sepayBookAfter = await req(`/api/v1/bookings/${sepayTestBook.json?.id}`, { headers: authHeaders });
+    assert("SePay Webhook tự động xác nhận thanh toán & chuyển trạng thái PAID",
+      sepayWebhookRes.status === 200 &&
+      sepayWebhookRes.json?.success === true &&
+      sepayBookAfter.json?.status === "PAID" &&
+      sepayBookAfter.json?.paid === true &&
+      sepayBookAfter.json?.paymentEvidence?.includes("FT-TEST-SEPAY-01"),
+      `status=${sepayWebhookRes.status} resp=${JSON.stringify(sepayWebhookRes.json)} bookStatus=${sepayBookAfter.json?.status} evidence=${sepayBookAfter.json?.paymentEvidence}`);
+
     const catalogRequests = [];
     catalogMockServer = http.createServer((request, response) => {
       const requestUrl = new URL(request.url, "http://127.0.0.1");
