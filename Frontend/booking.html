@@ -882,19 +882,41 @@
               <strong>Lưu ý quan trọng:</strong> Vui lòng giữ đúng <strong>Nội dung CK</strong> để hệ thống tự động xác nhận đơn và cấp hóa đơn chứng từ trong 30 giây.
             </div>
 
-            <!-- Thời gian đếm ngược & Nút ĐÃ CHUYỂN (KHÔNG MÀU XANH LÁ) -->
+            <!-- Thời gian đếm ngược thanh toán -->
             <div class="d-flex align-items-center justify-content-between mt-3 pt-2 border-top">
               <span class="small text-muted"><i class="bi bi-clock-history text-danger"></i> Thời gian giữ chỗ còn lại:</span>
               <strong id="receiptCountdown" class="text-danger font-monospace fs-6">15:00</strong>
             </div>
 
-            <div class="mt-3">
-              <button id="btnConfirmPayment" class="btn btn-dark w-100 py-3 rounded-pill fw-bold fs-6 shadow-sm d-flex align-items-center justify-content-center gap-2" onclick="confirmPaymentAction()">
-                <i class="bi bi-check2-circle fs-5"></i>
-                <span>Đã chuyển</span>
-              </button>
-              <div class="small text-muted text-center mt-2" style="font-size: 12px;">
-                Nhấn "Đã chuyển" sau khi bạn đã thực hiện lệnh chuyển khoản trên ứng dụng ngân hàng.
+            <!-- Khối trạng thái tự động nhận diện thanh toán SePay MBBank (Hoàn toàn tự động, không có nút bấm) -->
+            <div id="sepayStatusBox" class="mt-3 p-3.5 rounded-4 border bg-light shadow-xs position-relative overflow-hidden" style="border-color: #e2e8f0;">
+              <div id="sepayPendingView" class="d-flex align-items-center gap-3">
+                <div class="spinner-grow text-dark spinner-grow-sm flex-shrink-0" role="status" style="width: 1.35rem; height: 1.35rem; animation-duration: 1.2s;">
+                  <span class="visually-hidden">Đang chờ SePay đối soát...</span>
+                </div>
+                <div class="flex-grow-1">
+                  <div class="fw-bold text-dark small d-flex align-items-center gap-1.5 mb-1">
+                    <i class="bi bi-broadcast text-primary"></i>
+                    <span>Đang chờ SePay tự động ghi nhận chuyển khoản...</span>
+                  </div>
+                  <div class="text-secondary" style="font-size: 11.5px; line-height: 1.45;">
+                    Vui lòng giữ đúng <strong>Nội dung CK</strong> khi chuyển. Cổng SePay sẽ tự động đối soát tiền vào tài khoản MBBank và kích hoạt hóa đơn trong 1 - 3 giây mà bạn không cần phải bấm bất kỳ nút nào.
+                  </div>
+                </div>
+              </div>
+
+              <div id="sepaySuccessView" class="d-none align-items-center gap-3">
+                <div class="rounded-circle bg-dark text-warning d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" style="width: 2.25rem; height: 2.25rem;">
+                  <i class="bi bi-patch-check-fill fs-5"></i>
+                </div>
+                <div class="flex-grow-1">
+                  <div class="fw-bold text-success small d-flex align-items-center gap-1.5 mb-0.5">
+                    <i class="bi bi-shield-check"></i> SEPAY ĐÃ XÁC NHẬN THANH TOÁN THÀNH CÔNG!
+                  </div>
+                  <div class="text-secondary" style="font-size: 11.5px; line-height: 1.45;" id="sepaySuccessDetails">
+                    Hệ thống đã nhận diện tiền vào MBBank. Hóa đơn chứng từ chuẩn quốc tế đã được kích hoạt tự động.
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1880,28 +1902,40 @@
 
       const isPaid = booking.status === "PAID" || booking.paid;
       const statusBadge = document.getElementById("receiptStatusBadge");
-      const btnConfirm = document.getElementById("btnConfirmPayment");
+      const sepayPendingView = document.getElementById("sepayPendingView");
+      const sepaySuccessView = document.getElementById("sepaySuccessView");
+      const sepaySuccessDetails = document.getElementById("sepaySuccessDetails");
+
       if (isPaid) {
         if (statusBadge) {
           statusBadge.className = "badge bg-dark text-white px-3 py-1.5 rounded-pill border";
           statusBadge.innerHTML = '<i class="bi bi-patch-check-fill me-1 text-warning"></i> ĐÃ THANH TOÁN (PAID)';
         }
-        if (btnConfirm) {
-          btnConfirm.className = "btn btn-dark w-100 py-3 rounded-pill fw-bold";
-          btnConfirm.innerHTML = '<i class="bi bi-patch-check-fill me-2 text-warning"></i> Đã chuyển (Đã xác nhận thanh toán MBBank)';
-          btnConfirm.disabled = true;
+        if (sepayPendingView) sepayPendingView.classList.add("d-none");
+        if (sepaySuccessView) {
+          sepaySuccessView.classList.remove("d-none");
+          sepaySuccessView.classList.add("d-flex");
         }
+        if (sepaySuccessDetails && booking.paymentEvidence) {
+          sepaySuccessDetails.textContent = `Mã đối soát SePay: ${booking.paymentEvidence}. Hóa đơn chứng từ đã được cấp tự động.`;
+        }
+        if (paymentCountdownTimer) clearInterval(paymentCountdownTimer);
+        const timerEl = document.getElementById("receiptCountdown");
+        if (timerEl) timerEl.textContent = "Đã xác nhận";
       } else {
         if (statusBadge) {
           statusBadge.className = "badge bg-dark text-white px-3 py-1.5 rounded-pill border";
           statusBadge.innerHTML = '<i class="bi bi-clock-history me-1 text-warning"></i> Chờ thanh toán (PENDING)';
         }
-        if (btnConfirm) {
-          btnConfirm.className = "btn btn-dark w-100 py-3 rounded-pill fw-bold fs-6 shadow-sm d-flex align-items-center justify-content-center gap-2";
-          btnConfirm.innerHTML = '<i class="bi bi-check2-circle fs-5"></i> <span>Đã chuyển</span>';
-          btnConfirm.disabled = false;
+        if (sepayPendingView) {
+          sepayPendingView.classList.remove("d-none");
+          sepayPendingView.classList.add("d-flex");
         }
+        if (sepaySuccessView) sepaySuccessView.classList.add("d-none");
         startPaymentCountdown(15 * 60);
+
+        // Bắt đầu tự động lắng nghe SePay Webhook đối soát
+        startSepayAutoVerification(booking.id, booking.reference);
       }
 
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2090,36 +2124,37 @@
       }
     }
 
-    async function confirmPaymentAction() {
-      if (!currentBookingData) return;
-      const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
-      const btn = document.getElementById("btnConfirmPayment");
-      if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> ' +
-          (isEn ? "Verifying MBBank VietQR transaction..." : "Đang kiểm tra đối soát giao dịch MBBank...");
-      }
+    // Cơ chế tự động lắng nghe Webhook SePay (MBBank) bắn về Server
+    let sepayPollTimer = null;
+    function startSepayAutoVerification(bookingId, bookingRef) {
+      if (sepayPollTimer) clearInterval(sepayPollTimer);
+      const target = bookingId || bookingRef;
+      if (!target) return;
 
-      const refEvidence = "VIETQR-MB-0325536936-" + Date.now();
-      try {
-        if (typeof DeltaAPI !== "undefined" && DeltaAPI.payBooking && currentBookingData.id) {
-          await DeltaAPI.payBooking(currentBookingData.id, {
-            reference: refEvidence,
-            payment_evidence: refEvidence,
-            auto_confirm: true
+      sepayPollTimer = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/v1/bookings/${encodeURIComponent(target)}`, {
+            cache: "no-store",
+            credentials: "same-origin"
           });
-        }
-      } catch (err) {
-        console.warn("Lưu thanh toán server:", err);
-      }
+          if (!res.ok) return;
+          const data = await res.json();
+          const b = data.booking || data;
+          if (b && (b.status === "PAID" || b.paid)) {
+            clearInterval(sepayPollTimer);
+            sepayPollTimer = null;
+            applySepayPaidConfirmation(b);
+          }
+        } catch (_) {}
+      }, 2000);
+    }
 
-      // Giả lập đối soát nhanh mượt mà
-      await new Promise(r => setTimeout(r, 1000));
-
+    function applySepayPaidConfirmation(booking) {
+      if (!currentBookingData) currentBookingData = {};
       currentBookingData.status = "PAID";
       currentBookingData.paid = true;
-      currentBookingData.paymentConfirmedAt = new Date().toISOString();
-      currentBookingData.paymentEvidence = refEvidence;
+      currentBookingData.paymentConfirmedAt = booking.paymentConfirmedAt || new Date().toISOString();
+      currentBookingData.paymentEvidence = booking.paymentEvidence || ("SEPAY-MBBank-" + Date.now());
 
       try {
         const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
@@ -2127,7 +2162,7 @@
         if (idx !== -1) {
           local[idx].status = "PAID";
           local[idx].paid = true;
-          local[idx].paymentEvidence = refEvidence;
+          local[idx].paymentEvidence = currentBookingData.paymentEvidence;
           localStorage.setItem("delta_customer_bookings", JSON.stringify(local));
         }
       } catch (_) {}
@@ -2138,26 +2173,34 @@
         statusBadge.innerHTML = '<i class="bi bi-patch-check-fill me-1 text-warning"></i> ĐÃ THANH TOÁN (PAID)';
       }
 
-      if (btn) {
-        btn.className = "btn btn-dark w-100 py-3 rounded-pill fw-bold";
-        btn.innerHTML = '<i class="bi bi-patch-check-fill me-2 text-warning"></i> Đã chuyển (Đã xác nhận thanh toán MBBank)';
-        btn.disabled = true;
+      const sepayPendingView = document.getElementById("sepayPendingView");
+      const sepaySuccessView = document.getElementById("sepaySuccessView");
+      const sepaySuccessDetails = document.getElementById("sepaySuccessDetails");
+      if (sepayPendingView) sepayPendingView.classList.add("d-none");
+      if (sepaySuccessView) {
+        sepaySuccessView.classList.remove("d-none");
+        sepaySuccessView.classList.add("d-flex");
+      }
+      if (sepaySuccessDetails) {
+        sepaySuccessDetails.textContent = `Mã đối soát SePay: ${currentBookingData.paymentEvidence}. Hóa đơn chứng từ đã được cấp tự động.`;
       }
 
       if (paymentCountdownTimer) {
         clearInterval(paymentCountdownTimer);
         const timerEl = document.getElementById("receiptCountdown");
-        if (timerEl) timerEl.textContent = "Đã hoàn tất";
+        if (timerEl) timerEl.textContent = "Đã xác nhận";
       }
 
       showAppNotice(
-        isEn
-          ? "Payment confirmed via MBBank! Official international accounting voucher is ready to save."
-          : "Đã ghi nhận chuyển khoản thành công qua MBBank! Hóa đơn chứng từ chuẩn quốc tế đã sẵn sàng để lưu.",
-        isEn ? "Payment Recorded" : "Đã Ghi Nhận Thanh Toán",
+        "SePay đã ghi nhận chuyển khoản thành công qua MBBank! Hóa đơn chứng từ chuẩn quốc tế đã sẵn sàng để lưu.",
+        "Thanh Toán Tự Động Thành Công",
         "success"
       );
     }
+
+    window.addEventListener("beforeunload", () => {
+      if (sepayPollTimer) clearInterval(sepayPollTimer);
+    });
 
     function copyPaymentField(val, label) {
       if (typeof VietQRService !== "undefined" && VietQRService.copyToClipboard) {
