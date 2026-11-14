@@ -113,6 +113,7 @@ function openLargeAIChat() {
   if (fullscreenEl) {
     if (headerEl) {
       headerEl.classList.add("ai-chat-open");
+      headerEl.classList.remove("hero-transparent");
       const hHeight = headerEl.offsetHeight;
       fullscreenEl.style.top = `${hHeight}px`;
       fullscreenEl.style.height = `calc(100vh - ${hHeight}px)`;
@@ -148,6 +149,10 @@ function closeLargeAIChat() {
     document.body.style.overflow = "";
     if (headerEl) {
       headerEl.classList.remove("ai-chat-open");
+      const heroSection = document.getElementById("hero3DShowcase");
+      if (heroSection && window.scrollY < 80) {
+        headerEl.classList.add("hero-transparent");
+      }
     }
     // Khôi phục tab Trang chủ hoặc tab trước đó
     document.querySelectorAll(".liquid-nav-dock .liquid-nav-link").forEach(el => el.classList.remove("active"));

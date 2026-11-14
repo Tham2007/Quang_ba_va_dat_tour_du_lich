@@ -226,7 +226,9 @@ function initNavbarScroll() {
         heroSection.offsetTop + heroSection.offsetHeight - window.innerHeight
       );
       if (scrollY < heroThreshold) {
-        header?.classList.add("hero-transparent");
+        if (!header?.classList.contains("ai-chat-open")) {
+          header?.classList.add("hero-transparent");
+        }
         navbar?.classList.remove("scrolled");
       } else {
         header?.classList.remove("hero-transparent");

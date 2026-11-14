@@ -20,25 +20,25 @@ header.sticky-top {
    - Logo DELTA TRAVEL đen tuyền, thanh Tab Capsule trắng viền mỏng
    - Chuyển động mượt mà Google Standard Easing
    ════════════════════════════════════════════════════════════ */
-header.sticky-top.hero-transparent .topbar {
+header.sticky-top.hero-transparent:not(.ai-chat-open) .topbar {
   background: #ffffff !important;
   border-bottom: 1px solid #e5e7eb !important;
   color: #4b5563 !important;
 }
 
-header.sticky-top.hero-transparent .topbar a {
+header.sticky-top.hero-transparent:not(.ai-chat-open) .topbar a {
   color: #1f2937 !important;
 }
 
-header.sticky-top.hero-transparent .topbar a:hover {
+header.sticky-top.hero-transparent:not(.ai-chat-open) .topbar a:hover {
   color: #000000 !important;
 }
 
-header.sticky-top.hero-transparent .topbar-divider {
+header.sticky-top.hero-transparent:not(.ai-chat-open) .topbar-divider {
   background-color: #e5e7eb !important;
 }
 
-header.sticky-top.hero-transparent .navbar-delta {
+header.sticky-top.hero-transparent:not(.ai-chat-open) .navbar-delta {
   background: rgba(255, 255, 255, 0.94) !important;
   backdrop-filter: blur(28px) saturate(190%) !important;
   -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
@@ -46,17 +46,17 @@ header.sticky-top.hero-transparent .navbar-delta {
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03) !important;
 }
 
-header.sticky-top.hero-transparent .brand-title {
+header.sticky-top.hero-transparent:not(.ai-chat-open) .brand-title {
   color: #000000 !important;
   text-shadow: none !important;
 }
 
-header.sticky-top.hero-transparent .brand-subtitle {
+header.sticky-top.hero-transparent:not(.ai-chat-open) .brand-subtitle {
   color: #64748b !important;
   text-shadow: none !important;
 }
 
-header.sticky-top.hero-transparent .brand-icon-crystal {
+header.sticky-top.hero-transparent:not(.ai-chat-open) .brand-icon-crystal {
   background: #ffffff !important;
   border-radius: 11px !important;
   overflow: hidden !important;
@@ -65,50 +65,50 @@ header.sticky-top.hero-transparent .brand-icon-crystal {
   padding: 0 !important;
 }
 
-header.sticky-top.hero-transparent .brand-logo-img {
+header.sticky-top.hero-transparent:not(.ai-chat-open) .brand-logo-img {
   border-radius: 10px !important;
 }
 
-header.sticky-top.hero-transparent .liquid-nav-dock {
+header.sticky-top.hero-transparent:not(.ai-chat-open) .liquid-nav-dock {
   background: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
 }
 
-header.sticky-top.hero-transparent .liquid-nav-link {
+header.sticky-top.hero-transparent:not(.ai-chat-open) .liquid-nav-link {
   color: #374151 !important;
 }
 
-header.sticky-top.hero-transparent .liquid-nav-link:hover {
+header.sticky-top.hero-transparent:not(.ai-chat-open) .liquid-nav-link:hover {
   color: #000000 !important;
   background: #f1f5f9 !important;
 }
 
-header.sticky-top.hero-transparent .liquid-nav-link.active {
+header.sticky-top.hero-transparent:not(.ai-chat-open) .liquid-nav-link.active {
   color: #ffffff !important;
   background: #000000 !important;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18) !important;
 }
 
-header.sticky-top.hero-transparent .liquid-user-glass {
+header.sticky-top.hero-transparent:not(.ai-chat-open) .liquid-user-glass {
   background: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
   color: #000000 !important;
 }
 
-header.sticky-top.hero-transparent .liquid-user-glass span {
+header.sticky-top.hero-transparent:not(.ai-chat-open) .liquid-user-glass span {
   color: #000000 !important;
 }
 
-header.sticky-top.hero-transparent .liquid-btn-icon {
+header.sticky-top.hero-transparent:not(.ai-chat-open) .liquid-btn-icon {
   background: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
   color: #000000 !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
 }
 
-header.sticky-top.hero-transparent .btn-explore-liquid {
+header.sticky-top.hero-transparent:not(.ai-chat-open) .btn-explore-liquid {
   background: #000000 !important;
   color: #ffffff !important;
   border: 1.5px solid #000000 !important;
