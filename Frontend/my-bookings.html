@@ -17,8 +17,9 @@
   <link rel="stylesheet" href="assets/css/base.css">
   <link rel="stylesheet" href="assets/css/header.css">
   <link rel="stylesheet" href="assets/css/auth.css">
-  <!-- Google Minimal Design System (Nền trắng, chữ đen, animation mượt mà chuẩn Google) -->
+  <!-- Google Minimal Design System & Dialogs -->
   <link rel="stylesheet" href="assets/css/google-minimal.css">
+  <script src="assets/js/components/app-dialogs.js"></script>
 
   <!-- Đa ngôn ngữ (VI 🇻🇳 / EN 🇬🇧) -->
   <script src="assets/js/controllers/i18n.js"></script>
@@ -716,7 +717,16 @@
     }
 
     async function cancelBookingAction(id) {
-      if (!confirm("Quý khách có chắc chắn muốn hủy đơn đặt tour này?")) return;
+      const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
+      const confirmed = typeof showAppConfirm === "function"
+        ? await showAppConfirm(
+            isEn ? "Are you sure you want to cancel this tour booking?" : "Quý khách có chắc chắn muốn hủy đơn đặt tour này?",
+            isEn ? "Cancel Booking" : "Xác Nhận Hủy Đơn",
+            { danger: true, confirmText: isEn ? "Yes, Cancel" : "Hủy Đơn Này", cancelText: isEn ? "Keep Booking" : "Giữ Lại Đơn" }
+          )
+        : confirm("Quý khách có chắc chắn muốn hủy đơn đặt tour này?");
+      if (!confirmed) return;
+
       try {
         if (typeof DeltaAPI !== "undefined" && DeltaAPI.cancelBooking) {
           await DeltaAPI.cancelBooking(id, "Khách hàng yêu cầu hủy trực tuyến");
@@ -730,9 +740,26 @@
         });
         localStorage.setItem("delta_customer_bookings", JSON.stringify(allBookings));
         renderBookings();
-        alert("Đã hủy đơn đặt tour thành công.");
+        if (typeof showAppNotice === "function") {
+          await showAppNotice(
+            isEn ? "Your tour booking has been cancelled successfully." : "Đã hủy đơn đặt tour thành công.",
+            isEn ? "Cancelled" : "Thành Công",
+            "success"
+          );
+        } else {
+          alert("Đã hủy đơn đặt tour thành công.");
+        }
       } catch (err) {
-        alert("Lỗi hủy đơn: " + (err.message || "Vui lòng liên hệ tổng đài 0325536936"));
+        const errMsg = (err && err.message) || (isEn ? "Please contact hotline 0325536936." : "Vui lòng liên hệ tổng đài 0325536936");
+        if (typeof showAppNotice === "function") {
+          await showAppNotice(
+            (isEn ? "Failed to cancel booking: " : "Lỗi hủy đơn: ") + errMsg,
+            isEn ? "Cancellation Error" : "Lỗi Hủy Đơn",
+            "error"
+          );
+        } else {
+          alert("Lỗi hủy đơn: " + errMsg);
+        }
       }
     }
 

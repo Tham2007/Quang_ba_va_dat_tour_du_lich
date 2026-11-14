@@ -20,9 +20,10 @@
   <!-- Google Minimal Design System (Nền trắng, chữ đen, animation mượt mà chuẩn Google) -->
   <link rel="stylesheet" href="assets/css/google-minimal.css">
 
-  <!-- Dữ liệu tour & Đa ngôn ngữ (VI 🇻🇳 / EN 🇬🇧) -->
+  <!-- Dữ liệu tour & Đa ngôn ngữ (VI 🇻🇳 / EN 🇬🇧) & Dialogs Google Minimal -->
   <script src="assets/js/models/data.js"></script>
   <script src="assets/js/controllers/i18n.js"></script>
+  <script src="assets/js/components/app-dialogs.js"></script>
   <!-- Thư viện xuất vé điện tử PDF chuyên nghiệp chuẩn A4 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
@@ -751,8 +752,6 @@
 
           <div class="paper-invoice-total">
             <div>
-          <div class="paper-invoice-total">
-            <div>
               <div class="fw-bold text-uppercase small text-muted" data-i18n="inv_total_label">TỔNG CỘNG THANH TOÁN:</div>
               <div id="totalPriceDisplay" class="fs-3 fw-bold text-dark">0 đ</div>
               <div class="text-muted fw-normal" style="font-size: 11px; margin-top: 2px;">(Đã bao gồm 10% thuế VAT)</div>
@@ -1231,7 +1230,13 @@
       if (bookingIdParam) {
         try {
           let b = null;
-          if (typeof DeltaAPI !== "undefined" && DeltaAPI.fetchMyBookings) {
+          if (typeof DeltaAPI !== "undefined" && DeltaAPI.fetchBookingById) {
+            const bRes = await DeltaAPI.fetchBookingById(bookingIdParam);
+            if (bRes && bRes.success && bRes.data) {
+              b = bRes.data;
+            }
+          }
+          if (!b && typeof DeltaAPI !== "undefined" && DeltaAPI.fetchMyBookings) {
             const res = await DeltaAPI.fetchMyBookings();
             if (res && res.success && Array.isArray(res.data)) {
               b = res.data.find(x => x.id === bookingIdParam || x.reference === bookingIdParam);

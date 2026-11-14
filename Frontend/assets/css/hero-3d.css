@@ -40,15 +40,13 @@
   will-change: transform;
 }
 
-/* Lớp chiều sâu vũ trụ: trong suốt, không sương mù, chuyển mượt trắng ở đáy */
+/* Lớp chuyển tiếp mượt mà: hoàn toàn trong suốt, không sương mù che trái đất 3D */
 .hero-vignette-overlay {
   position: absolute;
   inset: 0;
   z-index: 3;
   pointer-events: none;
-  background: 
-    radial-gradient(circle at 65% 50%, transparent 40%, rgba(3, 7, 18, 0.45) 85%),
-    linear-gradient(to bottom, rgba(3, 7, 18, 0.5) 0%, transparent 20%, transparent 75%, #ffffff 100%);
+  background: linear-gradient(to bottom, transparent 85%, #ffffff 100%);
 }
 
 /* 2. CHỮ NGHỆ THUẬT MỜ KHỔNG LỒ ĐÃ ĐƯỢC XÓA THEO YÊU CẦU */

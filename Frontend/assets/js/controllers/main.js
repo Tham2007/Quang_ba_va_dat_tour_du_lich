@@ -2651,7 +2651,11 @@ function handleCustomerConfirmCancel(e) {
   const reason = document.getElementById("customerCancelReasonInput").value.trim();
 
   if (!reason) {
-    alert("Vui lòng nhập lý do hủy đơn!");
+    if (typeof showAppNotice === "function") {
+      showAppNotice("Vui lòng nhập lý do hủy đơn!", "Cần Nhập Lý Do", "warning");
+    } else {
+      alert("Vui lòng nhập lý do hủy đơn!");
+    }
     return;
   }
 

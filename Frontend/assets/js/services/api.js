@@ -221,6 +221,13 @@ const DeltaAPI = (() => {
   }
 
   /**
+   * Lấy chi tiết đơn đặt theo mã ID hoặc mã booking reference
+   */
+  async function fetchBookingById(bookingId) {
+    return await request(`/bookings/${encodeURIComponent(bookingId)}`);
+  }
+
+  /**
    * Hủy đơn đặt chỗ trên server
    */
   async function cancelBooking(bookingId, reason) {
@@ -461,6 +468,7 @@ const DeltaAPI = (() => {
     quoteBooking,
     createBooking,
     fetchMyBookings,
+    fetchBookingById,
     cancelBooking,
     payBooking,
     login,

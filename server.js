@@ -2934,10 +2934,9 @@ app.get("/api/v1/bookings", requireAuth, (req, res) => {
   res.json(rows.map(bookingDict));
 });
 
-app.get("/api/v1/bookings/:booking_id", requireAuth, (req, res) => {
-  const b = db.prepare("SELECT * FROM bookings WHERE id = ? AND (user_id = ? OR ? = 'ADMIN')").get(
-    req.params.booking_id, req.user.id, req.user.role
-  );
+app.get("/api/v1/bookings/:booking_id", requireAuthOrGuest, (req, res) => {
+  const param = req.params.booking_id;
+  const b = db.prepare("SELECT * FROM bookings WHERE id = ? OR reference = ?").get(param, param);
   if (!b) return res.status(404).json({ detail: "Không tìm thấy đơn đặt tour." });
   res.json(bookingDict(b));
 });

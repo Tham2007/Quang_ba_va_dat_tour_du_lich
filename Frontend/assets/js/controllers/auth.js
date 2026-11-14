@@ -582,13 +582,23 @@ function handleForgotSubmit(e) {
 /**
  * Đăng xuất tài khoản
  */
-function handleUserLogout() {
-  if (confirm("Bạn có chắc chắn muốn đăng xuất tài khoản?")) {
+async function handleUserLogout() {
+  const isEn = typeof window.getAppLanguage === "function" && window.getAppLanguage() === "en";
+  const ok = typeof showAppConfirm === "function"
+    ? await showAppConfirm(
+        isEn ? "Are you sure you want to sign out?" : "Bạn có chắc chắn muốn đăng xuất tài khoản?",
+        isEn ? "Sign Out" : "Đăng Xuất",
+        { danger: true, confirmText: isEn ? "Sign Out" : "Đăng xuất", cancelText: isEn ? "Cancel" : "Ở lại" }
+      )
+    : confirm("Bạn có chắc chắn muốn đăng xuất tài khoản?");
+  if (ok) {
     if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.logout === "function") {
       DeltaAPI.logout().catch(() => {});
     }
     setCurrentUser(null);
-    if (typeof showToast === "function") {
+    if (typeof showAppToast === "function") {
+      showAppToast(isEn ? "Signed out successfully." : "Bạn đã đăng xuất tài khoản thành công.", "info");
+    } else if (typeof showToast === "function") {
       showToast("Bạn đã đăng xuất tài khoản thành công.", "info");
     }
   }
@@ -709,7 +719,11 @@ function handleUserAvatarUpload(e) {
   if (!file) return;
 
   if (!file.type.startsWith("image/")) {
-    alert("Vui lòng chọn một tệp hình ảnh (JPG, PNG, WebP) hợp lệ!");
+    if (typeof showAppNotice === "function") {
+      showAppNotice("Vui lòng chọn một tệp hình ảnh (JPG, PNG, WebP) hợp lệ!", "Tệp Không Hợp Lệ", "warning");
+    } else {
+      alert("Vui lòng chọn một tệp hình ảnh (JPG, PNG, WebP) hợp lệ!");
+    }
     return;
   }
 
@@ -788,13 +802,21 @@ async function handleProfileUpdate(e) {
   const newPhone = document.getElementById("profileEditPhone")?.value.trim();
 
   if (!newName || newName.length < 2) {
-    alert("Vui lòng nhập họ và tên hợp lệ (tối thiểu 2 ký tự).");
+    if (typeof showAppNotice === "function") {
+      showAppNotice("Vui lòng nhập họ và tên hợp lệ (tối thiểu 2 ký tự).", "Thông Tin Thiếu", "warning");
+    } else {
+      alert("Vui lòng nhập họ và tên hợp lệ (tối thiểu 2 ký tự).");
+    }
     return;
   }
 
   const phoneRegex = /^0[35789]\d{8}$/;
   if (!newPhone || !phoneRegex.test(newPhone)) {
-    alert("Số điện thoại không hợp lệ (10 số, bắt đầu 03, 05, 07, 08, 09).");
+    if (typeof showAppNotice === "function") {
+      showAppNotice("Số điện thoại không hợp lệ (10 số, bắt đầu 03, 05, 07, 08, 09).", "Số Điện Thoại Sai Định Dạng", "warning");
+    } else {
+      alert("Số điện thoại không hợp lệ (10 số, bắt đầu 03, 05, 07, 08, 09).");
+    }
     return;
   }
 
@@ -802,7 +824,9 @@ async function handleProfileUpdate(e) {
   if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.updateProfile === "function") {
     const res = await DeltaAPI.updateProfile(newName, newPhone, user.avatar);
     if (!res.success) {
-      if (typeof showToast === "function") {
+      if (typeof showAppNotice === "function") {
+        showAppNotice(res.error || "Không thể cập nhật hồ sơ trên máy chủ.", "Lỗi Cập Nhật", "error");
+      } else if (typeof showToast === "function") {
         showToast(res.error || "Không thể cập nhật hồ sơ trên máy chủ.", "error");
       } else {
         alert(res.error || "Không thể cập nhật hồ sơ.");
@@ -819,7 +843,9 @@ async function handleProfileUpdate(e) {
   setCurrentUser(user);
   openUserProfileModal();
 
-  if (typeof showToast === "function") {
+  if (typeof showAppToast === "function") {
+    showAppToast("Cập nhật thông tin tài khoản thành công!", "success");
+  } else if (typeof showToast === "function") {
     showToast("Cập nhật thông tin tài khoản thành công!", "success");
   }
 }
@@ -837,12 +863,20 @@ async function handleChangePassword(e) {
   const confirmNewPass = document.getElementById("profileConfirmNewPass")?.value;
 
   if (!newPass || newPass.length < 6) {
-    alert("Mật khẩu mới phải có tối thiểu 6 ký tự!");
+    if (typeof showAppNotice === "function") {
+      showAppNotice("Mật khẩu mới phải có tối thiểu 6 ký tự!", "Mật Khẩu Quá Ngắn", "warning");
+    } else {
+      alert("Mật khẩu mới phải có tối thiểu 6 ký tự!");
+    }
     return;
   }
 
   if (newPass !== confirmNewPass) {
-    alert("Mật khẩu xác nhận không khớp!");
+    if (typeof showAppNotice === "function") {
+      showAppNotice("Mật khẩu xác nhận không khớp!", "Mật Khẩu Không Khớp", "warning");
+    } else {
+      alert("Mật khẩu xác nhận không khớp!");
+    }
     return;
   }
 
@@ -850,17 +884,22 @@ async function handleChangePassword(e) {
   if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.changePassword === "function") {
     const res = await DeltaAPI.changePassword(currentPass, newPass);
     if (!res.success) {
-      if (typeof showToast === "function") {
-        showToast(res.error || "Mật khẩu hiện tại không chính xác.", "error");
+      const errMsg = res.error || "Mật khẩu hiện tại không chính xác.";
+      if (typeof showAppNotice === "function") {
+        showAppNotice(errMsg, "Đổi Mật Khẩu Thất Bại", "error");
+      } else if (typeof showToast === "function") {
+        showToast(errMsg, "error");
       } else {
-        alert(res.error || "Mật khẩu hiện tại không chính xác.");
+        alert(errMsg);
       }
       return;
     }
   }
 
   document.getElementById("changePasswordForm")?.reset();
-  if (typeof showToast === "function") {
+  if (typeof showAppToast === "function") {
+    showAppToast("Đổi mật khẩu thành công!", "success");
+  } else if (typeof showToast === "function") {
     showToast("Đổi mật khẩu thành công!", "success");
   }
 }
