@@ -1450,8 +1450,10 @@ function openTourModal(tourId = null, initialTab = "basic") {
   document.getElementById("formTourDuration").value = tour ? (tour.duration || "3N2Đ") : "3N2Đ";
   const baseCostInput = document.getElementById("formTourOriginalPrice");
   baseCostInput.value = tour ? (tour.originalPrice || "") : "";
-  baseCostInput.readOnly = true;
-  baseCostInput.title = "Tổng chi phí gốc được tự cộng từ các khoản chi bên dưới.";
+  baseCostInput.readOnly = false;
+  baseCostInput.removeAttribute("readonly");
+  baseCostInput.removeAttribute("disabled");
+  baseCostInput.title = "Giá gốc niêm yết (hiển thị gạch ngang ưu đãi). Nhập số tiền trực tiếp.";
   document.getElementById("formTourPrice").value = tour ? tour.price : "";
   document.getElementById("formTourDeparture").value = tour ? (tour.departure || "") : "Hà Nội / TP.HCM";
   document.getElementById("formTourTransport").value = tour ? (tour.transport || "") : "Xe du lịch đời mới / Máy bay";
@@ -1520,7 +1522,11 @@ function openTourModal(tourId = null, initialTab = "basic") {
       renderAdminCostItems(result.data.costItems || []);
       document.getElementById("formTourPrice").value = result.data.tour.price;
       const base = document.getElementById("formTourOriginalPrice");
-      if (base) base.value = result.data.baseCost || result.data.tour?.originalPrice || "";
+      if (base) {
+        base.value = result.data.tour?.originalPrice || result.data.baseCost || "";
+        base.readOnly = false;
+        base.removeAttribute("readonly");
+      }
       const structuredDays = groupStructuredItinerary(result.data.itinerary || []);
       const serverTourDays = Array.isArray(result.data.tour?.itinerary) ? result.data.tour.itinerary : [];
       if (structuredDays.length > 0) {
@@ -1636,10 +1642,12 @@ function appendAdminCostItem(item = {}, target) {
 }
 
 function updateAdminBaseCost() {
-  const total = [...document.querySelectorAll("#adminTourCostRows .cost-amount")]
-    .reduce((sum, input) => sum + (Number(input.value) || 0), 0);
-  const output = document.getElementById("formTourOriginalPrice");
-  if (output) output.value = total;
+  const costInputs = document.querySelectorAll("#adminTourCostRows .cost-amount");
+  if (costInputs.length > 0) {
+    const total = [...costInputs].reduce((sum, input) => sum + (Number(input.value) || 0), 0);
+    const output = document.getElementById("formTourOriginalPrice");
+    if (output && (!output.value || output.value === "0")) output.value = total;
+  }
 }
 
 function collectAdminCostItems() {
@@ -1929,9 +1937,15 @@ async function handleSaveTourSubmit(e) {
     });
   });
 
-  if (!title || price <= calculatedBaseCost) {
+  if (!title || price <= 0) {
     if (typeof showAppNotice === "function") {
-      showAppNotice("Giá bán phải cao hơn tổng giá gốc nội bộ. Vui lòng kiểm tra các khoản chi.", "Giá Bán Không Hợp Lệ", "warning");
+      showAppNotice("Vui lòng nhập tên tour và giá khuyến mãi bán hợp lệ (> 0đ).", "Thiếu Thông Tin", "warning");
+    }
+    return;
+  }
+  if (calculatedBaseCost > 0 && price <= calculatedBaseCost) {
+    if (typeof showAppNotice === "function") {
+      showAppNotice("Giá bán phải cao hơn tổng chi phí gốc nội bộ. Vui lòng kiểm tra các khoản chi.", "Giá Bán Không Hợp Lệ", "warning");
     }
     return;
   }
@@ -1942,9 +1956,9 @@ async function handleSaveTourSubmit(e) {
   const tours = [...AdminState.tours];
   const existingIdx = tours.findIndex(t => t.id === id);
 
-  const effectiveOriginalPrice = calculatedBaseCost > 0
-    ? calculatedBaseCost
-    : (originalPrice > 0 ? originalPrice : (tours[existingIdx]?.originalPrice || price));
+  const effectiveOriginalPrice = originalPrice > 0
+    ? originalPrice
+    : (calculatedBaseCost > 0 ? calculatedBaseCost : (tours[existingIdx]?.originalPrice || price));
   const computedFlashSale = badge.toUpperCase().includes("FLASH SALE");
 
   const tourData = {
@@ -2039,6 +2053,8 @@ async function handleSaveTourSubmit(e) {
   if (typeof DeltaAPI !== "undefined" && DeltaAPI.adminReplaceTourDetails) {
     const savedDetails = await DeltaAPI.adminReplaceTourDetails(id, {
       price,
+      original_price: effectiveOriginalPrice,
+      originalPrice: effectiveOriginalPrice,
       cost_items: costItems,
       itinerary: structuredItinerary
     });

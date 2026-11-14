@@ -3102,7 +3102,7 @@ app.put("/api/v1/admin/tours/:tour_id/details", requireAdmin, (req, res) => {
   const tour = db.prepare("SELECT * FROM tours WHERE id = ?").get(tour_id);
   if (!tour) return res.status(404).json({ detail: "Không tìm thấy tour." });
 
-  const { price, cost_items: costItems, itinerary } = req.body || {};
+  const { price, original_price, originalPrice, cost_items: costItems, itinerary } = req.body || {};
   const costCategories = new Set([
     "transport", "accommodation", "meal", "sightseeing",
     "activity", "guide", "insurance", "other"
@@ -3145,7 +3145,7 @@ app.put("/api/v1/admin/tours/:tour_id/details", requireAdmin, (req, res) => {
     seenSlots.add(slot);
   }
   const baseCost = costItems.reduce((sum, item) => sum + item.amount_per_person, 0);
-  if (price <= baseCost) {
+  if (baseCost > 0 && price <= baseCost) {
     return res.status(422).json({ detail: "Giá bán phải cao hơn tổng giá gốc." });
   }
 
@@ -3176,8 +3176,14 @@ app.put("/api/v1/admin/tours/:tour_id/details", requireAdmin, (req, res) => {
     }
 
     const syncedItinerary = buildDayItineraryFromItems(tour_id);
-    db.prepare("UPDATE tours SET price = ?, itinerary_json = ?, updated_at = ? WHERE id = ?")
-      .run(price, JSON.stringify(syncedItinerary), new Date().toISOString(), tour_id);
+    const rawOrigPrice = Number(original_price ?? originalPrice);
+    if (Number.isFinite(rawOrigPrice) && rawOrigPrice > 0) {
+      db.prepare("UPDATE tours SET price = ?, original_price = ?, itinerary_json = ?, updated_at = ? WHERE id = ?")
+        .run(price, rawOrigPrice, JSON.stringify(syncedItinerary), new Date().toISOString(), tour_id);
+    } else {
+      db.prepare("UPDATE tours SET price = ?, itinerary_json = ?, updated_at = ? WHERE id = ?")
+        .run(price, JSON.stringify(syncedItinerary), new Date().toISOString(), tour_id);
+    }
 
     db.exec("COMMIT");
   } catch (err) {
