@@ -1175,8 +1175,11 @@ async function runTests() {
       }
     });
     const sepayRef = sepayTestBook.json?.reference;
+    const sepayApiKey = process.env.SEPAY_API_KEY ? String(process.env.SEPAY_API_KEY).trim() : "";
+    const sepayHeaders = sepayApiKey ? { "Authorization": `Apikey ${sepayApiKey}` } : {};
     const sepayWebhookRes = await req("/api/v1/webhooks/sepay", {
       method: "POST",
+      headers: sepayHeaders,
       body: {
         id: 999991,
         gateway: "MBBank",

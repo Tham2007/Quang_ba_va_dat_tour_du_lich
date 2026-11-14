@@ -3575,11 +3575,19 @@ async function handleSepayWebhook(req, res) {
   const authHeader = req.headers["authorization"] || req.headers["x-api-key"] || "";
   const configuredApiKey = process.env.SEPAY_API_KEY ? String(process.env.SEPAY_API_KEY).trim() : null;
 
-  // Kiểm tra API Key nếu có cấu hình trong .env
+  // Kiểm tra API Key / Chữ ký bảo mật nếu có cấu hình trong .env
   if (configuredApiKey) {
     const passedKey = authHeader.replace(/^(Apikey|Bearer)\s+/i, "").trim();
-    if (passedKey !== configuredApiKey) {
-      return res.status(401).json({ success: false, detail: "Khóa bảo mật SePay (API Key) không hợp lệ." });
+    const hmacSig = req.headers["x-sepay-signature"] || req.headers["x-signature"] || "";
+    let isValid = (passedKey === configuredApiKey);
+    if (!isValid && hmacSig) {
+      try {
+        const computed = crypto.createHmac("sha256", configuredApiKey).update(JSON.stringify(b)).digest("hex");
+        isValid = (computed === hmacSig);
+      } catch (_) {}
+    }
+    if (!isValid) {
+      return res.status(401).json({ success: false, detail: "Khóa bảo mật SePay (API Key / Signature) không hợp lệ." });
     }
   }
 
