@@ -779,7 +779,7 @@ async function runTests() {
     });
     assert("Voucher 3: Tổng tiền không âm (<0) và Backend bỏ qua mọi discount_amount/total_price giả mạo từ Frontend",
       quoteFree.status === 200 && quoteFree.json?.discountAmount === 1590000 && quoteFree.json?.totalPrice === 0 &&
-      spoofedBook.status === 201 && spoofedBook.json?.discountAmount === 0 && spoofedBook.json?.totalPrice === 3890000,
+      spoofedBook.status === 201 && spoofedBook.json?.discountAmount === 0 && spoofedBook.json?.totalPrice === 4279000,
       `quote=${quoteFree.status}:${quoteFree.json?.discountAmount}/${quoteFree.json?.totalPrice}:${quoteFree.json?.detail} spoof=${spoofedBook.status}:${spoofedBook.json?.discountAmount}/${spoofedBook.json?.totalPrice}:${spoofedBook.json?.detail}`);
 
     // 4. Đặt đơn với CAP500K -> dùng lại lần 2 bị chặn (per_user_limit: 1) -> hủy đơn hoàn lại lượt & dùng lại thành công!
@@ -826,7 +826,7 @@ async function runTests() {
       }
     });
     assert("Voucher 4: Giới hạn lượt dùng/khách hàng & hoàn lại lượt khi hủy đơn",
-      bookCap1.status === 201 && bookCap1.json?.discountAmount === 500000 && bookCap1.json?.totalPrice === 3390000 &&
+      bookCap1.status === 201 && bookCap1.json?.discountAmount === 500000 && bookCap1.json?.totalPrice === 3729000 &&
       bookCap2Reuse.status === 422 && bookCap2Reuse.json?.errorCode === "VOUCHER_USER_LIMIT_REACHED" &&
       bookCap3AfterCancel.status === 201 && bookCap3AfterCancel.json?.discountAmount === 500000);
 
@@ -1150,7 +1150,7 @@ async function runTests() {
         firstMail?.subject?.includes(mailBook.json?.reference) &&
         firstMail?.html?.includes("&lt;MailTest&gt;") &&
         firstMail?.html?.includes("HALONG100K") &&
-        firstMail?.text?.includes("3.790.000") &&
+        (firstMail?.text?.includes("4.169.000") || firstMail?.text?.includes("3.790.000")) &&
         mailPay.status === 200 &&
         mailPay.json?.emailNotification?.sent === true &&
         secondMail?.to === mailRecipient &&

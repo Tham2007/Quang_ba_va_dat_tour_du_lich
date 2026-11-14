@@ -718,18 +718,8 @@
           </div>
 
           <div class="paper-invoice-row">
-            <span class="text-muted">Tạm tính trước thuế:</span>
+            <span class="text-muted">Tạm tính tiền tour:</span>
             <span id="subtotalDisplay" class="fw-bold">0 đ</span>
-          </div>
-
-          <div class="paper-invoice-row">
-            <span class="text-muted">Thuế GTGT (VAT 10%):</span>
-            <span id="vatAmountDisplay" class="fw-bold text-dark">+ 0 đ</span>
-          </div>
-
-          <div class="paper-invoice-row">
-            <span class="text-muted">Tiền tour ban đầu:</span>
-            <span id="subtotalPriceDisplay" class="fw-bold text-dark">0 đ</span>
           </div>
 
           <div class="paper-invoice-row" id="discountRowDisplay" style="display: none;">
@@ -737,6 +727,11 @@
               Giảm giá (<span id="appliedVoucherBadge" class="font-monospace"></span>):
             </span>
             <span id="discountAmountDisplay" class="fw-bold text-success">- 0 đ</span>
+          </div>
+
+          <div class="paper-invoice-row">
+            <span class="text-muted">Thuế GTGT (VAT 10%):</span>
+            <span id="vatAmountDisplay" class="fw-bold text-dark">+ 0 đ</span>
           </div>
 
           <!-- Nhập mã giảm giá Voucher -->
@@ -809,13 +804,17 @@
                 <i class="bi bi-clock-history me-1 text-warning"></i> Chờ thanh toán (PENDING)
               </span>
             </div>
-            <div class="d-flex justify-content-between align-items-center mb-1" id="receiptSubtotalRow" style="display: none;">
-              <span class="text-muted small">Tiền tour ban đầu:</span>
+            <div class="d-flex justify-content-between align-items-center mb-1" id="receiptSubtotalRow">
+              <span class="text-muted small">Tạm tính tiền tour:</span>
               <span id="receiptSubtotal" class="small fw-semibold text-dark">0 đ</span>
             </div>
             <div class="d-flex justify-content-between align-items-center mb-1 text-success" id="receiptDiscountRow" style="display: none;">
               <span class="small">Giảm giá ưu đãi <span id="receiptVoucherTag" class="font-monospace"></span>:</span>
               <strong id="receiptDiscount" class="small">- 0 đ</strong>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-1" id="receiptVatRow">
+              <span class="text-muted small">Thuế GTGT (VAT 10%):</span>
+              <strong id="receiptVatAmount" class="small text-dark">+ 0 đ</strong>
             </div>
             <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2">
               <span class="text-muted small fw-bold">Tổng tiền cần thanh toán:</span>
@@ -1857,11 +1856,12 @@
         }
       }
       const rDisc = Number(booking.discountAmount || booking.pricing?.discount || 0);
-      const rSub = Number(booking.subtotalPrice || booking.pricing?.subtotal || (payAmount + rDisc));
+      const rSub = Number(booking.subtotalPrice || booking.pricing?.subtotal || Math.round(payAmount / 1.1 + rDisc));
+      const rVat = Number(booking.vatAmount || booking.pricing?.vatAmount || Math.round(Math.max(0, rSub - rDisc) * 0.10));
       const rSubRow = document.getElementById("receiptSubtotalRow");
       const rDiscRow = document.getElementById("receiptDiscountRow");
+      const rVatRow = document.getElementById("receiptVatRow");
       if (rSubRow) {
-        rSubRow.style.display = rDisc > 0 ? "flex" : "none";
         document.getElementById("receiptSubtotal").textContent = formatVND(rSub);
       }
       if (rDiscRow) {
@@ -1869,6 +1869,10 @@
         document.getElementById("receiptDiscount").textContent = "- " + formatVND(rDisc);
         const tag = document.getElementById("receiptVoucherTag");
         if (tag) tag.textContent = booking.voucherCode ? `(${booking.voucherCode})` : "";
+      }
+      if (rVatRow) {
+        const vatDisplayEl = document.getElementById("receiptVatAmount");
+        if (vatDisplayEl) vatDisplayEl.textContent = "+ " + formatVND(rVat);
       }
       document.getElementById("receiptTotal").textContent = formatVND(payAmount);
       document.getElementById("receiptTransferAmount").textContent = formatVND(payAmount);

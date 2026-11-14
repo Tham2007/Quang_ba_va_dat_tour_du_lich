@@ -386,11 +386,13 @@ function normalizeAdminBooking(b) {
     customerPhone: cPhone,
     customerEmail: cEmail,
     pricing: {
-      subtotal: Number(b.pricing?.subtotal ?? b.subtotalPrice ?? total),
+      subtotal: Number(b.pricing?.subtotal ?? b.subtotalPrice ?? Math.round(total / 1.1)),
       discount: Number(b.pricing?.discount ?? b.discountAmount ?? 0),
+      vatAmount: Number(b.pricing?.vatAmount ?? b.vatAmount ?? Math.round(Math.max(0, Number(b.pricing?.subtotal ?? b.subtotalPrice ?? Math.round(total / 1.1)) - Number(b.pricing?.discount ?? b.discountAmount ?? 0)) * 0.10)),
       total,
       totalPrice: total
     },
+    vatAmount: Number(b.pricing?.vatAmount ?? b.vatAmount ?? Math.round(Math.max(0, Number(b.pricing?.subtotal ?? b.subtotalPrice ?? Math.round(total / 1.1)) - Number(b.pricing?.discount ?? b.discountAmount ?? 0)) * 0.10)),
     voucherCode: b.voucherCode || null,
     voucherName: b.voucherName || null,
     totalPrice: total,
@@ -2670,13 +2672,16 @@ function openBookingDetailModal(bookingId) {
   document.getElementById("detailPaymentMethod").textContent = booking.paymentMethod;
 
   // Bảng giá
-  const subtotalVal = Number(booking.pricing?.subtotal ?? booking.pricing?.total ?? booking.totalPrice ?? 0);
-  const discountVal = Number(booking.pricing?.discount ?? 0);
-  const grandTotalVal = Number(booking.pricing?.total ?? booking.totalPrice ?? 0);
+  const subtotalVal = Number(booking.pricing?.subtotal ?? booking.subtotalPrice ?? Math.round(Number(booking.pricing?.total ?? booking.totalPrice ?? 0) / 1.1));
+  const discountVal = Number(booking.pricing?.discount ?? booking.discountAmount ?? 0);
+  const vatVal = Number(booking.pricing?.vatAmount ?? booking.vatAmount ?? Math.round(Math.max(0, subtotalVal - discountVal) * 0.10));
+  const grandTotalVal = Number(booking.pricing?.total ?? booking.totalPrice ?? (subtotalVal - discountVal + vatVal));
   document.getElementById("detailSubtotal").textContent = subtotalVal.toLocaleString("vi-VN") + " đ";
   document.getElementById("detailDiscount").textContent = discountVal > 0
     ? (`- ${discountVal.toLocaleString("vi-VN")} đ${booking.voucherCode ? ` (${booking.voucherCode})` : ""}`)
     : "0 đ";
+  const vatEl = document.getElementById("detailVatAmount");
+  if (vatEl) vatEl.textContent = "+ " + vatVal.toLocaleString("vi-VN") + " đ";
   document.getElementById("detailGrandTotal").textContent = grandTotalVal.toLocaleString("vi-VN") + " đ";
 
   const modal = bootstrap.Modal.getOrCreateInstance(modalEl);

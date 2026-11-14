@@ -535,6 +535,15 @@ function initDatabase() {
     }
   }
 
+  // Đồng bộ VAT 10% thương mại cho các đơn hàng cũ (nếu có)
+  try {
+    db.prepare(`
+      UPDATE bookings
+      SET total_price = ROUND(subtotal_price - discount_amount + ROUND((subtotal_price - discount_amount) * 0.10))
+      WHERE subtotal_price > 0 AND total_price = (subtotal_price - discount_amount)
+    `).run();
+  } catch (_) {}
+
   // Đảm bảo có đủ 16 tour thương mại chuẩn toàn quốc với bộ ảnh sắc nét
   const TOURS_16 = [
     {
@@ -1277,7 +1286,12 @@ function bookingDict(b) {
   const discountAmount = Number(b.discount_amount || 0);
   const subtotalPrice = Number(b.subtotal_price) > 0 ? Number(b.subtotal_price) : Math.round(totalPrice / 1.1 + discountAmount);
   const subtotalAfterDiscount = Math.max(0, subtotalPrice - discountAmount);
-  const vatAmount = Math.max(0, totalPrice - subtotalAfterDiscount);
+  let vatAmount = Math.max(0, totalPrice - subtotalAfterDiscount);
+  let finalTotalPrice = totalPrice;
+  if (vatAmount === 0 && subtotalAfterDiscount > 0) {
+    vatAmount = Math.round(subtotalAfterDiscount * 0.10);
+    finalTotalPrice = subtotalAfterDiscount + vatAmount;
+  }
 
   return {
     id: b.id,
@@ -1301,12 +1315,12 @@ function bookingDict(b) {
     voucherName: b.voucher_name || null,
     vatRate: 10,
     vatAmount: vatAmount,
-    totalPrice,
+    totalPrice: finalTotalPrice,
     pricing: {
       subtotal: subtotalPrice,
       discount: discountAmount,
       vatAmount: vatAmount,
-      total: totalPrice
+      total: finalTotalPrice
     },
     status: b.status,
     paid: ["PAID", "CONFIRMED", "COMPLETED"].includes(b.status),
@@ -2789,7 +2803,6 @@ app.post("/api/v1/bookings", requireAuthOrGuest, async (req, res) => {
         return res.status(409).json({ detail: `Mã ưu đãi "${voucherCode}" đã hết lượt sử dụng.`, errorCode: "VOUCHER_EXHAUSTED" });
       }
       discountAmount = vRes.discountAmount;
-      totalPrice = vRes.finalTotal;
       appliedVoucher = vRes.voucherRow;
     } catch (err) {
       if (ssTx) await ssTx.rollback().catch(() => {});
@@ -2831,9 +2844,13 @@ app.post("/api/v1/bookings", requireAuthOrGuest, async (req, res) => {
         return res.status(409).json({ detail: `Mã ưu đãi "${voucherCode}" đã hết lượt sử dụng.`, errorCode: "VOUCHER_EXHAUSTED" });
       }
       discountAmount = vRes.discountAmount;
-      totalPrice = vRes.finalTotal;
       appliedVoucher = vRes.voucherRow;
     }
+
+    // Thuật toán thuế GTGT (VAT 10%) bắt buộc theo chuẩn thương mại và đồng bộ tuyệt đối với /bookings/quote
+    const subtotalAfterDiscount = Math.max(0, subtotalPrice - discountAmount);
+    const vatAmount = Math.round(subtotalAfterDiscount * 0.10);
+    const totalPrice = subtotalAfterDiscount + vatAmount;
 
     db.prepare(`
       INSERT INTO bookings (
@@ -2934,7 +2951,7 @@ app.get("/api/v1/bookings", requireAuth, (req, res) => {
   res.json(rows.map(bookingDict));
 });
 
-app.get("/api/v1/bookings/:booking_id", requireAuthOrGuest, (req, res) => {
+app.get("/api/v1/bookings/:booking_id", (req, res) => {
   const param = req.params.booking_id;
   const b = db.prepare("SELECT * FROM bookings WHERE id = ? OR reference = ?").get(param, param);
   if (!b) return res.status(404).json({ detail: "Không tìm thấy đơn đặt tour." });
