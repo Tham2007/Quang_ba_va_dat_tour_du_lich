@@ -63,11 +63,15 @@ def main():
     print(f"STORAGE_ENGINE={engine} PERSISTENT_BACKEND={persistent}", flush=True)
 
     if args.require_durable:
-        if not (health.get("status") == "ok" and (persistent or engine in ("postgresql", "sqlite", "sqlserver", "mssql"))):
+        # A healthy process != durable storage. Render free service files
+        # are ephemeral, and cannot pass the persistence release gate.
+        if engine != "postgresql" or not persistent:
             raise AssertionError(
-                "BLOCKER: live backend is not healthy or database engine is unknown."
+                "P0 BLOCKER: public booking data is not stored in a verified "
+                "managed PostgreSQL database. SQLite on a Render web service "
+                "may be lost on redeploy. A live HTTP 200 is insufficient."
             )
-        print("PASS: public application database gate verified.")
+        print("PASS: public site uses persistent PostgreSQL database.")
         return
 
     _, home, _ = request("")
