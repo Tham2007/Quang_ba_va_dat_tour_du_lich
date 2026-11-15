@@ -298,22 +298,41 @@ function normalizeAdminBooking(b) {
   const title = b.tourTitle || b.tour_title || "Tour Du Lịch Delta Travel 5 Sao";
   const total = Number(b.totalPrice ?? b.total_price ?? b.pricing?.total ?? b.pricing?.totalPrice ?? 0);
   const rawStatus = String(b.statusCode || b.status || "").toUpperCase();
-  const isCancelled = rawStatus === "CANCELLED";
-  const isCompleted = rawStatus === "COMPLETED";
-  const isConfirmed = rawStatus === "CONFIRMED";
-  const isPaid = !isCancelled && (
+  const isRefundPending = (rawStatus === "REFUND_PENDING");
+  const isRefunded = (rawStatus === "REFUNDED");
+  const isCancelled = (rawStatus === "CANCELLED");
+  const isCompleted = (rawStatus === "COMPLETED");
+  const isConfirmed = (rawStatus === "CONFIRMED");
+  const isPaid = !isCancelled && !isRefundPending && !isRefunded && (
     rawStatus === "PAID" || isConfirmed || isCompleted ||
     b.paid === true || b.isPaid === true || Boolean(b.paymentEvidence || b.payment_evidence)
   );
-  const code = isCancelled
-    ? "CANCELLED"
-    : isCompleted
-      ? "COMPLETED"
-      : isConfirmed
-        ? "CONFIRMED"
-        : isPaid
-          ? "PAID"
-          : (rawStatus === "AWAITING_CASH" ? "AWAITING_CASH" : "PENDING_PAYMENT");
+  const code = isRefundPending
+    ? "REFUND_PENDING"
+    : isRefunded
+      ? "REFUNDED"
+      : isCancelled
+        ? "CANCELLED"
+        : isCompleted
+          ? "COMPLETED"
+          : isConfirmed
+            ? "CONFIRMED"
+            : isPaid
+              ? "PAID"
+              : (rawStatus === "AWAITING_CASH" ? "AWAITING_CASH" : "PENDING_PAYMENT");
+  const displayStatus = isRefundPending
+    ? "YÊU CẦU HOÀN TIỀN"
+    : isRefunded
+      ? "ĐÃ HOÀN TIỀN"
+      : isCancelled
+        ? "ĐÃ HỦY"
+        : isCompleted
+          ? "COMPLETED"
+          : isConfirmed
+            ? "CONFIRMED"
+            : isPaid
+              ? "PAID"
+              : (rawStatus === "AWAITING_CASH" ? "AWAITING_CASH" : "PENDING_PAYMENT");
   const depDateRaw = b.departureDate || b.departure_date || b.createdAt || b.created_at;
   let departureDate = "-";
   if (depDateRaw) {
@@ -358,8 +377,9 @@ function normalizeAdminBooking(b) {
     voucherCode: b.voucherCode || null,
     voucherName: b.voucherName || null,
     totalPrice: total,
-    status: code,
+    status: displayStatus,
     statusCode: code,
+    cancellationReason: b.cancellationReason || b.cancellation_reason || b.cancelReason || "",
     paid: isPaid,
     isPaid,
     paymentEvidence: b.paymentEvidence || b.payment_evidence || (isPaid ? ("VIETQR-MB-" + ref) : null),
@@ -473,6 +493,10 @@ async function refreshAdminData() {
                 badge: st.badge || (st.isFlashSale ? "FLASH SALE" : (defTour?.badge || "")),
                 isFlashSale: Boolean(st.isFlashSale),
                 availableSeats: st.availableSeats !== undefined ? st.availableSeats : (st.schedules?.[0]?.availableSeats ?? 20),
+                isExpired: Boolean(st.isExpired),
+                isSoldOut: Boolean(st.isSoldOut || (st.availableSeats !== undefined && st.availableSeats <= 0)),
+                departureStatus: st.departureStatus || (st.isExpired ? "EXPIRED" : (st.isSoldOut ? "SOLD_OUT" : "AVAILABLE")),
+                schedules: Array.isArray(st.schedules) ? st.schedules : [],
                 status: st.active ? "ACTIVE" : "INACTIVE",
                 highlights,
                 itinerary: itinerary.length > 0 ? itinerary : [
@@ -893,18 +917,57 @@ function renderCurrentTab() {
 function renderTabDashboard(container) {
   const totalTours = AdminState.tours.length;
   const activeTours = AdminState.tours.filter(t => t.status === "ACTIVE").length;
+  const expiredToursCount = AdminState.tours.filter(t => t.isExpired).length;
+  const soldOutToursCount = AdminState.tours.filter(t => t.isSoldOut || (t.availableSeats !== undefined && t.availableSeats <= 0)).length;
   const totalBookings = AdminState.bookings.length;
   const pendingRefunds = AdminState.payments.filter(p => p.status === "REFUND_REQUIRED").length;
+  const pendingBookingRefunds = AdminState.bookings.filter(b => b.statusCode === "REFUND_PENDING").length;
+  const totalPendingRefunds = pendingRefunds + pendingBookingRefunds;
 
   const totalRevenue = AdminState.bookings
     .filter(b => b.isPaid || b.statusCode === "PAID" || b.statusCode === "CONFIRMED" || b.statusCode === "COMPLETED")
     .reduce((sum, b) => sum + (b.pricing?.total || 0), 0);
 
   const urgentBookings = AdminState.bookings
-    .filter(b => b.statusCode === "AWAITING_CASH" || b.statusCode === "PENDING_PAYMENT")
+    .filter(b => b.statusCode === "AWAITING_CASH" || b.statusCode === "PENDING_PAYMENT" || b.statusCode === "REFUND_PENDING")
     .slice(0, 5);
 
   container.innerHTML = `
+    <!-- Cảnh báo nhắc nhở vận hành & hoàn tiền nếu có -->
+    ${pendingBookingRefunds > 0 ? `
+      <div class="alert alert-warning border-warning shadow-sm d-flex align-items-center justify-content-between p-3 rounded-3 mb-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="bg-warning text-dark p-2 rounded-circle fs-5 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+            <i class="bi bi-arrow-counterclockwise"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-dark">Có ${pendingBookingRefunds} yêu cầu hủy tour trong vòng 24h cần duyệt hoàn tiền!</div>
+            <div class="small text-muted">Khách hàng đủ điều kiện nhận hoàn tiền 100% theo cam kết. Vui lòng đối soát và xác nhận hoàn tiền.</div>
+          </div>
+        </div>
+        <button class="btn btn-warning btn-sm fw-bold text-dark px-3 shadow-sm" onclick="AdminState.bookingStatusFilter='REFUND_PENDING'; switchAdminTab('bookings');">
+          <i class="bi bi-funnel me-1"></i> Xử Lý Hoàn Tiền (${pendingBookingRefunds})
+        </button>
+      </div>
+    ` : ''}
+
+    ${(expiredToursCount > 0 || soldOutToursCount > 0) ? `
+      <div class="alert alert-danger border-danger shadow-sm d-flex align-items-center justify-content-between p-3 rounded-3 mb-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="bg-danger text-white p-2 rounded-circle fs-5 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+            <i class="bi bi-bell-fill"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-dark">🔔 Nhắc nhở vận hành tour: Có ${expiredToursCount > 0 ? `<strong class="text-danger">${expiredToursCount} tour đã hết hạn ngày</strong>` : ''} ${soldOutToursCount > 0 ? `<strong class="text-warning">${soldOutToursCount} tour đã hết chỗ</strong>` : ''}!</div>
+            <div class="small text-muted">Hệ thống đã tự động ẩn tour hết hạn khỏi khách hàng. Vui lòng mở thêm lịch mới hoặc tăng số lượng chỗ để tiếp tục đón khách.</div>
+          </div>
+        </div>
+        <button class="btn btn-outline-danger btn-sm fw-bold px-3 shadow-sm" onclick="switchAdminTab('tours');">
+          <i class="bi bi-compass me-1"></i> Quản Lý Tour
+        </button>
+      </div>
+    ` : ''}
+
     <!-- 4 Khối Chỉ Số Trọng Yếu (Metrics) -->
     <div class="row g-3 mb-4">
       <div class="col-sm-6 col-xl-3">
@@ -949,14 +1012,14 @@ function renderTabDashboard(container) {
           <div class="admin-metric-header">
             <div>
               <div class="admin-metric-label">Chờ hoàn tiền</div>
-              <div class="admin-metric-val text-warning">${pendingRefunds}</div>
+              <div class="admin-metric-val text-warning">${totalPendingRefunds}</div>
             </div>
             <div class="admin-metric-icon purple">
               <i class="bi bi-arrow-counterclockwise"></i>
             </div>
           </div>
           <div class="admin-metric-sub">
-            <span class="text-warning fw-bold">REFUND_REQUIRED</span>
+            <span class="text-warning fw-bold">${pendingBookingRefunds} đơn khách hủy 24h</span>
             <span class="ms-1">cần xử lý</span>
           </div>
         </div>
@@ -1131,8 +1194,13 @@ function renderTabDashboard(container) {
 // =============================================================================
 function renderTabTours(container) {
   const tours = AdminState.tours;
+  const expiredCount = tours.filter(t => t.isExpired).length;
+  const soldOutCount = tours.filter(t => t.isSoldOut || (t.availableSeats !== undefined && t.availableSeats <= 0)).length;
+
   const filteredTours = tours.filter(t => {
-    if (AdminState.tourStatusFilter !== "all" && t.status !== AdminState.tourStatusFilter) return false;
+    if (AdminState.tourStatusFilter === "EXPIRED" && !t.isExpired) return false;
+    if (AdminState.tourStatusFilter === "SOLD_OUT" && !(t.isSoldOut || (t.availableSeats !== undefined && t.availableSeats <= 0))) return false;
+    if (AdminState.tourStatusFilter !== "all" && AdminState.tourStatusFilter !== "EXPIRED" && AdminState.tourStatusFilter !== "SOLD_OUT" && t.status !== AdminState.tourStatusFilter) return false;
     if (AdminState.tourSearch.trim()) {
       const q = AdminState.tourSearch.toLowerCase();
       const matchTitle = (t.title || "").toLowerCase().includes(q);
@@ -1144,11 +1212,34 @@ function renderTabTours(container) {
   });
 
   const total = tours.length;
-  const activeCount = tours.filter(t => t.status === "ACTIVE").length;
+  const activeCount = tours.filter(t => t.status === "ACTIVE" && !t.isExpired && !(t.isSoldOut || (t.availableSeats !== undefined && t.availableSeats <= 0))).length;
   const draftCount = tours.filter(t => t.status === "DRAFT").length;
   const inactiveCount = tours.filter(t => t.status === "INACTIVE").length;
 
   container.innerHTML = `
+    <!-- Cảnh báo nhắc nhở tour hết hạn / hết chỗ -->
+    ${(expiredCount > 0 || soldOutCount > 0) ? `
+      <div class="alert alert-danger border-danger shadow-sm d-flex align-items-center justify-content-between p-3 rounded-3 mb-4">
+        <div class="d-flex align-items-center gap-3">
+          <div class="bg-danger text-white p-2 rounded-circle fs-4 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+            <i class="bi bi-bell-fill"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-dark fs-6">🔔 Nhắc Nhở Vận Hành Tour Cần Chú Ý:</div>
+            <div class="small text-danger">
+              ${expiredCount > 0 ? `Có <strong>${expiredCount} tour</strong> đã đến đúng ngày hoặc quá hạn ngày khởi hành (hệ thống đã tự động ẩn khỏi khách hàng). ` : ''}
+              ${soldOutCount > 0 ? `Có <strong>${soldOutCount} tour</strong> đã bán hết 100% chỗ. ` : ''}
+              Vui lòng bổ sung ngày khởi hành mới hoặc mở thêm số chỗ để tiếp tục nhận khách!
+            </div>
+          </div>
+        </div>
+        <div class="d-flex gap-2">
+          ${expiredCount > 0 ? `<button class="btn btn-danger btn-sm fw-bold shadow-sm" onclick="AdminState.tourStatusFilter='EXPIRED'; renderCurrentTab();">Tour Hết Hạn (${expiredCount})</button>` : ''}
+          ${soldOutCount > 0 ? `<button class="btn btn-warning btn-sm text-dark fw-bold shadow-sm" onclick="AdminState.tourStatusFilter='SOLD_OUT'; renderCurrentTab();">Tour Hết Chỗ (${soldOutCount})</button>` : ''}
+        </div>
+      </div>
+    ` : ''}
+
     <!-- Thống kê nhanh trạng thái tour -->
     <div class="row g-3 mb-4">
       <div class="col-6 col-md-3">
@@ -1165,14 +1256,14 @@ function renderTabTours(container) {
       </div>
       <div class="col-6 col-md-3">
         <div class="p-3 bg-white border rounded-3 text-center">
-          <div class="text-secondary small fw-semibold">Bản Nháp (DRAFT)</div>
-          <div class="fs-4 fw-bold text-secondary">${draftCount}</div>
+          <div class="text-danger small fw-semibold">Đã Hết Hạn Ngày</div>
+          <div class="fs-4 fw-bold text-danger">${expiredCount}</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="p-3 bg-white border rounded-3 text-center">
-          <div class="text-warning small fw-semibold">Tạm Ẩn (INACTIVE)</div>
-          <div class="fs-4 fw-bold text-warning">${inactiveCount}</div>
+          <div class="text-warning small fw-semibold">Hết Chỗ (SOLD OUT)</div>
+          <div class="fs-4 fw-bold text-warning">${soldOutCount}</div>
         </div>
       </div>
     </div>
@@ -1189,6 +1280,8 @@ function renderTabTours(container) {
           <select class="form-select form-select-sm" style="width: auto;" onchange="handleTourStatusFilter(this.value)">
             <option value="all" ${AdminState.tourStatusFilter === "all" ? "selected" : ""}>Tất cả trạng thái</option>
             <option value="ACTIVE" ${AdminState.tourStatusFilter === "ACTIVE" ? "selected" : ""}>Đang mở bán (ACTIVE)</option>
+            <option value="EXPIRED" ${AdminState.tourStatusFilter === "EXPIRED" ? "selected" : ""}>Đã hết hạn ngày (EXPIRED)</option>
+            <option value="SOLD_OUT" ${AdminState.tourStatusFilter === "SOLD_OUT" ? "selected" : ""}>Hết chỗ (SOLD OUT)</option>
             <option value="DRAFT" ${AdminState.tourStatusFilter === "DRAFT" ? "selected" : ""}>Bản nháp (DRAFT)</option>
             <option value="INACTIVE" ${AdminState.tourStatusFilter === "INACTIVE" ? "selected" : ""}>Tạm ẩn (INACTIVE)</option>
           </select>
@@ -1240,12 +1333,18 @@ function renderTabTours(container) {
                     ${t.originalPrice ? `<div class="text-muted text-decoration-line-through small" style="font-size: 10px;">${t.originalPrice.toLocaleString("vi-VN")} đ</div>` : ''}
                   </td>
                   <td>
-                    <span class="badge bg-light text-dark border">${t.availableSeats || 20} chỗ</span>
+                    <span class="badge bg-light text-dark border">${t.availableSeats !== undefined ? t.availableSeats : 20} chỗ</span>
                   </td>
                   <td>
-                    <span class="admin-badge badge-status-${t.status || 'ACTIVE'}">
-                      ${t.status === 'ACTIVE' ? 'ĐANG BÁN' : t.status === 'DRAFT' ? 'BẢN NHÁP' : 'TẠM ẨN'}
-                    </span>
+                    ${t.isExpired ? `
+                      <span class="badge bg-danger text-white px-2 py-1"><i class="bi bi-clock-history me-1"></i> ĐÃ HẾT HẠN</span>
+                    ` : (t.isSoldOut || (t.availableSeats !== undefined && t.availableSeats <= 0)) ? `
+                      <span class="badge bg-warning text-dark px-2 py-1"><i class="bi bi-people-fill me-1"></i> HẾT CHỖ</span>
+                    ` : `
+                      <span class="admin-badge badge-status-${t.status || 'ACTIVE'}">
+                        ${t.status === 'ACTIVE' ? 'ĐANG BÁN' : t.status === 'DRAFT' ? 'BẢN NHÁP' : 'TẠM ẨN'}
+                      </span>
+                    `}
                   </td>
                   <td class="text-end">
                     <div class="btn-group btn-group-sm">
@@ -2421,6 +2520,7 @@ async function handleSaveScheduleSubmit(e) {
 // =============================================================================
 function renderTabBookings(container) {
   const bookings = AdminState.bookings;
+  const refundPendingCount = bookings.filter(b => b.statusCode === "REFUND_PENDING").length;
 
   // Lọc theo search, status, ngày
   const filtered = bookings.filter(b => {
@@ -2447,9 +2547,27 @@ function renderTabBookings(container) {
   const pendingCount = bookings.filter(b => b.statusCode === "AWAITING_CASH" || b.statusCode === "PENDING_PAYMENT").length;
 
   container.innerHTML = `
+    <!-- Cảnh báo đơn yêu cầu hoàn tiền trong 24h -->
+    ${refundPendingCount > 0 ? `
+      <div class="alert alert-warning border-warning shadow-sm d-flex align-items-center justify-content-between p-3 rounded-3 mb-4">
+        <div class="d-flex align-items-center gap-3">
+          <div class="bg-warning text-dark p-2 rounded-circle fs-4 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+            <i class="bi bi-arrow-counterclockwise"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-dark fs-6">⚠️ Có ${refundPendingCount} yêu cầu hủy tour & hoàn tiền trong vòng 24h cần xử lý gấp!</div>
+            <div class="small text-muted">Khách hàng đã hủy trong thời hạn 24h theo chính sách cam kết của Delta Travel. Vui lòng bấm <strong>"Duyệt Hoàn Tiền"</strong> để kiểm tra STK ngân hàng và xác nhận hoàn tiền 100%.</div>
+          </div>
+        </div>
+        <button class="btn btn-warning fw-bold btn-sm px-3 py-2 text-dark shadow-sm" onclick="AdminState.bookingStatusFilter='REFUND_PENDING'; renderCurrentTab();">
+          <i class="bi bi-funnel me-1"></i> Xem Đơn Chờ Hoàn Tiền (${refundPendingCount})
+        </button>
+      </div>
+    ` : ''}
+
     <!-- Thống kê doanh thu sao kê -->
     <div class="row g-3 mb-4">
-      <div class="col-sm-6 col-xl-3">
+      <div class="col-sm-6 col-xl-2">
         <div class="p-3 bg-white border rounded-3 text-center">
           <div class="text-muted small">Tổng Đơn Đặt</div>
           <div class="fs-4 fw-bold text-dark">${totalBookings}</div>
@@ -2461,16 +2579,22 @@ function renderTabBookings(container) {
           <div class="fs-4 fw-bold text-success">${totalRevenue.toLocaleString("vi-VN")} đ</div>
         </div>
       </div>
-      <div class="col-sm-6 col-xl-3">
+      <div class="col-sm-6 col-xl-2">
         <div class="p-3 bg-white border rounded-3 text-center">
-          <div class="text-primary small fw-semibold">Đơn Đã Thanh Toán</div>
+          <div class="text-primary small fw-semibold">Đã Thanh Toán</div>
           <div class="fs-4 fw-bold text-primary">${paidBookings} / ${totalBookings}</div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-xl-2">
+        <div class="p-3 bg-white border rounded-3 text-center">
+          <div class="text-warning small fw-semibold">Chờ Thu Tiền Mặt</div>
+          <div class="fs-4 fw-bold text-warning">${pendingCount}</div>
         </div>
       </div>
       <div class="col-sm-6 col-xl-3">
         <div class="p-3 bg-white border rounded-3 text-center">
-          <div class="text-warning small fw-semibold">Đơn Chờ Thu Tiền Mặt</div>
-          <div class="fs-4 fw-bold text-warning">${pendingCount}</div>
+          <div class="text-danger small fw-semibold">Yêu Cầu Hoàn Tiền (24h)</div>
+          <div class="fs-4 fw-bold text-danger">${refundPendingCount}</div>
         </div>
       </div>
     </div>
@@ -2486,6 +2610,8 @@ function renderTabBookings(container) {
 
           <select class="form-select form-select-sm" style="width: auto;" onchange="handleBookingStatusFilter(this.value)">
             <option value="all" ${AdminState.bookingStatusFilter === "all" ? "selected" : ""}>Tất cả trạng thái</option>
+            <option value="REFUND_PENDING" ${AdminState.bookingStatusFilter === "REFUND_PENDING" ? "selected" : ""}>Yêu cầu hoàn tiền (REFUND_PENDING)</option>
+            <option value="REFUNDED" ${AdminState.bookingStatusFilter === "REFUNDED" ? "selected" : ""}>Đã hoàn tiền (REFUNDED)</option>
             <option value="PAID" ${AdminState.bookingStatusFilter === "PAID" ? "selected" : ""}>Đã thanh toán (PAID)</option>
             <option value="CONFIRMED" ${AdminState.bookingStatusFilter === "CONFIRMED" ? "selected" : ""}>Đã xác nhận (CONFIRMED)</option>
             <option value="AWAITING_CASH" ${AdminState.bookingStatusFilter === "AWAITING_CASH" ? "selected" : ""}>Chờ tiền mặt (AWAITING_CASH)</option>
@@ -2555,16 +2681,31 @@ function renderTabBookings(container) {
                   <td class="fw-bold text-dark">${Number(b.pricing?.total ?? b.totalPrice ?? 0).toLocaleString("vi-VN")} đ</td>
                   <td><span class="small text-muted">${b.paymentMethod || 'Chuyển khoản'}</span></td>
                   <td>
-                    <span class="admin-badge badge-status-${b.statusCode || 'PAID'}">
-                      ${b.status}
-                    </span>
+                    ${b.statusCode === 'REFUND_PENDING' ? `
+                      <span class="badge bg-warning text-dark border border-warning shadow-sm px-2 py-1">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> YÊU CẦU HOÀN TIỀN
+                      </span>
+                    ` : b.statusCode === 'REFUNDED' ? `
+                      <span class="badge bg-secondary text-white px-2 py-1">
+                        <i class="bi bi-check2-circle me-1"></i> ĐÃ HOÀN TIỀN
+                      </span>
+                    ` : `
+                      <span class="admin-badge badge-status-${b.statusCode || 'PAID'}">
+                        ${b.status}
+                      </span>
+                    `}
                   </td>
                   <td class="text-end no-print">
                     <div class="btn-group btn-group-sm">
                       <button class="btn btn-outline-primary" onclick="openBookingDetailModal('${b.bookingId}')" title="Xem chi tiết đơn">
                         <i class="bi bi-eye"></i>
                       </button>
-                      ${b.statusCode !== 'CONFIRMED' && b.statusCode !== 'COMPLETED' && b.statusCode !== 'CANCELLED' ? `
+                      ${b.statusCode === 'REFUND_PENDING' ? `
+                        <button class="btn btn-warning text-dark fw-bold shadow-sm" onclick="openApproveRefundModal('${b.bookingId}')" title="Duyệt hoàn tiền 100% cho khách">
+                          <i class="bi bi-arrow-return-left me-1"></i> Hoàn Tiền
+                        </button>
+                      ` : ''}
+                      ${b.statusCode !== 'CONFIRMED' && b.statusCode !== 'COMPLETED' && b.statusCode !== 'CANCELLED' && b.statusCode !== 'REFUND_PENDING' && b.statusCode !== 'REFUNDED' ? `
                         <button class="btn btn-outline-success" onclick="handleQuickConfirmBooking('${b.bookingId}')" title="Duyệt / Xác nhận đơn">
                           <i class="bi bi-check-lg"></i>
                         </button>
@@ -2574,7 +2715,7 @@ function renderTabBookings(container) {
                           <i class="bi bi-flag-fill"></i>
                         </button>
                       ` : ''}
-                      ${b.statusCode !== 'CANCELLED' ? `
+                      ${b.statusCode !== 'CANCELLED' && b.statusCode !== 'REFUNDED' && b.statusCode !== 'REFUND_PENDING' ? `
                         <button class="btn btn-outline-danger" onclick="openCancelBookingModal('${b.bookingId}')" title="Hủy đơn đặt">
                           <i class="bi bi-x-circle"></i>
                         </button>
@@ -2790,6 +2931,98 @@ async function handleConfirmCancelSubmit(e) {
     showAdminToast(`Đã hủy đơn ${bookingId} thành công!`, "warning");
 
     bootstrap.Modal.getInstance(document.getElementById("adminCancelModal"))?.hide();
+    await refreshAdminData();
+    renderCurrentTab();
+  }
+}
+
+/**
+ * Modal Duyệt & Xác Nhận Hoàn Tiền Tour Trong 24h
+ */
+function openApproveRefundModal(bookingId) {
+  const booking = AdminState.bookings.find(b => b.bookingId === bookingId || b.id === bookingId || b.reference === bookingId);
+  if (!booking) return;
+
+  const modalEl = document.getElementById("adminRefundModal");
+  if (!modalEl) return;
+
+  document.getElementById("refundModalTargetId").value = booking.id || booking.bookingId;
+  document.getElementById("refundModalBookingId").textContent = booking.bookingId || booking.reference;
+  document.getElementById("refundModalCustomer").textContent = booking.customer?.fullName || booking.customerName || "Khách Hàng";
+  document.getElementById("refundModalPhone").textContent = booking.customer?.phone || booking.customerPhone || "Chưa cập nhật";
+  const refundAmt = Number(booking.pricing?.total ?? booking.totalPrice ?? 0);
+  document.getElementById("refundModalAmount").textContent = refundAmt.toLocaleString("vi-VN") + " đ";
+  
+  const bankInfoEl = document.getElementById("refundModalBankInfo");
+  if (bankInfoEl) {
+    bankInfoEl.textContent = booking.cancellationReason || "Khách yêu cầu chuyển khoản hoàn tiền theo STK ngân hàng ban đầu";
+  }
+
+  const txInput = document.getElementById("refundTxRefInput");
+  if (txInput) {
+    txInput.value = "MB-REFUND-" + (booking.reference || booking.bookingId) + "-" + Date.now().toString().slice(-4);
+  }
+  const notesInput = document.getElementById("refundNotesInput");
+  if (notesInput) {
+    notesInput.value = `Đã duyệt hoàn tiền 100% (${refundAmt.toLocaleString("vi-VN")} đ) theo chính sách trong 24h`;
+  }
+
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modal.show();
+}
+
+async function handleConfirmRefundSubmit(e) {
+  e.preventDefault();
+  const bookingId = document.getElementById("refundModalTargetId").value;
+  const txRef = document.getElementById("refundTxRefInput").value.trim();
+  const notes = document.getElementById("refundNotesInput").value.trim();
+
+  if (!txRef) {
+    showAdminToast("Vui lòng nhập mã giao dịch hoàn tiền ngân hàng!", "warning");
+    return;
+  }
+
+  const bookings = [...AdminState.bookings];
+  const idx = bookings.findIndex(b => b.bookingId === bookingId || b.id === bookingId || b.reference === bookingId);
+  if (idx !== -1) {
+    const targetId = bookings[idx].id || bookingId;
+    const reasonText = `Admin duyệt hoàn tiền 100% [Mã GD: ${txRef} | ${notes || 'Chính sách 24h'}]`;
+
+    if (typeof DeltaAPI !== "undefined") {
+      if (typeof DeltaAPI.adminApproveRefund === "function") {
+        const apiRes = await DeltaAPI.adminApproveRefund(targetId, { refundReference: txRef, notes }).catch(() => null);
+        if (apiRes && !apiRes.success && !apiRes.isOffline) {
+          showAdminToast(apiRes.error || "Không thể xác nhận hoàn tiền trên máy chủ.", "error");
+          return;
+        }
+      } else if (typeof DeltaAPI.adminPatchBooking === "function") {
+        await DeltaAPI.adminPatchBooking(targetId, "REFUNDED", reasonText).catch(() => null);
+      }
+    }
+
+    bookings[idx].status = "ĐÃ HOÀN TIỀN";
+    bookings[idx].statusCode = "REFUNDED";
+    bookings[idx].cancellationReason = reasonText;
+    AdminState.bookings = bookings;
+
+    try {
+      const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
+      const lIdx = local.findIndex(b => b.id === targetId || b.reference === bookingId || b.bookingId === bookingId);
+      if (lIdx !== -1) {
+        local[lIdx].status = "REFUNDED";
+        local[lIdx].statusCode = "REFUNDED";
+        local[lIdx].cancellationReason = reasonText;
+        localStorage.setItem("delta_customer_bookings", JSON.stringify(local));
+      }
+    } catch (_) {}
+
+    addAuditLog("RECORD_REFUND", "Booking", bookingId, reasonText);
+    showAdminToast(`Đã duyệt & hoàn tiền 100% thành công cho đơn #${bookingId}!`, "success");
+
+    const modalEl = document.getElementById("adminRefundModal");
+    if (modalEl) {
+      bootstrap.Modal.getInstance(modalEl)?.hide();
+    }
     await refreshAdminData();
     renderCurrentTab();
   }

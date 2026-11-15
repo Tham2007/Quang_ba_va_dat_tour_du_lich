@@ -214,6 +214,18 @@
       border-color: #fde68a;
     }
 
+    .stamp-refund {
+      color: #b45309;
+      background: #fef3c7;
+      border-color: #f59e0b;
+    }
+
+    .stamp-refunded {
+      color: #475569;
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+
     .stamp-cancelled {
       color: #b91c1c;
       background: #fef2f2;
@@ -401,6 +413,7 @@
             <button class="paper-tab-btn" data-status="PENDING_PAYMENT" data-i18n="mb_tab_pending">Chờ thanh toán</button>
             <button class="paper-tab-btn" data-status="PAID" data-i18n="mb_tab_paid">Đã thanh toán</button>
             <button class="paper-tab-btn" data-status="CONFIRMED" data-i18n="mb_tab_confirmed">Đã duyệt giữ chỗ</button>
+            <button class="paper-tab-btn" data-status="REFUND_PENDING" data-i18n="mb_tab_refund">Chờ hoàn tiền</button>
             <button class="paper-tab-btn" data-status="CANCELLED" data-i18n="mb_tab_cancelled">Đã hủy</button>
           </div>
         </div>
@@ -538,13 +551,21 @@
         const isCompleted = (normalizedStatus === "COMPLETED");
         const isConfirmed = (normalizedStatus === "CONFIRMED");
         const isCancelled = (normalizedStatus === "CANCELLED");
+        const isRefundPending = (normalizedStatus === "REFUND_PENDING");
+        const isRefunded = (normalizedStatus === "REFUNDED");
         const isPaid = (normalizedStatus === "PAID" || isConfirmed || isCompleted || b.paid === true || b.isPaid === true);
 
         let stampClass = "stamp-paid";
         let stampText = isEn ? "PAID" : "ĐÃ THANH TOÁN";
         let isPending = false;
 
-        if (isCancelled) {
+        if (isRefundPending) {
+          stampClass = "stamp-refund";
+          stampText = isEn ? "REFUND PENDING (24H)" : "CHỜ HOÀN TIỀN (TRONG 24H)";
+        } else if (isRefunded) {
+          stampClass = "stamp-refunded";
+          stampText = isEn ? "REFUNDED" : "ĐÃ HOÀN TIỀN";
+        } else if (isCancelled) {
           stampClass = "stamp-cancelled";
           stampText = isEn ? "CANCELLED" : "ĐÃ HỦY ĐƠN";
         } else if (isCompleted) {
@@ -606,6 +627,28 @@
                     <div class="ticket-meta-val">${guestsText}</div>
                   </div>
                 </div>
+
+                ${isRefundPending ? `
+                  <div class="p-2.5 px-3 rounded-3 bg-warning-subtle text-warning-emphasis border border-warning small mt-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-clock-history fs-5 text-warning flex-shrink-0"></i>
+                    <div>
+                      <strong>${isEn ? "Cancellation Requested (Within 24h Policy):" : "Yêu cầu hủy trong vòng 24h:"}</strong> 
+                      ${isEn ? "Eligible for a 100% full refund. Delta Travel accountants are processing your bank transfer refund." : "Đủ điều kiện hoàn tiền 100%. Ban quản trị & kế toán Delta Travel đang kiểm tra để hoàn trả 100% tiền vé."}
+                      ${b.cancellationReason ? `<div class="text-muted mt-0.5" style="font-size: 11px;"><i class="bi bi-info-circle me-1"></i>${b.cancellationReason}</div>` : ""}
+                    </div>
+                  </div>
+                ` : ""}
+
+                ${isRefunded ? `
+                  <div class="p-2.5 px-3 rounded-3 bg-secondary-subtle text-secondary-emphasis border border-secondary small mt-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-check-circle-fill fs-5 text-secondary flex-shrink-0"></i>
+                    <div>
+                      <strong>${isEn ? "100% Refund Completed:" : "Đã hoàn tiền 100% thành công:"}</strong> 
+                      ${isEn ? "Funds have been refunded to your payment account." : "Số tiền đã được chuyển khoản hoàn trả về tài khoản của quý khách."}
+                      ${b.cancellationReason ? `<div class="text-muted mt-0.5" style="font-size: 11px;"><i class="bi bi-receipt me-1"></i>${b.cancellationReason}</div>` : ""}
+                    </div>
+                  </div>
+                ` : ""}
               </div>
 
               <div class="col-12 col-lg-5 text-lg-end border-start-lg ps-lg-4">
@@ -629,7 +672,7 @@
                     </button>
                   `}
 
-                  ${!isCancelled ? `
+                  ${!isCancelled && !isRefundPending && !isRefunded && !isCompleted ? `
                     <button type="button" class="btn btn-outline-danger btn-sm" onclick="cancelBookingAction('${id}')">
                       ${cancelBtn}
                     </button>
@@ -650,43 +693,124 @@
 
     async function cancelBookingAction(id) {
       const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
-      const confirmed = typeof showAppConfirm === "function"
-        ? await showAppConfirm(
-            isEn ? "Are you sure you want to cancel this tour booking?" : "Quý khách có chắc chắn muốn hủy đơn đặt tour này?",
-            isEn ? "Cancel Booking" : "Xác Nhận Hủy Đơn",
-            { danger: true, confirmText: isEn ? "Yes, Cancel" : "Hủy Đơn Này", cancelText: isEn ? "Keep Booking" : "Giữ Lại Đơn" }
-          )
-        : true;
-      if (!confirmed) return;
+      const target = allBookings.find(b => (b.id || b.bookingId || b.reference) === id);
+      if (!target) return;
+
+      const createdAtRaw = target.createdAt || target.created_at || target.createdDate;
+      const createdAtMs = createdAtRaw ? new Date(createdAtRaw).getTime() : Date.now();
+      const nowMs = Date.now();
+      const hoursElapsed = (nowMs - createdAtMs) / (1000 * 60 * 60);
+
+      // 1. NẾU QUÁ 24H -> CHẶN HỦY VÀ CẢNH BÁO RÕ RÀNG
+      if (hoursElapsed > 24) {
+        const titleWarn = isEn ? "Cancellation Not Allowed (>24h)" : "Không Thể Hủy Đơn (> 24 Giờ)";
+        const msgWarn = isEn
+          ? "More than 24 hours have passed since you placed this booking.\n\nAccording to Delta Travel's policy, our operations team has already booked transportation, hotels, and tour guides. Therefore, cancellations and refunds cannot be accepted after 24 hours.\n\nFor emergency assistance, please contact Hotline/Zalo: 0325536936."
+          : "ĐÃ QUÁ 24 GIỜ KỂ TỪ THỜI ĐIỂM ĐẶT TOUR!\n\nTheo quy định & chính sách dịch vụ của Delta Travel, công ty đã tiến hành điều phối xe du lịch, đặt phòng khách sạn và hướng dẫn viên cố định cho hành trình.\n\nVì vậy, quý khách KHÔNG THỂ HỦY ĐƠN và Delta Travel KHÔNG CHỊU TRÁCH NHIỆM HOÀN TIỀN sau 24 giờ.\n\nNếu quý khách cần hỗ trợ đặc biệt vì lý do bất khả kháng, vui lòng liên hệ trực tiếp Hotline/Zalo CSKH: 0325536936.";
+        
+        if (typeof showAppNotice === "function") {
+          await showAppNotice(msgWarn, titleWarn, "warning");
+        } else {
+          alert(msgWarn);
+        }
+        return;
+      }
+
+      // 2. NẾU TRONG VÒNG 24H -> CHO PHÉP HỦY & HOÀN TIỀN
+      const isPaid = (
+        target.status === "PAID" ||
+        target.status === "CONFIRMED" ||
+        target.paid === true ||
+        target.isPaid === true ||
+        Boolean(target.paymentEvidence || target.payment_evidence)
+      );
+
+      let bankInfo = "";
+      if (isPaid) {
+        const confirmTitle = isEn ? "24h Cancellation & 100% Refund Policy" : "Chính Sách Hủy Đơn Trong 24h & Hoàn Tiền 100%";
+        const confirmMsg = isEn
+          ? "You booked this tour within the last 24 hours.\n\nUnder Delta Travel's 24-hour guarantee, you are eligible for a 100% full refund.\n\nYour cancellation request will be submitted directly to Admin for refund processing. Are you sure you want to proceed?"
+          : "Đơn đặt tour của quý khách ĐANG TRONG THỜI HẠN 24 GIỜ kể từ khi đặt.\n\nTheo chính sách của Delta Travel, quý khách ĐƯỢC QUYỀN HỦY VÀ NHẬN HOÀN TIỀN 100%.\n\nYêu cầu hủy tour kèm hoàn tiền sẽ được chuyển trực tiếp đến Ban Quản Trị Delta Travel để kế toán xử lý chuyển khoản hoàn lại 100% tiền vé.\n\nQuý khách có chắc chắn muốn xác nhận hủy tour và nhận hoàn tiền không?";
+        
+        const confirmed = typeof showAppConfirm === "function"
+          ? await showAppConfirm(confirmMsg, confirmTitle, {
+              danger: true,
+              confirmText: isEn ? "Yes, Request 100% Refund" : "Xác Nhận Hủy & Hoàn Tiền 100%",
+              cancelText: isEn ? "Keep Booking" : "Giữ Lại Đơn"
+            })
+          : confirm(confirmMsg);
+        if (!confirmed) return;
+
+        const defaultBankNote = target.customerPhone ? `STK SĐT: ${target.customerPhone}` : "";
+        const promptBank = prompt(
+          isEn
+            ? "Please enter your Bank Name, Account Number and Account Holder for the 100% refund (e.g. MBBank - 0325536936 - LE VAN AN):"
+            : "Vui lòng nhập Tên Ngân Hàng, Số Tài Khoản và Tên Chủ Thẻ để Delta Travel chuyển khoản hoàn tiền 100% (Ví dụ: MBBank - 0325536936 - LE VAN AN):",
+          defaultBankNote
+        );
+        bankInfo = (promptBank && promptBank.trim()) ? promptBank.trim() : "Chuyển khoản theo số điện thoại / STK gốc";
+      } else {
+        const confirmed = typeof showAppConfirm === "function"
+          ? await showAppConfirm(
+              isEn ? "Are you sure you want to cancel this unpaid booking?" : "Quý khách có chắc chắn muốn hủy đơn chưa thanh toán này?",
+              isEn ? "Cancel Booking" : "Xác Nhận Hủy Đơn",
+              { danger: true, confirmText: isEn ? "Yes, Cancel" : "Hủy Đơn", cancelText: isEn ? "Keep Booking" : "Không" }
+            )
+          : confirm(isEn ? "Cancel booking?" : "Hủy đơn?");
+        if (!confirmed) return;
+      }
 
       try {
+        let newStatus = isPaid ? "REFUND_PENDING" : "CANCELLED";
+        let reasonNote = isPaid
+          ? `Khách hủy trong 24h - Yêu cầu hoàn tiền 100% [STK: ${bankInfo}]`
+          : "Khách hàng yêu cầu hủy trực tuyến";
+
         if (typeof DeltaAPI !== "undefined" && DeltaAPI.cancelBooking) {
-          await DeltaAPI.cancelBooking(id, "Khách hàng yêu cầu hủy trực tuyến");
+          const apiRes = await DeltaAPI.cancelBooking(id, "Khách hàng yêu cầu hủy trong 24h", bankInfo);
+          if (apiRes && apiRes.success) {
+            newStatus = apiRes.data?.status || newStatus;
+            if (apiRes.data?.cancellationReason) {
+              reasonNote = apiRes.data.cancellationReason;
+            }
+          } else {
+            const errDetail = apiRes?.error || "Không thể gửi yêu cầu hủy lên máy chủ.";
+            throw new Error(errDetail);
+          }
         }
-        // Cập nhật local
+
+        // Cập nhật local storage
         allBookings = allBookings.map(b => {
           if ((b.id || b.bookingId || b.reference) === id) {
-            return { ...b, status: "CANCELLED", statusCode: "CANCELLED" };
+            return {
+              ...b,
+              status: newStatus,
+              statusCode: newStatus,
+              cancellationReason: reasonNote
+            };
           }
           return b;
         });
         localStorage.setItem("delta_customer_bookings", JSON.stringify(allBookings));
         renderBookings();
+
         if (typeof showAppNotice === "function") {
-          await showAppNotice(
-            isEn ? "Your tour booking has been cancelled successfully." : "Đã hủy đơn đặt tour thành công.",
-            isEn ? "Cancelled" : "Thành Công",
-            "success"
-          );
+          const successTitle = isPaid
+            ? (isEn ? "Refund Request Submitted" : "Đã Gửi Yêu Cầu Hoàn Tiền")
+            : (isEn ? "Cancelled" : "Đã Hủy Đơn");
+          const successDesc = isPaid
+            ? (isEn
+                ? "Your 24h cancellation request has been submitted. Status changed to REFUND PENDING. Delta Travel will process your 100% refund."
+                : "Yêu cầu hủy tour trong 24h đã được tiếp nhận thành công! Đơn hàng đã chuyển sang trạng thái 'CHỜ HOÀN TIỀN'. Kế toán Delta Travel sẽ đối soát và chuyển khoản hoàn tiền 100% cho quý khách.")
+            : (isEn ? "Your tour booking has been cancelled." : "Đã hủy đơn đặt tour thành công.");
+          await showAppNotice(successDesc, successTitle, "success");
         }
       } catch (err) {
         const errMsg = (err && err.message) || (isEn ? "Please contact hotline 0325536936." : "Vui lòng liên hệ tổng đài 0325536936");
         if (typeof showAppNotice === "function") {
-          await showAppNotice(
-            (isEn ? "Failed to cancel booking: " : "Lỗi hủy đơn: ") + errMsg,
-            isEn ? "Cancellation Error" : "Lỗi Hủy Đơn",
-            "error"
-          );
+          await showAppNotice(errMsg, isEn ? "Cancellation Error" : "Lỗi Hủy Đơn", "error");
+        } else {
+          alert(errMsg);
         }
       }
     }

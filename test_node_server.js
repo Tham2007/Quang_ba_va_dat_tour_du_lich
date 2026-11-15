@@ -1200,6 +1200,98 @@ async function runTests() {
       sepayBookAfter.json?.paymentEvidence?.includes("FT-TEST-SEPAY-01"),
       `status=${sepayWebhookRes.status} resp=${JSON.stringify(sepayWebhookRes.json)} bookStatus=${sepayBookAfter.json?.status} evidence=${sepayBookAfter.json?.paymentEvidence}`);
 
+    // Policy 24h: Hủy đơn đã thanh toán trong vòng 24h -> REFUND_PENDING & lưu thông tin ngân hàng
+    const cancel24hRes = await req(`/api/v1/bookings/${sepayTestBook.json?.id}/cancel`, {
+      method: "POST",
+      headers: authHeaders,
+      body: {
+        reason: "Khách bận việc gia đình đột xuất",
+        bank_account_name: "LE VAN AN",
+        bank_account_number: "0325536936",
+        bank_name: "MBBank"
+      }
+    });
+    const bookAfterCancel24h = await req(`/api/v1/bookings/${sepayTestBook.json?.id}`, { headers: authHeaders });
+    assert("Policy 24h: Hủy đơn đã thanh toán trong 24h chuyển sang REFUND_PENDING & lưu STK",
+      cancel24hRes.status === 200 &&
+      cancel24hRes.json?.booking?.status === "REFUND_PENDING" &&
+      bookAfterCancel24h.json?.status === "REFUND_PENDING" &&
+      bookAfterCancel24h.json?.cancellationReason?.includes("MBBank") &&
+      bookAfterCancel24h.json?.cancellationReason?.includes("0325536936"),
+      `status=${cancel24hRes.status} bookStatus=${bookAfterCancel24h.json?.status} reason=${bookAfterCancel24h.json?.cancellationReason}`);
+
+    // Admin duyệt hoàn tiền đơn tour
+    const approveRefundRes = await req(`/api/v1/admin/bookings/${sepayTestBook.json?.id}/approve-refund`, {
+      method: "POST",
+      headers: adminHeaders,
+      body: {
+        transaction_code: "REFUND-MB-FT12345",
+        note: "Đã hoàn 100% tiền theo chính sách 24h"
+      }
+    });
+    const bookAfterRefund = await req(`/api/v1/bookings/${sepayTestBook.json?.id}`, { headers: authHeaders });
+    assert("Admin: Duyệt hoàn tiền chuyển trạng thái thành REFUNDED & ghi nhận mã giao dịch",
+      approveRefundRes.status === 200 &&
+      approveRefundRes.json?.success === true &&
+      bookAfterRefund.json?.status === "REFUNDED" &&
+      bookAfterRefund.json?.paymentEvidence?.includes("REFUND-MB-FT12345"),
+      `status=${approveRefundRes.status} bookStatus=${bookAfterRefund.json?.status}`);
+
+    // Policy 24h: Chặn hủy đơn sau 24h kể từ khi đặt (HTTP 422)
+    const overdueBooking = await req("/api/v1/bookings", {
+      method: "POST",
+      headers: authHeaders,
+      body: {
+        schedule_id: "b411bac0-e625-4d44-b8ac-566a0185eee5",
+        customer_name: "Khách Đặt Quá Hạn",
+        customer_phone: "0988776655",
+        adults: 1
+      }
+    });
+    // Giả lập thời gian đặt đơn quá 25 giờ trước
+    db.prepare("UPDATE bookings SET created_at = datetime('now', '-25 hours') WHERE id = ?").run(overdueBooking.json?.id);
+    const cancelOverdueRes = await req(`/api/v1/bookings/${overdueBooking.json?.id}/cancel`, {
+      method: "POST",
+      headers: authHeaders,
+      body: { reason: "Muốn hủy sau 25 giờ" }
+    });
+    assert("Policy 24h: Chặn khách hàng hủy đơn quá 24h kể từ khi đặt (HTTP 422 CANCELLATION_WINDOW_EXPIRED)",
+      cancelOverdueRes.status === 422 &&
+      cancelOverdueRes.json?.code === "CANCELLATION_WINDOW_EXPIRED",
+      `status=${cancelOverdueRes.status} code=${cancelOverdueRes.json?.code}`);
+
+    // Tour Expiration & Sold-out alerts: Tự động ẩn tour hết hạn & cảnh báo trên Admin
+    const expiredTourId = "DL-EXP88";
+    const createExpiredRes = await req("/api/v1/admin/tours", {
+      method: "POST",
+      headers: adminHeaders,
+      body: {
+        id: expiredTourId,
+        title: "Tour Hết Hạn Hôm Qua",
+        region: "north",
+        price: 999000,
+        duration: "1N",
+        departure: "Hà Nội",
+        transport: "Xe du lịch",
+        images: ["assets/images/dalat.png"]
+      }
+    });
+    // Set schedule khởi hành quá khứ 2 ngày trước
+    db.prepare("UPDATE schedules SET departure_at = datetime('now', '-2 days') WHERE tour_id = ?").run(expiredTourId);
+
+    const publicToursCheck = await req("/api/v1/tours");
+    const adminToursCheck = await req("/api/v1/admin/tours", { headers: adminHeaders });
+    const adminMetricsCheck = await req("/api/v1/admin/metrics", { headers: adminHeaders });
+
+    const isTourInPublic = publicToursCheck.json?.some(t => t.id === expiredTourId);
+    const tourInAdmin = adminToursCheck.json?.find(t => t.id === expiredTourId);
+
+    assert("Tour Expiration: Tự động ẩn tour hết hạn trên Public API & gắn cờ isExpired cảnh báo trên Admin",
+      isTourInPublic === false &&
+      tourInAdmin?.isExpired === true &&
+      adminMetricsCheck.json?.expiredToursCount >= 1,
+      `inPublic=${isTourInPublic} isExpired=${tourInAdmin?.isExpired} expiredCount=${adminMetricsCheck.json?.expiredToursCount}`);
+
     const catalogRequests = [];
     catalogMockServer = http.createServer((request, response) => {
       const requestUrl = new URL(request.url, "http://127.0.0.1");

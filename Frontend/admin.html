@@ -698,6 +698,57 @@
   </div>
 
   <!-- ==========================================================================
+       6b. MODAL: DUYỆT & XÁC NHẬN HOÀN TIỀN (APPROVE REFUND MODAL TRONG 24H)
+       ========================================================================== -->
+  <div class="modal fade" id="adminRefundModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <form class="modal-content border-0 rounded-4 shadow-lg" onsubmit="handleConfirmRefundSubmit(event)">
+        <div class="modal-header border-bottom p-4 bg-warning-subtle">
+          <h5 class="modal-title fw-bold text-dark">
+            <i class="bi bi-arrow-counterclockwise text-warning me-1"></i> Xử Lý Hoàn Tiền Tour (Chính Sách 24h)
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <input type="hidden" id="refundModalTargetId">
+        <div class="modal-body p-4">
+          <div class="alert alert-warning small border-warning mb-3">
+            <i class="bi bi-shield-check me-1"></i> Khách hàng đã gửi yêu cầu hủy trong vòng <strong>24 giờ</strong> hợp lệ theo chính sách cam kết của Delta Travel (hoàn 100% tiền vé).
+          </div>
+
+          <div class="p-3 bg-light border rounded-3 mb-3 small">
+            <div class="row g-2">
+              <div class="col-6">Mã đơn: <strong id="refundModalBookingId" class="text-primary font-monospace"></strong></div>
+              <div class="col-6">Khách hàng: <strong id="refundModalCustomer" class="text-dark"></strong></div>
+              <div class="col-6">Số điện thoại: <strong id="refundModalPhone" class="text-dark"></strong></div>
+              <div class="col-6">Số tiền hoàn (100%): <strong id="refundModalAmount" class="text-danger fs-6 fw-bold"></strong></div>
+            </div>
+            <div class="mt-2 pt-2 border-top">
+              <div class="text-muted">Thông tin STK hoàn do khách cung cấp:</div>
+              <div id="refundModalBankInfo" class="fw-bold text-dark font-monospace bg-white p-2 rounded border mt-1"></div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Mã giao dịch chuyển khoản hoàn tiền / Biên lai ngân hàng <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="refundTxRefInput" placeholder="Ví dụ: MB-REFUND-0325536936-FT26..." required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Ghi chú đối soát nội bộ</label>
+            <textarea class="form-control" id="refundNotesInput" rows="2" placeholder="Ghi chú xác nhận đã chuyển khoản ngân hàng hoàn tất..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-top p-3 bg-white">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>
+          <button type="submit" class="btn btn-warning fw-bold text-dark px-4 shadow-sm">
+            <i class="bi bi-check2-circle me-1"></i> Xác Nhận Đã Hoàn Tiền 100%
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
        7. MODAL: GHI NHẬN THU TIỀN MẶT (RECORD CASH RECEIPT)
        ========================================================================== -->
   <div class="modal fade" id="adminCashModal" tabindex="-1" aria-hidden="true">

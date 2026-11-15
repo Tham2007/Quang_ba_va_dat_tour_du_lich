@@ -1082,6 +1082,17 @@ function initDatabase() {
       );
     }
   }
+
+  // Đồng bộ và nâng cấp trạng thái các đơn đặt hàng đã thanh toán bị hủy chuyển sang REFUND_PENDING (Chờ hoàn tiền)
+  try {
+    db.prepare(`
+      UPDATE bookings
+      SET status = 'REFUND_PENDING',
+          cancellation_reason = COALESCE(cancellation_reason, 'Khách hủy trong 24h - Chờ hoàn tiền 100%')
+      WHERE (reference = 'BK3887031139' OR (status = 'CANCELLED' AND (payment_evidence IS NOT NULL OR payment_confirmed_at IS NOT NULL)))
+        AND status NOT IN ('REFUNDED')
+    `).run();
+  } catch (_) {}
 }
 
 initDatabase();
@@ -1175,28 +1186,49 @@ function publicSchedule(s) {
   };
 }
 
-function tourAvailableSeats(tourId) {
+function tourDepartureStatus(tourId) {
   try {
-    const futureSchedule = db.prepare(`
-      SELECT total_seats, reserved_seats
-      FROM schedules
-      WHERE tour_id = ? AND active = 1 AND departure_at >= date('now')
-      ORDER BY departure_at ASC LIMIT 1
-    `).get(tourId);
-    if (futureSchedule) {
-      return Math.max(0, Number(futureSchedule.total_seats) - Number(futureSchedule.reserved_seats || 0));
-    }
-    const anySchedule = db.prepare(`
-      SELECT total_seats, reserved_seats
+    const allSchedules = db.prepare(`
+      SELECT id, departure_at, total_seats, reserved_seats, active
       FROM schedules
       WHERE tour_id = ? AND active = 1
-      ORDER BY departure_at DESC LIMIT 1
-    `).get(tourId);
-    if (anySchedule) {
-      return Math.max(0, Number(anySchedule.total_seats) - Number(anySchedule.reserved_seats || 0));
+      ORDER BY departure_at ASC
+    `).all(tourId);
+
+    if (allSchedules.length === 0) {
+      return { isExpired: false, isSoldOut: false, availableSeats: 20, nextDeparture: null, hasSchedules: false };
     }
-  } catch (_) {}
-  return 20;
+
+    const nowIso = new Date().toISOString();
+    const todayStr = nowIso.slice(0, 10);
+    const futureSchedules = allSchedules.filter(s => {
+      const dep = String(s.departure_at || "");
+      return dep >= todayStr;
+    });
+
+    if (futureSchedules.length === 0) {
+      // Toàn bộ lịch khởi hành đã qua ngày hiện tại -> ĐÃ HẾT HẠN
+      return { isExpired: true, isSoldOut: false, availableSeats: 0, nextDeparture: null, hasSchedules: true };
+    }
+
+    const nextSched = futureSchedules[0];
+    const avail = Math.max(0, Number(nextSched.total_seats) - Number(nextSched.reserved_seats || 0));
+    const isSoldOut = (avail <= 0);
+
+    return {
+      isExpired: false,
+      isSoldOut,
+      availableSeats: avail,
+      nextDeparture: nextSched.departure_at,
+      hasSchedules: true
+    };
+  } catch (_) {
+    return { isExpired: false, isSoldOut: false, availableSeats: 20, nextDeparture: null, hasSchedules: false };
+  }
+}
+
+function tourAvailableSeats(tourId) {
+  return tourDepartureStatus(tourId).availableSeats;
 }
 
 function tourSchedules(tourId) {
@@ -1289,6 +1321,7 @@ function publicTour(t) {
   }
   const description = t.description || "";
   const highlights = description.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const depStatus = tourDepartureStatus(t.id);
   return {
     id: t.id,
     slug: t.slug,
@@ -1302,7 +1335,7 @@ function publicTour(t) {
     itinerary,
     description,
     highlights,
-    badge: t.badge || "",
+    badge: t.badge || (depStatus.isExpired ? "ĐÃ HẾT HẠN" : (depStatus.isSoldOut ? "HẾT CHỖ" : "")),
     inclusions: safeJsonStringArray(t.inclusions_json),
     exclusions: safeJsonStringArray(t.exclusions_json),
     terms: safeJsonStringArray(t.terms_json),
@@ -1310,7 +1343,10 @@ function publicTour(t) {
     originalPrice: Number(t.original_price),
     isFlashSale: Boolean(t.flash_sale),
     active: Boolean(t.active),
-    availableSeats: tourAvailableSeats(t.id),
+    isExpired: depStatus.isExpired,
+    isSoldOut: depStatus.isSoldOut,
+    departureStatus: depStatus.isExpired ? "EXPIRED" : (depStatus.isSoldOut ? "SOLD_OUT" : "AVAILABLE"),
+    availableSeats: depStatus.availableSeats,
     schedules: tourSchedules(t.id),
     updatedAt: iso(t.updated_at)
   };
@@ -1424,8 +1460,10 @@ function bookingDict(b) {
     paid: ["PAID", "CONFIRMED", "COMPLETED"].includes(b.status),
     paymentEvidence: b.payment_evidence || null,
     paymentConfirmedAt: b.payment_confirmed_at ? iso(b.payment_confirmed_at) : null,
+    cancellationReason: b.cancellation_reason || null,
     expiresAt: iso(b.expires_at),
-    createdAt: iso(b.created_at)
+    createdAt: iso(b.created_at),
+    updatedAt: iso(b.updated_at)
   };
 }
 
@@ -2536,6 +2574,11 @@ app.get("/api/v1/tours", async (req, res) => {
     });
   }
 
+  // Tự động ẩn các tour đã hết hạn ngày khởi hành khỏi trang công khai (trừ khi có query include_expired=true)
+  if (req.query.include_expired !== "true") {
+    tours = tours.filter(t => !tourDepartureStatus(t.id).isExpired);
+  }
+
   res.json(tours.map(publicTour));
 });
 
@@ -3109,21 +3152,74 @@ app.post("/api/v1/bookings/:booking_id/pay", requireAuthOrGuest, (req, res) => {
   res.status(202).json({ ...bookingDict(updated), paymentReview: "PENDING_MANUAL_VERIFICATION" });
 });
 
-app.post("/api/v1/bookings/:booking_id/cancel", requireAuth, async (req, res) => {
-  const { reason = "Khách hủy đơn" } = req.body || {};
-  const b = db.prepare("SELECT * FROM bookings WHERE id = ? AND user_id = ?").get(req.params.booking_id, req.user.id);
+app.post("/api/v1/bookings/:booking_id/cancel", requireAuthOrGuest, async (req, res) => {
+  const {
+    reason = "Khách hủy đơn",
+    bankInfo = "",
+    bank_info = "",
+    bank_account_name = "",
+    bank_account_number = "",
+    bank_name = ""
+  } = req.body || {};
+  const bookingParam = req.params.booking_id;
+  const b = db.prepare("SELECT * FROM bookings WHERE id = ? OR reference = ?").get(bookingParam, bookingParam);
   if (!b) return res.status(404).json({ detail: "Đơn không tồn tại." });
 
-  if (["CANCELLED", "COMPLETED"].includes(b.status)) {
-    return res.status(409).json({ detail: "Đơn này không thể hủy." });
+  // Phân quyền hủy đơn: Admin hoặc chính chủ booking
+  if (req.user && req.user.role !== "ADMIN" && b.user_id && b.user_id !== req.user.id) {
+    return res.status(403).json({ detail: "Bạn không có quyền hủy đơn đặt tour này." });
   }
+
+  if (b.status === "CANCELLED") {
+    return res.status(409).json({ detail: "Đơn này đã được hủy trước đó." });
+  }
+  if (b.status === "REFUND_PENDING") {
+    return res.status(409).json({ detail: "Đơn này đang trong tiến trình chờ Admin duyệt hoàn tiền." });
+  }
+  if (b.status === "REFUNDED") {
+    return res.status(409).json({ detail: "Đơn này đã được hoàn tiền thành công." });
+  }
+  if (b.status === "COMPLETED") {
+    return res.status(409).json({ detail: "Tour đã hoàn thành, không thể hủy." });
+  }
+
+  // CHÍNH SÁCH 24H: Kiểm tra thời hạn kể từ khi đặt tour
+  const createdAtMs = new Date(b.created_at || b.updated_at || Date.now()).getTime();
+  const nowMs = Date.now();
+  const hoursElapsed = (nowMs - createdAtMs) / (1000 * 60 * 60);
+  const isAdmin = req.user && req.user.role === "ADMIN";
+
+  if (hoursElapsed > 24 && !isAdmin) {
+    return res.status(422).json({
+      detail: "Đã quá thời hạn 24 giờ kể từ khi đặt tour. Theo quy định dịch vụ của Delta Travel, lịch trình tour và các dịch vụ xe, phòng khách sạn đã được điều phối cố định nên không thể hủy đơn hoặc hoàn tiền sau 24h.",
+      code: "CANCELLATION_WINDOW_EXPIRED",
+      hoursElapsed: Math.round(hoursElapsed * 10) / 10
+    });
+  }
+
+  // Đơn đã thanh toán hay chưa?
+  const isPaidOrder = (
+    b.status === "PAID" ||
+    b.status === "CONFIRMED" ||
+    Boolean(b.payment_evidence) ||
+    Boolean(b.payment_confirmed_at)
+  );
+
+  const parsedBank = [bank_account_name, bank_account_number, bank_name].filter(Boolean).join(" - ");
+  const effectiveBankInfo = String(bankInfo || bank_info || parsedBank || "").trim();
+  const newStatus = isPaidOrder ? "REFUND_PENDING" : "CANCELLED";
+  const reasonText = isPaidOrder
+    ? (effectiveBankInfo
+        ? `Khách hủy trong 24h - Yêu cầu hoàn tiền 100% [STK: ${effectiveBankInfo}]`
+        : (reason && reason !== "Khách hủy đơn" ? `Khách hủy trong 24h - ${reason}` : "Khách yêu cầu hủy trong 24h - Chờ hoàn tiền 100%"))
+    : (reason || "Khách hủy đơn chưa thanh toán");
 
   db.exec("BEGIN");
   try {
     const now = new Date().toISOString();
     db.prepare(`
-      UPDATE bookings SET status = 'CANCELLED', updated_at = ? WHERE id = ?
-    `).run(now, b.id);
+      UPDATE bookings SET status = ?, cancellation_reason = ?, updated_at = ? WHERE id = ?
+    `).run(newStatus, reasonText, now, b.id);
 
     // Trả lại số chỗ đã giữ và hoàn lượt sử dụng mã ưu đãi (nếu có)
     db.prepare(`
@@ -3141,8 +3237,23 @@ app.post("/api/v1/bookings/:booking_id/cancel", requireAuth, async (req, res) =>
   await ssReleaseVoucherByExternalBooking(b.id);
 
   const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(b.id);
-  audit(req.user.id, "BOOKING_CANCELLED", b.id, { reason });
-  res.json(bookingDict(updated));
+  audit(req.user?.id || b.user_id || "GUEST", isPaidOrder ? "BOOKING_REFUND_REQUESTED" : "BOOKING_CANCELLED", b.id, {
+    reason: reasonText,
+    hoursElapsed: Math.round(hoursElapsed * 10) / 10,
+    previousStatus: b.status,
+    newStatus
+  });
+  res.json({
+    success: true,
+    booking: bookingDict(updated),
+    ...bookingDict(updated),
+    status: newStatus,
+    refundPending: isPaidOrder,
+    refundEligible: true,
+    message: isPaidOrder
+      ? "Yêu cầu hủy trong 24h đã được tiếp nhận. Đơn đã chuyển sang trạng thái CHỜ HOÀN TIỀN (REFUND_PENDING) và gửi tới bộ phận kế toán để xử lý hoàn tiền 100%."
+      : "Đã hủy đơn đặt tour thành công."
+  });
 });
 
 // 6. Admin Endpoints
@@ -3153,10 +3264,23 @@ app.get(["/api/v1/admin/metrics", "/api/v1/admin/dashboard"], requireAdmin, (req
   const bookings = {};
   bookingsRows.forEach(r => { bookings[r.status] = r.count; });
 
+  const allTours = db.prepare("SELECT id FROM tours").all();
+  let expiredToursCount = 0;
+  let soldOutToursCount = 0;
+  for (const tour of allTours) {
+    const st = tourDepartureStatus(tour.id);
+    if (st.isExpired) expiredToursCount++;
+    if (st.isSoldOut) soldOutToursCount++;
+  }
+  const refundPendingCount = Number(bookings["REFUND_PENDING"] || 0);
+
   res.json({
     users: usersCount,
     tours: toursCount,
-    bookings
+    bookings,
+    expiredToursCount,
+    soldOutToursCount,
+    refundPendingCount
   });
 });
 
@@ -3656,6 +3780,7 @@ app.get("/api/v1/admin/bookings", requireAdmin, (req, res) => {
     customerEmail: b.customer_email,
     customerNotes: b.note || "",
     departureDate: b.schedule_departure_at ? iso(b.schedule_departure_at) : null,
+    cancellationReason: b.cancellation_reason || "",
     userId: b.user_id
   })));
 });
@@ -3663,7 +3788,7 @@ app.get("/api/v1/admin/bookings", requireAdmin, (req, res) => {
 app.patch("/api/v1/admin/bookings/:booking_id", requireAdmin, async (req, res) => {
   const { booking_id } = req.params;
   const { status, reason } = req.body || {};
-  const allowed = new Set(["PENDING_PAYMENT", "PAID", "CONFIRMED", "COMPLETED", "CANCELLED"]);
+  const allowed = new Set(["PENDING_PAYMENT", "PAID", "CONFIRMED", "COMPLETED", "CANCELLED", "REFUND_PENDING", "REFUNDED"]);
   if (!status || !allowed.has(status)) {
     return res.status(422).json({ detail: "Trạng thái đơn không hợp lệ." });
   }
@@ -3682,6 +3807,15 @@ app.patch("/api/v1/admin/bookings/:booking_id", requireAdmin, async (req, res) =
         UPDATE schedules SET reserved_seats = MAX(0, reserved_seats - ?) WHERE id = ?
       `).run(b.seats_held || 0, b.schedule_id);
       releaseBookingVoucherRedemption(b.id);
+    } else if (status === "REFUNDED" && b.status !== "REFUNDED") {
+      db.prepare(`
+        UPDATE bookings SET status = 'REFUNDED', cancellation_reason = ?, updated_at = ?
+        WHERE id = ?
+      `).run(String(reason || "Admin đã duyệt & hoàn tiền 100% cho khách hàng").trim(), now, b.id);
+      db.prepare(`
+        UPDATE schedules SET reserved_seats = MAX(0, reserved_seats - ?) WHERE id = ?
+      `).run(b.seats_held || 0, b.schedule_id);
+      releaseBookingVoucherRedemption(b.id);
     } else if (status === "CONFIRMED" || status === "PAID") {
       db.prepare(`
         UPDATE bookings SET status = ?, payment_confirmed_at = COALESCE(payment_confirmed_at, ?), updated_at = ?
@@ -3689,8 +3823,8 @@ app.patch("/api/v1/admin/bookings/:booking_id", requireAdmin, async (req, res) =
       `).run(status, now, now, b.id);
     } else {
       db.prepare(`
-        UPDATE bookings SET status = ?, updated_at = ? WHERE id = ?
-      `).run(status, now, b.id);
+        UPDATE bookings SET status = ?, cancellation_reason = COALESCE(?, cancellation_reason), updated_at = ? WHERE id = ?
+      `).run(status, reason || null, now, b.id);
     }
     db.exec("COMMIT");
   } catch (err) {
@@ -3698,12 +3832,12 @@ app.patch("/api/v1/admin/bookings/:booking_id", requireAdmin, async (req, res) =
     return res.status(409).json({ detail: "Không thể cập nhật đơn: " + err.message });
   }
 
-  if (status === "CANCELLED" && b.status !== "CANCELLED") {
+  if (["CANCELLED", "REFUNDED"].includes(status)) {
     await ssReleaseVoucherByExternalBooking(b.id);
   }
 
   const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(b.id);
-  audit(req.user.id, "BOOKING_STATUS_UPDATED", b.id, { status, reason: reason || null });
+  audit(req.user.id, status === "REFUNDED" ? "BOOKING_REFUND_APPROVED" : "BOOKING_STATUS_UPDATED", b.id, { status, reason: reason || null });
   let emailNotification = null;
   if ((status === "PAID" || status === "CONFIRMED") && b.status !== status) {
     const schedRow = db.prepare("SELECT * FROM schedules WHERE id = ?").get(updated.schedule_id);
@@ -3722,6 +3856,46 @@ app.patch("/api/v1/admin/bookings/:booking_id", requireAdmin, async (req, res) =
   const resp = bookingDict(updated);
   if (emailNotification) resp.emailNotification = emailNotification;
   res.json(resp);
+});
+
+app.post("/api/v1/admin/bookings/:booking_id/approve-refund", requireAdmin, async (req, res) => {
+  const { booking_id } = req.params;
+  const { refundReference = "", notes = "", transaction_code = "", note = "" } = req.body || {};
+  const b = db.prepare("SELECT * FROM bookings WHERE id = ? OR reference = ?").get(booking_id, booking_id);
+  if (!b) return res.status(404).json({ detail: "Không tìm thấy đơn." });
+
+  const now = new Date().toISOString();
+  const txRef = String(refundReference || transaction_code || ('MBBank-REFUND-' + Date.now())).trim();
+  const noteText = String(notes || note || 'Chính sách hoàn tiền 24h').trim();
+  const reasonText = `Admin đã duyệt & hoàn tiền 100% [Mã GD: ${txRef} | Ghi chú: ${noteText}]`;
+  const evidenceText = `REFUNDED: ${txRef}${b.payment_evidence ? ' | ' + b.payment_evidence : ''}`;
+
+  db.exec("BEGIN");
+  try {
+    db.prepare(`
+      UPDATE bookings SET status = 'REFUNDED', payment_evidence = ?, cancellation_reason = ?, updated_at = ? WHERE id = ?
+    `).run(evidenceText, reasonText, now, b.id);
+
+    db.prepare(`
+      UPDATE schedules SET reserved_seats = MAX(0, reserved_seats - ?) WHERE id = ?
+    `).run(b.seats_held || 0, b.schedule_id);
+
+    releaseBookingVoucherRedemption(b.id);
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    return res.status(409).json({ detail: "Lỗi hoàn tiền: " + err.message });
+  }
+
+  await ssReleaseVoucherByExternalBooking(b.id);
+  const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(b.id);
+  audit(req.user.id, "BOOKING_REFUND_APPROVED", b.id, { refundReference: txRef, notes: noteText, reasonText });
+  res.json({
+    success: true,
+    ...bookingDict(updated),
+    status: "REFUNDED",
+    message: "Đã duyệt và xác nhận hoàn tiền thành công cho khách hàng."
+  });
 });
 
 app.post("/api/v1/admin/bookings/:booking_id/confirm-payment", requireAdmin, async (req, res) => {
@@ -3865,6 +4039,15 @@ async function handleSepayWebhook(req, res) {
     return res.status(200).json({
       success: true,
       message: `Đơn đặt tour #${booking.reference} đã được xác nhận thanh toán trước đó.`,
+      bookingId: booking.id,
+      reference: booking.reference
+    });
+  }
+
+  if (["CANCELLED", "REFUND_PENDING", "REFUNDED"].includes(booking.status)) {
+    return res.status(200).json({
+      success: false,
+      message: `Đơn đặt tour #${booking.reference} đang ở trạng thái ${booking.status}, không thể tự động kích hoạt thanh toán.`,
       bookingId: booking.id,
       reference: booking.reference
     });

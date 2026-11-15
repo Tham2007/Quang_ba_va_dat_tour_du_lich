@@ -245,12 +245,16 @@ const DeltaAPI = (() => {
   }
 
   /**
-   * Hủy đơn đặt chỗ trên server
+   * Hủy đơn đặt chỗ trên server (Chính sách trong vòng 24h & hoàn tiền)
    */
-  async function cancelBooking(bookingId, reason) {
+  async function cancelBooking(bookingId, reason, bankInfo) {
     return await request(`/bookings/${encodeURIComponent(bookingId)}/cancel`, {
       method: "POST",
-      body: { reason: reason || "Khách hàng yêu cầu hủy đơn" }
+      body: {
+        reason: reason || "Khách hàng yêu cầu hủy đơn",
+        bankInfo: bankInfo || "",
+        bank_info: bankInfo || ""
+      }
     });
   }
 
@@ -373,6 +377,13 @@ const DeltaAPI = (() => {
     return await request(`/admin/bookings/${encodeURIComponent(bookingId)}`, {
       method: "PATCH",
       body
+    });
+  }
+
+  async function adminApproveRefund(bookingId, refundDetails = {}) {
+    return await request(`/admin/bookings/${encodeURIComponent(bookingId)}/approve-refund`, {
+      method: "POST",
+      body: refundDetails
     });
   }
 
@@ -513,6 +524,7 @@ const DeltaAPI = (() => {
     adminFetchBookings,
     adminGetBookings: adminFetchBookings,
     adminPatchBooking,
+    adminApproveRefund,
     adminConfirmPayment,
     adminFetchAudit,
     adminGetAudit: adminFetchAudit,
