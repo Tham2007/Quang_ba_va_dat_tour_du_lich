@@ -99,6 +99,30 @@ const ORIGIN = "http://127.0.0.1:8999";
     assert.equal(receiptGross, booking.totalPrice, "Receipt total does not match server booking");
     assert.equal(receiptGross, initial.quote.totalPrice, "Form, quote and receipt totals disagree");
     assert((await page.locator("#receiptStatusBadge").innerText()).includes("PENDING"));
+    const printed = await page.evaluate(() => {
+      const prepared = prepareOfficialInvoiceDOM();
+      const container = document.querySelector("#officialInvoicePrintContainer");
+      return {
+        amount: prepared?.grandTotal,
+        subtotal: prepared?.subtotal,
+        vat: prepared?.vatAmount,
+        shownAmount: Number(document.querySelector("#invGrandTotal").textContent.replace(/[^0-9]/g, "")),
+        title: container?.innerText || "",
+        ref: document.querySelector("#invNumberDisplay").textContent,
+        status: document.querySelector("#invPaymentStatusBadge").textContent
+      };
+    });
+    assert.equal(printed.amount, booking.totalPrice, "Printable receipt must follow server booking");
+    assert.equal(printed.subtotal + printed.vat, booking.totalPrice, "Printed VAT must reconcile exactly");
+    assert.equal(printed.shownAmount, booking.totalPrice, "Visible printable total mismatch");
+    assert(printed.title.includes("PHIẾU GIỮ CHỖ THỬ NGHIỆM"));
+    assert(printed.title.includes("KHÔNG PHẢI HÓA ĐƠN THUẾ"));
+    assert(!printed.title.includes("HÓA ĐƠN GTGT GỐC"));
+    assert(!printed.title.includes("Mã tra cứu CQT:"));
+    assert(!printed.title.includes("Chuyển khoản VietQR MBBank"));
+    assert(printed.ref.startsWith("MÃ GIỮ CHỖ:"));
+    assert.equal(printed.status, "CHƯA THANH TOÁN");
+    console.log("PASS: print-ready demo receipt does not impersonate a tax invoice or bank payment");
     console.log("PASS: booking form, live price quote and saved booking receipt have identical VND total");
     console.log("PASS: original booking.html created one real server-side PENDING_PAYMENT booking");
 
