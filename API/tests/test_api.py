@@ -181,6 +181,33 @@ def test_c_server_price_idempotency_and_no_fake_paid():
         assert len(c.get('/api/v1/bookings').json())==1
 
 
+
+def test_customer_payment_reference_requires_bank_review():
+    """Own booking + arbitrary reference cannot produce a PAID server booking."""
+    with TestClient(app) as c:
+        reg(c, 1801)
+        booking = post_booking(c, booking_body(c))
+        assert booking.status_code == 201, booking.text
+        booking_id = booking.json()["id"]
+        claim = c.post(
+            "/api/v1/bookings/" + booking_id + "/pay",
+            json={"reference": "UNVERIFIED-CUSTOMER-REF-1801"},
+            headers=csrf(c),
+        )
+        assert claim.status_code == 200, claim.text
+        assert claim.json()["status"] == "PENDING_PAYMENT"
+        assert claim.json()["paid"] is False
+        assert claim.json()["paymentReview"] == "PENDING_MANUAL_VERIFICATION"
+        with SessionLocal() as db:
+            stored = db.get(Booking, booking_id)
+            assert stored.status == "PENDING_PAYMENT"
+            assert stored.payment_confirmed_at is None
+        readback = c.get("/api/v1/bookings/" + booking_id)
+        assert readback.status_code == 200
+        assert readback.json()["paid"] is False
+
+
+
 def test_d_cancel_once_and_releases_seats():
     with TestClient(app) as c:
         reg(c,102)
