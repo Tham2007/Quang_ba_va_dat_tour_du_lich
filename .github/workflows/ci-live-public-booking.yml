@@ -1,0 +1,29 @@
+name: Real public Render booking E2E (synthetic staging data)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'API/scripts/check_public_booking.py'
+      - '.github/workflows/ci-live-public-booking.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staging-booking:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DELTA_LIVE_STAGING_WRITE_TEST: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install HTTP test library
+        run: python -m pip install requests
+      - name: Compile public booking script
+        run: python -m py_compile API/scripts/check_public_booking.py
+      - name: Check real public session, server booking, ownership and cancellation
+        run: python API/scripts/check_public_booking.py
