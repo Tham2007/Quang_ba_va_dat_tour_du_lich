@@ -5,7 +5,9 @@ This intentionally NEVER sends bank evidence or touches real accounts.
 from __future__ import annotations
 
 import os
+import time
 import uuid
+from datetime import datetime, timedelta, timezone
 import httpx
 
 BASE = "https://delta-travel-group6-real-api-staging.onrender.com"
@@ -20,10 +22,20 @@ def main():
     if os.getenv("DELTA_STAGING_SMOKE") != "1":
         raise RuntimeError("Refusing network-write smoke without explicit CI opt-in")
     with httpx.Client(base_url=BASE, timeout=45.0, follow_redirects=True) as c:
+        # A deployment gate: never accidentally test an earlier live version.
+        for attempt in range(50):
+            source = c.get("/assets/js/controllers/auth.js")
+            if source.status_code == 200 and "Không hỗ trợ đăng nhập offline." in source.text:
+                break
+            time.sleep(4)
+        else:
+            raise AssertionError("Render has not deployed the hardened frontend yet")
+        print("PASS public HTTPS serves hardened frontend")
         r = c.get("/api/v1/health/ready")
         check(r.status_code == 200, f"ready HTTP {r.status_code}")
         check(r.json().get("status") == "ok", "DB not reachable")
-        print("PASS staging GET health 200, DB reachable")
+        engine = r.json().get("storageEngine", "unreported")
+        print(f"PASS staging GET health 200, DB reachable; storage={engine}")
 
         for route in ["/", "/assets/app.js", "/assets/styles.css"]:
             r = c.get(route)
@@ -82,7 +94,12 @@ def main():
 
         schedules = c.get("/api/v1/tours/" + tours[0]["id"] + "/schedules")
         check(schedules.status_code == 200, f"schedules HTTP {schedules.status_code}")
-        allowed = next((x for x in schedules.json() if x["availableSeats"] > 0), None)
+        cutoff = datetime.now(timezone.utc) + timedelta(hours=80)
+        allowed = next((
+            x for x in schedules.json()
+            if x["availableSeats"] > 0
+            and datetime.fromisoformat(x["departureAt"].replace("Z", "+00:00")) > cutoff
+        ), None)
         check(bool(allowed), "no seats in synthetic staging")
         seats_before = allowed["availableSeats"]
         body = {
@@ -115,7 +132,16 @@ def main():
         now = c.get("/api/v1/tours/" + tours[0]["id"] + "/schedules")
         held = next(x for x in now.json() if x["id"] == allowed["id"])
         check(held["availableSeats"] == seats_before - 1, "one booking must reserve one seat")
-        print("PASS live server: quote + CSRF + idempotent booking + SQL inventory decremented")
+        print("PASS live server: quote + CSRF + idempotent booking + database inventory decremented")
+
+        claimed = c.post(
+            "/api/v1/bookings/" + order["id"] + "/pay",
+            json={"reference": "UNVERIFIED-RENDER-CI-2026"}, headers=headers
+        )
+        check(claimed.status_code == 200, f"payment claim HTTP {claimed.status_code}")
+        check(not claimed.json()["paid"] and claimed.json()["status"] == "PENDING_PAYMENT",
+              "Customer evidence illegally marked booking PAID")
+        print("PASS live customer payment claim remains PENDING_PAYMENT")
 
         cancel = c.post("/api/v1/bookings/" + order["id"] + "/cancel", json={}, headers=headers)
         check(cancel.status_code == 200, f"cancel HTTP {cancel.status_code}: {cancel.text[:200]}")
@@ -128,7 +154,10 @@ def main():
         check(r.status_code == 200, f"logout HTTP {r.status_code}")
         check(c.get("/api/v1/auth/me").status_code == 401, "logout did not revoke session")
         print("PASS live HTTPS browser/API/SQLite demo DB register-login-book-cancel-logout")
-        print("NOTE: SQLite demo is ephemeral; this is not permanent PostgreSQL or Tham's SQL Server.")
+        print("NOTE: Public storage engine = " + engine)
+        if engine != "postgresql":
+            print("BLOCKED: durable production database is not connected.")
+        print("NOTE: No real payment, bank account or customer credentials were used.")
 
 
 if __name__ == "__main__":
