@@ -396,13 +396,25 @@ async function runTests() {
       aiHaLongExists.json?.suggestedTours?.some(t => t.title.includes("Hạ Long")) &&
       aiHaLongExists.json?.mode === "catalog_lookup");
 
+    const aiOriginDestination = await req("/api/v1/assistant/chat", {
+      method: "POST",
+      body: { message: "Có tour từ Hà Nội đi Hạ Long không?" }
+    });
+    assert("AI: chỉ gợi ý tour Hạ Long khởi hành từ Hà Nội",
+      aiOriginDestination.status === 200 &&
+      aiOriginDestination.json?.answer?.startsWith("Có.") &&
+      aiOriginDestination.json?.suggestedTours?.length > 0 &&
+      aiOriginDestination.json?.suggestedTours?.every(t => t.title.includes("Hạ Long") && String(t.departure || "").includes("Hà Nội")));
+
     const aiNoFantasy = await req("/api/v1/assistant/chat", {
       method: "POST",
       body: { message: "Có tour Tokyo không?" }
     });
     assert("AI: địa điểm chưa hỗ trợ không được đoán chắc",
       aiNoFantasy.status === 200 &&
-      aiNoFantasy.json?.mode !== "catalog_lookup");
+      aiNoFantasy.json?.mode === "catalog_lookup" &&
+      aiNoFantasy.json?.answer?.includes("Chưa tìm thấy tour") &&
+      aiNoFantasy.json?.suggestedTours?.length === 0);
 
     if (!process.env.GROQ_API_KEY) {
       const aiFallback = await req("/api/v1/assistant/chat", {
