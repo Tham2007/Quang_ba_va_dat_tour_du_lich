@@ -4494,8 +4494,8 @@ function findTourInText(text, allTours) {
 
 // Deterministic availability lookup. Destination and departure are separate fields.
 function foldTourSearch(value) {
-  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d").replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 const TOUR_PLACE_NAMES = [
