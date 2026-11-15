@@ -173,24 +173,6 @@ function updateAdminProfileUI(user) {
 }
 
 /**
- * Đăng nhập 1 chạm dành riêng cho Trưởng nhóm Hồng Thắm
- */
-function quickLoginLeader() {
-  const identInput = document.getElementById("adminLoginUsername");
-  const passInput = document.getElementById("adminLoginPassword");
-  if (identInput) identInput.value = "hongtham@deltatravel.vn";
-  if (passInput) passInput.value = "password123";
-  const form = document.getElementById("adminLoginForm");
-  if (form) {
-    if (typeof form.requestSubmit === "function") {
-      form.requestSubmit();
-    } else {
-      handleAdminFormLogin(new Event("submit"));
-    }
-  }
-}
-
-/**
  * Đăng nhập chuẩn thương mại từ form tài khoản / mật khẩu quản trị
  */
 async function handleAdminFormLogin(e) {
