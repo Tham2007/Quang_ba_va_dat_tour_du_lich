@@ -94,7 +94,7 @@ def integrity_error(request, exc):
 def ready(db: Session = Depends(db_session)):
     db.execute(select(func.count()).select_from(Tour)).scalar_one()
     backend = db.get_bind().dialect.name
-    return {"status": "ok", "db": "connected", "storageEngine": backend, "persistentBackend": backend in ("postgresql", "mssql")}
+    return {"status": "ok", "db": "connected", "storageEngine": backend}
 
 
 # Register business routes explicitly before the catch-all API guard/static mount.
