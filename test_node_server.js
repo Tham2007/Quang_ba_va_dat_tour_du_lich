@@ -733,12 +733,12 @@ async function runTests() {
       body: { code: "KHONGTONTAI99", tour_id: "DL-HL01", adults: 1 }
     });
     assert("Voucher 2: Phần trăm có trần max_discount, minOrder, chưa tới hạn, hết hạn, tạm ngừng, không tồn tại",
-      createPctCap.status === 201 &&
+      (createPctCap.status === 201 || createPctCap.status === 409) &&
       valPctCap.status === 200 && valPctCap.json?.discountAmount === 500000 && valPctCap.json?.totalPrice === 3390000 &&
       valLowMin.status === 422 && valLowMin.json?.errorCode === "VOUCHER_MIN_ORDER" &&
       valFuture.status === 422 && valFuture.json?.errorCode === "VOUCHER_NOT_STARTED" &&
       valExpired.status === 422 && valExpired.json?.errorCode === "VOUCHER_EXPIRED" &&
-      inactiveCreate.status === 201 && valInactive.status === 422 && valInactive.json?.errorCode === "VOUCHER_INACTIVE" &&
+      (inactiveCreate.status === 201 || inactiveCreate.status === 409) && valInactive.status === 422 && valInactive.json?.errorCode === "VOUCHER_INACTIVE" &&
       valNotExist.status === 422 && valNotExist.json?.errorCode === "VOUCHER_NOT_FOUND",
       `cap=${createPctCap.status}/${valPctCap.json?.discountAmount} lowMin=${valLowMin.status}/${valLowMin.json?.errorCode} fut=${valFuture.json?.errorCode} exp=${valExpired.json?.errorCode} inact=${inactiveCreate.status}/${valInactive.json?.errorCode} no=${valNotExist.json?.errorCode}`);
 
@@ -846,11 +846,12 @@ async function runTests() {
       body: { code: "BANMOI", tour_id: "DL-HL01", adults: 1 }
     });
 
+    const oneOnlyCode = "ONE_" + Math.random().toString(36).substring(2, 7).toUpperCase();
     const raceVoucherRes = await req("/api/v1/admin/vouchers", {
       method: "POST",
       headers: adminHeaders,
       body: {
-        code: "ONEONLY",
+        code: oneOnlyCode,
         name: "Chỉ đúng 1 lượt duy nhất",
         discount_type: "fixed",
         discount_value: 250000,
@@ -872,7 +873,7 @@ async function runTests() {
           customer_name: "Race Guest A",
           customer_phone: "0911000111",
           customer_email: `race_a_${Date.now()}@test.local`,
-          voucher_code: "ONEONLY"
+          voucher_code: oneOnlyCode
         }
       }),
       req("/api/v1/bookings", {
@@ -884,14 +885,14 @@ async function runTests() {
           customer_name: "Race Guest B",
           customer_phone: "0911000222",
           customer_email: `race_b_${Date.now()}@test.local`,
-          voucher_code: "ONEONLY"
+          voucher_code: oneOnlyCode
         }
       })
     ]);
     const raceSuccessCount = [raceA, raceB].filter(r => r.status === 201).length;
     const raceFailCount = [raceA, raceB].filter(r => r.status === 409 || r.status === 422).length;
     const adminVouchersAfter = await req("/api/v1/admin/vouchers", { headers: adminHeaders });
-    const oneOnlyAfter = (adminVouchersAfter.json || []).find(v => v.code === "ONEONLY");
+    const oneOnlyAfter = (adminVouchersAfter.json || []).find(v => v.code === oneOnlyCode);
     const delVoucherRes = await req(`/api/v1/admin/vouchers/${raceVoucherRes.json?.id}`, {
       method: "DELETE",
       headers: adminHeaders

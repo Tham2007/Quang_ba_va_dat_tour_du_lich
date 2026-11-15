@@ -173,6 +173,20 @@ function updateAdminProfileUI(user) {
 }
 
 /**
+ * Điền nhanh thông tin tài khoản và đăng nhập Admin ngay lập tức
+ */
+async function fillAndLoginAdmin(email, password) {
+  const identInput = document.getElementById("adminLoginUsername");
+  const passInput = document.getElementById("adminLoginPassword");
+  if (identInput) identInput.value = email;
+  if (passInput) passInput.value = password;
+  await handleAdminFormLogin({ preventDefault: () => {} });
+}
+if (typeof window !== "undefined") {
+  window.fillAndLoginAdmin = fillAndLoginAdmin;
+}
+
+/**
  * Đăng nhập chuẩn thương mại từ form tài khoản / mật khẩu quản trị
  */
 async function handleAdminFormLogin(e) {
