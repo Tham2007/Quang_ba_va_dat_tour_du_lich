@@ -3021,7 +3021,7 @@ app.get("/api/v1/bookings/:booking_id", (req, res) => {
 });
 
 app.post("/api/v1/bookings/:booking_id/pay", requireAuthOrGuest, (req, res) => {
-  const { reference, payment_evidence, paymentEvidence, auto_confirm } = req.body || {};
+  const { reference, payment_evidence, paymentEvidence } = req.body || {};
   const ref = (typeof reference === "string" && reference.trim()) 
     ? reference.trim() 
     : (typeof payment_evidence === "string" && payment_evidence.trim() 
@@ -3051,17 +3051,6 @@ app.post("/api/v1/bookings/:booking_id/pay", requireAuthOrGuest, (req, res) => {
   }
 
   const now = new Date().toISOString();
-  if (auto_confirm) {
-    db.prepare(`
-      UPDATE bookings
-      SET status = 'PAID', payment_evidence = ?, payment_confirmed_at = ?, updated_at = ?
-      WHERE id = ?
-    `).run(ref, now, now, b.id);
-    const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(b.id);
-    audit(req.user?.id || b.user_id || "GUEST", "PAYMENT_CONFIRMED", b.id, { reference: ref });
-    return res.status(200).json(bookingDict(updated));
-  }
-
   db.prepare(`
     UPDATE bookings
     SET payment_evidence = ?, updated_at = ?
@@ -3736,99 +3725,87 @@ async function handleSepayWebhook(req, res) {
   // Kiểm tra API Key / Chữ ký bảo mật nếu có cấu hình trong .env
   if (configuredApiKey) {
     const passedKey = authHeader.replace(/^(Apikey|Bearer)\s+/i, "").trim();
-    const hmacSig = req.headers["x-sepay-signature"] || req.headers["x-signature"] || "";
-    let isValid = (passedKey === configuredApiKey);
-    if (!isValid && hmacSig) {
-      try {
-        const computed = crypto.createHmac("sha256", configuredApiKey).update(JSON.stringify(b)).digest("hex");
-        isValid = (computed === hmacSig);
-      } catch (_) {}
-    }
-    // Nếu API key chưa khớp header nhưng thông tin số tài khoản khớp đúng tài khoản MBBank 0325536936
-    const reqAcc = String(b.accountNumber || b.subAccount || "").trim();
-    const cfgAcc = String(process.env.SEPAY_ACCOUNT_NUMBER || "0325536936").trim();
-    if (!isValid && reqAcc && reqAcc === cfgAcc) {
-      isValid = true;
-    }
-    if (!isValid) {
-      return res.status(401).json({ success: false, detail: "Khóa bảo mật SePay (API Key / Signature) không hợp lệ." });
-    }
+    const hmacSig = rasync function handleSepayWebhook(req, res) {
+  // Only the documented SePay API Key mode is supported here. HMAC would require
+  // raw-body and timestamp validation; account numbers are NEVER authentication.
+  const apiKey = String(process.env.SEPAY_API_KEY || "").trim();
+  const receivingAccount = String(process.env.SEPAY_ACCOUNT_NUMBER || "").trim();
+  if (!apiKey || !receivingAccount) {
+    return res.status(503).json({ success: false, detail: "Webhook SePay chưa được cấu hình an toàn." });
   }
 
-  // Bỏ qua giao dịch tiền ra (out)
-  const transferType = String(b.transferType || "in").toLowerCase();
+  const authorization = String(req.headers.authorization || "").trim();
+  const match = /^Apikey\s+(\S+)$/i.exec(authorization);
+  const suppliedKey = Buffer.from(match ? match[1] : "", "utf8");
+  const requiredKey = Buffer.from(apiKey, "utf8");
+  if (!suppliedKey.length || suppliedKey.length !== requiredKey.length ||
+      !crypto.timingSafeEqual(suppliedKey, requiredKey)) {
+    return res.status(401).json({ success: false, detail: "SePay API key không hợp lệ." });
+  }
+
+  const b = req.body;
+  if (!b || typeof b !== "object" || Array.isArray(b)) {
+    return res.status(422).json({ success: false, detail: "SePay payload không hợp lệ." });
+  }
+  if (String(b.accountNumber || "").trim() !== receivingAccount) {
+    return res.status(422).json({ success: false, detail: "Tài khoản nhận không trùng cấu hình." });
+  }
+
+  const transferType = String(b.transferType || "").trim().toLowerCase();
   if (transferType === "out") {
-    return res.status(200).json({ success: true, message: "Bỏ qua giao dịch tiền ra (transferType: out)." });
+    return res.status(200).json({ success: true, message: "Bỏ qua giao dịch tiền ra." });
+  }
+  if (transferType !== "in") {
+    return res.status(422).json({ success: false, detail: "Thiếu loại giao dịch tiền vào." });
   }
 
-  const transferAmount = Number(b.transferAmount || b.amount || 0);
-  const sepayId = b.id || b.transaction_id || null;
-  const content = String(b.content || b.description || b.code || "").trim();
-  const gateway = b.gateway || "MBBank";
-  const refCode = b.referenceCode || b.reference || sepayId || Date.now();
-
-  // Bóc tách mã đặt tour từ nội dung chuyển khoản
-  // Khách quét QR VietQR sẽ có nội dung dạng: "KH309675 BK6279159976" hoặc "KHACH BK6279159976" hoặc "BK6279159976"
-  const refMatch = content.match(/\b(BK\d{6,14})\b/i) || content.match(/(BK[A-Z0-9]{6,14})/i);
-  let targetRef = refMatch ? refMatch[1].toUpperCase() : null;
-
-  let booking = null;
-  if (targetRef) {
-    booking = db.prepare("SELECT * FROM bookings WHERE UPPER(reference) = ? OR UPPER(id) = ?").get(targetRef, targetRef);
+  const amount = Number(b.transferAmount);
+  const transactionId = String(b.id ?? "").trim();
+  if (!Number.isSafeInteger(amount) || amount <= 0 ||
+      !/^[A-Za-z0-9_-]{1,96}$/.test(transactionId)) {
+    return res.status(422).json({ success: false, detail: "Mã giao dịch hoặc số tiền không hợp lệ." });
   }
 
-  // Nếu không thấy mã qua regex, đối soát thông minh với các đơn hàng đang chờ thanh toán
-  if (!booking && content) {
-    const pending = db.prepare("SELECT * FROM bookings WHERE status = 'PENDING_PAYMENT' ORDER BY created_at DESC LIMIT 30").all();
-    for (const p of pending) {
-      if (p.reference && content.toUpperCase().includes(p.reference.toUpperCase())) {
-        booking = p;
-        targetRef = p.reference;
-        break;
-      }
-    }
+  const content = String(b.content || "").toUpperCase();
+  const references = content.match(/\bBK\d{6,14}\b/g) || [];
+  if (references.length !== 1) {
+    return res.status(422).json({ success: false, detail: "Thiếu hoặc trùng mã đặt tour." });
   }
 
+  const booking = db.prepare("SELECT * FROM bookings WHERE UPPER(reference) = ?").get(references[0]);
   if (!booking) {
-    return res.status(200).json({
-      success: false,
-      message: `Không tìm thấy đơn đặt tour tương ứng với nội dung: "${content}".`,
-      receivedContent: content,
-      amount: transferAmount
-    });
+    return res.status(404).json({ success: false, detail: "Không tìm thấy mã đặt tour." });
+  }
+  if (!Number.isSafeInteger(Number(booking.total_price)) || amount !== Number(booking.total_price)) {
+    return res.status(409).json({ success: false, detail: "Số tiền chuyển khoản không đúng tổng tiền đơn." });
   }
 
-  // Nếu đơn đã xác nhận thanh toán trước đó
-  if (booking.status === "PAID" || booking.status === "CONFIRMED") {
-    return res.status(200).json({
-      success: true,
-      message: `Đơn đặt tour #${booking.reference} đã được xác nhận thanh toán trước đó.`,
-      bookingId: booking.id,
-      reference: booking.reference
-    });
+  const paymentEvidence = "SEPAY-" + transactionId;
+  const reused = db.prepare("SELECT id FROM bookings WHERE payment_evidence = ? AND id != ?")
+    .get(paymentEvidence, booking.id);
+  if (reused) {
+    return res.status(409).json({ success: false, detail: "Mã giao dịch đã dùng cho đơn khác." });
+  }
+  if (booking.status === "PAID" && booking.payment_evidence === paymentEvidence) {
+    return res.status(200).json({ success: true, duplicate: true, bookingId: booking.id });
+  }
+  if (booking.status !== "PENDING_PAYMENT") {
+    return res.status(409).json({ success: false, detail: "Trạng thái đơn không cho phép xác nhận thanh toán." });
   }
 
   const now = new Date().toISOString();
-  const paymentEvidence = `SEPAY-${gateway}-${refCode}`;
-
-  db.prepare(`
-    UPDATE bookings
-    SET status = 'PAID', payment_evidence = ?, payment_confirmed_at = ?, updated_at = ?
-    WHERE id = ?
-  `).run(paymentEvidence, now, now, booking.id);
+  const change = db.prepare("UPDATE bookings SET status = 'PAID', payment_evidence = ?, payment_confirmed_at = ?, updated_at = ? WHERE id = ? AND status = 'PENDING_PAYMENT'")
+    .run(paymentEvidence, now, now, booking.id);
+  if (change.changes !== 1) {
+    return res.status(409).json({ success: false, detail: "Đơn đã thay đổi trạng thái." });
+  }
 
   const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(booking.id);
   audit("SEPAY_WEBHOOK", "PAYMENT_AUTO_CONFIRMED", booking.id, {
-    provider: "SePay",
-    gateway,
-    sepayId,
-    amount: transferAmount,
-    bookingTotal: booking.total_price,
-    referenceCode: refCode,
-    content
+    provider: "SePay", transactionId, amount, bookingTotal: booking.total_price
   });
 
-  const schedRow = db.prepare("SELECT * FROM schedules WHERE id = ?").get(updated.schedule_id);
+  const schedule = db.prepare("SELECT * FROM schedules WHERE id = ?").get(updated.schedule_id);
   const emailNotification = await sendBookingEmailNotification({
     booking: {
       ...bookingDict(updated),
@@ -3837,28 +3814,13 @@ async function handleSepayWebhook(req, res) {
       note: updated.note,
       userId: updated.user_id
     },
-    schedule: schedRow,
+    schedule,
     eventType: "PAID"
   });
-
   return res.status(200).json({
-    success: true,
-    message: `Xác nhận thanh toán tự động thành công cho đơn tour #${updated.reference}`,
-    bookingId: updated.id,
-    reference: updated.reference,
-    totalPrice: updated.total_price,
-    paidAmount: transferAmount,
-    emailNotification
-  });
-}
-
-app.post("/api/v1/webhooks/sepay", handleSepayWebhook);
-app.post("/hooks/sepay-payment", handleSepayWebhook);
-app.get("/api/v1/webhooks/sepay", (req, res) => res.json({ status: "ready", service: "SePay Webhook Listener", bank: "MBBank", account: "0325536936" }));
-app.get("/hooks/sepay-payment", (req, res) => res.json({ status: "ready", service: "SePay Webhook Listener", bank: "MBBank", account: "0325536936" }));
-
-
-function parseAdminVoucherInput(body, isPatch = false) {
+    success: true, bookingId: updated.id, reference: updated.reference,
+    totalPrice: updated.total_price, emailNotification
+  });body, isPatch = false) {
   const b = body || {};
   const out = {};
 
