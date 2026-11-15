@@ -204,12 +204,28 @@ const DeltaAPI = (() => {
    * Tạo đơn đặt chỗ mới trên Database server
    */
   async function createBooking(bookingData) {
+    // A separate presentation model is not the authoritative booking contract.
+    // Whitelist only server-accepted fields, never client-provided totals/status.
+    const payload = {
+      schedule_id: String(bookingData.schedule_id || bookingData.scheduleId || ""),
+      adults: Number(bookingData.adults || 0),
+      children: Number(bookingData.children || 0),
+      infants: Number(bookingData.infants || 0),
+      customer_name: String(bookingData.customer_name || bookingData.customerName || "").trim(),
+      customer_phone: String(bookingData.customer_phone || bookingData.customerPhone || "").trim(),
+      customer_email: String(bookingData.customer_email || bookingData.customerEmail || "").trim(),
+      note: String(bookingData.note || bookingData.specialRequests || "").slice(0, 500)
+    };
+    // No national-ID number is required for a demo booking.
+    const identity = bookingData.customer_identity;
+    if (identity && /^[0-9]{12}$/.test(String(identity))) payload.customer_identity = String(identity);
     return await request("/bookings", {
       method: "POST",
       headers: {
-        "Idempotency-Key": (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : ("IDEM-" + Date.now())
+        "Idempotency-Key": (typeof crypto !== "undefined" && crypto.randomUUID)
+          ? crypto.randomUUID() : "00000000-0000-4000-8000-" + Date.now().toString(16).padStart(12, "0").slice(-12)
       },
-      body: bookingData
+      body: payload
     });
   }
 
