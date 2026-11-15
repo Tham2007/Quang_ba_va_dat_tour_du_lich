@@ -83,6 +83,34 @@ const ORIGIN = "http://127.0.0.1:8999";
       "Displayed VAT breakdown does not reconcile to authoritative price");
     assert.equal(initial.voucherDisabled, true, "Unsupported coupon must be disabled");
 
+    // Regression for Thắm's screenshot: a stale price from the tour endpoint
+    // must be corrected from the authoritative /bookings/quote when the page
+    // first loads, instead of blocking the first checkout click with a warning.
+    const stalePage = await browser.newPage({ viewport: {width: 1280, height: 900} });
+    let mockedTour = false;
+    await stalePage.route("**/api/v1/tours/DL-HL01", async route => {
+      const response = await route.fetch();
+      const data = await response.json();
+      assert.equal(response.status(), 200);
+      assert.equal(Number(data.price), Number(initial.quote.unitPrice));
+      data.price = Number(data.price) + 500000;
+      mockedTour = true;
+      await route.fulfill({response, json:data});
+    });
+    await stalePage.goto(ORIGIN + "/booking.html?tourId=DL-HL01", {
+      waitUntil: "domcontentloaded"
+    });
+    await stalePage.waitForFunction(expected => {
+      const val = document.querySelector("#unitPriceDisplay")?.textContent || "";
+      const displayed = Number(val.replace(/[^0-9]/g, ""));
+      return displayed === expected &&
+        document.querySelector("#totalPriceDisplay")?.dataset.serverQuoteMatch === "true";
+    }, Number(initial.quote.unitPrice), {timeout:20000});
+    assert(mockedTour, "Failed to simulate stale tour-catalog price");
+    await stalePage.close();
+    console.log("PASS: stale catalog price automatically syncs with server quote before checkout");
+
+
     // Child discount is a frequent source of client/server rounding drift.
     await page.locator("#numChildren").fill("1");
     await page.evaluate(() => recalcPrice());
