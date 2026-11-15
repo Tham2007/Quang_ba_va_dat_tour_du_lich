@@ -6,6 +6,7 @@ on:
       - 'Frontend/tests/capture-report.cjs'
       - 'Frontend/index.html'
       - 'Frontend/booking.html'
+      - 'Frontend/assets/js/controllers/i18n.js'
       - 'Frontend/admin.html'
       - '.github/workflows/ci-report-screenshots.yml'
   workflow_dispatch:
