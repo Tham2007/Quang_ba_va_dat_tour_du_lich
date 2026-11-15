@@ -4477,39 +4477,89 @@ if (!fs.existsSync(FRONTEND_DIR)) {
   app.use(express.static(FRONTEND_DIR));
 }
 
-// Tự động khởi tạo Public Tunnel (Localtunnel) khi chạy máy chủ
+// Tự động khởi tạo Public Tunnel khi chạy máy chủ (Cloudflare Tunnel + Localtunnel dự phòng)
 let activeTunnel = null;
 let tunnelKeepAliveTimer = null;
+let cloudflaredProcess = null;
 
 async function startAutoTunnel(localPort) {
   if (process.env.DELTA_DB_PATH || String(process.env.PORT) === "0" || process.env.ENABLE_TUNNEL === "false") {
     return;
   }
+
+  // 1. ƯU TIÊN HÀNG ĐẦU: Cloudflare Tunnel (Chuẩn quốc tế, 100% KHÔNG BỊ TRANG CẢNH BÁO HTML/IP, tương thích tuyệt đối với SePay)
+  const cfBinary = path.join(__dirname, "cloudflared.exe");
+  if (fs.existsSync(cfBinary)) {
+    try {
+      const { spawn } = require("child_process");
+      const cf = spawn(cfBinary, ["tunnel", "--url", `http://127.0.0.1:${localPort}`]);
+      cloudflaredProcess = cf;
+
+      let tunnelEstablished = false;
+      const parseCfUrl = (data) => {
+        if (tunnelEstablished) return;
+        const text = data.toString();
+        const match = text.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/);
+        if (match) {
+          tunnelEstablished = true;
+          const tunnelUrl = match[0];
+          activeTunnel = { url: tunnelUrl, close: () => { try { cf.kill(); } catch (_) {} } };
+          console.log("==================================================================");
+          console.log(`  🌐 Cloudflare Tunnel: ${tunnelUrl}`);
+          console.log(`  💳 SePay Webhook URL: ${tunnelUrl}/api/v1/webhooks/sepay`);
+          console.log(`  👉 Dự phòng hook:     ${tunnelUrl}/hooks/sepay-payment`);
+          console.log("  ⚡ 100% Tự động thông suốt, không bao giờ bị chặn trang IP/HTML!");
+          console.log("==================================================================");
+        }
+      };
+
+      cf.stdout.on("data", parseCfUrl);
+      cf.stderr.on("data", parseCfUrl);
+
+      cf.on("close", () => {
+        if (tunnelEstablished) {
+          console.log("\n[TUNNEL] Cloudflare Tunnel đã đóng. Tự động kết nối lại sau 3s...");
+          setTimeout(() => startAutoTunnel(localPort), 3000);
+        }
+      });
+
+      for (let i = 0; i < 16; i++) {
+        if (tunnelEstablished) return;
+        await new Promise(r => setTimeout(r, 500));
+      }
+    } catch (cfErr) {
+      console.warn("[TUNNEL] Lỗi Cloudflare Tunnel, chuyển sang Localtunnel:", cfErr.message);
+    }
+  }
+
+  // 2. DỰ PHÒNG: Localtunnel
   const localtunnel = require("localtunnel");
-  const preferredSubdomain = (process.env.TUNNEL_SUBDOMAIN || "deltatravel-mbbank-an").trim();
-  const candidateSubdomains = [
-    preferredSubdomain,
-    "deltatravel-mbbank-an",
-    "an-delta-booking",
-    "deltatravel-levanan",
-    "fancy-bobcats-juggle"
-  ];
-  const uniqueCandidates = [...new Set(candidateSubdomains.filter(Boolean))];
+  const targetSubdomain = (process.env.TUNNEL_SUBDOMAIN || "fancy-bobcats-juggle").trim();
 
   let finalTunnel = null;
+  let attempts = 0;
 
-  for (const sub of uniqueCandidates) {
+  while (!finalTunnel && attempts < 10) {
+    attempts++;
     try {
       const tunnel = await localtunnel({
         port: localPort,
         local_host: "127.0.0.1",
-        subdomain: sub
+        subdomain: targetSubdomain
       });
-      if (tunnel && tunnel.url) {
+      if (tunnel && tunnel.url && tunnel.url.includes(targetSubdomain)) {
         finalTunnel = tunnel;
         break;
       }
+      if (tunnel) {
+        if (attempts >= 10) {
+          finalTunnel = tunnel;
+          break;
+        }
+        try { tunnel.close(); } catch (_) {}
+      }
     } catch (_) {}
+    await new Promise(r => setTimeout(r, 1500));
   }
 
   if (!finalTunnel) {
@@ -4587,6 +4637,10 @@ const server = app.listen(PORT, HOST, () => {
 });
 
 function cleanupAndExit() {
+  if (cloudflaredProcess) {
+    try { cloudflaredProcess.kill(); } catch (_) {}
+    cloudflaredProcess = null;
+  }
   if (tunnelKeepAliveTimer) {
     try { clearInterval(tunnelKeepAliveTimer); } catch (_) {}
     tunnelKeepAliveTimer = null;
