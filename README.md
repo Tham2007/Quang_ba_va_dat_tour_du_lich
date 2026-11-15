@@ -62,27 +62,35 @@ Server riêng hiện chỉ đọc, API ghi booking trả 503. Xem
 
 ## Hướng dẫn khởi chạy hệ thống
 
-### Cách 1: Khởi chạy website với danh mục SQL Server
+### Cách 1: Khởi chạy nhanh bằng file run.bat (Khuyến nghị cho Windows)
 
-Trên Windows, nhấp đúp [`run.bat`](run.bat). Launcher khởi động API SQL Server
-chỉ đọc rồi chạy website tại `http://127.0.0.1:8001/`. Nhập host, database,
-tài khoản SQL khi được hỏi; mật khẩu được nhập ẩn và không được lưu. Mặc định
-host/database/tài khoản điền sẵn là các giá trị trong
-[`start_sqlserver_catalog.ps1`](start_sqlserver_catalog.ps1).
+Trên Windows, chỉ cần nhấp đúp file [`run.bat`](run.bat):
+- Tự động kiểm tra Node.js và cài đặt gói thư viện (`npm install`) nếu cần.
+- Tự động phát hiện nếu server đã đang chạy sẵn trên cổng 8000 và mở ngay trình duyệt tại `http://127.0.0.1:8000/`.
+- Tự động kết nối trực tiếp cơ sở dữ liệu SQL Server (SmarterASP.NET), hỗ trợ hệ thống mã giảm giá (Voucher) và gửi Gmail thông báo đặt tour tự động.
 
-Yêu cầu: Node.js, Python environment tại `API\.venv`, `pyodbc` trong environment,
-và Microsoft ODBC Driver 18 for SQL Server. Nếu chưa tạo environment, làm theo
-mục [kiểm tra database SQL Server](#kiểm-tra-database-sql-server-của-thắm).
+### Cách 2: Khởi chạy thủ công qua Terminal (Node.js)
 
-Chế độ này chỉ đọc danh mục, tour, lịch khởi hành và lịch trình từ SQL Server.
-Đăng nhập/đặt tour không được chuyển sang SQL Server; endpoint ghi đơn/thanh toán
-vẫn bị chặn. Không dùng website này để nhận giao dịch thật.
+1. Mở PowerShell hoặc CMD tại thư mục dự án.
+2. Chạy `npm install` (lần đầu tiên).
+3. Khởi động server:
+   ```powershell
+   npm start
+   # hoặc chế độ dev tự reload khi sửa code:
+   npm run dev
+   ```
+4. Mở trình duyệt truy cập:
+   - Trang chủ đặt tour: `http://127.0.0.1:8000/`
+   - Cổng quản trị Admin: `http://127.0.0.1:8000/admin.html`
+   - Kiểm tra trạng thái hệ thống: `http://127.0.0.1:8000/api/v1/health/ready`
 
-### Cách 2: Khởi chạy Node.js với SQLite demo
-
-Yêu cầu **Node.js 18+**. Chạy `npm install` một lần, sau đó `npm run dev` để
-khởi động tại `http://127.0.0.1:8000/`. Chế độ này dùng SQLite local, không kết
-nối SQL Server. Chạy `npm test` để kiểm thử hệ thống Node.js.
+> **Lưu ý khi gặp lỗi cổng 8000 (EADDRINUSE):**
+> Nếu thấy thông báo cổng 8000 đang bị chiếm dụng, điều đó có nghĩa là website **đang chạy ngầm sẵn** trên máy của bạn. Bạn có thể mở ngay trình duyệt vào `http://127.0.0.1:8000/` để dùng. Nếu muốn tắt server cũ để chạy lại từ đầu, gõ lệnh:
+> ```powershell
+> Stop-Process -Name node -Force   # Trên PowerShell
+> # hoặc trên CMD:
+> taskkill /F /IM node.exe
+> ```
 
 ---
 
