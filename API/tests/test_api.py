@@ -321,14 +321,16 @@ def test_i_concurrent_last_seat():
         assert s.total_seats==1 and s.reserved_seats==1
 
 
-def test_j_no_auth_reset_no_fake_gateway():
+def test_j_no_auth_reset_no_fake_gateway(monkeypatch):
+    monkeypatch.delenv('GROQ_API_KEY', raising=False)
     with TestClient(app) as c:
         assert c.post('/api/v1/auth/forgot-password',json={'email':'x@a.com','password':'new'}).status_code==404
         assert c.post('/api/v1/payments/success',json={'paid':True}).status_code==404
         travel=c.post('/api/v1/assistant/chat',json={'message':'Giá tour'}).json()
-        assert travel['mode']=='rule_based'
+        assert travel['mode']=='ai_unavailable'
+        assert 'chưa được kích hoạt' in travel['answer']
         outside=c.post('/api/v1/assistant/chat',json={'message':'Giúp tôi viết bài văn về toán học'}).json()
-        assert 'chỉ hỗ trợ' in outside['answer']
+        assert outside['mode']=='ai_unavailable'
 
 
 def test_k_profile_changes_and_favorites_are_user_scoped():
