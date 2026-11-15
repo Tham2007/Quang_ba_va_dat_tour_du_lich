@@ -4635,7 +4635,7 @@ let tunnelKeepAliveTimer = null;
 let cloudflaredProcess = null;
 
 async function startAutoTunnel(localPort) {
-  if (process.env.DELTA_DB_PATH || String(process.env.PORT) === "0" || process.env.ENABLE_TUNNEL === "false") {
+  if (process.env.DELTA_DB_PATH || String(process.env.PORT) === "0" || process.env.ENABLE_TUNNEL === "false" || process.env.RENDER || process.env.NODE_ENV === "production") {
     return;
   }
 

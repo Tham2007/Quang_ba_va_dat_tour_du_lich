@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: delta-travel
+    env: node
+    plan: free
+    region: singapore
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: ENABLE_TUNNEL
+        value: "false"
+      - key: SEPAY_ACCOUNT_NUMBER
+        value: "0325536936"
+      - key: SEPAY_BANK_NAME
+        value: "MBBank"
+      - key: SEPAY_API_KEY
+        value: "DeltaTravel_MBBank_2026_SecKey"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SQL_SERVER_HOST
+        value: "sql8020.site4now.net"
+      - key: SQL_SERVER_PORT
+        value: "1433"
+      - key: SQL_SERVER_DB
+        value: "db_ad0b71_dattour"
+      - key: SQL_SERVER_USER
+        value: "db_ad0b71_dattour_admin"
+      - key: SQL_SERVER_PASS
+        sync: false
