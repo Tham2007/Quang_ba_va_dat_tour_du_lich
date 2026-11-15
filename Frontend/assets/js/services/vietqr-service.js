@@ -1,31 +1,16 @@
-/**
- * DELTA TRAVEL - VIETQR HIGH PERFORMANCE PAYMENT SERVICE
- * ======================================================
- * Tích hợp chuẩn thanh toán VietQR NAPAS 247 tối ưu hiệu năng cao nhất.
- * Tham chiếu chuẩn: https://vietqr.vn/qr-create
- * 
- * CẤU HÌNH NGÂN HÀNG THỤ HƯỞNG CHÍNH THỨC:
- * - Ngân hàng: MBBank (Ngân hàng TMCP Quân Đội)
- * - Mã định danh BIN: 970422 / Mã NH: MB
- * - Số tài khoản: 0325536936
- * - Tên chủ tài khoản: LE VAN AN
- * - Nội dung chuyển khoản: Tự động trích xuất [MÃ TOUR] + [ID TÀI KHOẢN / MÃ ĐẶT TOUR]
+/** Bank-payment integration intentionally disabled in the academic public demo.
+ * No real account number, scannable QR, or customer payment confirmation is
+ * shipped before a verified, authenticated gateway webhook has been deployed.
  */
 
 const VietQRService = (() => {
   "use strict";
 
-  // Cấu hình ngân hàng mặc định
-  const CONFIG = {
-    bankId: "MB",
-    bankBin: "970422",
-    bankName: "MBBank (Ngân hàng TMCP Quân Đội)",
-    accountNo: "0325536936",
-    accountName: "LE VAN AN",
-    defaultTemplate: "compact2", // Template chuẩn: Logo Napas247 + MBBank + QR + Chi tiết tài khoản
-    quickLinkBase: "https://img.vietqr.io/image",
-    apiGenerateUrl: "https://api.vietqr.io/v2/generate"
-  };
+  const CONFIG = Object.freeze({
+    bankId: null, bankBin: null, bankName: "Chưa tích hợp cổng thanh toán",
+    accountNo: null, accountName: null,
+    defaultTemplate: "demo", quickLinkBase: null, apiGenerateUrl: null
+  });
 
   // Memory Cache để tăng tốc độ phản hồi 0ms
   const urlCache = new Map();
@@ -122,30 +107,11 @@ const VietQRService = (() => {
    * Phản hồi < 50ms, không tốn tài nguyên server
    */
   function getQuickLinkUrl(options = {}) {
-    const amount = Math.max(0, Math.round(Number(options.amount || 0)));
-    const memo = options.memo || generateTransferContent(options.tourId, options.bookingId, options.userId);
-    const template = options.template || CONFIG.defaultTemplate;
-    const accountNo = options.accountNo || CONFIG.accountNo;
-    const bankBin = options.bankBin || CONFIG.bankBin;
-    const accountName = options.accountName || CONFIG.accountName;
-
-    const cacheKey = `${bankBin}_${accountNo}_${template}_${amount}_${memo}`;
-    if (urlCache.has(cacheKey)) {
-      return urlCache.get(cacheKey);
-    }
-
-    const params = new URLSearchParams();
-    if (amount > 0) params.set("amount", String(amount));
-    if (memo) params.set("addInfo", memo);
-    if (accountName) params.set("accountName", accountName);
-
-    // Chuẩn URL VietQR Quick Link: https://img.vietqr.io/image/<BANK_BIN>-<ACCOUNT_NO>-<TEMPLATE>.png?...
-    const url = `${CONFIG.quickLinkBase}/${bankBin}-${accountNo}-${template}.png?${params.toString()}`;
-    
-    // Lưu vào cache
-    urlCache.set(cacheKey, url);
-    return url;
+    // A real payment URL may only come from an authenticated server endpoint.
+    // Never construct a client-controlled transfer to a personal bank account.
+    return "assets/images/bank_qr_demo.svg";
   }
+
 
   /**
    * Preload ảnh QR ngầm vào bộ nhớ cache của trình duyệt
@@ -221,8 +187,9 @@ const VietQRService = (() => {
     `;
 
     const icon = success ? `<i class="bi bi-check-circle-fill" style="color: #4ade80;"></i>` : `<i class="bi bi-x-circle-fill" style="color: #f87171;"></i>`;
-    const message = success ? `Đã sao chép ${label}: <strong>${text}</strong>` : `Không thể sao chép tự động`;
-    toast.innerHTML = `${icon} <span>${message}</span>`;
+    const message = success ? "Đã sao chép " + label : "Không thể sao chép tự động";
+    toast.innerHTML = icon + " <span></span>";
+    toast.querySelector("span").textContent = message;
     document.body.appendChild(toast);
 
     // Kích hoạt animation xuất hiện
@@ -242,7 +209,7 @@ const VietQRService = (() => {
   /**
    * Tải ảnh QR Code về thiết bị của người dùng
    */
-  async function downloadQR(url, filename = "VietQR_MBBank_0325536936.png") {
+  async function downloadQR(url, filename = "DeltaTravel_Payment_Demo.svg") {
     if (!url) return;
     try {
       const res = await fetch(url);
