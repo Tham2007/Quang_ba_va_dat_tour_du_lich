@@ -37,7 +37,7 @@ def main():
         engine = r.json().get("storageEngine", "unreported")
         print(f"PASS staging GET health 200, DB reachable; storage={engine}")
 
-        for route in ["/", "/assets/app.js", "/assets/styles.css"]:
+        for route in ["/", "/assets/app.js", "/assets/css/base.css"]:
             r = c.get(route)
             check(r.status_code == 200, f"{route} HTTP {r.status_code}")
         page = c.get("/").text
