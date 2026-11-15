@@ -1,0 +1,52 @@
+name: Final defense real UI screenshots (synthetic CI DB)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Frontend/tests/capture-report.cjs'
+      - '.github/workflows/ci-report-screenshots.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DELTA_ENV: development
+      DATABASE_URL: sqlite:////tmp/delta_report_photo_ci.db
+      AUTO_CREATE_SCHEMA: '1'
+      DEMO_SEED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install backend and browser dependencies
+        run: |
+          python -m pip install -r API/requirements.txt httpx
+          npm install --no-save playwright-core@1.56.1
+      - name: Start real FastAPI service on isolated CI database
+        run: |
+          cd API
+          python -m uvicorn api.app:app --host 127.0.0.1 --port 8999 > /tmp/delta-report-api.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8999/api/v1/health/ready >/dev/null; then exit 0; fi
+            sleep 0.3
+          done
+          tail -50 /tmp/delta-report-api.log
+          exit 1
+      - name: Capture homepage, booking page, demo receipt, bookings and admin
+        run: |
+          export CHROME_PATH="$(command -v google-chrome || command -v chromium)"
+          node Frontend/tests/capture-report.cjs
+      - name: Upload authentic CI website screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: delta-travel-final-defense-ci-screenshots
+          path: delta-report-screenshots/*.png
+          retention-days: 7
