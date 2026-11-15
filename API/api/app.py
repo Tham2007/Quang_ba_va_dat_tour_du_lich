@@ -93,7 +93,8 @@ def integrity_error(request, exc):
 @app.get("/api/v1/health/ready")
 def ready(db: Session = Depends(db_session)):
     db.execute(select(func.count()).select_from(Tour)).scalar_one()
-    return {"status": "ok", "db": "connected"}
+    backend = db.get_bind().dialect.name
+    return {"status": "ok", "db": "connected", "storageEngine": backend}
 
 
 # Register business routes explicitly before the catch-all API guard/static mount.

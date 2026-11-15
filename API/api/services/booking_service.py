@@ -180,6 +180,12 @@ def cancel_user_booking(db, booking_id, user_id):
 
 
 def confirm_customer_payment(db, booking_id, reference, user):
+    """Accept a customer's reference as evidence only, never as bank confirmation.
+
+    No user-controlled string, QR click, screenshot or client callback is
+    authoritative proof that money was received. Only an authenticated admin
+    may mark PAID after reconciling against independent bank records.
+    """
     with db.begin_nested():
         lock_writes(db)
         sweep(db)
@@ -194,18 +200,19 @@ def confirm_customer_payment(db, booking_id, reference, user):
             fail(409, "Đơn không còn chờ thanh toán.")
         if payment_reference_used(db, reference, except_booking_id=booking.id):
             fail(409, "Mã giao dịch đã được sử dụng cho đơn khác.")
-        booking.status = "PAID"
         booking.payment_evidence = reference
-        booking.payment_confirmed_at = now()
+        # Deliberately keep PENDING_PAYMENT; bank receipt is NOT confirmed.
         audit(
             db,
             user,
-            "PAYMENT_CONFIRMED",
+            "PAYMENT_EVIDENCE_SUBMITTED",
             booking.id,
             {"proofReference": reference, "amount": booking.total_price},
         )
     db.commit()
-    return booking_dict(booking)
+    result = booking_dict(booking)
+    result["paymentReview"] = "PENDING_MANUAL_VERIFICATION"
+    return result
 
 
 def booking_dict(b):
