@@ -3,8 +3,6 @@ name: Final full-stack audit 2026-11-15 (no bank transactions)
 on:
   push:
     branches: ["audit/final-fullstack-20261115"]
-  pull_request:
-    paths: [".github/workflows/ci-final-fullstack-audit-20261115.yml"]
   workflow_dispatch:
 
 permissions:
