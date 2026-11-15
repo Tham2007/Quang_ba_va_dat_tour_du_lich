@@ -468,7 +468,9 @@ const DeltaAPI = (() => {
     };
     return await request("/assistant/chat", {
       method: "POST",
-      body: payload
+      body: payload,
+      // Groq runs on the server; use a longer client timeout than the 17s provider limit.
+      timeout: 25000
     });
   }
 
