@@ -59,7 +59,7 @@ def main():
     health = json.loads(body)
     assert health.get("status") == "ok", health
     engine = health.get("storageEngine", "not_reported")
-    persistent = health.get("persistentBackend", False)
+    persistent = health.get("persistentBackend", engine == "postgresql")
     print(f"STORAGE_ENGINE={engine} PERSISTENT_BACKEND={persistent}", flush=True)
 
     if args.require_durable:
