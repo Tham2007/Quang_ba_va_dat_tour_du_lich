@@ -4530,7 +4530,27 @@ function lookupTourAvailability(message, activeTours, isEnglish) {
   const places = TOUR_PLACE_NAMES.filter(([, aliases]) =>
     aliases.some(alias => padded.includes(" " + alias + " "))
   );
-  if (places.length === 0) return null;
+  if (places.length === 0) {
+    // Narrow fallback for an explicit "Có tour Tokyo không?" style question.
+    // Do not pretend to know availability for arbitrary free-form preferences.
+    const unknown = normalized.match(/\b(?:co|con|ban)\s+(?:tour|tours)\s+([a-z][a-z0-9 ]{1,40}?)\s+(?:khong|ko|k|chua)\s*$/);
+    if (!unknown) return null;
+    const query = unknown[1].trim();
+    if (/^(nao|gi|cho|phu hop|tot|dep|gia re|moi)$/.test(query)) return null;
+    const matching = activeTours.filter(tour => {
+      const title = " " + foldTourSearch(String(tour.title || "") + " " + String(tour.slug || "")) + " ";
+      return title.includes(" " + query + " ");
+    });
+    const first = query.charAt(0).toUpperCase() + query.slice(1);
+    return {
+      answer: matching.length
+        ? (isEnglish ? "Yes. Matching tours: " : "Có. Các tour phù hợp: ") + matching.slice(0, 3).map(t => t.title).join("; ")
+        : (isEnglish ? "I couldn't find a tour matching " + first + " in the current catalog." : "Chưa tìm thấy tour có điểm đến hoặc tên khớp " + first + " trong danh mục đang mở bán. Bạn muốn thử địa điểm khác không?"),
+      suggestedTours: matching.slice(0, 3).map(publicTour),
+      mode: "catalog_lookup",
+      source: "Delta Travel Active Tour Catalog"
+    };
+  }
 
   // A two-city query needs the origin and destination together, not just one.
   const origin = places.find(([, aliases]) => aliases.some(alias =>
