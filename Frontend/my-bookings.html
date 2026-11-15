@@ -25,6 +25,8 @@
   <script src="assets/js/controllers/i18n.js"></script>
   <!-- Thư viện xuất vé điện tử PDF chuẩn A4 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- Dịch vụ Vé Điện Tử Luxury (Boarding Pass & 1D Barcode) & Hóa Đơn VAT Chuẩn -->
+  <script src="assets/js/services/ticket-invoice-service.js"></script>
 
   <style>
     :root {
@@ -570,7 +572,7 @@
           : `${guests} người (${b.adults || 1} lớn, ${b.children || 0} trẻ)`;
         const totalLabel = isEn ? "Total Amount" : "Tổng tiền thanh toán";
         const payNowBtn = isEn ? "Pay Now" : "Thanh toán ngay";
-        const printTicketBtn = isEn ? "Print Voucher" : "In phiếu vé";
+        const printTicketBtn = isEn ? "Online Ticket" : "Phiếu vé (Ticket Online)";
         const cancelBtn = isEn ? "Cancel Booking" : "Hủy đơn";
 
         return `
@@ -615,15 +617,17 @@
                     <a href="booking.html?bookingId=${encodeURIComponent(id)}" class="paper-btn-pay">
                       <i class="bi bi-credit-card-2-front"></i> ${payNowBtn}
                     </a>
+                    <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5" onclick="TicketInvoiceService.openTicket('${id}')">
+                      <i class="bi bi-upc-scan text-primary"></i> ${printTicketBtn}
+                    </button>
                   ` : `
-                    <button type="button" class="btn btn-dark btn-sm rounded-pill px-3 py-1.5 fw-semibold" onclick="printSingleTicket('${id}')">
-                      <i class="bi bi-file-earmark-arrow-down me-1"></i> ${isEn ? "Save Invoice" : "Lưu hóa đơn"}
+                    <button type="button" class="btn btn-dark btn-sm rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs" onclick="TicketInvoiceService.openInvoice('${id}')">
+                      <i class="bi bi-file-earmark-text-fill text-warning"></i> ${isEn ? "Save Invoice" : "Lưu hóa đơn"}
+                    </button>
+                    <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3.5 py-1.5 fw-bold d-inline-flex align-items-center gap-1.5 shadow-xs" style="border-width: 1.5px; background: #ffffff;" onclick="TicketInvoiceService.openTicket('${id}')">
+                      <i class="bi bi-upc-scan text-primary"></i> ${printTicketBtn}
                     </button>
                   `}
-                  
-                  <button type="button" class="paper-btn-print" onclick="printSingleTicket('${id}')">
-                    <i class="bi bi-printer"></i> ${printTicketBtn}
-                  </button>
 
                   ${!isCancelled ? `
                     <button type="button" class="btn btn-outline-danger btn-sm" onclick="cancelBookingAction('${id}')">
@@ -639,80 +643,8 @@
     }
 
     function printSingleTicket(id) {
-      const b = allBookings.find(x => (x.id || x.bookingId || x.reference) === id);
-      if (!b) {
-        window.print();
-        return;
-      }
-      const bookingRef = b.reference || b.bookingId || b.id || "DELTA";
-      const isPaid = b.status === "PAID" || b.status === "Đã thanh toán" || b.paid;
-      const invCode = "INV-" + (b.id ? String(b.id).replace(/\D/g, "").slice(-8) : Date.now().toString().slice(-8));
-      
-      const container = document.createElement("div");
-      container.style.cssText = "background:#ffffff; color:#000000; padding:24px; font-family:'Inter',sans-serif;";
-      container.innerHTML = `
-        <div style="border-bottom:2px solid #000; padding-bottom:16px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-start;">
-          <div>
-            <h2 style="margin:0; font-size:22px; font-weight:900; letter-spacing:0.05em; text-transform:uppercase;">DELTA TRAVEL VIETNAM</h2>
-            <div style="font-size:12px; color:#555; margin-top:4px;">Công ty Du Lịch & Lữ Hành Quốc Tế 5 Sao Hàng Đầu</div>
-            <div style="font-size:11px; color:#666; margin-top:2px;">Hotline: 0325536936 | Email: support@deltatravel.vn | Website: https://deltatravel.vn</div>
-          </div>
-          <div style="text-align:right;">
-            <div style="display:inline-block; padding:6px 14px; border:1.5px solid ${isPaid ? '#16a34a' : '#d97706'}; color:${isPaid ? '#16a34a' : '#d97706'}; border-radius:20px; font-weight:800; font-size:12px; text-transform:uppercase;">
-              ${isPaid ? 'ĐÃ THANH TOÁN' : 'CHỜ THANH TOÁN'}
-            </div>
-            <div style="font-size:11px; color:#666; margin-top:6px;">MÃ HĐ: ${invCode}</div>
-          </div>
-        </div>
-
-        <div style="text-align:center; margin-bottom:24px;">
-          <h3 style="margin:0; font-size:18px; font-weight:800; text-transform:uppercase; letter-spacing:0.04em;">VÉ ĐIỆN TỬ & XÁC NHẬN ĐẶT CHỖ (E-TICKET)</h3>
-          <div style="font-size:12px; color:#666; margin-top:4px;">Phiếu xác nhận thông tin hành trình và bảo hiểm du lịch chính thức</div>
-        </div>
-
-        <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:13px;">
-          <tbody>
-            <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px 12px; font-weight:600; width:30%; color:#475569; background:#f8fafc;">Mã Đặt Tour:</td><td style="padding:8px 12px; font-weight:800; font-family:monospace; font-size:14px;">#${bookingRef}</td></tr>
-            <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px 12px; font-weight:600; color:#475569; background:#f8fafc;">Khách Hàng:</td><td style="padding:8px 12px; font-weight:700;">${b.customerName || b.customer?.fullName || 'Khách hàng'}</td></tr>
-            <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px 12px; font-weight:600; color:#475569; background:#f8fafc;">Liên Hệ:</td><td style="padding:8px 12px;">${b.customerPhone || b.customer?.phone || '-'} | ${b.customerEmail || b.customer?.email || '-'}</td></tr>
-            <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px 12px; font-weight:600; color:#475569; background:#f8fafc;">Tên Tour:</td><td style="padding:8px 12px; font-weight:700;">${b.tourTitle}</td></tr>
-            <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px 12px; font-weight:600; color:#475569; background:#f8fafc;">Ngày Khởi Hành:</td><td style="padding:8px 12px; font-weight:700; color:#0284c7;">${b.departureDate || b.departureAt || 'Theo lịch trình'}</td></tr>
-            <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px 12px; font-weight:600; color:#475569; background:#f8fafc;">Số Lượng Khách:</td><td style="padding:8px 12px; font-weight:700;">${b.adults || b.passengers?.adults || 1} Người lớn${(b.children || b.passengers?.children) ? ', ' + (b.children || b.passengers?.children) + ' Trẻ em' : ''}</td></tr>
-            <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px 12px; font-weight:600; color:#475569; background:#f8fafc;">Tổng Tiền:</td><td style="padding:8px 12px; font-weight:900; color:#dc2626; font-size:16px;">${formatVND(b.totalPrice || b.pricing?.total || 0)}</td></tr>
-            <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px 12px; font-weight:600; color:#475569; background:#f8fafc;">Phương Thức:</td><td style="padding:8px 12px;">${b.paymentMethod || 'Chuyển khoản nhanh VietQR (MBBank 0325536936 - LE VAN AN)'}</td></tr>
-            <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px 12px; font-weight:600; color:#475569; background:#f8fafc;">Thời Gian Đặt:</td><td style="padding:8px 12px;">${new Date(b.createdAt || Date.now()).toLocaleString('vi-VN')}</td></tr>
-          </tbody>
-        </table>
-
-        <div style="border-top:1px dashed #cbd5e1; padding-top:12px; display:flex; justify-content:space-between; font-size:11px; color:#64748b;">
-          <div>
-            <div>* Quý khách vui lòng xuất trình vé điện tử này hoặc CCCD khi lên xe / làm thủ tục nhận phòng.</div>
-            <div>* Đã bao gồm trọn gói 100% bảo hiểm du lịch theo hợp đồng bảo hiểm Delta Care.</div>
-          </div>
-          <div style="text-align:right; font-weight:700; color:#0f172a;">
-            DELTA TRAVEL ELECTRONIC SEAL<br>
-            <span style="color:#16a34a; font-size:10px;">[VERIFIED & SECURED]</span>
-          </div>
-        </div>
-      `;
-
-      document.body.appendChild(container);
-      if (typeof html2pdf !== "undefined") {
-        html2pdf().set({
-          margin: [10, 10, 10, 10],
-          filename: `Ve-Dien-Tu-${bookingRef}.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-        }).from(container).save().then(() => {
-          container.remove();
-        }).catch(() => {
-          container.remove();
-          window.print();
-        });
-      } else {
-        window.print();
-        container.remove();
+      if (window.TicketInvoiceService) {
+        TicketInvoiceService.openTicket(id);
       }
     }
 

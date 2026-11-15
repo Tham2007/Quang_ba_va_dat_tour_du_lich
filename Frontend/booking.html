@@ -26,6 +26,8 @@
   <script src="assets/js/components/app-dialogs.js"></script>
   <!-- Thư viện xuất vé điện tử PDF chuyên nghiệp chuẩn A4 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- Dịch vụ Vé Điện Tử Luxury (Boarding Pass & 1D Barcode) & Hóa Đơn VAT Chuẩn -->
+  <script src="assets/js/services/ticket-invoice-service.js"></script>
 
   <style>
     :root {
@@ -962,15 +964,15 @@
         </div>
       </div>
 
-      <!-- Hàng nút chức năng phía dưới: Lưu hóa đơn chứng từ chuẩn quốc tế -->
+      <!-- Hàng nút chức năng phía dưới: Vé điện tử Luxury & Lưu hóa đơn VAT -->
       <div class="d-flex flex-wrap gap-2.5 justify-content-center no-print mt-4 pt-3 border-top">
-        <button id="btnDownloadInvoice" class="btn btn-dark px-4 py-2.5 rounded-pill fw-bold shadow-sm d-inline-flex align-items-center gap-2" onclick="downloadOfficialInvoice()">
+        <button id="btnLuxuryTicket" class="btn btn-warning px-4 py-2.5 rounded-pill fw-bold shadow-sm d-inline-flex align-items-center gap-2 text-dark" onclick="TicketInvoiceService.openTicket(currentBookingData)">
+          <i class="bi bi-upc-scan fs-5"></i>
+          <span>Phiếu vé (Ticket Online)</span>
+        </button>
+        <button id="btnDownloadInvoice" class="btn btn-dark px-4 py-2.5 rounded-pill fw-bold shadow-sm d-inline-flex align-items-center gap-2" onclick="TicketInvoiceService.openInvoice(currentBookingData)">
           <i class="bi bi-file-earmark-check-fill text-warning fs-5"></i>
           <span>Lưu hóa đơn chứng từ chuẩn quốc tế</span>
-        </button>
-        <button class="btn btn-outline-dark px-4 py-2.5 rounded-pill fw-semibold d-inline-flex align-items-center gap-2" onclick="printOfficialInvoice()">
-          <i class="bi bi-printer fs-5"></i>
-          <span>In hóa đơn chứng từ</span>
         </button>
         <a href="https://zalo.me/0325536936" target="_blank" rel="noopener noreferrer" class="btn btn-outline-dark px-4 py-2.5 rounded-pill fw-semibold d-inline-flex align-items-center gap-2">
           <i class="bi bi-chat-quote-fill text-primary fs-5"></i>
@@ -2190,44 +2192,27 @@
 
     // Xuất & Lưu Hóa Đơn Chứng Từ Chuẩn Quốc Tế dạng PDF A4
     function downloadOfficialInvoice() {
-      if (!currentBookingData) {
-        showAppNotice("Chưa có thông tin đơn đặt tour để xuất hóa đơn.", "Thông Báo", "warning");
-        return;
-      }
-      const prep = prepareOfficialInvoiceDOM();
-      const bookingRef = prep ? prep.bookingRef : "DELTA";
-      const el = document.getElementById("officialInvoicePrintContainer");
-      if (!el) {
-        window.print();
-        return;
-      }
-
-      el.style.display = "block";
-      if (typeof html2pdf !== "undefined") {
-        const opt = {
-          margin: [6, 8, 6, 8],
-          filename: `Hoa-Don-GTGT-${bookingRef}.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-        };
-        html2pdf().set(opt).from(el).save().then(() => {
-          el.style.display = "none";
-          showAppNotice("Đã lưu thành công Hóa đơn chứng từ điện tử chuẩn quốc tế dạng PDF!", "Thành Công", "success");
-        }).catch(err => {
-          console.warn("Lỗi xuất hóa đơn html2pdf:", err);
-          el.style.display = "none";
-          window.print();
-        });
+      if (window.TicketInvoiceService && currentBookingData) {
+        TicketInvoiceService.openInvoice(currentBookingData);
       } else {
         window.print();
-        el.style.display = "none";
+      }
+    }
+
+    function printOfficialInvoice() {
+      if (window.TicketInvoiceService && currentBookingData) {
+        TicketInvoiceService.openInvoice(currentBookingData);
+      } else {
+        window.print();
       }
     }
 
     function downloadETicketPDF() {
-      downloadOfficialInvoice();
+      if (window.TicketInvoiceService && currentBookingData) {
+        TicketInvoiceService.openTicket(currentBookingData);
+      } else {
+        window.print();
+      }
     }
 
     ["numAdults", "numChildren", "numInfants"].forEach(id => {
