@@ -203,13 +203,17 @@ def confirm_customer_payment(db, booking_id, reference, user):
         booking.payment_evidence = reference
         # Deliberately keep PENDING_PAYMENT; bank receipt is NOT confirmed.
         audit(
-            db, user, "PAYMENT_EVIDENCE_SUBMITTED", booking.id,
+            db,
+            user,
+            "PAYMENT_EVIDENCE_SUBMITTED",
+            booking.id,
             {"proofReference": reference, "amount": booking.total_price},
         )
     db.commit()
     result = booking_dict(booking)
     result["paymentReview"] = "PENDING_MANUAL_VERIFICATION"
     return result
+
 
 def booking_dict(b):
     return {
