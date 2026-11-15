@@ -2529,11 +2529,12 @@ function renderTabBookings(container) {
     if (AdminState.bookingSearch.trim()) {
       const q = AdminState.bookingSearch.toLowerCase();
       const matchId = (b.bookingId || "").toLowerCase().includes(q);
+      const matchTicket = ('tk-' + (b.bookingId || '').toLowerCase()).includes(q);
       const matchName = (b.customer?.fullName || "").toLowerCase().includes(q);
       const matchPhone = (b.customer?.phone || "").toLowerCase().includes(q);
       const matchEmail = (b.customer?.email || "").toLowerCase().includes(q);
       const matchTour = (b.tourTitle || "").toLowerCase().includes(q);
-      if (!matchId && !matchName && !matchPhone && !matchEmail && !matchTour) return false;
+      if (!matchId && !matchTicket && !matchName && !matchPhone && !matchEmail && !matchTour) return false;
     }
 
     return true;
@@ -2642,13 +2643,14 @@ function renderTabBookings(container) {
           <table class="admin-table">
             <thead>
               <tr>
-                <th>Mã Đơn</th>
+                <th>Mã Đơn & Mã Vé</th>
                 <th>Thời Gian Đặt</th>
                 <th>Khách Hàng</th>
                 <th>Tour & Ngày Khởi Hành</th>
                 <th>Số Khách</th>
                 <th>Tổng Tiền</th>
                 <th>Hình Thức</th>
+                <th>Vé & Check-in</th>
                 <th>Trạng Thái</th>
                 <th class="text-end no-print">Thao Tác</th>
               </tr>
@@ -2656,14 +2658,26 @@ function renderTabBookings(container) {
             <tbody>
               ${filtered.length === 0 ? `
                 <tr>
-                  <td colspan="9" class="text-center py-5 text-muted">
+                  <td colspan="10" class="text-center py-5 text-muted">
                     <i class="bi bi-ticket-detailed fs-2 d-block mb-2"></i>
                     Không có đơn đặt tour nào phù hợp với điều kiện tìm kiếm.
                   </td>
                 </tr>
-              ` : filtered.map(b => `
+              ` : filtered.map(b => {
+                const isPaidOrConfirmed = Boolean(b.isPaid || b.paid || b.statusCode === 'PAID' || b.statusCode === 'CONFIRMED' || b.statusCode === 'COMPLETED');
+                const isCompleted = (b.statusCode === 'COMPLETED');
+                const cleanRef = String(b.bookingId || b.reference || b.id || '').replace(/[^A-Za-z0-9]/g, '');
+
+                return `
                 <tr>
-                  <td><strong class="font-monospace text-primary">${b.bookingId}</strong></td>
+                  <td>
+                    <strong class="font-monospace text-primary">${b.bookingId}</strong>
+                    <div class="mt-1">
+                      <span class="badge bg-dark text-warning font-monospace px-2 py-0.5" style="font-size: 10.5px; letter-spacing: 0.5px;" title="Mã Vé Điện Tử Check-in">
+                        <i class="bi bi-upc me-1"></i>TK-${cleanRef}
+                      </span>
+                    </div>
+                  </td>
                   <td><span class="small text-muted">${b.createdAt}</span></td>
                   <td>
                     <div class="fw-bold">${b.customer.fullName}</div>
@@ -2680,6 +2694,23 @@ function renderTabBookings(container) {
                   </td>
                   <td class="fw-bold text-dark">${Number(b.pricing?.total ?? b.totalPrice ?? 0).toLocaleString("vi-VN")} đ</td>
                   <td><span class="small text-muted">${b.paymentMethod || 'Chuyển khoản'}</span></td>
+                  <td>
+                    ${isPaidOrConfirmed ? `
+                      <div class="d-flex flex-column gap-1">
+                        <span class="badge ${isCompleted ? 'bg-success' : 'bg-primary-subtle text-primary border border-primary'} px-2 py-1 text-center" style="font-size: 11px;">
+                          <i class="bi ${isCompleted ? 'bi-check-circle-fill' : 'bi-upc-scan'} me-1"></i>
+                          ${isCompleted ? 'ĐÃ CHECK-IN' : 'HỢP LỆ (SẴN SÀNG)'}
+                        </span>
+                        <button type="button" class="btn btn-xs btn-outline-dark fw-semibold d-inline-flex align-items-center justify-content-center gap-1 py-1" onclick="TicketInvoiceService.openTicket('${b.bookingId}')" title="Xem & Quét mã vạch vé điện tử luxury">
+                          <i class="bi bi-ticket-perforated-fill text-warning"></i> Phiếu Vé
+                        </button>
+                      </div>
+                    ` : `
+                      <span class="badge bg-light text-muted border px-2 py-1" style="font-size: 11px;">
+                        <i class="bi bi-dash-circle me-1"></i> Chưa cấp vé
+                      </span>
+                    `}
+                  </td>
                   <td>
                     ${b.statusCode === 'REFUND_PENDING' ? `
                       <span class="badge bg-warning text-dark border border-warning shadow-sm px-2 py-1">
@@ -2700,6 +2731,11 @@ function renderTabBookings(container) {
                       <button class="btn btn-outline-primary" onclick="openBookingDetailModal('${b.bookingId}')" title="Xem chi tiết đơn">
                         <i class="bi bi-eye"></i>
                       </button>
+                      ${isPaidOrConfirmed ? `
+                        <button class="btn btn-dark text-warning" onclick="TicketInvoiceService.openTicket('${b.bookingId}')" title="Mở Phiếu Vé Điện Tử & Barcode 1D Check-in">
+                          <i class="bi bi-upc-scan"></i>
+                        </button>
+                      ` : ''}
                       ${b.statusCode === 'REFUND_PENDING' ? `
                         <button class="btn btn-warning text-dark fw-bold shadow-sm" onclick="openApproveRefundModal('${b.bookingId}')" title="Duyệt hoàn tiền 100% cho khách">
                           <i class="bi bi-arrow-return-left me-1"></i> Hoàn Tiền
@@ -2711,8 +2747,8 @@ function renderTabBookings(container) {
                         </button>
                       ` : ''}
                       ${b.statusCode === 'CONFIRMED' ? `
-                        <button class="btn btn-outline-info" onclick="handleCompleteBooking('${b.bookingId}')" title="Đánh dấu hoàn thành tour">
-                          <i class="bi bi-flag-fill"></i>
+                        <button class="btn btn-outline-success fw-bold" onclick="handleCompleteBooking('${b.bookingId}')" title="Xác nhận khách đã check-in / Hoàn thành tour">
+                          <i class="bi bi-check2-circle me-1"></i> Check-in
                         </button>
                       ` : ''}
                       ${b.statusCode !== 'CANCELLED' && b.statusCode !== 'REFUNDED' && b.statusCode !== 'REFUND_PENDING' ? `
@@ -2723,7 +2759,7 @@ function renderTabBookings(container) {
                     </div>
                   </td>
                 </tr>
-              `).join("")}
+              `;}).join("")}
             </tbody>
           </table>
         </div>

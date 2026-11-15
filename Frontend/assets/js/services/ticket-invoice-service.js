@@ -207,17 +207,84 @@
     document.head.appendChild(style);
   }
 
+  function showModalSafe(modalEl) {
+    if (!modalEl) return;
+    if (typeof bootstrap !== "undefined" && bootstrap && bootstrap.Modal) {
+      try {
+        const bsModal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        bsModal.show();
+        return;
+      } catch (_) {}
+    }
+    // Graceful standalone fallback không phụ thuộc thư viện
+    modalEl.classList.add("show");
+    modalEl.style.display = "block";
+    modalEl.style.backgroundColor = "rgba(15, 23, 42, 0.85)";
+    modalEl.style.zIndex = "10050";
+    modalEl.style.overflowY = "auto";
+
+    let backdrop = document.getElementById("customModalBackdrop");
+    if (!backdrop) {
+      backdrop = document.createElement("div");
+      backdrop.id = "customModalBackdrop";
+      backdrop.className = "modal-backdrop fade show";
+      backdrop.style.zIndex = "10040";
+      document.body.appendChild(backdrop);
+    }
+
+    const closeHandler = () => {
+      modalEl.classList.remove("show");
+      modalEl.style.display = "none";
+      if (backdrop && backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+    };
+
+    modalEl.querySelectorAll("[data-bs-dismiss='modal']").forEach(btn => {
+      btn.onclick = closeHandler;
+    });
+    modalEl.onclick = (e) => {
+      if (e.target === modalEl) closeHandler();
+    };
+  }
+
   /**
    * MỞ MODAL VÉ ĐIỆN TỬ LUXURY (BOARDING PASS CÓ MÃ VẠCH 1D)
    */
   function openTicket(bookingData) {
     ensurePrintStyle();
     let b = bookingData;
-    if (typeof b === "string" && window.allBookings) {
-      b = window.allBookings.find(x => (x.id || x.bookingId || x.reference) === bookingData);
+    if (typeof b === "string") {
+      const pool = (window.allBookings || []).concat(window.AdminState?.bookings || []).concat(JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]"));
+      b = pool.find(x => String(x.id || x.bookingId || x.reference) === String(bookingData));
     }
     if (!b && window.currentBookingData) b = window.currentBookingData;
-    const d = getCleanBooking(b);
+    if (!b && typeof bookingData === "object") b = bookingData;
+    const d = getCleanBooking(b || { reference: bookingData });
+
+    // QUY TRÌNH CHUẨN: CHỈ CẤP VÉ ĐIỆN TỬ CHECK-IN CHO ĐƠN ĐÃ THANH TOÁN HOẶC ĐÃ DUYỆT GIỮ CHỖ
+    const isActuallyPaid = Boolean(
+      d.isPaid ||
+      d.status === "PAID" ||
+      d.status === "CONFIRMED" ||
+      d.status === "COMPLETED" ||
+      d.statusCode === "PAID" ||
+      d.statusCode === "CONFIRMED" ||
+      d.statusCode === "COMPLETED"
+    );
+
+    if (!isActuallyPaid) {
+      if (typeof showAppNotice === "function") {
+        showAppNotice(
+          "Đơn đặt tour này chưa được thanh toán hoặc đã hủy. Phiếu vé điện tử (Boarding Pass & Barcode Check-in) chỉ được phát hành chính thức sau khi đơn hàng thanh toán thành công và được duyệt.",
+          "Chưa Cấp Vé Điện Tử"
+        );
+      } else if (typeof showToast === "function") {
+        showToast("Đơn chưa thanh toán hoặc đã hủy, không thể xuất vé điện tử check-in.", "warning");
+      } else {
+        alert("Đơn chưa thanh toán hoặc đã hủy, không thể xuất vé điện tử check-in.");
+      }
+      return;
+    }
+
     const barcodeSvg = generateBarcode1DSVG(d.ref, 50);
 
     let modalEl = document.getElementById("luxuryTicketModal");
@@ -412,8 +479,7 @@
       </div>
     `;
 
-    const bsModal = new bootstrap.Modal(modalEl);
-    bsModal.show();
+    showModalSafe(modalEl);
   }
 
   /**
@@ -422,11 +488,13 @@
   function openInvoice(bookingData) {
     ensurePrintStyle();
     let b = bookingData;
-    if (typeof b === "string" && window.allBookings) {
-      b = window.allBookings.find(x => (x.id || x.bookingId || x.reference) === bookingData);
+    if (typeof b === "string") {
+      const pool = (window.allBookings || []).concat(window.AdminState?.bookings || []).concat(JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]"));
+      b = pool.find(x => String(x.id || x.bookingId || x.reference) === String(bookingData));
     }
     if (!b && window.currentBookingData) b = window.currentBookingData;
-    const d = getCleanBooking(b);
+    if (!b && typeof bookingData === "object") b = bookingData;
+    const d = getCleanBooking(b || { reference: bookingData });
     const amountInWords = numberToVietnameseWords(d.totalPrice);
     const barcodeSvg = generateBarcode1DSVG(d.ref, 40);
 
@@ -641,8 +709,7 @@
       </div>
     `;
 
-    const bsModal = new bootstrap.Modal(modalEl);
-    bsModal.show();
+    showModalSafe(modalEl);
   }
 
   /**

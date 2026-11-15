@@ -17,6 +17,8 @@
   <link rel="stylesheet" href="assets/css/base.css">
   <link rel="stylesheet" href="assets/css/header.css">
   <link rel="stylesheet" href="assets/css/auth.css">
+  <!-- Bootstrap 5 Bundle JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <!-- Google Minimal Design System & Dialogs -->
   <link rel="stylesheet" href="assets/css/google-minimal.css">
   <script src="assets/js/components/app-dialogs.js"></script>
@@ -442,6 +444,8 @@
 
     async function loadBookings() {
       const container = document.getElementById("bookingsListContainer");
+      const currentUser = (typeof getCurrentUser === "function" ? getCurrentUser() : null) || JSON.parse(localStorage.getItem("delta_current_user") || "null");
+
       try {
         let bookings = [];
         // 1. Thử lấy từ Backend API
@@ -452,8 +456,11 @@
           }
         }
         
-        // 2. Dự phòng thêm đơn hàng từ localStorage
-        const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
+        // 2. Dự phòng thêm đơn hàng từ localStorage CHỈ KHI người dùng đang đăng nhập
+        let local = [];
+        if (currentUser) {
+          local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
+        }
         const mergedMap = new Map();
         local.forEach(b => {
           const key = b.id || b.bookingId || b.reference;
@@ -484,11 +491,13 @@
           }
         });
         allBookings = Array.from(mergedMap.values());
+        window.allBookings = allBookings;
         renderBookings();
       } catch (err) {
         console.warn("Lỗi tải đơn hàng:", err);
-        const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
+        const local = currentUser ? JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]") : [];
         allBookings = local;
+        window.allBookings = allBookings;
         renderBookings();
       }
     }
@@ -497,6 +506,7 @@
       const container = document.getElementById("bookingsListContainer");
       if (!container) return;
 
+      const currentUser = (typeof getCurrentUser === "function" ? getCurrentUser() : null) || JSON.parse(localStorage.getItem("delta_current_user") || "null");
       let filtered = allBookings;
 
       if (currentSearch.trim() !== "") {
@@ -515,6 +525,29 @@
       }
 
       if (filtered.length === 0) {
+        if (!currentUser && currentSearch.trim() === "") {
+          container.innerHTML = `
+            <div class="border rounded-4 p-4 p-md-5 bg-white text-center shadow-xs my-3">
+              <div class="d-inline-flex align-items-center justify-content-center bg-dark text-warning rounded-circle mb-3" style="width: 58px; height: 58px; font-size: 26px;">
+                <i class="bi bi-shield-lock-fill"></i>
+              </div>
+              <h4 class="fw-bold text-dark mb-2">Bạn Đang Ở Trạng Thái Đăng Xuất</h4>
+              <p class="text-muted small mx-auto mb-4" style="max-width: 520px;">
+                Để bảo vệ quyền riêng tư và an toàn thông tin khách hàng, lịch sử đặt tour chỉ hiển thị khi bạn đăng nhập tài khoản. Nếu bạn đã đặt tour với tư cách khách lẻ, vui lòng nhập <strong>Mã đơn hàng (#BK...)</strong> hoặc <strong>Số điện thoại</strong> vào thanh tìm kiếm phía trên để tra cứu vé.
+              </p>
+              <div class="d-flex flex-wrap gap-2 justify-content-center">
+                <button type="button" class="btn btn-dark btn-sm rounded-pill px-4 py-2 fw-bold" onclick="openAuthModal('login')">
+                  <i class="bi bi-box-arrow-in-right me-1.5"></i> Đăng Nhập Tài Khoản
+                </button>
+                <a href="index.html#toursSection" class="btn btn-outline-dark btn-sm rounded-pill px-4 py-2 fw-semibold">
+                  <i class="bi bi-compass me-1.5"></i> Đặt Tour Mới
+                </a>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
         const emptyTitle = typeof t === "function" ? t("mb_empty_title") : "Không tìm thấy đơn đặt tour nào";
         const emptyDesc = typeof t === "function" ? t("mb_empty_desc") : "Bạn chưa có đơn đặt tour phù hợp với tiêu chí tra cứu hiện tại.";
         const emptyBtn = typeof t === "function" ? t("mb_empty_btn") : "Khám phá & Đặt Tour Ngay";
@@ -554,6 +587,7 @@
         const isRefundPending = (normalizedStatus === "REFUND_PENDING");
         const isRefunded = (normalizedStatus === "REFUNDED");
         const isPaid = (normalizedStatus === "PAID" || isConfirmed || isCompleted || b.paid === true || b.isPaid === true);
+        const isPaidBooking = Boolean(isPaid || isConfirmed || normalizedStatus === "PAID" || normalizedStatus === "CONFIRMED" || normalizedStatus === "COMPLETED");
 
         let stampClass = "stamp-paid";
         let stampText = isEn ? "PAID" : "ĐÃ THANH TOÁN";
@@ -653,22 +687,37 @@
 
               <div class="col-12 col-lg-5 text-lg-end border-start-lg ps-lg-4">
                 <div class="ticket-meta-label">${totalLabel}</div>
-                <div class="fs-4 fw-black text-dark mb-3">${formatVND(totalPrice)}</div>
+                <div class="fs-4 fw-black text-dark mb-1">${formatVND(totalPrice)}</div>
                 
-                <div class="d-flex flex-wrap gap-2 justify-content-lg-end no-print">
-                  ${isPending ? `
+                ${isPaidBooking ? `
+                  <div class="small text-success fw-semibold mb-3" style="font-size: 11.5px;">
+                    <i class="bi bi-shield-check me-1"></i> ${isEn ? "Ticket & 1D Barcode Active" : "Vé & Mã Vạch Check-in Hợp Lệ"}
+                  </div>
+                ` : isPending ? `
+                  <div class="small text-warning-emphasis mb-3" style="font-size: 11px;">
+                    <i class="bi bi-hourglass-split me-1"></i> ${isEn ? "Ticket issued upon payment" : "Vé check-in được cấp sau khi thanh toán"}
+                  </div>
+                ` : `
+                  <div class="small text-danger mb-3" style="font-size: 11px;">
+                    <i class="bi bi-slash-circle me-1"></i> ${isEn ? "Ticket Void / Not Issued" : "Vé không khả dụng / Đã thu hồi"}
+                  </div>
+                `}
+
+                <div class="d-flex flex-wrap gap-2 justify-content-lg-end no-print align-items-center">
+                  ${isPaidBooking ? `
+                    <button type="button" class="btn btn-dark btn-sm rounded-pill px-3.5 py-1.5 fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm" style="background: #0f172a; border-color: #0f172a;" onclick="TicketInvoiceService.openTicket('${id}')">
+                      <i class="bi bi-upc-scan text-warning"></i> ${printTicketBtn}
+                    </button>
+                    <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5" onclick="TicketInvoiceService.openInvoice('${id}')">
+                      <i class="bi bi-file-earmark-text"></i> ${isEn ? "Save Invoice" : "Lưu hóa đơn"}
+                    </button>
+                  ` : isPending ? `
                     <a href="booking.html?bookingId=${encodeURIComponent(id)}" class="paper-btn-pay">
                       <i class="bi bi-credit-card-2-front"></i> ${payNowBtn}
                     </a>
-                    <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5" onclick="TicketInvoiceService.openTicket('${id}')">
-                      <i class="bi bi-upc-scan text-primary"></i> ${printTicketBtn}
-                    </button>
                   ` : `
-                    <button type="button" class="btn btn-dark btn-sm rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs" onclick="TicketInvoiceService.openInvoice('${id}')">
-                      <i class="bi bi-file-earmark-text-fill text-warning"></i> ${isEn ? "Save Invoice" : "Lưu hóa đơn"}
-                    </button>
-                    <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3.5 py-1.5 fw-bold d-inline-flex align-items-center gap-1.5 shadow-xs" style="border-width: 1.5px; background: #ffffff;" onclick="TicketInvoiceService.openTicket('${id}')">
-                      <i class="bi bi-upc-scan text-primary"></i> ${printTicketBtn}
+                    <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5" onclick="TicketInvoiceService.openInvoice('${id}')">
+                      <i class="bi bi-file-earmark-text"></i> ${isEn ? "Save Invoice" : "Lưu hóa đơn"}
                     </button>
                   `}
 

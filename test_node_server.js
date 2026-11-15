@@ -108,6 +108,38 @@ async function runTests() {
     });
     assert("POST /api/v1/auth/register", regRes.status === 201 && regRes.json?.email === testEmail);
 
+    // Kích hoạt / Cập nhật lại tài khoản khách hàng khi đăng ký lại cùng email/SĐT
+    const claimRes = await req("/api/v1/auth/register", {
+      method: "POST",
+      body: {
+        full_name: "Khách Hàng Đã Kích Hoạt",
+        email: testEmail,
+        phone: testPhone,
+        password: "newUpdatedPass123@"
+      }
+    });
+    assert("POST /api/v1/auth/register (Claim/Activate tài khoản đã tồn tại)",
+      claimRes.status === 200 && claimRes.json?.fullName === "Khách Hàng Đã Kích Hoạt");
+
+    // Đặt lại mật khẩu (Forgot/Reset password) qua SĐT
+    const resetRes = await req("/api/v1/auth/reset-password", {
+      method: "POST",
+      body: {
+        account: testPhone,
+        newPassword: "resetPass789@"
+      }
+    });
+    const loginAfterReset = await req("/api/v1/auth/login", {
+      method: "POST",
+      body: {
+        email: testPhone,
+        password: "resetPass789@"
+      }
+    });
+    assert("POST /api/v1/auth/reset-password & Login bằng SĐT",
+      resetRes.status === 200 && resetRes.json?.success === true &&
+      loginAfterReset.status === 200 && loginAfterReset.json?.phone === testPhone);
+
     const rawCookies = regRes.headers.get("set-cookie") || "";
     const sessionMatch = rawCookies.match(/delta_session=([^;]+)/);
     const csrfMatch = rawCookies.match(/delta_csrf=([^;]+)/);
@@ -640,6 +672,9 @@ async function runTests() {
 
     // 2. Tạo mã % có trần max_discount, chưa đến hạn, đã hết hạn, ngừng hoạt động, đơn tối thiểu
     const nowMs = Date.now();
+    for (const c of ["CAP500K", "FUTURE2027", "EXPIRED2020", "PAUSED10", "FREEALL", "ONEONLY"]) {
+      await req(`/api/v1/admin/vouchers/${c}`, { method: "DELETE", headers: adminHeaders });
+    }
     const createPctCap = await req("/api/v1/admin/vouchers", {
       method: "POST",
       headers: adminHeaders,

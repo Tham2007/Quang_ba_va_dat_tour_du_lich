@@ -317,6 +317,13 @@ const DeltaAPI = (() => {
     return await request("/auth/logout", { method: "POST" });
   }
 
+  async function resetPassword(account, newPassword) {
+    return await request("/auth/reset-password", {
+      method: "POST",
+      body: { account, newPassword }
+    });
+  }
+
   // ===========================================================================
   // CÁC HÀM QUẢN TRỊ ADMIN API
   // ===========================================================================
@@ -512,6 +519,7 @@ const DeltaAPI = (() => {
     getMe,
     getSession,
     logout,
+    resetPassword,
     adminFetchDashboard,
     adminFetchTours,
     adminGetTours: adminFetchTours,

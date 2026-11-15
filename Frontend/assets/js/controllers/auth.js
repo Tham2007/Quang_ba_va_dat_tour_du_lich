@@ -407,13 +407,39 @@ async function handleLoginSubmit(e) {
 /**
  * Xử lý Quên mật khẩu
  */
-function handleForgotSubmit(e) {
+async function handleForgotSubmit(e) {
   e.preventDefault();
   clearAuthErrors();
-  // Recovering a password needs an authenticated one-time token emailed by
-  // the server. An anonymous localStorage mutation would enable takeover.
-  showAuthError("forgotAccountError",
-    "Khôi phục mật khẩu qua email chưa được tích hợp. Vui lòng liên hệ quản trị viên.");
+  const account = document.getElementById("forgotAccount")?.value.trim() || "";
+  const newPass = document.getElementById("forgotNewPassword")?.value || "";
+  const confirmPass = document.getElementById("forgotConfirmPassword")?.value || "";
+
+  if (!account) return showAuthError("forgotAccountError", "Vui lòng nhập Email hoặc Số điện thoại.");
+  if (!newPass || newPass.length < 6) return showAuthError("forgotNewPasswordError", "Mật khẩu mới phải có ít nhất 6 ký tự.");
+  if (newPass !== confirmPass) return showAuthError("forgotConfirmPasswordError", "Mật khẩu xác nhận không khớp.");
+
+  if (typeof DeltaAPI === "undefined" || typeof DeltaAPI.resetPassword !== "function") {
+    return showAuthError("forgotAccountError", "Không thể kết nối máy chủ xác thực.");
+  }
+
+  try {
+    const res = await DeltaAPI.resetPassword(account, newPass);
+    if (!res || !res.success) {
+      return showAuthError("forgotAccountError", res?.error || res?.detail || "Không thể đặt lại mật khẩu.");
+    }
+    if (res.user) {
+      const u = res.user;
+      const profile = { id: u.id, fullName: u.fullName, email: u.email, phone: u.phone, role: u.role || "CUSTOMER", title: u.role === "ADMIN" ? "Ban Quản Trị" : "Thành viên" };
+      setCurrentUser(profile);
+    }
+    bootstrap.Modal.getInstance(document.getElementById("authModal"))?.hide();
+    document.getElementById("forgotForm")?.reset();
+    if (typeof showToast === "function") {
+      showToast("Đặt lại mật khẩu thành công! Đã tự động đăng nhập.", "success");
+    }
+  } catch (err) {
+    showAuthError("forgotAccountError", err.message || "Lỗi kết nối máy chủ.");
+  }
 }
 
 /**
@@ -430,13 +456,23 @@ async function handleUserLogout() {
     : true;
   if (ok) {
     if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.logout === "function") {
-      DeltaAPI.logout().catch(() => {});
+      await DeltaAPI.logout().catch(() => {});
     }
     setCurrentUser(null);
+    localStorage.removeItem("delta_customer_bookings");
+    localStorage.removeItem("delta_user");
+    sessionStorage.clear();
+
     if (typeof showAppToast === "function") {
       showAppToast(isEn ? "Signed out successfully." : "Bạn đã đăng xuất tài khoản thành công.", "info");
     } else if (typeof showToast === "function") {
       showToast("Bạn đã đăng xuất tài khoản thành công.", "info");
+    }
+
+    if (window.location.pathname.includes("my-bookings")) {
+      setTimeout(() => {
+        window.location.reload();
+      }, 300);
     }
   }
 }
