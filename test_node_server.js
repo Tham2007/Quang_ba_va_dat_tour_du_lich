@@ -363,6 +363,72 @@ async function runTests() {
     });
     assert("POST /api/v1/assistant/chat", chatRes.status === 200 && chatRes.json?.answer !== undefined, `(${chatRes.json?.answer?.slice(0, 35)}...)`);
 
+    // Regression: "Có tour Hà Nội không?" must not trigger a generic catalog blurb.
+    // A destination tour and a tour departing from a city are different products.
+    const aiHanoiDestination = await req("/api/v1/assistant/chat", {
+      method: "POST",
+      body: { message: "có tour hà nội ko" }
+    });
+    assert("AI: trả lời trực tiếp KHÔNG có tour tham quan Hà Nội",
+      aiHanoiDestination.status === 200 &&
+      aiHanoiDestination.json?.answer?.startsWith("Chưa có.") &&
+      aiHanoiDestination.json?.answer?.includes("khởi hành từ Hà Nội") &&
+      aiHanoiDestination.json?.suggestedTours?.length === 0 &&
+      aiHanoiDestination.json?.mode === "catalog_lookup");
+
+    const aiHanoiOrigin = await req("/api/v1/assistant/chat", {
+      method: "POST",
+      body: { message: "Có tour khởi hành từ Hà Nội không?" }
+    });
+    assert("AI: CÓ tour xuất phát từ Hà Nội, trả về dữ liệu phù hợp",
+      aiHanoiOrigin.status === 200 &&
+      aiHanoiOrigin.json?.answer?.startsWith("Có.") &&
+      aiHanoiOrigin.json?.suggestedTours?.length > 0 &&
+      aiHanoiOrigin.json?.suggestedTours?.every(t => String(t.departure || "").includes("Hà Nội")));
+
+    const aiHaLongExists = await req("/api/v1/assistant/chat", {
+      method: "POST",
+      body: { message: "Có tour Hạ Long không?" }
+    });
+    assert("AI: CÓ tour tham quan Hạ Long, không bịa tour",
+      aiHaLongExists.status === 200 &&
+      aiHaLongExists.json?.answer?.startsWith("Có.") &&
+      aiHaLongExists.json?.suggestedTours?.some(t => t.title.includes("Hạ Long")) &&
+      aiHaLongExists.json?.mode === "catalog_lookup");
+
+    const aiOriginDestination = await req("/api/v1/assistant/chat", {
+      method: "POST",
+      body: { message: "Có tour từ Hà Nội đi Hạ Long không?" }
+    });
+    assert("AI: chỉ gợi ý tour Hạ Long khởi hành từ Hà Nội",
+      aiOriginDestination.status === 200 &&
+      aiOriginDestination.json?.answer?.startsWith("Có.") &&
+      aiOriginDestination.json?.suggestedTours?.length > 0 &&
+      aiOriginDestination.json?.suggestedTours?.every(t => t.title.includes("Hạ Long") && String(t.departure || "").includes("Hà Nội")));
+
+    const aiNoFantasy = await req("/api/v1/assistant/chat", {
+      method: "POST",
+      body: { message: "Có tour Tokyo không?" }
+    });
+    assert("AI: địa điểm chưa hỗ trợ không được đoán chắc",
+      aiNoFantasy.status === 200 &&
+      aiNoFantasy.json?.mode === "catalog_lookup" &&
+      aiNoFantasy.json?.answer?.includes("Chưa tìm thấy tour") &&
+      aiNoFantasy.json?.suggestedTours?.length === 0);
+
+    if (!process.env.GROQ_API_KEY) {
+      const aiFallback = await req("/api/v1/assistant/chat", {
+        method: "POST",
+        body: { message: "gợi ý tour du lịch phù hợp" }
+      });
+      assert("AI: mất API key thì công khai fallback, không giả là AI thật",
+        aiFallback.status === 200 &&
+        aiFallback.json?.mode === "catalog_fallback" &&
+        aiFallback.json?.answer?.includes("tạm gián đoạn") &&
+        aiFallback.json?.suggestedTours?.length > 0);
+    }
+
+
     // 15. Security 404 Guard
     const unknownRes = await req("/api/v1/non-existent-route");
     assert("GET /api/v1/unknown (404 guard)", unknownRes.status === 404 && unknownRes.json?.detail !== undefined);
