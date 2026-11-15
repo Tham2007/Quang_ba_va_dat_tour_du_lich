@@ -32,4 +32,18 @@ assert(paymentAction.includes("PENDING_MANUAL_VERIFICATION"),"Bank review status
 assert(schema.includes("customer_identity: str | None"),"Current form's identity field still mandatory");
 assert(!/password:\s*["'][^"']+["']/.test(sqlTest),"Plaintext SmarterASP credential committed");
 assert(sqlTest.includes("encrypt: true"),"SQL Server TLS disabled");
-console.log("PASS: 14 release-critical security and contract assertions");
+assert(!qr.includes("img.vietqr.io") && !qr.includes("api.vietqr.io"),
+  "Unverified payable VietQR generator has been restored");
+assert(qr.includes('return "assets/images/bank_qr_demo.svg"'),
+  "VietQR helper must remain demo-only");
+assert(booking.includes('const qrUrl = "assets/images/bank_qr_demo.svg";'),
+  "Checkout must not create scannable bank payment QR before webhook verification");
+assert(!booking.includes("Tài khoản nhận thanh toán chính thức"),
+  "Official bank payment messaging requires settlement approval");
+assert(!booking.includes("SePay sẽ tự động đối soát"),
+  "Do not claim unverified SePay auto-settlement in checkout");
+assert(booking.includes("const finalTotal = rawBookingSubtotal;"),
+  "Server quoted price is VAT-inclusive; never charge another 10%");
+assert(booking.includes("const calculatedTotal = rawSubtotal;"),
+  "Second step must not add VAT again to the server quoted price");
+console.log("PASS: release-critical security, payment disclaimer and VAT-inclusive contract assertions");
