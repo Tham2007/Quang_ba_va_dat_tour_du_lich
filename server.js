@@ -3718,14 +3718,6 @@ app.post("/api/v1/admin/bookings/:booking_id/confirm-payment", requireAdmin, asy
  *   - POST /hooks/sepay-payment
  */
 async function handleSepayWebhook(req, res) {
-  const b = req.body || {};
-  const authHeader = req.headers["authorization"] || req.headers["x-api-key"] || "";
-  const configuredApiKey = process.env.SEPAY_API_KEY ? String(process.env.SEPAY_API_KEY).trim() : null;
-
-  // Kiểm tra API Key / Chữ ký bảo mật nếu có cấu hình trong .env
-  if (configuredApiKey) {
-    const passedKey = authHeader.replace(/^(Apikey|Bearer)\s+/i, "").trim();
-    const hmacSig = rasync function handleSepayWebhook(req, res) {
   // Only the documented SePay API Key mode is supported here. HMAC would require
   // raw-body and timestamp validation; account numbers are NEVER authentication.
   const apiKey = String(process.env.SEPAY_API_KEY || "").trim();
@@ -3820,7 +3812,16 @@ async function handleSepayWebhook(req, res) {
   return res.status(200).json({
     success: true, bookingId: updated.id, reference: updated.reference,
     totalPrice: updated.total_price, emailNotification
-  });body, isPatch = false) {
+  });
+}
+
+app.post("/api/v1/webhooks/sepay", handleSepayWebhook);
+app.post("/hooks/sepay-payment", handleSepayWebhook);
+app.get("/api/v1/webhooks/sepay", (req, res) => res.json({ status: "ready", service: "SePay Webhook Listener", bank: "MBBank", account: "0325536936" }));
+app.get("/hooks/sepay-payment", (req, res) => res.json({ status: "ready", service: "SePay Webhook Listener", bank: "MBBank", account: "0325536936" }));
+
+
+function parseAdminVoucherInput(body, isPatch = false) {
   const b = body || {};
   const out = {};
 
