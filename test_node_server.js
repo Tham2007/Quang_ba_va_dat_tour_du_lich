@@ -11,6 +11,8 @@ const testDbPath = path.join(os.tmpdir(), `delta-node-tests-${process.pid}.db`);
 process.env.DELTA_DB_PATH = testDbPath;
 process.env.PORT = "0";
 process.env.HOST = "127.0.0.1";
+process.env.SEPAY_API_KEY = "synthetic-payment-test-key-only";
+process.env.SEPAY_ACCOUNT_NUMBER = "000000000012";
 const { app, server, db, setSqlServerTestConnection, setMailTransportForTest } = require("./server");
 
 let BASE_URL;
@@ -182,6 +184,58 @@ async function runTests() {
     assert(`POST /api/v1/bookings/${bookingId}/pay requires bank review`,
     payRes.status === 202 && payRes.json?.paymentReview === "PENDING_MANUAL_VERIFICATION" &&
     payRes.json?.status !== "PAID");
+
+    // P0: Customer payment claims must never mark the booking paid.
+    const selfConfirm = await req("/api/v1/bookings/" + bookingId + "/pay", {
+      method: "POST", headers: authHeaders,
+      body: { reference: "UNVERIFIED_TEST_12345", auto_confirm: true }
+    });
+    assert("P0 customer cannot self-confirm PAID",
+      selfConfirm.status === 202 && selfConfirm.json?.status === "PENDING_PAYMENT");
+
+    const fixture = {
+      id: "synthetic-tx-710000",
+      accountNumber: "000000000012",
+      transferType: "in",
+      transferAmount: Number(bookRes.json?.totalPrice),
+      content: "Tour demo " + bookRes.json?.reference,
+      gateway: "SyntheticBank"
+    };
+    const payWebhookUrl = "/api/v1/webhooks/sepay";
+    const authSepay = { Authorization: "Apikey synthetic-payment-test-key-only" };
+    const savedApiKey = process.env.SEPAY_API_KEY;
+    delete process.env.SEPAY_API_KEY;
+    const missingConfig = await req(payWebhookUrl, { method: "POST", body: fixture });
+    process.env.SEPAY_API_KEY = savedApiKey;
+    assert("P0 webhook fails closed without configured key", missingConfig.status === 503);
+
+    const noAuth = await req(payWebhookUrl, { method: "POST", body: fixture });
+    assert("P0 webhook rejects unauthenticated transfer", noAuth.status === 401);
+    const forged = await req(payWebhookUrl, {
+      method: "POST", headers: { Authorization: "Apikey wrong-key" }, body: fixture
+    });
+    assert("P0 known account number cannot bypass secret key", forged.status === 401);
+    const wrongAccount = await req(payWebhookUrl, {
+      method: "POST", headers: authSepay, body: { ...fixture, accountNumber: "000000000099" }
+    });
+    assert("P0 beneficiary mismatch rejected", wrongAccount.status === 422);
+    const underpayment = await req(payWebhookUrl, {
+      method: "POST", headers: authSepay,
+      body: { ...fixture, transferAmount: Number(bookRes.json?.totalPrice) - 1 }
+    });
+    const statusAfterUnderpayment = await req("/api/v1/bookings/" + bookingId);
+    assert("P0 underpayment cannot mark PAID",
+      underpayment.status === 409 && statusAfterUnderpayment.json?.status === "PENDING_PAYMENT");
+    const validPayment = await req(payWebhookUrl, {
+      method: "POST", headers: authSepay, body: fixture
+    });
+    assert("P0 authentic exact-amount transaction can mark PAID",
+      validPayment.status === 200 && validPayment.json?.bookingId === bookingId);
+    const retryPayment = await req(payWebhookUrl, {
+      method: "POST", headers: authSepay, body: fixture
+    });
+    assert("P0 authentic transaction replay is idempotent",
+      retryPayment.status === 200 && retryPayment.json?.duplicate === true);
 
     // 12. Create & cancel 2nd booking
     const idemKey2 = crypto.randomUUID();
@@ -1184,7 +1238,7 @@ async function runTests() {
         id: 999991,
         gateway: "MBBank",
         transactionDate: "2026-11-14 23:30:00",
-        accountNumber: "0325536936",
+        accountNumber: process.env.SEPAY_ACCOUNT_NUMBER,
         content: `KH9999 ${sepayRef}`,
         transferType: "in",
         transferAmount: sepayTestBook.json?.totalPrice,
@@ -1197,7 +1251,7 @@ async function runTests() {
       sepayWebhookRes.json?.success === true &&
       sepayBookAfter.json?.status === "PAID" &&
       sepayBookAfter.json?.paid === true &&
-      sepayBookAfter.json?.paymentEvidence?.includes("FT-TEST-SEPAY-01"),
+      sepayBookAfter.json?.paymentEvidence === "SEPAY-999991",
       `status=${sepayWebhookRes.status} resp=${JSON.stringify(sepayWebhookRes.json)} bookStatus=${sepayBookAfter.json?.status} evidence=${sepayBookAfter.json?.paymentEvidence}`);
 
     const catalogRequests = [];
