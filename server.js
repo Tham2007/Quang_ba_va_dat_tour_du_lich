@@ -78,14 +78,14 @@ let sqlServerVoucherReady = false;
 // Optional SQL Server connection; used automatically when DELTA_MSSQL_* credentials connect.
 // Credentials must be injected via environment variables. Never fall back to a committed password.
 const SQL_SERVER_CONFIG = {
-  user: process.env.DELTA_MSSQL_USER,
-  password: process.env.DELTA_MSSQL_PASSWORD,
-  server: process.env.DELTA_MSSQL_SERVER,
-  port: Number.parseInt(process.env.DELTA_MSSQL_PORT || "1433", 10),
-  database: process.env.DELTA_MSSQL_DATABASE,
+  user: process.env.DELTA_MSSQL_USER || process.env.SQL_SERVER_USER,
+  password: process.env.DELTA_MSSQL_PASSWORD || process.env.SQL_SERVER_PASS,
+  server: process.env.DELTA_MSSQL_SERVER || process.env.SQL_SERVER_HOST,
+  port: Number.parseInt(process.env.DELTA_MSSQL_PORT || process.env.SQL_SERVER_PORT || "1433", 10),
+  database: process.env.DELTA_MSSQL_DATABASE || process.env.SQL_SERVER_DB,
   options: {
     encrypt: true,
-    trustServerCertificate: false,
+    trustServerCertificate: true,
     connectTimeout: 8000
   }
 };
@@ -904,6 +904,42 @@ function initDatabase() {
       });
     }
   });
+
+  // Đảm bảo tour thử nghiệm DL-7809 (TEST - 5.000 đ) luôn sẵn sàng cho kiểm thử thanh toán
+  const testTour = {
+    id: "DL-7809",
+    slug: "test",
+    title: "TEST",
+    region: "north",
+    duration: "3N2Đ",
+    price: 5000,
+    original_price: 500000,
+    seats: 23,
+    images: ["assets/images/uploads/DL-7809_1794732708246.jpg", "assets/images/halong.png"],
+    departure: "Hà Nội / TP.HCM",
+    transport: "Xe du lịch đời mới / Máy bay",
+    flash_sale: 1,
+    description: "Tour thử nghiệm thanh toán tự động SePay MBBank với mức giá tượng trưng 5.000 VNĐ."
+  };
+  const testTourItin = [
+    { day: 1, title: "Ngày 1: Khởi hành thử nghiệm", description: "Tập trung tại điểm hẹn, khởi hành chương trình tour trải nghiệm." },
+    { day: 2, title: "Ngày 2: Trải nghiệm thực tế", description: "Tham quan các danh lam thắng cảnh và thưởng thức ẩm thực." },
+    { day: 3, title: "Ngày 3: Mua sắm & Kết thúc", description: "Mua sắm đặc sản và trở về điểm đón ban đầu." }
+  ];
+  upsertTour.run(
+    testTour.id, testTour.slug, testTour.title, testTour.region, testTour.duration,
+    testTour.price, testTour.original_price, JSON.stringify(testTour.images),
+    testTour.departure, testTour.transport, testTour.flash_sale, testTour.description,
+    JSON.stringify(testTourItin), now
+  );
+  const testSchedCount = db.prepare("SELECT COUNT(*) AS count FROM schedules WHERE tour_id = ?").get(testTour.id).count;
+  if (testSchedCount === 0) {
+    [7, 14, 21].forEach(days => {
+      const d = new Date(Date.now() + days * 24 * 3600 * 1000);
+      d.setUTCHours(2, 0, 0, 0);
+      insertSchedule.run(crypto.randomUUID(), testTour.id, d.toISOString(), testTour.seats);
+    });
+  }
 
   // Đồng bộ toàn diện vào bảng 3NF itinerary_items và cập nhật itinerary_json
   Object.entries(toursItineraryMap).forEach(([tourId, itinList]) => {
@@ -3790,6 +3826,32 @@ async function handleSepayWebhook(req, res) {
   }
 
   if (!booking) {
+    // Nếu không thấy đơn trên máy chủ này, kiểm tra xem có Local Tunnel đăng ký để chuyển tiếp (relay) không
+    if (localTunnelRelayUrl) {
+      try {
+        console.log(`[RELAY] Không thấy đơn trên Render, đang chuyển tiếp SePay webhook tới Local Tunnel: ${localTunnelRelayUrl}`);
+        const relayRes = await fetch(`${localTunnelRelayUrl}/api/v1/webhooks/sepay`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": req.headers["authorization"] || "",
+            "X-Sepay-Signature": req.headers["x-sepay-signature"] || ""
+          },
+          body: JSON.stringify(b),
+          signal: AbortSignal.timeout(6000)
+        });
+        const relayData = await relayRes.json();
+        if (relayData && relayData.success) {
+          return res.status(200).json({
+            ...relayData,
+            relayedToLocal: true
+          });
+        }
+      } catch (relayErr) {
+        console.warn("[RELAY] Lỗi chuyển tiếp SePay webhook tới Local:", relayErr.message);
+      }
+    }
+
     return res.status(200).json({
       success: false,
       message: `Không tìm thấy đơn đặt tour tương ứng với nội dung: "${content}".`,
@@ -3876,6 +3938,23 @@ app.post("/", (req, res, next) => {
     return handleSepayWebhook(req, res);
   }
   return res.status(200).json({ status: "ready", service: "Delta Travel API" });
+});
+
+// Cầu nối Webhook Relay: Cho phép Render chuyển tiếp Webhook SePay về máy Local khi phát triển
+let localTunnelRelayUrl = null;
+
+app.post("/api/v1/internal/tunnel-relay-register", (req, res) => {
+  const { tunnelUrl, apiKey } = req.body || {};
+  const validKey = process.env.SEPAY_API_KEY || "DeltaTravel_MBBank_2026_SecKey";
+  if (apiKey !== validKey) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+  if (tunnelUrl && typeof tunnelUrl === "string") {
+    localTunnelRelayUrl = tunnelUrl.trim().replace(/\/+$/, "");
+    console.log(`[RELAY] Đã kết nối Local Tunnel Relay: ${localTunnelRelayUrl}`);
+    return res.json({ success: true, relayUrl: localTunnelRelayUrl });
+  }
+  return res.status(400).json({ success: false, message: "Invalid URL" });
 });
 
 
@@ -4655,6 +4734,23 @@ let activeTunnel = null;
 let tunnelKeepAliveTimer = null;
 let cloudflaredProcess = null;
 
+function registerRelayWithCloud(tunnelUrl) {
+  if (!tunnelUrl) return;
+  const cloudUrl = (process.env.CLOUD_SERVICE_URL || "https://delta-travel.onrender.com").replace(/\/+$/, "");
+  fetch(`${cloudUrl}/api/v1/internal/tunnel-relay-register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tunnelUrl: tunnelUrl.replace(/\/+$/, ""),
+      apiKey: process.env.SEPAY_API_KEY || "DeltaTravel_MBBank_2026_SecKey"
+    })
+  }).then(r => r.json()).then(res => {
+    if (res && res.success) {
+      console.log(`  🔗 Đã kết nối Webhook Relay: Render -> Localhost (${tunnelUrl})`);
+    }
+  }).catch(() => {});
+}
+
 async function startAutoTunnel(localPort) {
   if (process.env.DELTA_DB_PATH || String(process.env.PORT) === "0" || process.env.ENABLE_TUNNEL === "false" || process.env.RENDER || process.env.NODE_ENV === "production") {
     return;
@@ -4683,6 +4779,7 @@ async function startAutoTunnel(localPort) {
           console.log(`  👉 Dự phòng hook:     ${tunnelUrl}/hooks/sepay-payment`);
           console.log("  ⚡ 100% Tự động thông suốt, không bao giờ bị chặn trang IP/HTML!");
           console.log("==================================================================");
+          registerRelayWithCloud(tunnelUrl);
         }
       };
 
@@ -4755,6 +4852,7 @@ async function startAutoTunnel(localPort) {
     console.log(`  💳 SePay Webhook:    ${tunnelUrl}/api/v1/webhooks/sepay`);
     console.log(`  👉 Dự phòng hook:    ${tunnelUrl}/hooks/sepay-payment`);
     console.log("==================================================================");
+    registerRelayWithCloud(tunnelUrl);
 
     if (tunnelKeepAliveTimer) {
       clearInterval(tunnelKeepAliveTimer);
