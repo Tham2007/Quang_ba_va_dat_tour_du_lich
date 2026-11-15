@@ -1238,7 +1238,7 @@ async function runTests() {
         id: 999991,
         gateway: "MBBank",
         transactionDate: "2026-11-14 23:30:00",
-        accountNumber: "0325536936",
+        accountNumber: process.env.SEPAY_ACCOUNT_NUMBER,
         content: `KH9999 ${sepayRef}`,
         transferType: "in",
         transferAmount: sepayTestBook.json?.totalPrice,
@@ -1251,7 +1251,7 @@ async function runTests() {
       sepayWebhookRes.json?.success === true &&
       sepayBookAfter.json?.status === "PAID" &&
       sepayBookAfter.json?.paid === true &&
-      sepayBookAfter.json?.paymentEvidence?.includes("FT-TEST-SEPAY-01"),
+      sepayBookAfter.json?.paymentEvidence === "SEPAY-999991",
       `status=${sepayWebhookRes.status} resp=${JSON.stringify(sepayWebhookRes.json)} bookStatus=${sepayBookAfter.json?.status} evidence=${sepayBookAfter.json?.paymentEvidence}`);
 
     const catalogRequests = [];
