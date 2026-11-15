@@ -4492,6 +4492,90 @@ function findTourInText(text, allTours) {
   return null;
 }
 
+// Deterministic availability lookup. Destination and departure are separate fields.
+function foldTourSearch(value) {
+  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+const TOUR_PLACE_NAMES = [
+  ["Hà Nội", ["ha noi", "hanoi"]],
+  ["Hạ Long", ["ha long"]],
+  ["Lan Hạ", ["lan ha"]],
+  ["Đà Nẵng", ["da nang"]],
+  ["Hội An", ["hoi an"]],
+  ["Phú Quốc", ["phu quoc"]],
+  ["Sa Pa", ["sa pa", "sapa"]],
+  ["Đà Lạt", ["da lat"]],
+  ["Cần Thơ", ["can tho"]],
+  ["Ninh Bình", ["ninh binh"]],
+  ["Hà Giang", ["ha giang"]],
+  ["Cao Bằng", ["cao bang"]],
+  ["Mộc Châu", ["moc chau"]],
+  ["Huế", ["hue"]],
+  ["Nha Trang", ["nha trang"]],
+  ["Quy Nhơn", ["quy nhon"]],
+  ["Phú Yên", ["phu yen"]],
+  ["TP. Hồ Chí Minh", ["ho chi minh", "sai gon", "saigon"]]
+];
+
+function lookupTourAvailability(message, activeTours, isEnglish) {
+  const normalized = foldTourSearch(message);
+  const padded = " " + normalized + " ";
+  if (!/\b(tour|tours|du lich|chuyen di|trip|trips)\b/.test(normalized) ||
+      !/\b(co|con|ban|available|have|any)\b/.test(normalized)) return null;
+  // Do not mistake requests with price/seat/date constraints for simple availability.
+  if (/\b(gia|duoi|tren|trieu|nghin|ngan|vnd|ngay nao|cho trong|con cho|bao nhieu)\b/.test(normalized)) return null;
+
+  const place = TOUR_PLACE_NAMES.find(([, aliases]) =>
+    aliases.some(alias => padded.includes(" " + alias + " "))
+  );
+  if (!place) return null;
+
+  const [placeName, aliases] = place;
+  const isDeparture = /\b(khoi hanh|xuat phat|di tu|don tu|don tai|don o|from)\b/.test(normalized);
+  const containsPlace = value => {
+    const folded = " " + foldTourSearch(value) + " ";
+    return aliases.some(alias => folded.includes(" " + alias + " "));
+  };
+  const matches = activeTours.filter(tour => isDeparture
+    ? containsPlace(tour.departure)
+    : containsPlace(String(tour.title || "") + " " + String(tour.slug || "")));
+  const suggestedTours = matches.slice(0, 3).map(publicTour);
+
+  if (activeTours.length === 0) {
+    return {
+      answer: isEnglish
+        ? "The tour catalog is currently empty or unavailable, so I cannot confirm availability yet."
+        : "Hiện hệ thống chưa có dữ liệu danh mục tour để xác nhận. Bạn vui lòng thử lại sau nhé.",
+      suggestedTours: [],
+      mode: "catalog_lookup",
+      source: "Delta Travel Active Tour Catalog"
+    };
+  }
+
+  const topicVi = isDeparture ? "khởi hành từ " + placeName : "tham quan " + placeName;
+  const topicEn = isDeparture ? "departing from " + placeName : "visiting " + placeName;
+  let answer;
+  if (matches.length > 0) {
+    const names = matches.slice(0, 3).map(t => t.title).join("; ");
+    answer = isEnglish
+      ? "Yes. Delta Travel currently lists " + matches.length + " tour(s) " + topicEn + ": " + names + ". Would you like details about a specific tour?"
+      : "Có. Delta Travel hiện có " + matches.length + " tour " + topicVi + ": " + names + ". Bạn muốn xem chi tiết tour nào?";
+  } else {
+    const fromCity = !isDeparture && activeTours.some(t => containsPlace(t.departure));
+    answer = isEnglish
+      ? "No. Delta Travel currently lists no tours " + topicEn + "." + (fromCity ? " Some tours depart from " + placeName + "; would you like those instead?" : " Would you like to explore another destination?")
+      : "Chưa có. Hiện danh mục đang mở bán của Delta Travel chưa có tour " + topicVi + "." + (fromCity ? " Tuy nhiên có tour khởi hành từ " + placeName + ". Bạn muốn tìm tour đi từ đây không?" : " Bạn muốn xem tour đến địa điểm khác không?");
+  }
+  return {
+    answer,
+    suggestedTours,
+    mode: "catalog_lookup",
+    source: "Delta Travel Active Tour Catalog"
+  };
+}
+
 app.post("/api/v1/assistant/chat", async (req, res) => {
   const rawMsg = ((req.body && req.body.message) || "").trim();
   const history = Array.isArray(req.body.history) ? req.body.history : (Array.isArray(req.body.messages) ? req.body.messages : []);
@@ -4543,6 +4627,10 @@ app.post("/api/v1/assistant/chat", async (req, res) => {
 
   // 3. TRUY VẤN CƠ SỞ DỮ LIỆU TOUR THỰC TẾ
   const allActiveTours = db.prepare("SELECT * FROM tours WHERE active = 1").all();
+
+  // Resolve yes/no catalog questions before the model or fallback.
+  const availabilityAnswer = lookupTourAvailability(rawMsg, allActiveTours, isEn);
+  if (availabilityAnswer) return res.json(availabilityAnswer);
 
   // Xác định xem câu hỏi có nhắm vào một tour cụ thể hay không
   let matchedTour = findTourInText(rawMsg, allActiveTours);
@@ -4656,25 +4744,32 @@ ${catalogSummary}
 
 QUY TẮC:
 1. Chỉ tư vấn về các tour trên dựa vào dữ liệu thực tế. Không bịa đặt thông tin.
+3. Trả lời trực tiếp câu hỏi trước, không thay thế câu trả lời bằng danh sách chung chung.
 2. Ngôn ngữ: ${isEn ? "Reply strictly in 100% natural English." : "Trả lời bằng tiếng Việt lịch sự, thân thiện."}`;
 
   let answer = "";
+  let usedCatalogFallback = false;
   try {
     answer = await queryGroqChat([
       { role: "system", content: generalSystemPrompt },
       { role: "user", content: rawMsg }
     ]);
-  } catch (_) {
+    if (!answer || !answer.trim()) throw new Error("Empty AI response");
+  } catch (err) {
+    usedCatalogFallback = true;
+    console.warn("Travel AI temporarily unavailable:", err.message);
+    const available = relevantTours.length ? relevantTours : allActiveTours.slice(0, 3);
+    const names = available.map(t => t.title).join("; ");
     answer = isEn
-      ? "Here are our top recommended vacation packages with real-time availability. Please feel free to ask about any specific tour for detailed day-by-day itineraries!"
-      : "Dưới đây là các hành trình du lịch tiêu biểu đang mở bán với số chỗ thực tế. Quý khách có thể hỏi thêm về bất kỳ tour nào để được tư vấn lịch trình chi tiết từng ngày!";
+      ? (names ? "The AI advisor is temporarily unavailable. Current catalog tours include: " + names + ". Which destination would you like to explore?" : "The AI advisor is temporarily unavailable and the tour catalog has no current entries.")
+      : (names ? "Trợ lý AI đang tạm gián đoạn. Theo danh mục hiện có, Delta Travel đang mở bán: " + names + ". Bạn quan tâm điểm đến nào để mình tra cứu tiếp?" : "Trợ lý AI đang tạm gián đoạn và danh mục chưa có tour đang mở bán.");
   }
 
   res.json({
     answer: answer.replace(/\[RECOMMENDED_TOURS:[^\]]*\]/gi, "").trim(),
-    suggestedTours: relevantTours.map(publicTour),
-    mode: "smart_concierge",
-    source: "Delta Travel Catalog"
+    suggestedTours: usedCatalogFallback ? (relevantTours.length ? relevantTours : allActiveTours.slice(0, 3)).map(publicTour) : relevantTours.map(publicTour),
+    mode: usedCatalogFallback ? "catalog_fallback" : "smart_concierge",
+    source: usedCatalogFallback ? "Delta Travel Active Tour Catalog" : "Delta Travel Catalog"
   });
 });
 
