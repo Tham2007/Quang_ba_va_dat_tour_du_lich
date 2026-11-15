@@ -79,7 +79,7 @@ let sqlServerVoucherReady = false;
 // Credentials must be injected via environment variables. Never fall back to a committed password.
 const SQL_SERVER_CONFIG = {
   user: process.env.DELTA_MSSQL_USER || process.env.SQL_SERVER_USER,
-  password: process.env.DELTA_MSSQL_PASSWORD || process.env.SQL_SERVER_PASS,
+  password: process.env.DELTA_MSSQL_PASSWORD ?? process.env.SQL_SERVER_PASS,
   server: process.env.DELTA_MSSQL_SERVER || process.env.SQL_SERVER_HOST,
   port: Number.parseInt(process.env.DELTA_MSSQL_PORT || process.env.SQL_SERVER_PORT || "1433", 10),
   database: process.env.DELTA_MSSQL_DATABASE || process.env.SQL_SERVER_DB,
@@ -4527,20 +4527,43 @@ function lookupTourAvailability(message, activeTours, isEnglish) {
   // Do not mistake requests with price/seat/date constraints for simple availability.
   if (/\b(gia|duoi|tren|trieu|nghin|ngan|vnd|ngay nao|cho trong|con cho|bao nhieu)\b/.test(normalized)) return null;
 
-  const place = TOUR_PLACE_NAMES.find(([, aliases]) =>
+  const places = TOUR_PLACE_NAMES.filter(([, aliases]) =>
     aliases.some(alias => padded.includes(" " + alias + " "))
   );
-  if (!place) return null;
+  if (places.length === 0) return null;
 
+  // A two-city query needs the origin and destination together, not just one.
+  const origin = places.find(([, aliases]) => aliases.some(alias =>
+    padded.includes(" tu " + alias + " ") || padded.includes(" from " + alias + " ") ||
+    padded.includes(" khoi hanh " + alias + " ") || padded.includes(" xuat phat " + alias + " ")
+  ));
+  const target = places.length > 1 ? places.find(p => p !== origin) : null;
+  if (places.length > 1 && (!origin || places.length > 2)) {
+    return {
+      answer: isEnglish
+        ? "Could you clarify the departure city and destination so I can check the right tour?"
+        : "Bạn muốn đi từ đâu đến đâu ạ? Mình cần phân biệt điểm khởi hành và điểm đến để tra đúng tour.",
+      suggestedTours: [],
+      mode: "catalog_lookup",
+      source: "Delta Travel Active Tour Catalog"
+    };
+  }
+
+  const place = origin || places[0];
   const [placeName, aliases] = place;
-  const isDeparture = /\b(khoi hanh|xuat phat|di tu|don tu|don tai|don o|from)\b/.test(normalized);
-  const containsPlace = value => {
+  const isDeparture = Boolean(origin) || /\b(khoi hanh|xuat phat|di tu|don tu|don tai|don o|from)\b/.test(normalized);
+  const containsAliases = (value, keys) => {
     const folded = " " + foldTourSearch(value) + " ";
-    return aliases.some(alias => folded.includes(" " + alias + " "));
+    return keys.some(alias => folded.includes(" " + alias + " "));
   };
-  const matches = activeTours.filter(tour => isDeparture
-    ? containsPlace(tour.departure)
-    : containsPlace(String(tour.title || "") + " " + String(tour.slug || "")));
+  const containsPlace = value => containsAliases(value, aliases);
+  const matches = activeTours.filter(tour => {
+    if (target) return containsPlace(tour.departure) &&
+      containsAliases(String(tour.title || "") + " " + String(tour.slug || ""), target[1]);
+    return isDeparture
+      ? containsPlace(tour.departure)
+      : containsPlace(String(tour.title || "") + " " + String(tour.slug || ""));
+  });
   const suggestedTours = matches.slice(0, 3).map(publicTour);
 
   if (activeTours.length === 0) {
@@ -4554,8 +4577,8 @@ function lookupTourAvailability(message, activeTours, isEnglish) {
     };
   }
 
-  const topicVi = isDeparture ? "khởi hành từ " + placeName : "tham quan " + placeName;
-  const topicEn = isDeparture ? "departing from " + placeName : "visiting " + placeName;
+  const topicVi = target ? "khởi hành từ " + placeName + " đến " + target[0] : isDeparture ? "khởi hành từ " + placeName : "tham quan " + placeName;
+  const topicEn = target ? "departing from " + placeName + " to " + target[0] : isDeparture ? "departing from " + placeName : "visiting " + placeName;
   let answer;
   if (matches.length > 0) {
     const names = matches.slice(0, 3).map(t => t.title).join("; ");
