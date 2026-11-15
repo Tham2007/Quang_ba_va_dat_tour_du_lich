@@ -2,12 +2,10 @@ name: Render real HTTPS booking smoke (synthetic)
 
 on:
   push:
+    branches: [main]
     paths:
       - 'API/scripts/smoke_render_staging.py'
-      - '.github/workflows/ci-render-live-http.yml'
-  pull_request:
-    paths:
-      - 'API/scripts/smoke_render_staging.py'
+      - 'API/api/app.py'
       - '.github/workflows/ci-render-live-http.yml'
   workflow_dispatch:
 
@@ -17,7 +15,7 @@ permissions:
 jobs:
   browser-to-api-to-demo-db:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       DELTA_STAGING_SMOKE: "1"
     steps:
