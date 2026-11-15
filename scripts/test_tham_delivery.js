@@ -1,14 +1,23 @@
 const sql = require("mssql");
 
+// Never include a live DB login in a Git repository. Rotate any previously
+// committed credential at SmarterASP before using this script again.
+const required = ["DELTA_MSSQL_USER", "DELTA_MSSQL_PASSWORD",
+  "DELTA_MSSQL_SERVER", "DELTA_MSSQL_DATABASE"];
+const missing = required.filter(name => !process.env[name]);
+if (missing.length) {
+  console.error("SQL Server test not started. Missing environment variables: " + missing.join(", "));
+  process.exit(2);
+}
 const config = {
-  user: "db_ad0b71_dattour_admin",
-  password: "Phamtham312007@",
-  server: "sql8020.site4now.net",
-  port: 1433,
-  database: "db_ad0b71_dattour",
+  user: process.env.DELTA_MSSQL_USER,
+  password: process.env.DELTA_MSSQL_PASSWORD,
+  server: process.env.DELTA_MSSQL_SERVER,
+  database: process.env.DELTA_MSSQL_DATABASE,
+  port: Number(process.env.DELTA_MSSQL_PORT || 1433),
   options: {
-    encrypt: false,
-    trustServerCertificate: true,
+    encrypt: true,
+    trustServerCertificate: false,
     connectTimeout: 15000
   }
 };

@@ -61,3 +61,7 @@ jobs:
         run: |
           export CHROME_PATH="$(command -v google-chrome || command -v chromium)"
           node Frontend/tests/an-live-browser.cjs
+      - name: Test actual An checkout and block self-confirmation of payment
+        run: |
+          export CHROME_PATH="$(command -v google-chrome || command -v chromium)"
+          node Frontend/tests/final-real-checkout.cjs

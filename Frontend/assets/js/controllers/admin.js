@@ -60,11 +60,11 @@ const AdminState = {
 // II. KHỞI TẠO ỨNG DỤNG KHI DOM SẴN SÀNG
 // =============================================================================
 const TEAM_ADMIN_ACCOUNTS = [
-  { id: "USR-01", email: "hongtham@deltatravel.vn", fullName: "Hồng Thắm", role: "ADMIN", title: "Trưởng nhóm", password: "password123" },
-  { id: "USR-02", email: "an.levan@gmail.com", fullName: "Lê Văn An", role: "ADMIN", title: "Quản trị viên", password: "password123" },
-  { id: "USR-03", email: "haidang@deltatravel.vn", fullName: "Lê Hải Đăng", role: "ADMIN", title: "Quản trị viên", password: "password123" },
-  { id: "USR-04", email: "nguyenphuc@deltatravel.vn", fullName: "Nguyễn Phúc", role: "ADMIN", title: "Quản trị viên", password: "password123" },
-  { id: "USR-05", email: "manhle@deltatravel.vn", fullName: "Mạnh Lê", role: "ADMIN", title: "Quản trị viên", password: "password123" }
+  { id: "USR-01", email: "hongtham@deltatravel.vn", fullName: "Hồng Thắm", role: "ADMIN", title: "Trưởng nhóm" },
+  { id: "USR-02", email: "an.levan@gmail.com", fullName: "Lê Văn An", role: "ADMIN", title: "Quản trị viên" },
+  { id: "USR-03", email: "haidang@deltatravel.vn", fullName: "Lê Hải Đăng", role: "ADMIN", title: "Quản trị viên" },
+  { id: "USR-04", email: "nguyenphuc@deltatravel.vn", fullName: "Nguyễn Phúc", role: "ADMIN", title: "Quản trị viên" },
+  { id: "USR-05", email: "manhle@deltatravel.vn", fullName: "Mạnh Lê", role: "ADMIN", title: "Quản trị viên" }
 ];
 
 function getDefaultTourTemplate(tourId) {
@@ -255,60 +255,22 @@ async function handleAdminFormLogin(e) {
  * Đăng nhập nhanh từ mã thành viên trên sidebar (luôn xác thực qua máy chủ)
  */
 async function handleQuickAdminLogin(identifier) {
-  const localUsers = (typeof getAllUsers === "function") ? getAllUsers() : [];
-  const users = [...localUsers, ...TEAM_ADMIN_ACCOUNTS];
-  let targetUser = null;
-
-  if (identifier) {
-    targetUser = users.find(u => u.id === identifier || u.email === identifier || u.fullName === identifier);
-  }
-  if (!targetUser) {
-    if (identifier === "ADMIN") {
-      targetUser = users.find(u => u.role === "ADMIN" || u.email === "hongtham@deltatravel.vn") || users[0];
-    } else if (identifier === "OPERATIONS") {
-      targetUser = users.find(u => u.role === "OPERATIONS" || u.email === "operations@deltatravel.vn");
-    }
-  }
-  if (!targetUser && users.length > 0) {
-    targetUser = users[0];
-  }
-
-  if (!targetUser || typeof DeltaAPI === "undefined" || typeof DeltaAPI.login !== "function") {
-    showAdminToast("Không tìm thấy thông tin tài khoản thành viên. Vui lòng thử lại.", "error");
+  // Prefill only a public email. Admin credentials must NEVER be bundled into JS.
+  const target = TEAM_ADMIN_ACCOUNTS.find(user => user.id === identifier || user.email === identifier);
+  if (!target) {
+    showAdminToast("Không tìm thấy thành viên trong danh sách.", "error");
     return;
   }
-
-  const loginResult = await DeltaAPI.login(targetUser.email, targetUser.password || "password123");
-  if (!loginResult.success) {
-    showAdminToast(
-      loginResult.isOffline
-        ? "Không thể kết nối máy chủ xác thực; không mở khóa quản trị ngoại tuyến."
-        : (loginResult.error || "Không thể đăng nhập tài khoản quản trị trên máy chủ."),
-      "error"
-    );
-    return;
+  const email = document.getElementById("adminLoginUsername");
+  const secret = document.getElementById("adminLoginPassword");
+  if (email) email.value = target.email;
+  if (secret) {
+    secret.value = "";
+    secret.focus();
   }
-
-  if (loginResult.data?.role !== "ADMIN" && loginResult.data?.role !== "OPERATIONS") {
-    showAdminToast("Tài khoản này không có quyền quản trị trên máy chủ.", "error");
-    return;
-  }
-
-  const verifiedUser = {
-    ...targetUser,
-    id: loginResult.data.id,
-    fullName: loginResult.data.fullName,
-    email: loginResult.data.email,
-    phone: loginResult.data.phone,
-    role: loginResult.data.role
-  };
-  window.__adminLoginTimestamp = Date.now();
-  if (typeof setCurrentUser === "function") setCurrentUser(verifiedUser);
-  showAdminScreen(verifiedUser);
-  await refreshAdminData();
-  renderCurrentTab();
-  showAdminToast(`Chào mừng ${verifiedUser.fullName} (${verifiedUser.title || "Quản trị viên"}) vào phiên làm việc!`, "success");
+  showAdminToast("Nhập mật khẩu riêng của bạn. Máy chủ sẽ xác minh quyền quản trị.", "info");
 }
+
 
 async function handleAdminLogout() {
   const ok = typeof showAppConfirm === "function"

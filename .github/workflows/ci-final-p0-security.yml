@@ -1,0 +1,37 @@
+name: Final release P0 security gate
+on:
+  push:
+    paths:
+      - 'Frontend/**'
+      - 'API/api/services/booking_service.py'
+      - 'API/api/schemas/booking_schema.py'
+      - 'scripts/test_tham_delivery.js'
+      - '.github/workflows/ci-final-p0-security.yml'
+  pull_request:
+    paths:
+      - 'Frontend/**'
+      - 'API/api/services/booking_service.py'
+      - 'API/api/schemas/booking_schema.py'
+      - 'scripts/test_tham_delivery.js'
+      - '.github/workflows/ci-final-p0-security.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fail-closed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          node --check Frontend/assets/js/controllers/auth.js
+          node --check Frontend/assets/js/controllers/admin.js
+          node --check Frontend/assets/js/services/api.js
+          node --check Frontend/assets/js/services/vietqr-service.js
+          node --check Frontend/tests/final-real-checkout.cjs
+      - name: Verify P0 safety requirements
+        run: node Frontend/tests/final-p0-security.cjs

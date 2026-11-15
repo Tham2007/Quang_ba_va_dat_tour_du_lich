@@ -737,8 +737,8 @@
           <!-- Nhập mã giảm giá Voucher -->
           <div class="my-3 pt-3 border-top">
             <div class="input-group input-group-sm">
-              <input type="text" id="voucherCodeInput" class="form-control text-uppercase" placeholder="Mã ưu đãi (VD: DELTA10)" data-i18n-placeholder="inv_voucher_placeholder">
-              <button class="btn btn-outline-dark" type="button" id="btnApplyVoucher" onclick="applyVoucher()" data-i18n="inv_voucher_apply">Áp dụng</button>
+              <input type="text" id="voucherCodeInput" disabled title="Máy chủ chưa hỗ trợ mã ưu đãi" class="form-control text-uppercase" placeholder="Mã ưu đãi (VD: DELTA10)" data-i18n-placeholder="inv_voucher_placeholder">
+              <button class="btn btn-outline-dark" type="button" id="btnApplyVoucher" disabled title="Máy chủ chưa hỗ trợ mã ưu đãi" onclick="applyVoucher()" data-i18n="inv_voucher_apply">Áp dụng</button>
               <button class="btn btn-outline-secondary" type="button" id="btnClearVoucher" onclick="clearVoucher()" style="display: none;" title="Gỡ mã ưu đãi"><i class="bi bi-x-lg"></i></button>
             </div>
             <div id="voucherAlert" class="small mt-1" style="display: none;"></div>
@@ -773,9 +773,9 @@
           <i class="bi bi-patch-check-fill text-dark" style="font-size: 54px;"></i>
         </div>
         <div class="text-uppercase fw-bold text-dark small" style="letter-spacing: 0.15em;">ĐẶT TOUR THÀNH CÔNG</div>
-        <h2 class="fw-bold text-dark mb-2">Hóa Đơn Giữ Chỗ & Thanh Toán VietQR MBBank</h2>
+        <h2 class="fw-bold text-dark mb-2">Phiếu Giữ Chỗ Delta Travel, Chưa Thu Tiền</h2>
         <p class="text-muted small mx-auto mb-0" style="max-width: 640px;">
-          Hệ thống Delta Travel đã xác nhận thông tin đơn đặt tour. Quý khách vui lòng chuyển khoản theo mã VietQR hoặc số tài khoản MBBank bên dưới để nhận hóa đơn chứng từ điện tử.
+          Hệ thống đã ghi nhận đơn giữ chỗ thử nghiệm. Không chuyển tiền vì cổng thanh toán chưa được xác minh.
         </p>
         <div id="receiptEmailBanner" class="mt-3 mx-auto d-none" style="max-width: 640px;"></div>
       </div>
@@ -817,7 +817,7 @@
               <strong id="receiptVatAmount" class="small text-dark">+ 0 đ</strong>
             </div>
             <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2">
-              <span class="text-muted small fw-bold">Tổng tiền cần thanh toán:</span>
+              <span class="text-muted small fw-bold">Tổng giá trị giữ chỗ:</span>
               <strong id="receiptTotal" class="fs-4 text-danger fw-bold">0 đ</strong>
             </div>
           </div>
@@ -826,22 +826,22 @@
           <div class="border rounded-4 p-3 p-md-4 bg-white shadow-xs text-start">
             <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
               <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-dark text-white px-2.5 py-1 fw-bold" style="font-size: 11px;">MB BANK</span>
-                <span class="fw-bold text-dark small">Tài khoản nhận thanh toán chính thức</span>
+                <span class="badge bg-dark text-white px-2.5 py-1 fw-bold" style="font-size: 11px;">DEMO</span>
+                <span class="fw-bold text-dark small">Chưa hỗ trợ thanh toán ngân hàng</span>
               </div>
-              <span class="badge bg-light text-dark border px-2 py-0.5" style="font-size: 11px;">NAPAS 24/7</span>
+              <span class="badge bg-light text-dark border px-2 py-0.5" style="font-size: 11px;">KHÔNG CHUYỂN TIỀN</span>
             </div>
 
             <div class="d-flex justify-content-between align-items-center mb-2.5 pb-1 border-bottom">
               <span class="text-muted small">Ngân hàng:</span>
-              <strong class="text-dark small">MBBank (Ngân hàng Quân Đội)</strong>
+              <strong class="text-dark small">Chưa kết nối cổng thanh toán</strong>
             </div>
 
             <div class="d-flex justify-content-between align-items-center mb-2.5 pb-1 border-bottom">
               <span class="text-muted small">Số tài khoản:</span>
               <div class="d-flex align-items-center gap-2">
-                <strong id="receiptAccountNo" class="text-dark font-monospace fs-5">0325536936</strong>
-                <button type="button" class="btn btn-sm btn-outline-dark py-0.5 px-2 rounded-pill font-monospace" style="font-size: 11px;" onclick="copyPaymentField('0325536936', 'Số tài khoản')">
+                <strong id="receiptAccountNo" class="text-dark font-monospace fs-5">KHÔNG ÁP DỤNG</strong>
+                <button type="button" class="btn btn-sm btn-outline-dark py-0.5 px-2 rounded-pill font-monospace" style="font-size: 11px;" disabled title="Không hỗ trợ chuyển khoản">
                   <i class="bi bi-clipboard"></i> Copy
                 </button>
               </div>
@@ -850,8 +850,8 @@
             <div class="d-flex justify-content-between align-items-center mb-2.5 pb-1 border-bottom">
               <span class="text-muted small">Chủ tài khoản:</span>
               <div class="d-flex align-items-center gap-2">
-                <strong class="text-dark fw-bold">LE VAN AN</strong>
-                <button type="button" class="btn btn-sm btn-outline-dark py-0.5 px-2 rounded-pill font-monospace" style="font-size: 11px;" onclick="copyPaymentField('LE VAN AN', 'Chủ tài khoản')">
+                <strong class="text-dark fw-bold">TÀI KHOẢN DEMO</strong>
+                <button type="button" class="btn btn-sm btn-outline-dark py-0.5 px-2 rounded-pill font-monospace" style="font-size: 11px;" disabled title="Không hỗ trợ chuyển khoản">
                   <i class="bi bi-clipboard"></i> Copy
                 </button>
               </div>
@@ -897,10 +897,10 @@
                 <div class="flex-grow-1">
                   <div class="fw-bold text-dark small d-flex align-items-center gap-1.5 mb-1">
                     <i class="bi bi-broadcast text-primary"></i>
-                    <span>Đang chờ SePay tự động ghi nhận chuyển khoản...</span>
+                    <span>Chờ quản trị viên xác minh trạng thái trên máy chủ...</span>
                   </div>
                   <div class="text-secondary" style="font-size: 11.5px; line-height: 1.45;">
-                    Vui lòng giữ đúng <strong>Nội dung CK</strong> khi chuyển. Cổng SePay sẽ tự động đối soát tiền vào tài khoản MBBank và kích hoạt hóa đơn trong 1 - 3 giây mà bạn không cần phải bấm bất kỳ nút nào.
+                    Không thanh toán thật. Cổng đối soát ngân hàng tự động chưa được nghiệm thu.
                   </div>
                 </div>
               </div>
@@ -936,7 +936,7 @@
 
               <!-- Ảnh QR to 330px x 330px, sắc nét, tối ưu quét bằng app ngân hàng -->
               <div class="position-relative p-2 bg-light rounded-4 border d-inline-block mx-auto" style="max-width: 100%;">
-                <img id="receiptQRImg" src="" alt="Mã VietQR MBBank Thanh Toán" style="width: 330px; height: 330px; max-width: 100%; object-fit: contain; border-radius: 14px;" class="bg-white p-2.5 border shadow-sm d-block mx-auto">
+                <img id="receiptQRImg" src="" alt="Hình minh họa không thể thanh toán" style="width: 330px; height: 330px; max-width: 100%; object-fit: contain; border-radius: 14px;" class="bg-white p-2.5 border shadow-sm d-block mx-auto">
                 <div id="qrLoadingSpinner" class="spinner-border text-dark position-absolute top-50 start-50 translate-middle d-none" role="status">
                   <span class="visually-hidden">Đang tải mã VietQR...</span>
                 </div>
@@ -1023,7 +1023,7 @@
             <div><strong>Hành trình tour:</strong> <span id="invTourTitle" style="font-weight: 700;">...</span></div>
             <div><strong>Địa chỉ Email:</strong> <span id="invCustomerEmail">...</span></div>
             <div><strong>Ngày khởi hành:</strong> <span id="invDepartureDate" style="color: #0284c7; font-weight: 700;">...</span></div>
-            <div><strong>Hình thức thanh toán:</strong> <span>Chuyển khoản VietQR MBBank (0325536936 - LE VAN AN)</span></div>
+            <div><strong>Hình thức thanh toán:</strong> <span>Chưa có thanh toán thật (0325536936 - LE VAN AN)</span></div>
             <div><strong>Điểm đón khách:</strong> <span id="invPickupLocation">...</span></div>
           </div>
         </div>
@@ -1572,47 +1572,11 @@
     }
 
     async function loadAvailableVouchersForTour(tourId) {
-      const hintEl = document.getElementById("availableVouchersHint");
-      if (!hintEl || !tourId) return;
-      let list = [];
-      if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.fetchPublicVouchers === "function") {
-        try {
-          const res = await DeltaAPI.fetchPublicVouchers(tourId);
-          if (res && res.success && Array.isArray(res.data)) {
-            list = res.data;
-          }
-        } catch (_) {}
-      }
-      if (!list.length && typeof getVouchersData === "function") {
-        const now = Date.now();
-        list = getVouchersData().filter(v => {
-          if (v.active === false) return false;
-          const sMs = Date.parse(v.startAt);
-          const eMs = Date.parse(v.endAt);
-          if (!isNaN(sMs) && now < sMs) return false;
-          if (!isNaN(eMs) && now > eMs) return false;
-          if (v.usageLimit > 0 && (v.usedCount || 0) >= v.usageLimit) return false;
-          if (v.scopeType === "region" && currentTour && !(v.scopeRegions || []).includes(currentTour.region)) return false;
-          if (v.scopeType === "tours" && !(v.scopeTourIds || []).map(x => String(x).toUpperCase()).includes(String(tourId).toUpperCase())) return false;
-          return true;
-        });
-      }
-      if (!list.length) {
-        hintEl.style.display = "none";
-        hintEl.innerHTML = "";
-        return;
-      }
-      hintEl.style.display = "block";
-      hintEl.innerHTML = `
-        <div class="text-muted mb-1" style="font-size: 11px;">Mã ưu đãi gợi ý cho tour này:</div>
-        <div class="d-flex flex-wrap gap-1">
-          ${list.slice(0, 4).map(v => {
-            const label = v.discountType === "percent" ? `-${v.discountValue}%` : `-${Math.round(v.discountValue / 1000)}K`;
-            return `<button type="button" class="btn btn-outline-dark btn-sm py-0 px-2 font-monospace" style="font-size: 11px;" onclick="selectSuggestedVoucher('${String(v.code).replace(/'/g, "")}')" title="${String(v.description || v.name || "").replace(/"/g, "&quot;")}">${v.code} (${label})</button>`;
-          }).join("")}
-        </div>
-      `;
+      // FastAPI quote explicitly reports vouchersSupported:false.
+      const hint = document.getElementById("availableVouchersHint");
+      if (hint) { hint.textContent = ""; hint.style.display = "none"; }
     }
+
 
     function selectSuggestedVoucher(code) {
       const input = document.getElementById("voucherCodeInput");
@@ -1633,20 +1597,18 @@
         : `${totalGuests} khách (${adults} lớn, ${children} trẻ${infants > 0 ? `, ${infants} em bé` : ""})`;
       document.getElementById("guestCountDisplay").textContent = guestSummary;
 
-      // THUẬT TOÁN TÍNH GIÁ CHUẨN THƯƠNG MẠI: Người lớn 100%, Trẻ em 75%, Em bé 10% + Giảm giá Voucher + 10% THUẾ VAT BẮT BUỘC
-      const rawBookingSubtotal = typeof calculateBookingSubtotal === "function"
-        ? calculateBookingSubtotal(adults, children, infants)
-        : ((adults * currentTour.price) + (children * currentTour.price * 0.75) + (infants * currentTour.price * 0.1));
-      const effectiveDiscount = Math.max(0, Math.min(rawBookingSubtotal, Number(discountAmount) || 0));
-      const subtotal = Math.max(0, rawBookingSubtotal - effectiveDiscount);
-      const vatAmount = Math.round(subtotal * 0.10); // 10% VAT
-      const finalTotal = subtotal + vatAmount;
+      // API price is VAT-inclusive. No extra VAT or offline voucher discount.
+      const rawBookingSubtotal = calculateBookingSubtotal(adults, children, infants);
+      const effectiveDiscount = 0;
+      const finalTotal = rawBookingSubtotal;
+      const subtotal = Math.round(finalTotal / 1.1);
+      const vatAmount = finalTotal - subtotal;
 
       const subtotalEl = document.getElementById("subtotalDisplay");
-      if (subtotalEl) subtotalEl.textContent = formatVND(rawBookingSubtotal);
+      if (subtotalEl) subtotalEl.textContent = formatVND(subtotal);
 
       const subtotalPriceEl = document.getElementById("subtotalPriceDisplay");
-      if (subtotalPriceEl) subtotalPriceEl.textContent = formatVND(rawBookingSubtotal);
+      if (subtotalPriceEl) subtotalPriceEl.textContent = formatVND(subtotal);
 
       const vatEl = document.getElementById("vatAmountDisplay");
       if (vatEl) vatEl.textContent = "+ " + formatVND(vatAmount);
@@ -1700,98 +1662,12 @@
     }
 
     async function applyVoucher(silent = false) {
-      const input = document.getElementById("voucherCodeInput");
-      const code = (input?.value || "").trim().toUpperCase();
-      const alertEl = document.getElementById("voucherAlert");
-      const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
-
-      if (!code) {
-        clearVoucher();
-        if (!silent) {
-          showAppNotice(
-            isEn ? "Please enter a promo code before applying." : "Vui lòng nhập mã ưu đãi trước khi áp dụng.",
-            isEn ? "Notice" : "Thông Báo",
-            "warning"
-          );
-        }
-        return false;
-      }
-
-      if (!currentTour) return false;
-      const adults = Math.max(1, parseInt(document.getElementById("numAdults")?.value || 1, 10));
-      const children = Math.max(0, parseInt(document.getElementById("numChildren")?.value || 0, 10));
-      const infants = Math.max(0, parseInt(document.getElementById("numInfants")?.value || 0, 10));
-      const scheduleId = document.getElementById("bookingScheduleSelect")?.value || "";
-      const customerEmail = (document.getElementById("customerEmail")?.value || "").trim();
-      const customerPhone = (document.getElementById("customerPhone")?.value || "").trim();
-      const subtotal = calculateBookingSubtotal(adults, children, infants);
-
-      let result = null;
-      if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.validateVoucher === "function") {
-        try {
-          const apiRes = await DeltaAPI.validateVoucher({
-            code,
-            tour_id: currentTour.id,
-            schedule_id: scheduleId,
-            adults,
-            children,
-            infants,
-            customer_email: customerEmail,
-            customer_phone: customerPhone
-          });
-          if (apiRes && !apiRes.isOffline) {
-            result = apiRes.success && apiRes.data?.valid
-              ? { valid: true, ...apiRes.data }
-              : { valid: false, detail: apiRes.error || apiRes.data?.detail || "Mã ưu đãi không đủ điều kiện áp dụng." };
-          }
-        } catch (_) {}
-      }
-
-      if (!result && typeof evaluateLocalVoucher === "function") {
-        let authUser = null;
-        try {
-          authUser = JSON.parse(localStorage.getItem("delta_auth_user") || "null");
-        } catch (_) {}
-        result = evaluateLocalVoucher({
-          code,
-          tour: currentTour,
-          subtotal,
-          authUser,
-          customerEmail,
-          customerPhone
-        });
-      }
-
-      if (result && result.valid) {
-        appliedVoucherCode = code;
-        appliedVoucherData = result.voucher || null;
-        discountAmount = Number(result.discountAmount || 0);
-        if (alertEl) {
-          alertEl.className = "small text-success fw-semibold mt-1";
-          alertEl.style.display = "block";
-          alertEl.textContent = result.message || (isEn
-            ? `Promo code ${code} applied: -${formatVND(discountAmount)}`
-            : `Áp dụng thành công mã ${code}: Giảm ${formatVND(discountAmount)}`);
-        }
-        recalcPrice();
-        return true;
-      }
-
-      appliedVoucherCode = "";
-      appliedVoucherData = null;
-      discountAmount = 0;
-      const errMsg = (result && result.detail) || (isEn ? "Promo code is not eligible." : "Mã ưu đãi không đủ điều kiện áp dụng.");
-      if (alertEl) {
-        alertEl.className = "small text-danger fw-semibold mt-1";
-        alertEl.style.display = "block";
-        alertEl.textContent = errMsg;
-      }
-      recalcPrice();
-      if (!silent) {
-        showAppNotice(errMsg, isEn ? "Promo Not Eligible" : "Không Thể Áp Dụng Mã", "warning");
-      }
+      clearVoucher();
+      if (!silent) showAppNotice("Máy chủ chưa hỗ trợ mã ưu đãi trong bản demo.",
+        "Ưu Đãi Chưa Khả Dụng", "warning");
       return false;
     }
+
 
     function showBookingReceipt(booking) {
       if (!booking) return;
@@ -1829,10 +1705,8 @@
         : `KH ${bookingRef}`;
       currentTransferNote = transferNote;
 
-      // 4. Sinh URL mã VietQR Quick Link tối ưu hiệu năng cao nhất (Cloudflare CDN cache tức thì)
-      const qrUrl = (typeof VietQRService !== "undefined")
-        ? VietQRService.getQuickLinkUrl({ amount: payAmount, memo: transferNote, template: "compact2" })
-        : `https://img.vietqr.io/image/970422-0325536936-compact2.png?amount=${payAmount}&addInfo=${encodeURIComponent(transferNote)}&accountName=LE%20VAN%20AN`;
+      // Show a non-scannable image until independently verified bank gateway exists.
+      const qrUrl = "assets/images/bank_qr_demo.svg";
       currentQRUrl = qrUrl;
 
       // Hiển thị ảnh QR với hiệu ứng mượt mà và spinner skeleton
@@ -1985,10 +1859,31 @@
         if (!ok) return;
       }
 
-      const effectiveDiscount = Math.max(0, Math.min(rawSubtotal, Number(discountAmount) || 0));
-      const subtotal = Math.max(0, rawSubtotal - effectiveDiscount);
-      const vatAmount = Math.round(subtotal * 0.10); // 10% Thuế VAT
-      const calculatedTotal = subtotal + vatAmount;
+      const effectiveDiscount = 0;
+      const calculatedTotal = rawSubtotal; // Already VAT-inclusive on server.
+      const subtotal = Math.round(calculatedTotal / 1.1);
+      const vatAmount = calculatedTotal - subtotal;
+
+      // The server, not browser code, decides price and seat availability.
+      if (typeof DeltaAPI === "undefined" || typeof DeltaAPI.quoteBooking !== "function") {
+        showAppNotice("Máy chủ báo giá chưa sẵn sàng. Không tạo đơn offline.", "Không Thể Đặt Tour", "error");
+        return;
+      }
+      const quoted = await DeltaAPI.quoteBooking({
+        schedule_id: scheduleId, adults, children, infants
+      });
+      if (!quoted?.success || !quoted?.data || !Number.isFinite(Number(quoted.data.totalPrice))) {
+        showAppNotice(quoted?.error || "Không xác minh được giá và số chỗ.", "Không Thể Đặt Tour", "error");
+        return;
+      }
+      if (Number(quoted.data.totalPrice) !== calculatedTotal) {
+        if (currentTour && Number.isSafeInteger(Number(quoted.data.unitPrice)) &&
+            Number(quoted.data.unitPrice) > 0) currentTour.price = Number(quoted.data.unitPrice);
+        recalcPrice();
+        showAppNotice("Giá tour vừa được cập nhật từ máy chủ, vui lòng xem lại rồi đặt lần nữa.",
+          "Giá Đã Cập Nhật", "warning");
+        return;
+      }
 
       const payload = {
         scheduleId: scheduleId,
@@ -2036,77 +1931,17 @@
               return;
             }
           } catch (apiErr) {
-            console.warn("Lỗi gọi API createBooking, chuyển sang lưu trữ cục bộ:", apiErr);
+            console.warn("Lỗi kết nối tạo đơn trên máy chủ:", apiErr);
           }
         }
         if (backendRejected) return;
 
-        // Tự động fallback khi backend offline (không bỏ qua kiểm tra voucher)
         if (!booking) {
-          let offlineDiscount = 0;
-          let offlineVoucherCode = null;
-          let offlineVoucherName = null;
-          if (appliedVoucherCode && typeof evaluateLocalVoucher === "function") {
-            let authUser = null;
-            try { authUser = JSON.parse(localStorage.getItem("delta_auth_user") || "null"); } catch (_) {}
-            const vEval = evaluateLocalVoucher({
-              code: appliedVoucherCode,
-              tour: currentTour,
-              subtotal: rawSubtotal,
-              authUser,
-              customerEmail: email,
-              customerPhone: phone
-            });
-            if (!vEval.valid) {
-              showAppNotice(vEval.detail, isEn ? "Promo Not Eligible" : "Không Thể Áp Dụng Mã", "warning");
-              return;
-            }
-            offlineDiscount = vEval.discountAmount;
-            offlineVoucherCode = vEval.voucher.code;
-            offlineVoucherName = vEval.voucher.name;
-            if (typeof getVouchersData === "function" && typeof saveVouchersData === "function") {
-              const vList = getVouchersData();
-              const vIdx = vList.findIndex(x => String(x.code).toUpperCase() === offlineVoucherCode);
-              if (vIdx !== -1) {
-                vList[vIdx].usedCount = Number(vList[vIdx].usedCount || 0) + 1;
-                saveVouchersData(vList);
-              }
-            }
-          }
-          const bookingRef = "BK" + Math.floor(100000 + Math.random() * 900000);
-          const finalOfflineTotal = Math.max(0, rawSubtotal - offlineDiscount);
-          booking = {
-            id: bookingRef,
-            reference: bookingRef,
-            scheduleId: scheduleId,
-            tourId: tourId,
-            tourTitle: displayTitle,
-            customerName: name,
-            customerPhone: phone,
-            customerEmail: email,
-            totalGuests: adults + children + infants,
-            adults: adults,
-            children: children,
-            infants: infants,
-            seats: adults + children + infants,
-            unitPrice: rawPrice,
-            subtotalPrice: rawSubtotal,
-            subtotal: subtotal,
-            discountAmount: offlineDiscount,
-            voucherCode: offlineVoucherCode,
-            voucherName: offlineVoucherName,
-            vatRate: 10,
-            vatAmount: vatAmount,
-            totalPrice: calculatedTotal,
-            pricing: { subtotal: rawSubtotal, discount: offlineDiscount, vatAmount: vatAmount, total: calculatedTotal },
-            status: "PENDING_PAYMENT",
-            paid: false,
-            paymentEvidence: null,
-            pickupLocation: payload.pickupLocation,
-            specialRequests: payload.specialRequests,
-            createdAt: new Date().toISOString()
-          };
+          showAppNotice("Máy chủ không phản hồi. Không có đơn thật nào được tạo.",
+            "Không Thể Đặt Tour", "error");
+          return;
         }
+
 
         currentBookingData = booking;
 

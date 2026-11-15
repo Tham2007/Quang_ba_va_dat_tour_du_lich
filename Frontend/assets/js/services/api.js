@@ -204,12 +204,29 @@ const DeltaAPI = (() => {
    * Tạo đơn đặt chỗ mới trên Database server
    */
   async function createBooking(bookingData) {
+    // The FastAPI Pydantic schema forbids unknown fields. Never transmit
+    // browser-supplied totals, status, discounts or local voucher values.
+    const payload = {
+      schedule_id: String(bookingData.schedule_id || bookingData.scheduleId || ""),
+      adults: Number(bookingData.adults || 0),
+      children: Number(bookingData.children || 0),
+      infants: Number(bookingData.infants || 0),
+      customer_name: String(bookingData.customer_name || bookingData.customerName || "").trim(),
+      customer_phone: String(bookingData.customer_phone || bookingData.customerPhone || "").trim(),
+      customer_email: String(bookingData.customer_email || bookingData.customerEmail || "").trim(),
+      note: String(bookingData.note || bookingData.specialRequests || "").slice(0, 500)
+    };
+    if (/^[0-9]{12}$/.test(String(bookingData.customer_identity || ""))) {
+      payload.customer_identity = String(bookingData.customer_identity);
+    }
     return await request("/bookings", {
       method: "POST",
       headers: {
-        "Idempotency-Key": (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : ("IDEM-" + Date.now())
+        "Idempotency-Key": typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : "00000000-0000-4000-8000-" + Date.now().toString(16).padStart(12, "0").slice(-12)
       },
-      body: bookingData
+      body: payload
     });
   }
 
@@ -249,22 +266,23 @@ const DeltaAPI = (() => {
   }
 
   async function payBooking(bookingId, reference) {
-    let ref = "VQR-" + Date.now().toString().slice(-8);
-    let autoConfirm = false;
-    if (typeof reference === "string" && reference.trim()) {
-      ref = reference.trim();
-    } else if (reference && typeof reference === "object") {
-      ref = reference.reference || reference.payment_evidence || reference.paymentEvidence || ref;
-      autoConfirm = !!reference.auto_confirm;
+    const ref = typeof reference === "string" ? reference.trim()
+      : (reference?.reference || reference?.payment_evidence || reference?.paymentEvidence || "").trim();
+    if (ref.length < 8) {
+      return { success: false, error: "Thiếu mã đối soát thực tế; chưa xác nhận thanh toán." };
     }
+    // Customer evidence never equals bank receipt; backend will keep PENDING_PAYMENT.
     return await request(`/bookings/${encodeURIComponent(bookingId)}/pay`, {
       method: "POST",
-      body: { reference: ref, payment_evidence: ref, auto_confirm: autoConfirm }
+      body: { reference: ref }
     });
   }
 
   async function adminConfirmPayment(bookingId, reference) {
-    const ref = (reference && reference.trim()) ? reference.trim() : ("VQR-" + Date.now().toString().slice(-8));
+    const ref = typeof reference === "string" ? reference.trim() : "";
+    if (ref.length < 8) {
+      return { success: false, error: "Quản trị viên phải nhập mã giao dịch thực đã đối soát." };
+    }
     return await request(`/admin/bookings/${encodeURIComponent(bookingId)}/confirm-payment`, {
       method: "POST",
       body: { reference: ref }

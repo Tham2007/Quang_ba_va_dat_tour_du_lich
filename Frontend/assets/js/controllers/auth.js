@@ -21,17 +21,24 @@ const AUTH_STORAGE_KEYS = {
 function getAllUsers() {
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEYS.USERS);
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) {
-    return [];
-  }
+    const users = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(users)) return [];
+    // Remove passwords previously stored by older insecure demo releases.
+    const safe = users.map(({password: _oldPassword, passwordHash: _oldHash, ...profile}) => profile);
+    if (JSON.stringify(users) !== JSON.stringify(safe)) {
+      localStorage.setItem(AUTH_STORAGE_KEYS.USERS, JSON.stringify(safe));
+    }
+    return safe;
+  } catch (_) { return []; }
 }
 
 /**
  * Lưu danh sách users vào localStorage
  */
 function saveUsers(users) {
-  localStorage.setItem(AUTH_STORAGE_KEYS.USERS, JSON.stringify(users));
+  const safe = (Array.isArray(users) ? users : [])
+    .map(({password: _oldPassword, passwordHash: _oldHash, ...profile}) => profile);
+  localStorage.setItem(AUTH_STORAGE_KEYS.USERS, JSON.stringify(safe));
 }
 
 /**
@@ -40,7 +47,12 @@ function saveUsers(users) {
 function getCurrentUser() {
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEYS.CURRENT_USER);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const {password: _oldPassword, passwordHash: _oldHash, ...profile} = JSON.parse(raw);
+    if (JSON.stringify(profile) !== raw) {
+      localStorage.setItem(AUTH_STORAGE_KEYS.CURRENT_USER, JSON.stringify(profile));
+    }
+    return profile;
   } catch (e) {
     return null;
   }
@@ -51,7 +63,8 @@ function getCurrentUser() {
  */
 function setCurrentUser(user) {
   if (user) {
-    localStorage.setItem(AUTH_STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+    const {password: _oldPassword, passwordHash: _oldHash, ...safeProfile} = user;
+    localStorage.setItem(AUTH_STORAGE_KEYS.CURRENT_USER, JSON.stringify(safeProfile));
   } else {
     localStorage.removeItem(AUTH_STORAGE_KEYS.CURRENT_USER);
   }
@@ -89,9 +102,9 @@ async function syncCurrentSessionUser() {
         syncUserWithBookingForm();
         return realUser;
       } else if (res && res.isOffline) {
-        renderAuthHeader();
-        syncUserWithBookingForm();
-        return getCurrentUser();
+        // A cached profile is not a valid authenticated server session.
+        setCurrentUser(null);
+        return null;
       } else {
         // Kiểm tra xem có phiên hợp lệ qua DeltaAPI.getMe() không
         const meRes = await DeltaAPI.getMe();
@@ -114,11 +127,9 @@ async function syncCurrentSessionUser() {
           renderAuthHeader();
           syncUserWithBookingForm();
           return realUser;
-        } else if (!meRes?.isOffline) {
-          // Chưa đăng nhập trên backend
-          localStorage.removeItem(AUTH_STORAGE_KEYS.CURRENT_USER);
-          renderAuthHeader();
-          syncUserWithBookingForm();
+        } else {
+          // No valid cookie-backed user, or the server is unreachable.
+          setCurrentUser(null);
           return null;
         }
       }
@@ -126,9 +137,8 @@ async function syncCurrentSessionUser() {
       console.warn("Lỗi đồng bộ phiên tài khoản:", err);
     }
   }
-  renderAuthHeader();
-  syncUserWithBookingForm();
-  return getCurrentUser();
+  setCurrentUser(null);
+  return null;
 }
 
 // =============================================================================
@@ -321,131 +331,46 @@ function initAuthEventListeners() {
 /**
  * Xử lý Đăng ký tài khoản mới
  */
-function handleRegisterSubmit(e) {
+async function handleRegisterSubmit(e) {
   e.preventDefault();
   clearAuthErrors();
-
-  const name = document.getElementById("registerName")?.value.trim();
-  const email = document.getElementById("registerEmail")?.value.trim().toLowerCase();
-  const phone = document.getElementById("registerPhone")?.value.trim();
-  const password = document.getElementById("registerPassword")?.value;
-  const confirmPassword = document.getElementById("registerConfirmPassword")?.value;
-  const agreeTerms = document.getElementById("registerTerms")?.checked;
-
-  let isValid = true;
-
-  // 1. Kiểm tra Họ tên
-  if (!name || name.length < 2) {
-    showAuthError("registerNameError", "Vui lòng nhập họ và tên đầy đủ (tối thiểu 2 ký tự)");
-    isValid = false;
-  }
-
-  // 2. Kiểm tra Email
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!email || !emailRegex.test(email)) {
-    showAuthError("registerEmailError", "Email không đúng định dạng (VD: example@gmail.com)");
-    isValid = false;
-  }
-
-  // 3. Kiểm tra Số điện thoại (10 số, bắt đầu 0)
-  const phoneRegex = /^0[35789]\d{8}$/;
-  if (!phone || !phoneRegex.test(phone)) {
-    showAuthError("registerPhoneError", "Số điện thoại không hợp lệ (gồm 10 số, bắt đầu 03, 05, 07, 08, 09)");
-    isValid = false;
-  }
-
-  // 4. Kiểm tra Mật khẩu (tối thiểu 6 ký tự)
-  if (!password || password.length < 6) {
-    showAuthError("registerPasswordError", "Mật khẩu phải có độ dài tối thiểu 6 ký tự");
-    isValid = false;
-  }
-
-  // 5. Kiểm tra Xác nhận mật khẩu
-  if (password !== confirmPassword) {
-    showAuthError("registerConfirmError", "Mật khẩu xác nhận không khớp");
-    isValid = false;
-  }
-
-  // 6. Kiểm tra đồng ý điều khoản
-  if (!agreeTerms) {
-    showAuthError("registerTermsError", "Bạn cần đồng ý với Điều khoản dịch vụ để tiếp tục");
-    isValid = false;
-  }
-
-  if (!isValid) return;
-
-  // 7. Kiểm tra trùng Email hoặc SĐT trong danh sách đã có
-  const users = getAllUsers();
-  const emailExists = users.some(u => u.email === email);
-  if (emailExists) {
-    showAuthError("registerEmailError", "Email này đã được sử dụng. Vui lòng chọn Email khác");
-    return;
-  }
-
-  const phoneExists = users.some(u => u.phone === phone);
-  if (phoneExists) {
-    showAuthError("registerPhoneError", "Số điện thoại này đã được đăng ký tài khoản");
-    return;
-  }
-
-  // 8. Đăng ký với Backend API nếu có
-  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.register === "function") {
-    DeltaAPI.register({
-      full_name: name,
-      email: email,
-      phone: phone,
-      password: password
-    }).then(res => {
-      if (!res.success && !res.isOffline) {
-        showAuthError("registerEmailError", res.error || "Đăng ký qua máy chủ thất bại.");
-        return;
-      }
-      // Đăng nhập máy chủ để nhận session cookie
-      DeltaAPI.login(email, password).then(loginRes => {
-        const u = (loginRes && loginRes.success && loginRes.data) ? loginRes.data : null;
-        const newUser = {
-          id: u ? u.id : ("USR-" + Date.now()),
-          fullName: u ? u.fullName : name,
-          email: u ? u.email : email,
-          phone: u ? u.phone : phone,
-          password: password,
-          role: u ? u.role : "CUSTOMER",
-          title: (u && u.role === "ADMIN") ? "Ban Quản Trị" : "Thành viên mới",
-          createdAt: new Date().toLocaleDateString("vi-VN")
-        };
-        users.push(newUser);
-        saveUsers(users);
-        setCurrentUser(newUser);
-        bootstrap.Modal.getInstance(document.getElementById("authModal"))?.hide();
-        document.getElementById("registerForm")?.reset();
-        if (typeof showToast === "function") {
-          showToast(`Đăng ký thành công! Chào mừng ${newUser.fullName} gia nhập Delta Travel.`, "success");
-        }
-      });
-    }).catch(err => {
-      showAuthError("registerEmailError", err.message || "Lỗi đăng ký");
-    });
-    return;
-  }
-
-  const newUser = {
-    id: "USR-" + Date.now(),
-    fullName: name,
-    email: email,
-    phone: phone,
-    password: password,
-    role: "CUSTOMER",
-    title: "Thành viên mới",
-    createdAt: new Date().toLocaleDateString("vi-VN")
-  };
-
-  users.push(newUser);
-  saveUsers(users);
-  setCurrentUser(newUser);
-  bootstrap.Modal.getInstance(document.getElementById("authModal"))?.hide();
-  document.getElementById("registerForm")?.reset();
-  if (typeof showToast === "function") {
-    showToast(`Đăng ký thành công! Chào mừng ${name} gia nhập Delta Travel.`, "success");
+  const name = document.getElementById("registerName")?.value.trim() || "";
+  const email = document.getElementById("registerEmail")?.value.trim().toLowerCase() || "";
+  const phone = document.getElementById("registerPhone")?.value.trim() || "";
+  const password = document.getElementById("registerPassword")?.value || "";
+  const confirm = document.getElementById("registerConfirmPassword")?.value || "";
+  if (name.length < 2) return showAuthError("registerNameError", "Vui lòng nhập họ tên đầy đủ.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    return showAuthError("registerEmailError", "Email không hợp lệ.");
+  if (!/^0[35789]\d{8}$/.test(phone))
+    return showAuthError("registerPhoneError", "Số điện thoại Việt Nam phải gồm 10 chữ số.");
+  if (password.length < 12 || password.length > 128)
+    return showAuthError("registerPasswordError", "Mật khẩu cần 12 đến 128 ký tự.");
+  if (password !== confirm)
+    return showAuthError("registerConfirmError", "Mật khẩu xác nhận không khớp.");
+  if (!document.getElementById("registerTerms")?.checked)
+    return showAuthError("registerTermsError", "Bạn cần đồng ý điều khoản.");
+  if (typeof DeltaAPI === "undefined" || typeof DeltaAPI.register !== "function")
+    return showAuthError("registerEmailError", "Không thể kết nối máy chủ đăng ký.");
+  try {
+    const result = await DeltaAPI.register({full_name:name, email, phone, password});
+    if (!result?.success) return showAuthError("registerEmailError",
+      result?.error || "Không đăng ký được trên máy chủ.");
+    // Server confirms session. Never fabricate a user on transport failure.
+    const me = await DeltaAPI.getMe();
+    if (!me?.success || !me.data)
+      return showAuthError("registerEmailError", "Đã tạo tài khoản. Vui lòng đăng nhập để xác minh phiên.");
+    const u = me.data;
+    const profile = {id:u.id, fullName:u.fullName, email:u.email, phone:u.phone,
+      role:u.role || "CUSTOMER", title:"Thành viên"};
+    const rest = getAllUsers().filter(x => x.id !== profile.id && x.email !== profile.email);
+    saveUsers([...rest,profile]);
+    setCurrentUser(profile);
+    bootstrap.Modal.getInstance(document.getElementById("authModal"))?.hide();
+    document.getElementById("registerForm")?.reset();
+    if (typeof showToast === "function") showToast("Đăng ký thành công trên máy chủ!", "success");
+  } catch (_) {
+    showAuthError("registerEmailError", "Lỗi kết nối máy chủ. Tài khoản không được tạo offline.");
   }
 }
 
@@ -455,70 +380,27 @@ function handleRegisterSubmit(e) {
 async function handleLoginSubmit(e) {
   e.preventDefault();
   clearAuthErrors();
-
-  const account = document.getElementById("loginAccount")?.value.trim().toLowerCase();
-  const password = document.getElementById("loginPassword")?.value;
-
-  if (!account) {
-    showAuthError("loginAccountError", "Vui lòng nhập Email hoặc Số điện thoại");
-    return;
-  }
-
-  if (!password) {
-    showAuthError("loginPasswordError", "Vui lòng nhập mật khẩu");
-    return;
-  }
-
-  // Thử đăng nhập qua Backend API trước nếu trực tuyến
-  if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.login === "function") {
-    const res = await DeltaAPI.login(account, password);
-    if (res && res.success && res.data) {
-      const u = res.data;
-      const user = {
-        id: u.id,
-        fullName: u.fullName,
-        email: u.email,
-        phone: u.phone,
-        password: password,
-        role: u.role || "CUSTOMER",
-        title: u.role === "ADMIN" ? "Ban Quản Trị" : "Thành viên",
-        createdAt: new Date().toLocaleDateString("vi-VN")
-      };
-      const allUsers = getAllUsers();
-      const existingIdx = allUsers.findIndex(item => item.id === user.id || item.email === user.email);
-      if (existingIdx >= 0) allUsers[existingIdx] = user;
-      else allUsers.push(user);
-      saveUsers(allUsers);
-      setCurrentUser(user);
-
-      bootstrap.Modal.getInstance(document.getElementById("authModal"))?.hide();
-      document.getElementById("loginForm")?.reset();
-      if (typeof showToast === "function") {
-        showToast(`Đăng nhập thành công! Rất vui được gặp lại bạn, ${user.fullName}.`, "success");
-      }
-      return;
-    } else if (res && !res.success && !res.isOffline) {
-      showAuthError("loginGeneralError", res.error || "Tài khoản hoặc mật khẩu không chính xác.");
-      return;
-    }
-  }
-
-  // Fallback offline: Kiểm tra trong localStorage
-  const users = getAllUsers();
-  const user = users.find(u => u.email === account || u.phone === account);
-
-  if (!user || user.password !== password) {
-    showAuthError("loginGeneralError", "Tài khoản hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.");
-    return;
-  }
-
-  // Đăng nhập thành công
-  setCurrentUser(user);
-  bootstrap.Modal.getInstance(document.getElementById("authModal"))?.hide();
-  document.getElementById("loginForm")?.reset();
-
-  if (typeof showToast === "function") {
-    showToast(`Đăng nhập thành công! Rất vui được gặp lại bạn, ${user.fullName}.`, "success");
+  const account = document.getElementById("loginAccount")?.value.trim().toLowerCase() || "";
+  const password = document.getElementById("loginPassword")?.value || "";
+  if (!account) return showAuthError("loginAccountError", "Vui lòng nhập email hoặc số điện thoại.");
+  if (!password) return showAuthError("loginPasswordError", "Vui lòng nhập mật khẩu.");
+  if (typeof DeltaAPI === "undefined" || typeof DeltaAPI.login !== "function")
+    return showAuthError("loginGeneralError", "Không có máy chủ xác thực.");
+  try {
+    const res = await DeltaAPI.login(account,password);
+    if (!res?.success || !res?.data) return showAuthError("loginGeneralError",
+      res?.error || "Không thể xác thực trên máy chủ.");
+    const u = res.data;
+    const profile = {id:u.id, fullName:u.fullName, email:u.email, phone:u.phone,
+      role:u.role || "CUSTOMER", title:u.role === "ADMIN" ? "Ban Quản Trị" : "Thành viên"};
+    const rest = getAllUsers().filter(x => x.id !== profile.id && x.email !== profile.email);
+    saveUsers([...rest,profile]);
+    setCurrentUser(profile);
+    bootstrap.Modal.getInstance(document.getElementById("authModal"))?.hide();
+    document.getElementById("loginForm")?.reset();
+    if (typeof showToast === "function") showToast("Đăng nhập thành công!", "success");
+  } catch (_) {
+    showAuthError("loginGeneralError", "Máy chủ không phản hồi. Không hỗ trợ đăng nhập offline.");
   }
 }
 
@@ -528,55 +410,10 @@ async function handleLoginSubmit(e) {
 function handleForgotSubmit(e) {
   e.preventDefault();
   clearAuthErrors();
-
-  const account = document.getElementById("forgotAccount")?.value.trim().toLowerCase();
-  const newPassword = document.getElementById("forgotNewPassword")?.value;
-  const confirmPassword = document.getElementById("forgotConfirmPassword")?.value;
-
-  if (!account) {
-    showAuthError("forgotAccountError", "Vui lòng nhập Email hoặc Số điện thoại đã đăng ký");
-    return;
-  }
-
-  if (!newPassword || newPassword.length < 6) {
-    showAuthError("forgotNewPasswordError", "Mật khẩu mới phải có tối thiểu 6 ký tự");
-    return;
-  }
-
-  if (newPassword !== confirmPassword) {
-    showAuthError("forgotConfirmPasswordError", "Mật khẩu xác nhận không khớp");
-    return;
-  }
-
-  const users = getAllUsers();
-  const userIndex = users.findIndex(u => u.email === account || u.phone === account);
-
-  if (userIndex === -1) {
-    showAuthError("forgotAccountError", "Không tìm thấy tài khoản nào với Email hoặc Số điện thoại này");
-    return;
-  }
-
-  // Cập nhật mật khẩu mới
-  users[userIndex].password = newPassword;
-  saveUsers(users);
-
-  // Nếu người này đang đăng nhập thì cập nhật luôn
-  const currentUser = getCurrentUser();
-  if (currentUser && currentUser.id === users[userIndex].id) {
-    setCurrentUser(users[userIndex]);
-  }
-
-  // Thông báo và chuyển về tab đăng nhập
-  if (typeof showToast === "function") {
-    showToast("Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.", "success");
-  }
-
-  // Điền sẵn account vào tab đăng nhập
-  const loginAccountInput = document.getElementById("loginAccount");
-  if (loginAccountInput) loginAccountInput.value = account;
-
-  switchAuthTab("login");
-  document.getElementById("forgotForm")?.reset();
+  // Recovering a password needs an authenticated one-time token emailed by
+  // the server. An anonymous localStorage mutation would enable takeover.
+  showAuthError("forgotAccountError",
+    "Khôi phục mật khẩu qua email chưa được tích hợp. Vui lòng liên hệ quản trị viên.");
 }
 
 /**
