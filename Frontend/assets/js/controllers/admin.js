@@ -1351,14 +1351,15 @@ function handleTourImageFileSelect(e) {
     return;
   }
   const fileNameEl = document.getElementById("formTourImageFileName");
-  if (fileNameEl) fileNameEl.textContent = `(${file.name} - ${(file.size / 1024).toFixed(0)}KB - Đang đồng bộ...)`;
+  if (fileNameEl) {
+    fileNameEl.innerHTML = `<span class="text-primary"><i class="spinner-border spinner-border-sm me-1" style="width: 12px; height: 12px;"></i>Đang tải lên máy chủ & đồng bộ Database...</span>`;
+  }
 
   const reader = new FileReader();
   reader.onload = async function(evt) {
     const base64Data = evt.target.result;
     const imgInput = document.getElementById("formTourImage");
     const previewImg = document.getElementById("formTourImagePreview");
-    if (imgInput) imgInput.value = base64Data;
     if (previewImg) previewImg.src = base64Data;
 
     try {
@@ -1369,13 +1370,18 @@ function handleTourImageFileSelect(e) {
           const savedUrl = uploadRes.data.url;
           if (imgInput) imgInput.value = savedUrl;
           if (previewImg) previewImg.src = savedUrl;
-          if (fileNameEl) fileNameEl.textContent = `(${file.name} - ${(file.size / 1024).toFixed(0)}KB - Đã lưu)`;
+          if (fileNameEl) {
+            fileNameEl.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i>Đã lưu vào máy chủ & Database (${file.name} - ${(file.size / 1024).toFixed(0)}KB)</span>`;
+          }
           const galleryInput = document.getElementById("formTourImages");
           if (galleryInput) {
+            // Thay thế mọi ảnh upload cũ bằng ảnh mới để giải phóng tài nguyên
             const lines = galleryInput.value.split("\n").map(s => s.trim()).filter(Boolean);
-            if (!lines.includes(savedUrl)) {
-              galleryInput.value = [savedUrl, ...lines].join("\n");
-            }
+            const filtered = lines.filter(u => !u.startsWith("assets/images/uploads/"));
+            galleryInput.value = [savedUrl, ...filtered].join("\n");
+          }
+          if (typeof showAdminToast === "function") {
+            showAdminToast(`Đã tải ảnh lên máy chủ, cập nhật database và dọn sạch ảnh cũ thành công.`, "success");
           }
           return;
         }
@@ -1383,6 +1389,7 @@ function handleTourImageFileSelect(e) {
     } catch (err) {
       console.warn("Upload ảnh trực tiếp gặp lỗi, giữ base64 để lưu:", err);
     }
+    if (imgInput) imgInput.value = base64Data;
     if (fileNameEl) fileNameEl.textContent = `(${file.name} - ${(file.size / 1024).toFixed(0)}KB)`;
   };
   reader.readAsDataURL(file);
@@ -1870,7 +1877,10 @@ async function handleSaveTourSubmit(e) {
   }
 
   const galleryInput = document.getElementById("formTourImages")?.value || "";
-  const galleryImages = [...new Set(galleryInput.split(/\r?\n/).map(url => url.trim()).filter(Boolean))];
+  let galleryImages = [...new Set(galleryInput.split(/\r?\n/).map(url => url.trim()).filter(Boolean))];
+  if (image.startsWith("assets/images/uploads/")) {
+    galleryImages = galleryImages.filter(u => !u.startsWith("assets/images/uploads/") || u === image);
+  }
   if (!galleryImages.includes(image)) {
     galleryImages.unshift(image);
   }

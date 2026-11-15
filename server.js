@@ -1050,7 +1050,36 @@ function initDatabase() {
 
 initDatabase();
 
+// Dọn dẹp và xóa vĩnh viễn ảnh cũ của tour trên ổ cứng để tiết kiệm tài nguyên
+function deleteOldTourUploads(tourId, exceptRelativePath = null) {
+  if (!tourId) return;
+  try {
+    const uploadDir = path.join(FRONTEND_DIR, "assets", "images", "uploads");
+    if (!fs.existsSync(uploadDir)) return;
+    const safeId = String(tourId).replace(/[^a-zA-Z0-9_-]/g, "_");
+    const exceptFile = exceptRelativePath ? path.basename(exceptRelativePath) : null;
+
+    const files = fs.readdirSync(uploadDir);
+    for (const file of files) {
+      if (exceptFile && file === exceptFile) continue;
+      // Khớp file thuộc về tour này (ví dụ DL-7809_..., tour-DL-7809..., DL-7809....)
+      if (file.startsWith(safeId + "_") || file.startsWith(safeId + ".") || file.startsWith("tour-" + safeId)) {
+        try {
+          const fullPath = path.join(uploadDir, file);
+          fs.unlinkSync(fullPath);
+          console.log(`[CLEANUP] Đã xóa ảnh cũ "${file}" của tour ${tourId} để tiết kiệm tài nguyên.`);
+        } catch (e) {
+          console.warn(`[CLEANUP] Lỗi xóa file ${file}:`, e.message);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[CLEANUP] Lỗi dọn dẹp ảnh cũ:", err.message);
+  }
+}
+
 // Tự động lưu ảnh base64 thành file ảnh thực tế trên ổ cứng (Frontend/assets/images/uploads/)
+// và tự động xóa ảnh cũ của tour để tiết kiệm tài nguyên
 function saveBase64Image(dataUri, tourId) {
   if (!dataUri || typeof dataUri !== "string" || !dataUri.startsWith("data:image/")) {
     return dataUri;
@@ -1071,7 +1100,12 @@ function saveBase64Image(dataUri, tourId) {
     const fileName = `${safeId}_${Date.now()}.${ext}`;
     const filePath = path.join(uploadDir, fileName);
     fs.writeFileSync(filePath, buffer);
-    return `assets/images/uploads/${fileName}`;
+    const savedPath = `assets/images/uploads/${fileName}`;
+
+    // Cơ chế tiết kiệm tài nguyên: Tự động xóa ảnh cũ trước đó của tour này
+    deleteOldTourUploads(safeId, savedPath);
+
+    return savedPath;
   } catch (err) {
     console.warn("[UPLOAD] Lỗi lưu ảnh base64:", err.message);
     return dataUri;
@@ -3294,6 +3328,26 @@ app.post("/api/v1/admin/upload-image", requireAdmin, (req, res) => {
     return res.status(400).json({ detail: "Dữ liệu ảnh base64 không hợp lệ." });
   }
   const savedPath = saveBase64Image(image, tourId || "tour");
+
+  // Đồng bộ cập nhật ngay vào SQLite database nếu tour đã tồn tại
+  if (tourId && tourId !== "tour") {
+    try {
+      const tourExist = db.prepare("SELECT id, image FROM tours WHERE id = ?").get(tourId);
+      if (tourExist) {
+        let currentImages = [];
+        try {
+          currentImages = tourImages(tourExist.image);
+        } catch (_) {}
+        const filtered = currentImages.filter(img => !img.startsWith("assets/images/uploads/"));
+        const newImages = [savedPath, ...filtered];
+        db.prepare("UPDATE tours SET image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(JSON.stringify(newImages), tourId);
+        console.log(`[DATABASE] Đã cập nhật ảnh mới cho tour ${tourId} trong database:`, savedPath);
+      }
+    } catch (e) {
+      console.warn("[DATABASE] Lỗi cập nhật ảnh tour:", e.message);
+    }
+  }
+
   res.json({ success: true, url: savedPath });
 });
 
@@ -3319,6 +3373,23 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
   }
   if (Array.isArray(patchBody.images) && patchBody.images.length > 0) {
     delete patchBody.image;
+    // Dọn dẹp các ảnh cũ trong thư mục uploads/ không còn dùng để tiết kiệm dung lượng ổ cứng
+    try {
+      const oldImgs = tourImages(t.image);
+      for (const oldImg of oldImgs) {
+        if (typeof oldImg === "string" && oldImg.startsWith("assets/images/uploads/")) {
+          if (!patchBody.images.includes(oldImg)) {
+            const oldFilePath = path.join(FRONTEND_DIR, oldImg.replace(/\//g, path.sep));
+            if (fs.existsSync(oldFilePath)) {
+              try {
+                fs.unlinkSync(oldFilePath);
+                console.log(`[CLEANUP] Đã xóa ảnh cũ ${oldImg} của tour ${tour_id}`);
+              } catch (_) {}
+            }
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   // Xử lý cập nhật số chỗ mở bán đồng bộ xuống bảng lịch khởi hành (schedules)
@@ -3413,6 +3484,21 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
 
 app.delete("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
   const { tour_id } = req.params;
+  const tour = db.prepare("SELECT * FROM tours WHERE id = ?").get(tour_id);
+  if (tour) {
+    try {
+      const oldImgs = tourImages(tour.image);
+      for (const oldImg of oldImgs) {
+        if (typeof oldImg === "string" && oldImg.startsWith("assets/images/uploads/")) {
+          const oldFilePath = path.join(FRONTEND_DIR, oldImg.replace(/\//g, path.sep));
+          if (fs.existsSync(oldFilePath)) {
+            try { fs.unlinkSync(oldFilePath); } catch (_) {}
+          }
+        }
+      }
+      deleteOldTourUploads(tour_id);
+    } catch (_) {}
+  }
   db.prepare("UPDATE tours SET active = 0, updated_at = ? WHERE id = ?").run(new Date().toISOString(), tour_id);
   audit(req.user.id, "TOUR_DEACTIVATED", tour_id);
   res.json({ status: "ok", id: tour_id });
