@@ -4835,6 +4835,12 @@ function cleanupAndExit() {
 }
 process.on("SIGINT", cleanupAndExit);
 process.on("SIGTERM", cleanupAndExit);
+process.on("uncaughtException", (err) => {
+  console.error("[FATAL] Uncaught Exception:", err);
+});
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("[FATAL] Unhandled Rejection:", reason);
+});
 
 let retriedPortFree = false;
 server.on("error", (err) => {
