@@ -4696,6 +4696,16 @@ function freePortIfOccupied(targetPort) {
   } catch (_) {}
 }
 
+// Xử lý lỗi toàn cục và chặn crash khi client gửi JSON sai định dạng
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && (err.status === 400 || err.statusCode === 400)) {
+    return res.status(400).json({ detail: "Dữ liệu JSON không hợp lệ." });
+  }
+  if (!res.headersSent) {
+    res.status(err.status || err.statusCode || 500).json({ detail: err.message || "Lỗi máy chủ nội bộ." });
+  }
+});
+
 // Khởi động Server
 const server = app.listen(PORT, HOST, () => {
   const addr = server.address();
