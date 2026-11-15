@@ -27,6 +27,36 @@ const ORIGIN = "http://127.0.0.1:8999";
       return schedule && !schedule.disabled && schedule.value && !schedule.value.startsWith("SCHED-");
     }, { timeout: 25000 });
 
+    // Translating to English must not resurrect unimplemented payment claims.
+    const localized = await page.evaluate(() => {
+      setAppLanguage("en");
+      const en = {
+        qr: document.querySelector('[data-i18n="pay_qr_title"]').textContent,
+        desc: document.querySelector('[data-i18n="pay_qr_desc"]').textContent,
+        insurance: document.querySelector('[data-i18n="inv_insurance"]').textContent,
+        total: document.querySelector('[data-i18n="inv_total_label"]').textContent
+      };
+      setAppLanguage("vi");
+      const vi = {
+        qr: document.querySelector('[data-i18n="pay_qr_title"]').textContent,
+        desc: document.querySelector('[data-i18n="pay_qr_desc"]').textContent,
+        insurance: document.querySelector('[data-i18n="inv_insurance"]').textContent
+      };
+      return {en,vi};
+    });
+    assert.match(localized.en.qr, /demo/i);
+    assert.match(localized.en.desc, /Do not scan/i);
+    assert.match(localized.en.insurance, /not integrated/i);
+    assert.match(localized.en.total, /UNPAID/i);
+    assert.match(localized.vi.qr, /DEMO/i);
+    assert.match(localized.vi.desc, /Không quét/i);
+    assert.match(localized.vi.insurance, /chưa tích hợp/i);
+    await page.waitForFunction(() => {
+      const select = document.querySelector("#bookingScheduleSelect");
+      return select && !select.disabled && !!select.value;
+    });
+    console.log("PASS: VI and EN checkout labels both disclose no payment or insurance gateway");
+
     // Financial contract: An's displayed gross price must match the server.
     // VAT is included in published prices, not added again on top.
     const quoteAndDisplay = async () => page.evaluate(async () => {
