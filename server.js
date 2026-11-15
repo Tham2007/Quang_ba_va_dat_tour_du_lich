@@ -3852,10 +3852,31 @@ async function handleSepayWebhook(req, res) {
   });
 }
 
-app.post("/api/v1/webhooks/sepay", handleSepayWebhook);
-app.post("/hooks/sepay-payment", handleSepayWebhook);
-app.get("/api/v1/webhooks/sepay", (req, res) => res.json({ status: "ready", service: "SePay Webhook Listener", bank: "MBBank", account: "0325536936" }));
-app.get("/hooks/sepay-payment", (req, res) => res.json({ status: "ready", service: "SePay Webhook Listener", bank: "MBBank", account: "0325536936" }));
+const sepayRoutes = [
+  "/api/v1/webhooks/sepay",
+  "/api/webhooks/sepay",
+  "/api/v1/sepay",
+  "/api/sepay",
+  "/webhooks/sepay",
+  "/webhook",
+  "/webhooks",
+  "/sepay",
+  "/hooks/sepay-payment"
+];
+
+sepayRoutes.forEach(route => {
+  app.post(route, handleSepayWebhook);
+  app.get(route, (req, res) => res.json({ status: "ready", service: "SePay Webhook Listener", bank: "MBBank", account: "0325536936" }));
+});
+
+// Hỗ trợ trường hợp người dùng nhập nhầm chỉ có domain gốc (POST /) trên SePay
+app.post("/", (req, res, next) => {
+  const b = req.body || {};
+  if (b.gateway || b.accountNumber || b.transferType || b.transferAmount || b.content || req.headers["x-sepay-signature"]) {
+    return handleSepayWebhook(req, res);
+  }
+  return res.status(200).json({ status: "ready", service: "Delta Travel API" });
+});
 
 
 function parseAdminVoucherInput(body, isPatch = false) {
