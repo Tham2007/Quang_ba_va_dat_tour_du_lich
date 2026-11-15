@@ -4,6 +4,9 @@ on:
     branches: [main]
     paths:
       - 'Frontend/tests/capture-report.cjs'
+      - 'Frontend/index.html'
+      - 'Frontend/booking.html'
+      - 'Frontend/admin.html'
       - '.github/workflows/ci-report-screenshots.yml'
   workflow_dispatch:
 
