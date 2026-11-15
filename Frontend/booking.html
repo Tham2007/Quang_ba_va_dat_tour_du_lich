@@ -721,7 +721,7 @@
           </div>
 
           <div class="paper-invoice-row">
-            <span class="text-muted">Tạm tính tiền tour:</span>
+            <span class="text-muted">Giá tour chưa gồm VAT:</span>
             <span id="subtotalDisplay" class="fw-bold">0 đ</span>
           </div>
 
@@ -733,15 +733,15 @@
           </div>
 
           <div class="paper-invoice-row">
-            <span class="text-muted">Thuế GTGT (VAT 10%):</span>
+            <span class="text-muted">VAT 10% (đã gồm trong giá):</span>
             <span id="vatAmountDisplay" class="fw-bold text-dark">+ 0 đ</span>
           </div>
 
           <!-- Nhập mã giảm giá Voucher -->
           <div class="my-3 pt-3 border-top">
             <div class="input-group input-group-sm">
-              <input type="text" id="voucherCodeInput" class="form-control text-uppercase" placeholder="Mã ưu đãi (VD: DELTA10)" data-i18n-placeholder="inv_voucher_placeholder">
-              <button class="btn btn-outline-dark" type="button" id="btnApplyVoucher" onclick="applyVoucher()" data-i18n="inv_voucher_apply">Áp dụng</button>
+              <input type="text" id="voucherCodeInput" class="form-control text-uppercase" placeholder="Chưa hỗ trợ mã ưu đãi" disabled title="Máy chủ hiện chưa hỗ trợ giảm giá">
+              <button class="btn btn-outline-dark" type="button" id="btnApplyVoucher" disabled title="Máy chủ hiện chưa hỗ trợ mã ưu đãi">Áp dụng</button>
               <button class="btn btn-outline-secondary" type="button" id="btnClearVoucher" onclick="clearVoucher()" style="display: none;" title="Gỡ mã ưu đãi"><i class="bi bi-x-lg"></i></button>
             </div>
             <div id="voucherAlert" class="small mt-1" style="display: none;"></div>
@@ -750,7 +750,7 @@
 
           <div class="paper-invoice-total">
             <div>
-              <div class="fw-bold text-uppercase small text-muted" data-i18n="inv_total_label">TỔNG CỘNG THANH TOÁN:</div>
+              <div class="fw-bold text-uppercase small text-muted" data-i18n="inv_total_label">GIÁ TRỊ GIỮ CHỖ:</div>
               <div id="totalPriceDisplay" class="fs-3 fw-bold text-dark">0 đ</div>
               <div class="text-muted fw-normal" style="font-size: 11px; margin-top: 2px;">(Đã bao gồm 10% thuế VAT)</div>
             </div>
@@ -776,9 +776,9 @@
           <i class="bi bi-patch-check-fill text-dark" style="font-size: 54px;"></i>
         </div>
         <div class="text-uppercase fw-bold text-dark small" style="letter-spacing: 0.15em;">ĐẶT TOUR THÀNH CÔNG</div>
-        <h2 class="fw-bold text-dark mb-2">Hóa Đơn Giữ Chỗ & Thanh Toán VietQR MBBank</h2>
+        <h2 class="fw-bold text-dark mb-2">Phiếu Giữ Chỗ Delta Travel, Chưa Thanh Toán</h2>
         <p class="text-muted small mx-auto mb-0" style="max-width: 640px;">
-          Hệ thống Delta Travel đã xác nhận thông tin đơn đặt tour. Quý khách vui lòng chuyển khoản theo mã VietQR hoặc số tài khoản MBBank bên dưới để nhận hóa đơn chứng từ điện tử.
+          Máy chủ đã ghi nhận đơn giữ chỗ cho mục đích trình diễn. Không chuyển tiền. Hệ thống chưa kết nối cổng thanh toán thương mại.
         </p>
         <div id="receiptEmailBanner" class="mt-3 mx-auto d-none" style="max-width: 640px;"></div>
       </div>
@@ -808,7 +808,7 @@
               </span>
             </div>
             <div class="d-flex justify-content-between align-items-center mb-1" id="receiptSubtotalRow">
-              <span class="text-muted small">Tạm tính tiền tour:</span>
+              <span class="text-muted small">Giá tour chưa gồm VAT:</span>
               <span id="receiptSubtotal" class="small fw-semibold text-dark">0 đ</span>
             </div>
             <div class="d-flex justify-content-between align-items-center mb-1 text-success" id="receiptDiscountRow" style="display: none;">
@@ -816,11 +816,11 @@
               <strong id="receiptDiscount" class="small">- 0 đ</strong>
             </div>
             <div class="d-flex justify-content-between align-items-center mb-1" id="receiptVatRow">
-              <span class="text-muted small">Thuế GTGT (VAT 10%):</span>
+              <span class="text-muted small">VAT 10% (đã gồm trong giá):</span>
               <strong id="receiptVatAmount" class="small text-dark">+ 0 đ</strong>
             </div>
             <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2">
-              <span class="text-muted small fw-bold">Tổng tiền cần thanh toán:</span>
+              <span class="text-muted small fw-bold">Tổng giá trị giữ chỗ:</span>
               <strong id="receiptTotal" class="fs-4 text-danger fw-bold">0 đ</strong>
             </div>
           </div>
@@ -900,10 +900,10 @@
                 <div class="flex-grow-1">
                   <div class="fw-bold text-dark small d-flex align-items-center gap-1.5 mb-1">
                     <i class="bi bi-broadcast text-primary"></i>
-                    <span>Đang chờ SePay tự động ghi nhận chuyển khoản...</span>
+                    <span>Đơn đang chờ đối soát trên máy chủ...</span>
                   </div>
                   <div class="text-secondary" style="font-size: 11.5px; line-height: 1.45;">
-                    Vui lòng giữ đúng <strong>Nội dung CK</strong> khi chuyển. Cổng SePay sẽ tự động đối soát tiền vào tài khoản MBBank và kích hoạt hóa đơn trong 1 - 3 giây mà bạn không cần phải bấm bất kỳ nút nào.
+                    Bản demo chưa tích hợp webhook ngân hàng. Mọi thay đổi trạng thái phải được xác minh từ phía máy chủ.
                   </div>
                 </div>
               </div>
@@ -931,10 +931,10 @@
             <div>
               <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
                 <span class="badge bg-danger text-white px-2.5 py-0.5 rounded-pill fw-bold" style="font-size: 10px;">VIETQR PRO</span>
-                <span class="fw-bold text-dark">Quét mã VietQR thanh toán tự động</span>
+                <span class="fw-bold text-dark">Hình minh họa, không thể thanh toán</span>
               </div>
               <p class="text-muted small mb-3" style="font-size: 12px;">
-                Mở ứng dụng ngân hàng bất kỳ quét mã để thanh toán tự động, không cần nhập số tài khoản:
+                Đây không phải mã QR thanh toán. Không sử dụng ứng dụng ngân hàng để chuyển tiền.
               </p>
 
               <!-- Ảnh QR to 330px x 330px, sắc nét, tối ưu quét bằng app ngân hàng -->
@@ -965,15 +965,15 @@
         </div>
       </div>
 
-      <!-- Hàng nút chức năng phía dưới: Lưu hóa đơn chứng từ chuẩn quốc tế -->
+      <!-- Hàng nút chức năng phía dưới: Lưu phiếu giữ chỗ (DEMO) -->
       <div class="d-flex flex-wrap gap-2.5 justify-content-center no-print mt-4 pt-3 border-top">
         <button id="btnDownloadInvoice" class="btn btn-dark px-4 py-2.5 rounded-pill fw-bold shadow-sm d-inline-flex align-items-center gap-2" onclick="downloadOfficialInvoice()">
           <i class="bi bi-file-earmark-check-fill text-warning fs-5"></i>
-          <span>Lưu hóa đơn chứng từ chuẩn quốc tế</span>
+          <span>Lưu phiếu giữ chỗ (DEMO)</span>
         </button>
         <button class="btn btn-outline-dark px-4 py-2.5 rounded-pill fw-semibold d-inline-flex align-items-center gap-2" onclick="printOfficialInvoice()">
           <i class="bi bi-printer fs-5"></i>
-          <span>In hóa đơn chứng từ</span>
+          <span>In phiếu giữ chỗ</span>
         </button>
         <a href="https://zalo.me/0325536936" target="_blank" rel="noopener noreferrer" class="btn btn-outline-dark px-4 py-2.5 rounded-pill fw-semibold d-inline-flex align-items-center gap-2">
           <i class="bi bi-chat-quote-fill text-primary fs-5"></i>
@@ -1573,46 +1573,10 @@
     }
 
     async function loadAvailableVouchersForTour(tourId) {
-      const hintEl = document.getElementById("availableVouchersHint");
-      if (!hintEl || !tourId) return;
-      let list = [];
-      if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.fetchPublicVouchers === "function") {
-        try {
-          const res = await DeltaAPI.fetchPublicVouchers(tourId);
-          if (res && res.success && Array.isArray(res.data)) {
-            list = res.data;
-          }
-        } catch (_) {}
-      }
-      if (!list.length && typeof getVouchersData === "function") {
-        const now = Date.now();
-        list = getVouchersData().filter(v => {
-          if (v.active === false) return false;
-          const sMs = Date.parse(v.startAt);
-          const eMs = Date.parse(v.endAt);
-          if (!isNaN(sMs) && now < sMs) return false;
-          if (!isNaN(eMs) && now > eMs) return false;
-          if (v.usageLimit > 0 && (v.usedCount || 0) >= v.usageLimit) return false;
-          if (v.scopeType === "region" && currentTour && !(v.scopeRegions || []).includes(currentTour.region)) return false;
-          if (v.scopeType === "tours" && !(v.scopeTourIds || []).map(x => String(x).toUpperCase()).includes(String(tourId).toUpperCase())) return false;
-          return true;
-        });
-      }
-      if (!list.length) {
-        hintEl.style.display = "none";
-        hintEl.innerHTML = "";
-        return;
-      }
-      hintEl.style.display = "block";
-      hintEl.innerHTML = `
-        <div class="text-muted mb-1" style="font-size: 11px;">Mã ưu đãi gợi ý cho tour này:</div>
-        <div class="d-flex flex-wrap gap-1">
-          ${list.slice(0, 4).map(v => {
-            const label = v.discountType === "percent" ? `-${v.discountValue}%` : `-${Math.round(v.discountValue / 1000)}K`;
-            return `<button type="button" class="btn btn-outline-dark btn-sm py-0 px-2 font-monospace" style="font-size: 11px;" onclick="selectSuggestedVoucher('${String(v.code).replace(/'/g, "")}')" title="${String(v.description || v.name || "").replace(/"/g, "&quot;")}">${v.code} (${label})</button>`;
-          }).join("")}
-        </div>
-      `;
+      // Server quote says vouchersSupported:false. Local coupons must never
+      // change the amount displayed for a server-priced booking.
+      const hint = document.getElementById("availableVouchersHint");
+      if (hint) { hint.textContent = ""; hint.style.display = "none"; }
     }
 
     function selectSuggestedVoucher(code) {
@@ -1635,19 +1599,18 @@
       document.getElementById("guestCountDisplay").textContent = guestSummary;
 
       // THUẬT TOÁN TÍNH GIÁ CHUẨN THƯƠNG MẠI: Người lớn 100%, Trẻ em 75%, Em bé 10% + Giảm giá Voucher + 10% THUẾ VAT BẮT BUỘC
-      const rawBookingSubtotal = typeof calculateBookingSubtotal === "function"
-        ? calculateBookingSubtotal(adults, children, infants)
-        : ((adults * currentTour.price) + (children * currentTour.price * 0.75) + (infants * currentTour.price * 0.1));
-      const effectiveDiscount = Math.max(0, Math.min(rawBookingSubtotal, Number(discountAmount) || 0));
-      const subtotal = Math.max(0, rawBookingSubtotal - effectiveDiscount);
-      const vatAmount = Math.round(subtotal * 0.10); // 10% VAT
-      const finalTotal = subtotal + vatAmount;
+      // The displayed VND tour prices already include VAT in the server contract.
+      const rawBookingSubtotal = calculateBookingSubtotal(adults, children, infants);
+      const effectiveDiscount = 0; // Server explicitly does not support vouchers.
+      const finalTotal = rawBookingSubtotal;
+      const vatAmount = finalTotal - Math.round(finalTotal / 1.1);
+      const subtotal = finalTotal - vatAmount;
 
       const subtotalEl = document.getElementById("subtotalDisplay");
-      if (subtotalEl) subtotalEl.textContent = formatVND(rawBookingSubtotal);
+      if (subtotalEl) subtotalEl.textContent = formatVND(subtotal);
 
       const subtotalPriceEl = document.getElementById("subtotalPriceDisplay");
-      if (subtotalPriceEl) subtotalPriceEl.textContent = formatVND(rawBookingSubtotal);
+      if (subtotalPriceEl) subtotalPriceEl.textContent = formatVND(subtotal);
 
       const vatEl = document.getElementById("vatAmountDisplay");
       if (vatEl) vatEl.textContent = "+ " + formatVND(vatAmount);
@@ -1690,96 +1653,11 @@
     }
 
     async function applyVoucher(silent = false) {
-      const input = document.getElementById("voucherCodeInput");
-      const code = (input?.value || "").trim().toUpperCase();
-      const alertEl = document.getElementById("voucherAlert");
-      const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
-
-      if (!code) {
-        clearVoucher();
-        if (!silent) {
-          showAppNotice(
-            isEn ? "Please enter a promo code before applying." : "Vui lòng nhập mã ưu đãi trước khi áp dụng.",
-            isEn ? "Notice" : "Thông Báo",
-            "warning"
-          );
-        }
-        return false;
-      }
-
-      if (!currentTour) return false;
-      const adults = Math.max(1, parseInt(document.getElementById("numAdults")?.value || 1, 10));
-      const children = Math.max(0, parseInt(document.getElementById("numChildren")?.value || 0, 10));
-      const infants = Math.max(0, parseInt(document.getElementById("numInfants")?.value || 0, 10));
-      const scheduleId = document.getElementById("bookingScheduleSelect")?.value || "";
-      const customerEmail = (document.getElementById("customerEmail")?.value || "").trim();
-      const customerPhone = (document.getElementById("customerPhone")?.value || "").trim();
-      const subtotal = calculateBookingSubtotal(adults, children, infants);
-
-      let result = null;
-      if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.validateVoucher === "function") {
-        try {
-          const apiRes = await DeltaAPI.validateVoucher({
-            code,
-            tour_id: currentTour.id,
-            schedule_id: scheduleId,
-            adults,
-            children,
-            infants,
-            customer_email: customerEmail,
-            customer_phone: customerPhone
-          });
-          if (apiRes && !apiRes.isOffline) {
-            result = apiRes.success && apiRes.data?.valid
-              ? { valid: true, ...apiRes.data }
-              : { valid: false, detail: apiRes.error || apiRes.data?.detail || "Mã ưu đãi không đủ điều kiện áp dụng." };
-          }
-        } catch (_) {}
-      }
-
-      if (!result && typeof evaluateLocalVoucher === "function") {
-        let authUser = null;
-        try {
-          authUser = JSON.parse(localStorage.getItem("delta_auth_user") || "null");
-        } catch (_) {}
-        result = evaluateLocalVoucher({
-          code,
-          tour: currentTour,
-          subtotal,
-          authUser,
-          customerEmail,
-          customerPhone
-        });
-      }
-
-      if (result && result.valid) {
-        appliedVoucherCode = code;
-        appliedVoucherData = result.voucher || null;
-        discountAmount = Number(result.discountAmount || 0);
-        if (alertEl) {
-          alertEl.className = "small text-success fw-semibold mt-1";
-          alertEl.style.display = "block";
-          alertEl.textContent = result.message || (isEn
-            ? `Promo code ${code} applied: -${formatVND(discountAmount)}`
-            : `Áp dụng thành công mã ${code}: Giảm ${formatVND(discountAmount)}`);
-        }
-        recalcPrice();
-        return true;
-      }
-
-      appliedVoucherCode = "";
-      appliedVoucherData = null;
-      discountAmount = 0;
-      const errMsg = (result && result.detail) || (isEn ? "Promo code is not eligible." : "Mã ưu đãi không đủ điều kiện áp dụng.");
-      if (alertEl) {
-        alertEl.className = "small text-danger fw-semibold mt-1";
-        alertEl.style.display = "block";
-        alertEl.textContent = errMsg;
-      }
-      recalcPrice();
-      if (!silent) {
-        showAppNotice(errMsg, isEn ? "Promo Not Eligible" : "Không Thể Áp Dụng Mã", "warning");
-      }
+      clearVoucher();
+      if (!silent) showAppNotice(
+        "Máy chủ chưa hỗ trợ mã giảm giá. Giá niêm yết đã gồm VAT.",
+        "Ưu Đãi Chưa Khả Dụng", "warning"
+      );
       return false;
     }
 
@@ -1866,7 +1744,7 @@
         }
       }
       const rDisc = Number(booking.discountAmount || booking.pricing?.discount || 0);
-      const rSub = Number(booking.subtotalPrice || booking.pricing?.subtotal || Math.round(payAmount / 1.1 + rDisc));
+      const rSub = Number(booking.subtotalPrice || booking.pricing?.subtotal || Math.round(payAmount / 1.1));
       const rVat = Number(booking.vatAmount || booking.pricing?.vatAmount || Math.round(Math.max(0, rSub - rDisc) * 0.10));
       const rSubRow = document.getElementById("receiptSubtotalRow");
       const rDiscRow = document.getElementById("receiptDiscountRow");
@@ -1905,7 +1783,7 @@
           sepaySuccessView.classList.add("d-flex");
         }
         if (sepaySuccessDetails && booking.paymentEvidence) {
-          sepaySuccessDetails.textContent = `Mã đối soát SePay: ${booking.paymentEvidence}. Trạng thái do quản trị viên xác nhận trên máy chủ.`;
+          sepaySuccessDetails.textContent = `Mã đối soát do máy chủ lưu: ${booking.paymentEvidence}. Trạng thái chỉ được xác nhận sau khi đối soát thủ công.`;
         }
         if (paymentCountdownTimer) clearInterval(paymentCountdownTimer);
         const timerEl = document.getElementById("receiptCountdown");
@@ -1973,10 +1851,30 @@
         if (!ok) return;
       }
 
-      const effectiveDiscount = Math.max(0, Math.min(rawSubtotal, Number(discountAmount) || 0));
-      const subtotal = Math.max(0, rawSubtotal - effectiveDiscount);
-      const vatAmount = Math.round(subtotal * 0.10); // 10% Thuế VAT
-      const calculatedTotal = subtotal + vatAmount;
+      // Server returns the final VAT-inclusive amount. Never add a second VAT.
+      const effectiveDiscount = 0;
+      const calculatedTotal = rawSubtotal;
+      const vatAmount = calculatedTotal - Math.round(calculatedTotal / 1.1);
+      const subtotal = calculatedTotal - vatAmount;
+
+      // Validate price and inventory with the authoritative live quote.
+      if (typeof DeltaAPI === "undefined" || typeof DeltaAPI.quoteBooking !== "function") {
+        showAppNotice("Máy chủ báo giá không khả dụng.", "Chưa Thể Đặt Tour", "error");
+        return;
+      }
+      const quoted = await DeltaAPI.quoteBooking({schedule_id: scheduleId, adults, children, infants});
+      if (!quoted?.success || !quoted?.data || !Number.isFinite(Number(quoted.data.totalPrice))) {
+        showAppNotice(quoted?.error || "Không thể xác minh giá từ máy chủ.", "Báo Giá", "error");
+        return;
+      }
+      if (Number(quoted.data.totalPrice) !== calculatedTotal) {
+        if (currentTour && Number.isFinite(Number(quoted.data.unitPrice))) {
+          currentTour.price = Number(quoted.data.unitPrice);
+        }
+        recalcPrice();
+        showAppNotice("Giá trên máy chủ vừa thay đổi. Vui lòng xem lại và xác nhận lần nữa.", "Giá Đã Thay Đổi", "warning");
+        return;
+      }
 
       const payload = {
         scheduleId: scheduleId,

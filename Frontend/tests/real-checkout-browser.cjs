@@ -27,6 +27,43 @@ const ORIGIN = "http://127.0.0.1:8999";
       return schedule && !schedule.disabled && schedule.value && !schedule.value.startsWith("SCHED-");
     }, { timeout: 25000 });
 
+    // Financial contract: An's displayed gross price must match the server.
+    // VAT is included in published prices, not added again on top.
+    const quoteAndDisplay = async () => page.evaluate(async () => {
+      const schedule_id = document.querySelector("#bookingScheduleSelect").value;
+      const adults = Number(document.querySelector("#numAdults").value);
+      const children = Number(document.querySelector("#numChildren").value);
+      const infants = Number(document.querySelector("#numInfants").value);
+      const response = await fetch("/api/v1/bookings/quote", {
+        method: "POST", headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({schedule_id,adults,children,infants})
+      });
+      return {
+        status: response.status, quote: await response.json(),
+        shownGross: Number(document.querySelector("#totalPriceDisplay").textContent.replace(/[^0-9]/g, "")),
+        shownNet: Number(document.querySelector("#subtotalDisplay").textContent.replace(/[^0-9]/g, "")),
+        shownVat: Number(document.querySelector("#vatAmountDisplay").textContent.replace(/[^0-9]/g, "")),
+        voucherDisabled: document.querySelector("#voucherCodeInput").disabled
+      };
+    });
+    let initial = await quoteAndDisplay();
+    assert.equal(initial.status, 200, JSON.stringify(initial.quote));
+    assert.equal(initial.shownGross, initial.quote.totalPrice, "Double VAT charged on checkout");
+    assert.equal(initial.shownNet + initial.shownVat, initial.shownGross,
+      "Displayed VAT breakdown does not reconcile to authoritative price");
+    assert.equal(initial.voucherDisabled, true, "Unsupported coupon must be disabled");
+
+    // Child discount is a frequent source of client/server rounding drift.
+    await page.locator("#numChildren").fill("1");
+    await page.evaluate(() => recalcPrice());
+    const withChild = await quoteAndDisplay();
+    assert.equal(withChild.status, 200);
+    assert.equal(withChild.shownGross, withChild.quote.totalPrice, "Child fare mismatch");
+    assert.equal(withChild.shownNet + withChild.shownVat, withChild.shownGross);
+    await page.locator("#numChildren").fill("0");
+    await page.evaluate(() => recalcPrice());
+    console.log("PASS: client and server quote match for adult and child, VAT included exactly once");
+
     const email = "actual-checkout-" + Math.random().toString(16).slice(2, 15) + "@example.test";
     const registration = await page.evaluate(async (email) => {
       const response = await fetch("/api/v1/auth/register", {
@@ -57,6 +94,12 @@ const ORIGIN = "http://127.0.0.1:8999";
     assert.equal(booking.status, "PENDING_PAYMENT");
     assert.equal(booking.paid, false);
     assert(booking.id && booking.reference);
+    const receiptDisplayed = await page.locator("#receiptTotal").innerText();
+    const receiptGross = Number(receiptDisplayed.replace(/[^0-9]/g, ""));
+    assert.equal(receiptGross, booking.totalPrice, "Receipt total does not match server booking");
+    assert.equal(receiptGross, initial.quote.totalPrice, "Form, quote and receipt totals disagree");
+    assert((await page.locator("#receiptStatusBadge").innerText()).includes("PENDING"));
+    console.log("PASS: booking form, live price quote and saved booking receipt have identical VND total");
     console.log("PASS: original booking.html created one real server-side PENDING_PAYMENT booking");
 
     // Customer's own claim cannot mark a booking paid.
