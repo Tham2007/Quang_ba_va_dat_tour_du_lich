@@ -1364,6 +1364,7 @@
         await loadSchedules(tour.id);
         await loadAvailableVouchersForTour(tour.id);
         recalcPrice();
+        await syncPriceWithServer();
         autoFillUserProfile();
       } catch (err) {
         console.error("Lỗi khởi tạo booking:", err);
@@ -1562,6 +1563,61 @@
           select.innerHTML = `<option value="DEFAULT">${isEn ? "Departs every Saturday" : "Khởi hành thứ 7 hàng tuần"}</option>`;
         }
       }
+    }
+
+    // Prevent a stale browser/local-storage price from reaching the checkout.
+    // Quote and inventory are owned by the server; clients merely display them.
+    let quoteSyncVersion = 0;
+    let quoteDebounceTimer = null;
+    async function syncPriceWithServer({notify = false} = {}) {
+      const select = document.getElementById("bookingScheduleSelect");
+      const scheduleId = select?.value || "";
+      const tourAtStart = currentTour;
+      if (!tourAtStart || !scheduleId || select?.disabled || !currentSchedules.some(x => x.id === scheduleId)) {
+        return false;
+      }
+      if (typeof DeltaAPI === "undefined" || typeof DeltaAPI.quoteBooking !== "function") {
+        return false;
+      }
+      const adults = Math.max(1, Number(document.getElementById("numAdults")?.value || 1));
+      const children = Math.max(0, Number(document.getElementById("numChildren")?.value || 0));
+      const infants = Math.max(0, Number(document.getElementById("numInfants")?.value || 0));
+      const version = ++quoteSyncVersion;
+      const res = await DeltaAPI.quoteBooking({schedule_id:scheduleId, adults, children, infants});
+      if (version !== quoteSyncVersion || currentTour !== tourAtStart ||
+          select.value !== scheduleId ||
+          Number(document.getElementById("numAdults")?.value || 1) !== adults ||
+          Number(document.getElementById("numChildren")?.value || 0) !== children ||
+          Number(document.getElementById("numInfants")?.value || 0) !== infants) {
+        return false; // Older quote, user changed selection while the request was running.
+      }
+      const price = Number(res?.data?.unitPrice);
+      const quotedGross = Number(res?.data?.totalPrice);
+      if (!res?.success || !Number.isSafeInteger(price) || price <= 0 ||
+          !Number.isSafeInteger(quotedGross) || quotedGross < 0) {
+        return false;
+      }
+      const previousPrice = Number(currentTour.price);
+      const changed = previousPrice !== price;
+      currentTour.price = price;
+      recalcPrice();
+      renderTourInfo();
+      const displayed = calculateBookingSubtotal(adults, children, infants);
+      const totalEl = document.getElementById("totalPriceDisplay");
+      if (totalEl) totalEl.dataset.serverQuoteMatch = String(displayed === quotedGross);
+      if (displayed !== quotedGross) return false; // No silent mismatch for future server fees.
+      if (changed && notify) {
+        showAppNotice("Giá niêm yết đã được đồng bộ theo máy chủ: " + formatVND(quotedGross),
+          "Đã Cập Nhật Giá Tour", "info");
+      }
+      return true;
+    }
+
+    function scheduleServerPriceSync() {
+      if (quoteDebounceTimer) clearTimeout(quoteDebounceTimer);
+      quoteDebounceTimer = setTimeout(() => {
+        syncPriceWithServer().catch(err => console.warn("Không đồng bộ được giá máy chủ:", err));
+      }, 180);
     }
 
     function calculateBookingSubtotal(adults, children, infants) {
@@ -1868,11 +1924,17 @@
         return;
       }
       if (Number(quoted.data.totalPrice) !== calculatedTotal) {
-        if (currentTour && Number.isFinite(Number(quoted.data.unitPrice))) {
+        // Never submit a changed amount without the visitor's acknowledgement.
+        if (currentTour && Number.isSafeInteger(Number(quoted.data.unitPrice)) &&
+            Number(quoted.data.unitPrice) > 0) {
           currentTour.price = Number(quoted.data.unitPrice);
+          renderTourInfo();
         }
         recalcPrice();
-        showAppNotice("Giá trên máy chủ vừa thay đổi. Vui lòng xem lại và xác nhận lần nữa.", "Giá Đã Thay Đổi", "warning");
+        showAppNotice(
+          "Đã cập nhật giá từ máy chủ. Vui lòng kiểm tra tổng tiền và nhấn đặt tour lần nữa.",
+          "Giá Tour Vừa Được Cập Nhật", "warning"
+        );
         return;
       }
 
@@ -2187,8 +2249,11 @@
     ["numAdults", "numChildren", "numInfants"].forEach(id => {
       document.getElementById(id)?.addEventListener("input", () => {
         recalcPrice();
-        if (appliedVoucherCode) applyVoucher(true);
+        scheduleServerPriceSync();
       });
+    });
+    document.getElementById("bookingScheduleSelect")?.addEventListener("change", () => {
+      scheduleServerPriceSync();
     });
 
     ["customerEmail", "customerPhone"].forEach(id => {
@@ -2214,7 +2279,7 @@
       if (currentTour) {
         renderTourInfo();
         renderBookingItinerary(currentTour);
-        loadSchedules(currentTour.id);
+        loadSchedules(currentTour.id).then(() => syncPriceWithServer()).catch(() => {});
         recalcPrice();
       }
     });
