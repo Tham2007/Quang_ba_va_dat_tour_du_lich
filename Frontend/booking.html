@@ -14,6 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <link rel="stylesheet" href="assets/css/base.css">
   <link rel="stylesheet" href="assets/css/header.css">
   <link rel="stylesheet" href="assets/css/auth.css">
@@ -548,6 +549,29 @@
 
   <!-- 2. Form đặt tour toàn trang -->
   <main class="container my-4 my-md-5">
+    <!-- Cảnh báo bắt buộc đăng nhập (Khách chưa đăng nhập chỉ được xem tour) -->
+    <div id="bookingAuthRequiredBanner" class="paper-sheet mb-4 p-4 text-center rounded-4 shadow-sm" style="display: none; background: #fffcf0; border: 2px solid #f59e0b !important;">
+      <div class="d-inline-flex p-3 rounded-circle bg-warning bg-opacity-25 text-warning mb-2">
+        <i class="bi bi-shield-lock-fill fs-2 text-warning"></i>
+      </div>
+      <h4 class="fw-bold text-dark mb-2">Yêu Cầu Đăng Nhập Tài Khoản Để Đặt Tour</h4>
+      <p class="text-secondary mx-auto mb-3" style="max-width: 620px; font-size: 13.5px; line-height: 1.6;">
+        Theo chính sách phân quyền của Delta Travel, <strong>khách chưa đăng nhập chỉ có quyền xem thông tin tour</strong>. 
+        Quý khách vui lòng <strong>Đăng nhập</strong> hoặc <strong>Đăng ký thành viên</strong> để tiếp tục đặt tour, theo dõi mã vé điện tử và đảm bảo đầy đủ quyền lợi bảo hiểm hành khách.
+      </p>
+      <div class="d-flex flex-wrap gap-2.5 justify-content-center">
+        <button type="button" class="btn btn-dark px-4 py-2.5 rounded-pill fw-bold shadow-sm d-inline-flex align-items-center gap-1.5" onclick="openAuthModal('login')">
+          <i class="bi bi-box-arrow-in-right text-warning"></i> Đăng nhập ngay
+        </button>
+        <button type="button" class="btn btn-outline-dark px-4 py-2.5 rounded-pill fw-bold d-inline-flex align-items-center gap-1.5" onclick="openAuthModal('register')">
+          <i class="bi bi-person-plus text-primary"></i> Đăng ký tài khoản
+        </button>
+        <a href="index.html#toursSection" class="btn btn-outline-secondary px-4 py-2.5 rounded-pill fw-semibold d-inline-flex align-items-center gap-1.5">
+          <i class="bi bi-compass"></i> Quay lại xem tour
+        </a>
+      </div>
+    </div>
+
     <div id="bookingFormWrapper" class="row g-4">
       <!-- Cột trái: Các bước điền hồ sơ đặt vé & Lịch trình -->
       <div class="col-12 col-lg-8">
@@ -965,12 +989,14 @@
       </div>
 
       <!-- Hàng nút chức năng phía dưới: Vé điện tử Luxury & Lưu hóa đơn VAT -->
-      <div class="d-flex flex-wrap gap-2.5 justify-content-center no-print mt-4 pt-3 border-top">
-        <button id="btnLuxuryTicket" class="btn btn-warning px-4 py-2.5 rounded-pill fw-bold shadow-sm d-inline-flex align-items-center gap-2 text-dark" onclick="TicketInvoiceService.openTicket(currentBookingData)">
+      <div class="d-flex flex-wrap gap-2.5 justify-content-center no-print mt-4 pt-3 border-top align-items-center">
+        <!-- Thông báo điều kiện cấp vé -->
+        <div id="receiptTicketNotice" class="w-100 text-center small mb-2 text-muted"></div>
+        <button id="btnLuxuryTicket" class="btn btn-warning px-4 py-2.5 rounded-pill fw-bold shadow-sm d-inline-flex align-items-center gap-2 text-dark" style="display: none !important;" onclick="TicketInvoiceService.openTicket(currentBookingData)">
           <i class="bi bi-upc-scan fs-5"></i>
           <span>Phiếu vé (Ticket Online)</span>
         </button>
-        <button id="btnDownloadInvoice" class="btn btn-dark px-4 py-2.5 rounded-pill fw-bold shadow-sm d-inline-flex align-items-center gap-2" onclick="TicketInvoiceService.openInvoice(currentBookingData)">
+        <button id="btnDownloadInvoice" class="btn btn-dark px-4 py-2.5 rounded-pill fw-bold shadow-sm d-inline-flex align-items-center gap-2" style="display: none !important;" onclick="TicketInvoiceService.openInvoice(currentBookingData)">
           <i class="bi bi-file-earmark-check-fill text-warning fs-5"></i>
           <span>Lưu hóa đơn chứng từ chuẩn quốc tế</span>
         </button>
@@ -1275,6 +1301,29 @@
             return;
           }
         } catch (_) {}
+      }
+
+      // PHÂN QUYỀN BẢO MẬT: Khách chưa đăng nhập chỉ được xem thông tin tour, không được đặt tour
+      const currentUser = (typeof getCurrentUser === "function" ? getCurrentUser() : null) ||
+                          JSON.parse(localStorage.getItem("delta_current_user_v2") || "null") ||
+                          JSON.parse(localStorage.getItem("delta_auth_user") || "null");
+
+      const authRequiredBanner = document.getElementById("bookingAuthRequiredBanner");
+      const submitBtn = document.querySelector(".paper-btn-submit");
+
+      if (!currentUser) {
+        if (authRequiredBanner) authRequiredBanner.style.display = "block";
+        setBookingSubmitEnabled(false);
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = `<i class="bi bi-shield-lock-fill me-1 text-warning"></i> ${isEn ? "Login Required to Book Tour" : "Đăng Nhập Để Đặt Tour"}`;
+          submitBtn.style.opacity = "0.75";
+          submitBtn.style.cursor = "pointer";
+          submitBtn.onclick = () => openAuthModal("login");
+        }
+      } else {
+        if (authRequiredBanner) authRequiredBanner.style.display = "none";
+        setBookingSubmitEnabled(true);
       }
 
       try {
@@ -1784,16 +1833,41 @@
       document.getElementById("receiptTransferAmount").textContent = formatVND(payAmount);
       document.getElementById("receiptTransferNote").textContent = transferNote;
 
-      const isPaid = booking.status === "PAID" || booking.paid;
+      const rawStatus = String(booking.status || booking.statusCode || "").toUpperCase();
+      const isConfirmed = rawStatus === "CONFIRMED" || rawStatus === "COMPLETED";
+      const isPaid = isConfirmed || rawStatus === "PAID" || booking.paid;
       const statusBadge = document.getElementById("receiptStatusBadge");
       const sepayPendingView = document.getElementById("sepayPendingView");
       const sepaySuccessView = document.getElementById("sepaySuccessView");
       const sepaySuccessDetails = document.getElementById("sepaySuccessDetails");
+      const btnTicket = document.getElementById("btnLuxuryTicket");
+      const btnInvoice = document.getElementById("btnDownloadInvoice");
+      const noticeEl = document.getElementById("receiptTicketNotice");
 
-      if (isPaid) {
+      if (isConfirmed) {
+        if (statusBadge) {
+          statusBadge.className = "badge bg-success text-white px-3 py-1.5 rounded-pill border";
+          statusBadge.innerHTML = '<i class="bi bi-patch-check-fill me-1"></i> ĐÃ DUYỆT (CONFIRMED)';
+        }
+        if (sepayPendingView) sepayPendingView.classList.add("d-none");
+        if (sepaySuccessView) {
+          sepaySuccessView.classList.remove("d-none");
+          sepaySuccessView.classList.add("d-flex");
+        }
+        if (sepaySuccessDetails) {
+          sepaySuccessDetails.textContent = `Đơn #${booking.reference || booking.id} đã được Admin xác nhận. Vé điện tử & hóa đơn đã sẵn sàng!`;
+        }
+        if (paymentCountdownTimer) clearInterval(paymentCountdownTimer);
+        const timerEl = document.getElementById("receiptCountdown");
+        if (timerEl) timerEl.textContent = "Đã xác nhận";
+
+        if (btnTicket) btnTicket.style.setProperty("display", "inline-flex", "important");
+        if (btnInvoice) btnInvoice.style.setProperty("display", "inline-flex", "important");
+        if (noticeEl) noticeEl.innerHTML = '<span class="text-success fw-bold"><i class="bi bi-shield-check"></i> Đơn đã được Admin xác nhận. Vé điện tử & Barcode Check-in đã sẵn sàng.</span>';
+      } else if (isPaid) {
         if (statusBadge) {
           statusBadge.className = "badge bg-dark text-white px-3 py-1.5 rounded-pill border";
-          statusBadge.innerHTML = '<i class="bi bi-patch-check-fill me-1 text-warning"></i> ĐÃ THANH TOÁN (PAID)';
+          statusBadge.innerHTML = '<i class="bi bi-patch-check-fill me-1 text-warning"></i> ĐÃ THANH TOÁN (CHỜ ADMIN DUYỆT)';
         }
         if (sepayPendingView) sepayPendingView.classList.add("d-none");
         if (sepaySuccessView) {
@@ -1801,11 +1875,16 @@
           sepaySuccessView.classList.add("d-flex");
         }
         if (sepaySuccessDetails && booking.paymentEvidence) {
-          sepaySuccessDetails.textContent = `Mã đối soát SePay: ${booking.paymentEvidence}. Hóa đơn chứng từ đã được cấp tự động.`;
+          sepaySuccessDetails.textContent = `Mã đối soát: ${booking.paymentEvidence}. Đang chờ Admin xác nhận duyệt vé.`;
         }
         if (paymentCountdownTimer) clearInterval(paymentCountdownTimer);
         const timerEl = document.getElementById("receiptCountdown");
-        if (timerEl) timerEl.textContent = "Đã xác nhận";
+        if (timerEl) timerEl.textContent = "Chờ Admin duyệt";
+
+        // QUY TẮC: Thanh toán xong nhưng chờ Admin xác nhận thì chưa hiển thị vé ticket
+        if (btnTicket) btnTicket.style.setProperty("display", "none", "important");
+        if (btnInvoice) btnInvoice.style.setProperty("display", "inline-flex", "important");
+        if (noticeEl) noticeEl.innerHTML = '<span class="text-primary fw-semibold"><i class="bi bi-hourglass-split"></i> Đã nhận tiền thành công. Đang chờ Quản trị viên (Admin) đối soát & xác nhận đơn để xuất Phiếu vé chính thức.</span>';
       } else {
         if (statusBadge) {
           statusBadge.className = "badge bg-dark text-white px-3 py-1.5 rounded-pill border";
@@ -1818,6 +1897,10 @@
         if (sepaySuccessView) sepaySuccessView.classList.add("d-none");
         startPaymentCountdown(15 * 60);
 
+        if (btnTicket) btnTicket.style.setProperty("display", "none", "important");
+        if (btnInvoice) btnInvoice.style.setProperty("display", "none", "important");
+        if (noticeEl) noticeEl.innerHTML = '<span class="text-muted"><i class="bi bi-info-circle"></i> Vui lòng thanh toán qua VietQR MBBank để hệ thống đối soát và Admin duyệt cấp vé.</span>';
+
         // Bắt đầu tự động lắng nghe SePay Webhook đối soát
         startSepayAutoVerification(booking.id, booking.reference);
       }
@@ -1827,6 +1910,23 @@
 
     async function submitBookingOrder() {
       const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
+
+      // PHÂN QUYỀN BẢO MẬT: Khách chưa đăng nhập chỉ có quyền xem tour, không được tạo đơn
+      const currentUser = (typeof getCurrentUser === "function" ? getCurrentUser() : null) ||
+                          JSON.parse(localStorage.getItem("delta_current_user_v2") || "null") ||
+                          JSON.parse(localStorage.getItem("delta_auth_user") || "null");
+
+      if (!currentUser) {
+        showAppNotice(
+          isEn ? "Please log in to your account to place a booking. Unauthenticated visitors can only view tours."
+               : "Vui lòng đăng nhập tài khoản để tiến hành đặt tour! Khách chưa đăng nhập chỉ có quyền xem thông tin tour.",
+          isEn ? "Login Required" : "Yêu Cầu Đăng Nhập",
+          "warning"
+        );
+        if (typeof openAuthModal === "function") openAuthModal("login");
+        return;
+      }
+
       const name = (document.getElementById("customerFullName")?.value || "").trim();
       const phone = (document.getElementById("customerPhone")?.value || "").trim();
       const email = (document.getElementById("customerEmail")?.value || "").trim();
@@ -1996,7 +2096,8 @@
 
     function applySepayPaidConfirmation(booking) {
       if (!currentBookingData) currentBookingData = {};
-      currentBookingData.status = "PAID";
+      const isConfirmed = booking.status === "CONFIRMED" || booking.status === "COMPLETED";
+      currentBookingData.status = isConfirmed ? "CONFIRMED" : "PAID";
       currentBookingData.paid = true;
       currentBookingData.paymentConfirmedAt = booking.paymentConfirmedAt || new Date().toISOString();
       currentBookingData.paymentEvidence = booking.paymentEvidence || ("SEPAY-MBBank-" + Date.now());
@@ -2005,7 +2106,7 @@
         const local = JSON.parse(localStorage.getItem("delta_customer_bookings") || "[]");
         const idx = local.findIndex(b => b.id === currentBookingData.id || b.reference === currentBookingData.reference);
         if (idx !== -1) {
-          local[idx].status = "PAID";
+          local[idx].status = currentBookingData.status;
           local[idx].paid = true;
           local[idx].paymentEvidence = currentBookingData.paymentEvidence;
           localStorage.setItem("delta_customer_bookings", JSON.stringify(local));
@@ -2014,8 +2115,13 @@
 
       const statusBadge = document.getElementById("receiptStatusBadge");
       if (statusBadge) {
-        statusBadge.className = "badge bg-dark text-white px-3 py-1.5 rounded-pill border";
-        statusBadge.innerHTML = '<i class="bi bi-patch-check-fill me-1 text-warning"></i> ĐÃ THANH TOÁN (PAID)';
+        if (isConfirmed) {
+          statusBadge.className = "badge bg-success text-white px-3 py-1.5 rounded-pill border";
+          statusBadge.innerHTML = '<i class="bi bi-patch-check-fill me-1"></i> ĐÃ DUYỆT (CONFIRMED)';
+        } else {
+          statusBadge.className = "badge bg-dark text-white px-3 py-1.5 rounded-pill border";
+          statusBadge.innerHTML = '<i class="bi bi-patch-check-fill me-1 text-warning"></i> ĐÃ THANH TOÁN (CHỜ ADMIN DUYỆT)';
+        }
       }
 
       const sepayPendingView = document.getElementById("sepayPendingView");
@@ -2027,18 +2133,34 @@
         sepaySuccessView.classList.add("d-flex");
       }
       if (sepaySuccessDetails) {
-        sepaySuccessDetails.textContent = `Mã đối soát SePay: ${currentBookingData.paymentEvidence}. Hóa đơn chứng từ đã được cấp tự động.`;
+        sepaySuccessDetails.textContent = `Mã đối soát SePay: ${currentBookingData.paymentEvidence}. Hóa đơn chứng từ đã sẵn sàng.`;
       }
 
       if (paymentCountdownTimer) {
         clearInterval(paymentCountdownTimer);
         const timerEl = document.getElementById("receiptCountdown");
-        if (timerEl) timerEl.textContent = "Đã xác nhận";
+        if (timerEl) timerEl.textContent = isConfirmed ? "Đã xác nhận" : "Chờ Admin duyệt";
+      }
+
+      const btnTicket = document.getElementById("btnLuxuryTicket");
+      const btnInvoice = document.getElementById("btnDownloadInvoice");
+      const noticeEl = document.getElementById("receiptTicketNotice");
+
+      if (btnInvoice) btnInvoice.style.setProperty("display", "inline-flex", "important");
+
+      if (isConfirmed) {
+        if (btnTicket) btnTicket.style.setProperty("display", "inline-flex", "important");
+        if (noticeEl) noticeEl.innerHTML = '<span class="text-success fw-bold"><i class="bi bi-shield-check"></i> Đơn đã được Admin xác nhận. Vé điện tử & Barcode Check-in đã sẵn sàng.</span>';
+      } else {
+        if (btnTicket) btnTicket.style.setProperty("display", "none", "important");
+        if (noticeEl) noticeEl.innerHTML = '<span class="text-primary fw-semibold"><i class="bi bi-hourglass-split"></i> SePay đã ghi nhận tiền vào MBBank! Đang chờ Quản trị viên (Admin) duyệt đơn để kích hoạt Phiếu vé (Ticket Online).</span>';
       }
 
       showAppNotice(
-        "SePay đã ghi nhận chuyển khoản thành công qua MBBank! Hóa đơn chứng từ chuẩn quốc tế đã sẵn sàng để lưu.",
-        "Thanh Toán Tự Động Thành Công",
+        isConfirmed
+          ? "Đơn tour đã được thanh toán và Admin xác nhận! Vé điện tử đã sẵn sàng."
+          : "SePay đã ghi nhận chuyển khoản MBBank thành công! Hóa đơn chứng từ đã được cấp. Đang chờ Admin duyệt đơn để phát hành vé.",
+        "Xác Nhận Thanh Toán",
         "success"
       );
     }
@@ -2257,8 +2379,204 @@
     });
   </script>
 
-  <!-- Kết nối API & Auth -->
+  <!-- MODAL AUTH: ĐĂNG NHẬP / ĐĂNG KÝ / QUÊN MẬT KHẨU -->
+  <div class="modal fade modal-auth" id="authModal" tabindex="-1" aria-labelledby="authModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <!-- Header -->
+        <div class="auth-modal-header">
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          <div class="brand-icon">
+            <i class="bi bi-person-badge"></i>
+          </div>
+          <h4 class="modal-title" id="authModalTitle">Tài Khoản Delta Travel</h4>
+          <p class="modal-subtitle">Trải nghiệm đặt tour cao cấp & quản lý hành trình dễ dàng</p>
+        </div>
 
+        <div class="modal-body p-4">
+          <!-- 3 Tab điều hướng -->
+          <div class="auth-tabs-nav mb-4">
+            <button type="button" class="nav-link auth-tab-btn active" data-tab="login" onclick="switchAuthTab('login')">
+              <i class="bi bi-box-arrow-in-right me-1"></i> Đăng nhập
+            </button>
+            <button type="button" class="nav-link auth-tab-btn" data-tab="register" onclick="switchAuthTab('register')">
+              <i class="bi bi-person-plus me-1"></i> Đăng ký
+            </button>
+            <button type="button" class="nav-link auth-tab-btn" data-tab="forgot" onclick="switchAuthTab('forgot')">
+              <i class="bi bi-key me-1"></i> Quên MK
+            </button>
+          </div>
+
+          <!-- PANE 1: FORM ĐĂNG NHẬP -->
+          <div id="authPane_login" class="auth-pane">
+            <form id="loginForm" novalidate>
+              <div class="auth-form-group">
+                <label for="loginAccount">Email hoặc Số điện thoại <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-person-fill input-icon"></i>
+                  <input type="text" class="form-control" id="loginAccount" placeholder="Nhập Email hoặc Số điện thoại..." required>
+                </div>
+                <div class="auth-error-msg" id="loginAccountError"></div>
+              </div>
+
+              <div class="auth-form-group">
+                <label for="loginPassword">Mật khẩu <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-lock-fill input-icon"></i>
+                  <input type="password" class="form-control" id="loginPassword" placeholder="Nhập mật khẩu..." required>
+                  <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('loginPassword', this)" title="Ẩn/hiện mật khẩu">
+                    <i class="bi bi-eye-fill"></i>
+                  </button>
+                </div>
+                <div class="auth-error-msg" id="loginPasswordError"></div>
+              </div>
+
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="loginRemember" checked>
+                  <label class="form-check-label small text-muted" for="loginRemember">Ghi nhớ đăng nhập</label>
+                </div>
+                <a href="javascript:void(0)" class="small text-decoration-none text-primary fw-semibold" onclick="switchAuthTab('forgot')">Quên mật khẩu?</a>
+              </div>
+
+              <div class="auth-error-msg mb-3" id="loginGeneralError"></div>
+
+              <button type="submit" class="btn btn-auth-submit">
+                <i class="bi bi-box-arrow-in-right me-1"></i> Đăng Nhập Ngay
+              </button>
+
+              <p class="auth-footer-text">
+                Chưa có tài khoản? <a href="javascript:void(0)" onclick="switchAuthTab('register')">Đăng ký thành viên mới</a>
+              </p>
+            </form>
+          </div>
+
+          <!-- PANE 2: FORM ĐĂNG KÝ -->
+          <div id="authPane_register" class="auth-pane" style="display: none;">
+            <form id="registerForm" novalidate>
+              <div class="auth-form-group">
+                <label for="registerName">Họ và tên <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-person-fill input-icon"></i>
+                  <input type="text" class="form-control" id="registerName" placeholder="Nguyễn Văn A" required>
+                </div>
+                <div class="auth-error-msg" id="registerNameError"></div>
+              </div>
+
+              <div class="auth-form-group">
+                <label for="registerEmail">Địa chỉ Email <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-envelope-fill input-icon"></i>
+                  <input type="email" class="form-control" id="registerEmail" placeholder="name@example.com" required>
+                </div>
+                <div class="auth-error-msg" id="registerEmailError"></div>
+              </div>
+
+              <div class="auth-form-group">
+                <label for="registerPhone">Số điện thoại (10 số) <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-telephone-fill input-icon"></i>
+                  <input type="tel" class="form-control" id="registerPhone" placeholder="0987654321" required>
+                </div>
+                <div class="auth-error-msg" id="registerPhoneError"></div>
+              </div>
+
+              <div class="auth-form-group">
+                <label for="registerPassword">Mật khẩu (tối thiểu 6 ký tự) <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-shield-lock-fill input-icon"></i>
+                  <input type="password" class="form-control" id="registerPassword" placeholder="Nhập mật khẩu an toàn..." required>
+                  <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('registerPassword', this)" title="Ẩn/hiện mật khẩu">
+                    <i class="bi bi-eye-fill"></i>
+                  </button>
+                </div>
+                <div class="auth-error-msg" id="registerPasswordError"></div>
+              </div>
+
+              <div class="auth-form-group">
+                <label for="registerConfirmPassword">Xác nhận mật khẩu <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-check2-circle input-icon"></i>
+                  <input type="password" class="form-control" id="registerConfirmPassword" placeholder="Nhập lại mật khẩu..." required>
+                  <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('registerConfirmPassword', this)" title="Ẩn/hiện mật khẩu">
+                    <i class="bi bi-eye-fill"></i>
+                  </button>
+                </div>
+                <div class="auth-error-msg" id="registerConfirmError"></div>
+              </div>
+
+              <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="registerTerms" required>
+                <label class="form-check-label small text-muted" for="registerTerms">
+                  Tôi đồng ý với Điều khoản dịch vụ & Chính sách bảo mật của Delta Travel.
+                </label>
+                <div class="auth-error-msg" id="registerTermsError"></div>
+              </div>
+
+              <button type="submit" class="btn btn-auth-submit">
+                <i class="bi bi-person-check-fill me-1"></i> Đăng Ký Tài Khoản
+              </button>
+
+              <p class="auth-footer-text">
+                Đã có tài khoản? <a href="javascript:void(0)" onclick="switchAuthTab('login')">Đăng nhập ngay</a>
+              </p>
+            </form>
+          </div>
+
+          <!-- PANE 3: FORM QUÊN MẬT KHẨU -->
+          <div id="authPane_forgot" class="auth-pane" style="display: none;">
+            <p class="text-muted small mb-3">
+              Nhập Email hoặc Số điện thoại đã đăng ký để tạo mật khẩu mới cho tài khoản của bạn.
+            </p>
+            <form id="forgotForm" novalidate>
+              <div class="auth-form-group">
+                <label for="forgotAccount">Email hoặc Số điện thoại <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-envelope-at-fill input-icon"></i>
+                  <input type="text" class="form-control" id="forgotAccount" placeholder="Nhập Email hoặc SĐT..." required>
+                </div>
+                <div class="auth-error-msg" id="forgotAccountError"></div>
+              </div>
+
+              <div class="auth-form-group">
+                <label for="forgotNewPassword">Mật khẩu mới (tối thiểu 6 ký tự) <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-key-fill input-icon"></i>
+                  <input type="password" class="form-control" id="forgotNewPassword" placeholder="Nhập mật khẩu mới..." required>
+                  <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('forgotNewPassword', this)" title="Ẩn/hiện mật khẩu">
+                    <i class="bi bi-eye-fill"></i>
+                  </button>
+                </div>
+                <div class="auth-error-msg" id="forgotNewPasswordError"></div>
+              </div>
+
+              <div class="auth-form-group">
+                <label for="forgotConfirmPassword">Xác nhận mật khẩu mới <span class="text-danger">*</span></label>
+                <div class="auth-input-wrapper">
+                  <i class="bi bi-check2-all input-icon"></i>
+                  <input type="password" class="form-control" id="forgotConfirmPassword" placeholder="Nhập lại mật khẩu mới..." required>
+                  <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('forgotConfirmPassword', this)" title="Ẩn/hiện mật khẩu">
+                    <i class="bi bi-eye-fill"></i>
+                  </button>
+                </div>
+                <div class="auth-error-msg" id="forgotConfirmPasswordError"></div>
+              </div>
+
+              <button type="submit" class="btn btn-auth-submit">
+                <i class="bi bi-arrow-repeat me-1"></i> Đặt Lại Mật Khẩu
+              </button>
+
+              <p class="auth-footer-text">
+                Nhớ lại mật khẩu? <a href="javascript:void(0)" onclick="switchAuthTab('login')">Quay lại Đăng nhập</a>
+              </p>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kết nối API & Auth -->
   <script src="assets/js/controllers/auth.js"></script>
 </body>
 </html>

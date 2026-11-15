@@ -1612,6 +1612,19 @@ async function openBookingModal(tourId) {
     showToast("Danh mục đang kết nối SQL Server chỉ đọc; chức năng đặt tour chưa được tích hợp.", "warning");
     return;
   }
+  const user = (typeof getCurrentUser === "function" ? getCurrentUser() : null) ||
+               JSON.parse(localStorage.getItem("delta_current_user_v2") || "null") ||
+               JSON.parse(localStorage.getItem("delta_auth_user") || "null");
+  if (!user) {
+    if (typeof showToast === "function") {
+      showToast("Vui lòng đăng nhập tài khoản để đặt tour! Khách chưa đăng nhập chỉ có quyền xem thông tin tour.", "warning");
+    }
+    sessionStorage.setItem("delta_pending_booking_tour_id", tourId || "DL-HL01");
+    if (typeof openAuthModal === "function") {
+      openAuthModal("login");
+    }
+    return;
+  }
   const id = tourId || "DL-HL01";
   window.location.href = `booking.html?tourId=${encodeURIComponent(id)}`;
 }

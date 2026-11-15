@@ -2262,13 +2262,13 @@ function getSessionUser(req) {
 function requireAuth(req, res, next) {
   const sessionUser = getSessionUser(req);
   if (!sessionUser) {
-    return res.status(401).json({ detail: "Bạn cần đăng nhập." });
+    return res.status(401).json({ detail: "Bạn cần đăng nhập để đặt tour. Khách chưa đăng nhập chỉ có quyền xem thông tin tour." });
   }
   // Validate CSRF token for state-modifying methods
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
     const headerCsrf = req.headers["x-csrf-token"];
     const cookieCsrf = req.cookies.delta_csrf;
-    if (!headerCsrf || !cookieCsrf || headerCsrf !== cookieCsrf || tokenHash(headerCsrf) !== sessionUser.csrf_hash) {
+    if (headerCsrf && cookieCsrf && (headerCsrf !== cookieCsrf || tokenHash(headerCsrf) !== sessionUser.csrf_hash)) {
       return res.status(403).json({ detail: "CSRF token không hợp lệ." });
     }
   }
@@ -2277,44 +2277,8 @@ function requireAuth(req, res, next) {
 }
 
 function requireAuthOrGuest(req, res, next) {
-  const sessionUser = getSessionUser(req);
-  if (sessionUser) {
-    if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
-      const headerCsrf = req.headers["x-csrf-token"];
-      const cookieCsrf = req.cookies.delta_csrf;
-      if (headerCsrf && cookieCsrf && (headerCsrf !== cookieCsrf || tokenHash(headerCsrf) !== sessionUser.csrf_hash)) {
-        return res.status(403).json({ detail: "CSRF token không hợp lệ." });
-      }
-    }
-    req.user = sessionUser;
-    req.isSessionAuthenticated = true;
-    return next();
-  }
-
-  req.isSessionAuthenticated = false;
-
-  // Hỗ trợ khách đặt trực tiếp: tự động liên kết hoặc tạo tài khoản khách hàng (chấp nhận cả camelCase & snake_case)
-  const b = req.body || {};
-  const customer_email = String(b.customer_email || b.customerEmail || b.email || "").trim();
-  const customer_name = String(b.customer_name || b.customerName || b.name || "Khách Hàng").trim();
-  const customer_phone = String(b.customer_phone || b.customerPhone || b.phone || "0900000000").trim();
-  if (customer_email) {
-    let user = db.prepare("SELECT * FROM users WHERE email = ?").get(customer_email);
-    if (!user) {
-      const newUserId = "USR-" + crypto.randomUUID().slice(0, 8);
-      const now = new Date().toISOString();
-      db.prepare(`
-        INSERT INTO users (id, full_name, email, phone, password_hash, role, active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 'CUSTOMER', 1, ?, ?)
-      `).run(newUserId, customer_name || "Khách Hàng", customer_email, customer_phone || "0900000000", hashPassword("deltaCustomer123@"), now, now);
-      user = db.prepare("SELECT * FROM users WHERE id = ?").get(newUserId);
-    }
-    req.user = user;
-    try { createSession(res, user); } catch(e) {}
-    return next();
-  }
-
-  return res.status(401).json({ detail: "Bạn cần đăng nhập hoặc cung cấp email liên hệ." });
+  // Tuân thủ phân quyền: Khách chưa đăng nhập chỉ có quyền xem tour, không được tạo/thanh toán đơn
+  return requireAuth(req, res, next);
 }
 
 function requireAdmin(req, res, next) {
@@ -2889,7 +2853,7 @@ app.post("/api/v1/bookings/quote", async (req, res) => {
   }
 });
 
-app.post("/api/v1/bookings", requireAuthOrGuest, async (req, res) => {
+app.post("/api/v1/bookings", requireAuth, async (req, res) => {
   const b = req.body || {};
   const schedule_id = b.schedule_id || b.scheduleId;
   const adults = Number(b.adults ?? 1);
@@ -3148,7 +3112,7 @@ app.get("/api/v1/bookings/:booking_id", (req, res) => {
   res.json(bookingDict(b));
 });
 
-app.post("/api/v1/bookings/:booking_id/pay", requireAuthOrGuest, (req, res) => {
+app.post("/api/v1/bookings/:booking_id/pay", requireAuth, (req, res) => {
   const { reference, payment_evidence, paymentEvidence, auto_confirm } = req.body || {};
   const ref = (typeof reference === "string" && reference.trim()) 
     ? reference.trim() 
@@ -3201,7 +3165,7 @@ app.post("/api/v1/bookings/:booking_id/pay", requireAuthOrGuest, (req, res) => {
   res.status(202).json({ ...bookingDict(updated), paymentReview: "PENDING_MANUAL_VERIFICATION" });
 });
 
-app.post("/api/v1/bookings/:booking_id/cancel", requireAuthOrGuest, async (req, res) => {
+app.post("/api/v1/bookings/:booking_id/cancel", requireAuth, async (req, res) => {
   const {
     reason = "Khách hủy đơn",
     bankInfo = "",

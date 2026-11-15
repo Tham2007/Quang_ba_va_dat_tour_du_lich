@@ -586,12 +586,12 @@
         const isCancelled = (normalizedStatus === "CANCELLED");
         const isRefundPending = (normalizedStatus === "REFUND_PENDING");
         const isRefunded = (normalizedStatus === "REFUNDED");
-        const isPaid = (normalizedStatus === "PAID" || isConfirmed || isCompleted || b.paid === true || b.isPaid === true);
-        const isPaidBooking = Boolean(isPaid || isConfirmed || normalizedStatus === "PAID" || normalizedStatus === "CONFIRMED" || normalizedStatus === "COMPLETED");
+        const hasActiveTicket = Boolean(isConfirmed || isCompleted);
+        const isPaidButWaitingAdmin = Boolean((normalizedStatus === "PAID" || b.paid === true || b.isPaid === true) && !hasActiveTicket && !isCancelled && !isRefundPending && !isRefunded);
+        const isPending = !hasActiveTicket && !isPaidButWaitingAdmin && !isCancelled && !isRefundPending && !isRefunded;
 
         let stampClass = "stamp-paid";
         let stampText = isEn ? "PAID" : "ĐÃ THANH TOÁN";
-        let isPending = false;
 
         if (isRefundPending) {
           stampClass = "stamp-refund";
@@ -608,13 +608,12 @@
         } else if (isConfirmed) {
           stampClass = "stamp-paid";
           stampText = isEn ? "CONFIRMED" : "ĐÃ DUYỆT GIỮ CHỖ";
-        } else if (isPaid) {
+        } else if (isPaidButWaitingAdmin) {
           stampClass = "stamp-paid";
-          stampText = isEn ? "PAID" : "ĐÃ THANH TOÁN";
+          stampText = isEn ? "PAID (AWAITING CONFIRMATION)" : "ĐÃ THANH TOÁN (CHỜ ADMIN DUYỆT)";
         } else {
           stampClass = "stamp-pending";
           stampText = isEn ? "PENDING PAYMENT" : "CHỜ THANH TOÁN";
-          isPending = true;
         }
 
         const bookingCodeLabel = isEn ? "Booking ID:" : "Mã đơn:";
@@ -689,13 +688,17 @@
                 <div class="ticket-meta-label">${totalLabel}</div>
                 <div class="fs-4 fw-black text-dark mb-1">${formatVND(totalPrice)}</div>
                 
-                ${isPaidBooking ? `
+                ${hasActiveTicket ? `
                   <div class="small text-success fw-semibold mb-3" style="font-size: 11.5px;">
-                    <i class="bi bi-shield-check me-1"></i> ${isEn ? "Ticket & 1D Barcode Active" : "Vé & Mã Vạch Check-in Hợp Lệ"}
+                    <i class="bi bi-shield-check me-1"></i> ${isEn ? "Ticket & 1D Barcode Active (Admin Confirmed)" : "Vé & Mã Vạch Check-in Sẵn Sàng (Admin Đã Xác Nhận)"}
+                  </div>
+                ` : isPaidButWaitingAdmin ? `
+                  <div class="small text-primary fw-semibold mb-3" style="font-size: 11px;">
+                    <i class="bi bi-hourglass-split me-1"></i> ${isEn ? "Paid • Awaiting Admin Confirmation for Ticket" : "Đã thanh toán • Đang chờ Admin xác nhận vé"}
                   </div>
                 ` : isPending ? `
                   <div class="small text-warning-emphasis mb-3" style="font-size: 11px;">
-                    <i class="bi bi-hourglass-split me-1"></i> ${isEn ? "Ticket issued upon payment" : "Vé check-in được cấp sau khi thanh toán"}
+                    <i class="bi bi-clock-history me-1"></i> ${isEn ? "Ticket issued upon payment & admin confirmation" : "Vé check-in được cấp sau khi thanh toán & Admin duyệt"}
                   </div>
                 ` : `
                   <div class="small text-danger mb-3" style="font-size: 11px;">
@@ -704,13 +707,20 @@
                 `}
 
                 <div class="d-flex flex-wrap gap-2 justify-content-lg-end no-print align-items-center">
-                  ${isPaidBooking ? `
+                  ${hasActiveTicket ? `
                     <button type="button" class="btn btn-dark btn-sm rounded-pill px-3.5 py-1.5 fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm" style="background: #0f172a; border-color: #0f172a;" onclick="TicketInvoiceService.openTicket('${id}')">
                       <i class="bi bi-upc-scan text-warning"></i> ${printTicketBtn}
                     </button>
                     <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5" onclick="TicketInvoiceService.openInvoice('${id}')">
                       <i class="bi bi-file-earmark-text"></i> ${isEn ? "Save Invoice" : "Lưu hóa đơn"}
                     </button>
+                  ` : isPaidButWaitingAdmin ? `
+                    <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5" onclick="TicketInvoiceService.openInvoice('${id}')">
+                      <i class="bi bi-file-earmark-text"></i> ${isEn ? "Save Invoice" : "Lưu hóa đơn"}
+                    </button>
+                    <span class="badge bg-light text-muted border px-2.5 py-1.5 rounded-pill small" title="Quản trị viên cần duyệt đơn để phát hành vé điện tử chính thức">
+                      <i class="bi bi-shield-lock me-1"></i> ${isEn ? "Awaiting Ticket Approval" : "Chờ duyệt vé"}
+                    </span>
                   ` : isPending ? `
                     <a href="booking.html?bookingId=${encodeURIComponent(id)}" class="paper-btn-pay">
                       <i class="bi bi-credit-card-2-front"></i> ${payNowBtn}

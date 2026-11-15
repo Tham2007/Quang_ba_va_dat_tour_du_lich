@@ -174,7 +174,24 @@ async function runTests() {
     const favDel = await req(`/api/v1/favorites/${firstTour.id}`, { method: "DELETE", headers: authHeaders });
     assert(`DELETE /api/v1/favorites/${firstTour.id}`, favDel.status === 200);
 
-    // 9. Booking creation
+    // 9a. Phân quyền: Khách chưa đăng nhập chỉ được xem tour, không được đặt tour (HTTP 401)
+    const guestBookRes = await req("/api/v1/bookings", {
+      method: "POST",
+      body: {
+        schedule_id: scheduleId,
+        adults: 1,
+        customer_name: "Khách Vãng Lai Chưa Đăng Nhập",
+        customer_phone: "0912345678",
+        customer_email: "guest@example.com"
+      }
+    });
+    assert(
+      "Phân quyền: Chặn khách chưa đăng nhập đặt tour (HTTP 401)",
+      guestBookRes.status === 401 && guestBookRes.json?.detail?.includes("đăng nhập"),
+      `(HTTP ${guestBookRes.status}; ${guestBookRes.json?.detail})`
+    );
+
+    // 9b. Booking creation khi đã đăng nhập
     const idemKey = crypto.randomUUID();
     const bookRes = await req("/api/v1/bookings", {
       method: "POST",
@@ -900,7 +917,7 @@ async function runTests() {
     const [raceA, raceB] = await Promise.all([
       req("/api/v1/bookings", {
         method: "POST",
-        headers: { "Idempotency-Key": crypto.randomUUID() },
+        headers: { ...authHeaders, "Idempotency-Key": crypto.randomUUID() },
         body: {
           schedule_id: dnSchedId,
           adults: 1,
@@ -912,7 +929,7 @@ async function runTests() {
       }),
       req("/api/v1/bookings", {
         method: "POST",
-        headers: { "Idempotency-Key": crypto.randomUUID() },
+        headers: { ...authHeaders, "Idempotency-Key": crypto.randomUUID() },
         body: {
           schedule_id: dnSchedId,
           adults: 1,

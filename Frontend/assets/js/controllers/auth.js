@@ -369,6 +369,12 @@ async function handleRegisterSubmit(e) {
     bootstrap.Modal.getInstance(document.getElementById("authModal"))?.hide();
     document.getElementById("registerForm")?.reset();
     if (typeof showToast === "function") showToast("Đăng ký thành công trên máy chủ!", "success");
+
+    const pendingTourId = sessionStorage.getItem("delta_pending_booking_tour_id");
+    if (pendingTourId && !window.location.pathname.includes("booking.html")) {
+      sessionStorage.removeItem("delta_pending_booking_tour_id");
+      window.location.href = `booking.html?tourId=${encodeURIComponent(pendingTourId)}`;
+    }
   } catch (_) {
     showAuthError("registerEmailError", "Lỗi kết nối máy chủ. Tài khoản không được tạo offline.");
   }
@@ -399,6 +405,12 @@ async function handleLoginSubmit(e) {
     bootstrap.Modal.getInstance(document.getElementById("authModal"))?.hide();
     document.getElementById("loginForm")?.reset();
     if (typeof showToast === "function") showToast("Đăng nhập thành công!", "success");
+
+    const pendingTourId = sessionStorage.getItem("delta_pending_booking_tour_id");
+    if (pendingTourId && !window.location.pathname.includes("booking.html")) {
+      sessionStorage.removeItem("delta_pending_booking_tour_id");
+      window.location.href = `booking.html?tourId=${encodeURIComponent(pendingTourId)}`;
+    }
   } catch (_) {
     showAuthError("loginGeneralError", "Máy chủ không phản hồi. Không hỗ trợ đăng nhập offline.");
   }
@@ -774,8 +786,18 @@ function syncUserWithBookingForm() {
   const nameInput = document.getElementById("customerFullName") || document.getElementById("customerName");
   const emailInput = document.getElementById("customerEmail");
   const phoneInput = document.getElementById("customerPhone");
+  const authBanner = document.getElementById("bookingAuthRequiredBanner");
+  const submitBtn = document.querySelector(".paper-btn-submit");
 
   if (user) {
+    if (authBanner) authBanner.style.display = "none";
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.style.opacity = "";
+      submitBtn.style.cursor = "pointer";
+      submitBtn.onclick = () => { if (typeof submitBookingOrder === "function") submitBookingOrder(); };
+      submitBtn.innerHTML = '<i class="bi bi-shield-check me-1"></i> <span data-i18n="booking_submit">Xác Nhận Đặt Tour & Thanh Toán</span>';
+    }
     if (nameInput && (!nameInput.value || nameInput.value === "Nguyễn Văn A")) {
       nameInput.value = user.fullName || user.full_name || "";
     }
@@ -784,6 +806,15 @@ function syncUserWithBookingForm() {
     }
     if (phoneInput && (!phoneInput.value || phoneInput.value === "0901234567")) {
       phoneInput.value = user.phone || "";
+    }
+  } else {
+    if (authBanner) authBanner.style.display = "block";
+    if (submitBtn && !submitBtn.closest("#bookingSuccessReceipt")) {
+      submitBtn.disabled = true;
+      submitBtn.style.opacity = "0.75";
+      submitBtn.style.cursor = "pointer";
+      submitBtn.onclick = () => openAuthModal("login");
+      submitBtn.innerHTML = '<i class="bi bi-shield-lock-fill me-1 text-warning"></i> Đăng Nhập Để Đặt Tour';
     }
   }
 }

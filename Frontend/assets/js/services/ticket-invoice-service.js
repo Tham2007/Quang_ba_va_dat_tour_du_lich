@@ -140,7 +140,10 @@
     const vatRate = 10;
     const vatAmount = Number(b.vatAmount || b.vat_amount || Math.round(taxable * 0.10));
     const totalPrice = Number(b.totalPrice || b.total_price || (taxable + vatAmount));
-    const isPaid = (b.status === "PAID" || b.status === "Đã thanh toán" || b.status === "CONFIRMED" || b.paid === true);
+    const status = String(b.status || b.statusCode || "").toUpperCase();
+    const statusCode = String(b.statusCode || b.status || "").toUpperCase();
+    const isConfirmedByAdmin = Boolean(status === "CONFIRMED" || status === "COMPLETED" || statusCode === "CONFIRMED" || statusCode === "COMPLETED");
+    const isPaid = Boolean(isConfirmedByAdmin || status === "PAID" || statusCode === "PAID" || b.status === "Đã thanh toán" || b.paid === true);
     const evidence = b.paymentEvidence || b.payment_evidence || `SEPAY-MBBank-FT${ref}`;
     const depDate = b.departureDate || b.departure_at || b.departureAt || "21/11/2026";
     const pickupLoc = b.pickupLocation || b.pickup_location || "Điểm hẹn trung tâm / Khách sạn (Hà Nội & TP.HCM)";
@@ -164,7 +167,10 @@
       vatRate,
       vatAmount,
       totalPrice,
+      status,
+      statusCode,
       isPaid,
+      isConfirmedByAdmin,
       evidence,
       depDate,
       pickupLoc,
@@ -260,27 +266,39 @@
     if (!b && typeof bookingData === "object") b = bookingData;
     const d = getCleanBooking(b || { reference: bookingData });
 
-    // QUY TRÌNH CHUẨN: CHỈ CẤP VÉ ĐIỆN TỬ CHECK-IN CHO ĐƠN ĐÃ THANH TOÁN HOẶC ĐÃ DUYỆT GIỮ CHỖ
-    const isActuallyPaid = Boolean(
-      d.isPaid ||
-      d.status === "PAID" ||
+    // QUY TRÌNH CHUẨN: CHỈ CẤP VÉ ĐIỆN TỬ KHI THANH TOÁN XONG VÀ ĐÃ ĐƯỢC ADMIN XÁC NHẬN (CONFIRMED / COMPLETED)
+    const isConfirmedByAdmin = Boolean(
       d.status === "CONFIRMED" ||
       d.status === "COMPLETED" ||
-      d.statusCode === "PAID" ||
       d.statusCode === "CONFIRMED" ||
       d.statusCode === "COMPLETED"
     );
 
-    if (!isActuallyPaid) {
-      if (typeof showAppNotice === "function") {
-        showAppNotice(
-          "Đơn đặt tour này chưa được thanh toán hoặc đã hủy. Phiếu vé điện tử (Boarding Pass & Barcode Check-in) chỉ được phát hành chính thức sau khi đơn hàng thanh toán thành công và được duyệt.",
-          "Chưa Cấp Vé Điện Tử"
-        );
-      } else if (typeof showToast === "function") {
-        showToast("Đơn chưa thanh toán hoặc đã hủy, không thể xuất vé điện tử check-in.", "warning");
+    if (!isConfirmedByAdmin) {
+      if (d.status === "PAID" || d.statusCode === "PAID" || d.isPaid) {
+        if (typeof showAppNotice === "function") {
+          showAppNotice(
+            `Đơn đặt tour #${d.ref} đã nhận thanh toán nhưng ĐANG CHỜ ADMIN XÁC NHẬN. Phiếu vé điện tử (Ticket Online & Barcode Check-in) chỉ hiển thị chính thức sau khi Quản trị viên (Admin) phê duyệt.`,
+            "Chờ Admin Xác Nhận Vé",
+            "info"
+          );
+        } else if (typeof showToast === "function") {
+          showToast(`Đơn #${d.ref} đã thanh toán, đang chờ Admin duyệt trước khi cấp vé.`, "info");
+        } else {
+          alert(`Đơn #${d.ref} đã thanh toán, đang chờ Admin duyệt trước khi cấp vé.`);
+        }
       } else {
-        alert("Đơn chưa thanh toán hoặc đã hủy, không thể xuất vé điện tử check-in.");
+        if (typeof showAppNotice === "function") {
+          showAppNotice(
+            `Đơn đặt tour #${d.ref} chưa hoàn tất thanh toán hoặc đã hủy. Phiếu vé điện tử chỉ được phát hành sau khi thanh toán xong và được Admin xác nhận.`,
+            "Chưa Cấp Vé Điện Tử",
+            "warning"
+          );
+        } else if (typeof showToast === "function") {
+          showToast("Đơn chưa thanh toán hoặc đã hủy, không thể xuất vé điện tử check-in.", "warning");
+        } else {
+          alert("Đơn chưa thanh toán hoặc đã hủy, không thể xuất vé điện tử check-in.");
+        }
       }
       return;
     }

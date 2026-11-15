@@ -87,8 +87,9 @@ Tuân thủ nghiêm ngặt nguyên tắc an toàn thông tin và bảo mật d�
   - Đầy đủ số hiệu hóa đơn `INV-...`, ký hiệu mẫu số, ngày lập, thông tin bên bán và bên mua.
   - Bảng kê chi tiết đơn giá, thành tiền, thuế giá trị gia tăng (VAT 10%) và tổng thanh toán đã bao gồm thuế.
 - **Quy tắc phân quyền xuất vé:**
-  - **CHỈ ÁP DỤNG CHO ĐƠN ĐÃ THANH TOÁN (`CONFIRMED`, `PAID`, `COMPLETED`):** Nút `[ Phiếu vé (Ticket Online) ]` và `[ Lưu hóa đơn ]` hoạt động bình thường.
-  - **ĐƠN CHƯA THANH TOÁN (`PENDING_PAYMENT`) HOẶC ĐÃ HỦY (`CANCELLED`, `REFUND_PENDING`):** Tuyệt đối KHÔNG cấp vé điện tử, nút vé bị ẩn hoặc hiển thị thông báo yêu cầu hoàn tất thanh toán trước khi nhận vé.
+  - **CHỈ ÁP DỤNG KHI THANH TOÁN XONG VÀ ĐƯỢC ADMIN XÁC NHẬN (`CONFIRMED`, `COMPLETED`):** Nút `[ Phiếu vé (Ticket Online) ]` và `[ Lưu hóa đơn ]` mới hiển thị chính thức cho hành khách để check-in lên tour.
+  - **KHI ĐÃ THANH TOÁN QUA NGÂN HÀNG / SEPAY NHƯNG CHƯA ĐƯỢC ADMIN DUYỆT (`PAID`):** Hệ thống hiển thị nhãn `ĐÃ THANH TOÁN (CHỜ ADMIN DUYỆT)`, cho phép lưu hóa đơn chứng từ nhưng **chưa phát hành vé check-in** cho đến khi Quản trị viên đối soát và xác nhận đơn.
+  - **ĐƠN CHƯA THANH TOÁN (`PENDING_PAYMENT`) HOẶC ĐÃ HỦY (`CANCELLED`, `REFUND_PENDING`, `REFUNDED`):** Tuyệt đối KHÔNG cấp vé điện tử, nút vé bị ẩn hoàn toàn để đảm bảo an ninh kiểm soát vé.
 
 ---
 
@@ -104,17 +105,21 @@ Tuân thủ nghiêm ngặt nguyên tắc an toàn thông tin và bảo mật d�
 
 ---
 
-### 3.6. Nâng Cấp Bảo Mật Tài Khoản Khách Hàng, Đăng Nhập & Quyền Riêng Tư (Security & Privacy)
+### 3.6. Phân Quyền Người Dùng Nghiêm Ngặt & Bảo Mật Tài Khoản (Strict RBAC & Privacy)
+- **Quy tắc Phân quyền (RBAC): Khách chưa đăng nhập CHỈ ĐƯỢC XEM TOUR:**
+  - *Hiện tượng trước đây:* Khách vãng lai chưa đăng nhập vẫn có thể tạo đơn giữ chỗ trực tiếp.
+  - *Giải pháp triệt để:*
+    1. **Backend API:** Endpoint `POST /api/v1/bookings`, `POST /api/v1/bookings/:id/pay`, `POST /api/v1/bookings/:id/cancel` áp dụng middleware `requireAuth`. Khách chưa đăng nhập bị chặn với mã lỗi `401 Unauthorized` kèm thông báo: *"Bạn cần đăng nhập để đặt tour. Khách chưa đăng nhập chỉ có quyền xem thông tin tour."*
+    2. **Frontend UI:** Trên trang chủ `index.html`, nút "Đặt tour / Đặt ngay" kiểm tra trạng thái đăng nhập. Nếu chưa đăng nhập, hệ thống hiển thị thông báo và bật ngay modal Đăng nhập/Đăng ký. Trên trang `booking.html`, hiển thị Banner cảnh báo màu vàng "Yêu cầu đăng nhập tài khoản để đặt tour", đồng thời vô hiệu hóa nút gửi đơn cho đến khi khách đăng nhập.
+    3. Tích hợp trực tiếp modal xác thực đa năng (Đăng nhập, Đăng ký, Quên mật khẩu) ngay trong `booking.html` kèm thư viện Bootstrap 5 JS, giúp khách hàng đăng nhập tức thì mà không bị gián đoạn tiến trình chọn tour.
 - **Khắc phục lỗi "Kẹt tài khoản" sau khi đặt tour dạng khách (Guest Booking):**
-  - *Hiện tượng:* Khách đặt tour nhanh mà chưa đăng ký tài khoản, hệ thống tự động tạo người dùng khách với mật khẩu hệ thống. Khi khách sau này quay lại tự bấm "Đăng ký" bằng Email/SĐT đó thì bị máy chủ chặn báo lỗi xung đột 409, đồng thời chức năng quên mật khẩu chưa được kết nối.
-  - *Giải pháp:* Tại endpoint `POST /api/v1/auth/register`, khi phát hiện tài khoản đã tồn tại dưới vai trò khách hàng (`CUSTOMER`), hệ thống cho phép khách kích hoạt lại (Claim Account), cập nhật mật khẩu mới và tự động đăng nhập an toàn.
+  - Cho phép khách kích hoạt lại (Claim Account), cập nhật mật khẩu mới và tự động đăng nhập an toàn.
 - **Hỗ trợ Đăng nhập linh hoạt & Quên mật khẩu:**
   - Không phân biệt chữ hoa / chữ thường trong Email (`LinhMiki...` và `linhmiki...` đều hợp lệ).
   - Tự động cắt bỏ khoảng trắng thừa đầu cuối của Số điện thoại.
   - Triển khai endpoint `POST /api/v1/auth/reset-password` và kết nối form Quên mật khẩu giúp người dùng tự đặt lại mật khẩu bằng email hoặc số điện thoại chỉ trong 3 giây.
 - **Bảo mật quyền riêng tư sau khi Đăng xuất (Logout Privacy Gate):**
-  - *Hiện tượng:* Khách hàng đã bấm "Đăng xuất" nhưng khi vào trang `my-bookings.html` vẫn thấy hiển thị thông tin các đơn hàng đã đặt trước đó do lưu trong bộ nhớ tạm trình duyệt.
-  - *Giải pháp:* Hàm `handleUserLogout` được nâng cấp để xóa triệt để `delta_customer_bookings`, `delta_user`, `token` trong cả `localStorage` và `sessionStorage`. Khi chưa đăng nhập, trang `my-bookings.html` chuyển sang giao diện "Cổng tra cứu bảo mật", yêu cầu người dùng đăng nhập hoặc nhập chính xác Mã đơn + Số điện thoại mới cho phép xem đơn hàng.
+  - Hàm `handleUserLogout` xóa triệt để `delta_customer_bookings`, `delta_user`, `token` trong cả `localStorage` và `sessionStorage`. Khi chưa đăng nhập, trang `my-bookings.html` chuyển sang giao diện "Cổng tra cứu bảo mật".
 
 ---
 
@@ -130,12 +135,12 @@ Tuân thủ nghiêm ngặt nguyên tắc an toàn thông tin và bảo mật d�
 
 Hệ thống đã trải qua quy trình kiểm thử tự động nghiêm ngặt bằng bộ test script tích hợp:
 - **Tập tin kiểm thử:** `test_node_server.js`
-- **Số lượng kịch bản:** **64 / 64 Test Cases**
+- **Số lượng kịch bản:** **65 / 65 Test Cases**
 - **Tỷ lệ thành công:** **100.0% PASSED**
 
 ### Các nhóm bài kiểm thử trọng yếu:
 1. **Health Check & Static Files Serving:** Đảm bảo toàn bộ HTML, CSS, JS tải thông suốt.
-2. **Auth Suite:** Đăng ký, Đăng nhập, Claim tài khoản khách, Quên mật khẩu, Phân quyền Admin/Customer.
+2. **Auth Suite & RBAC:** Đăng ký, Đăng nhập, Claim tài khoản khách, Quên mật khẩu, **Chặn khách chưa đăng nhập đặt tour (HTTP 401)**, Phân quyền Admin/Customer.
 3. **Dual Database Queries:** Truy vấn danh mục tour, kiểm tra liên kết SQL Server và SQLite.
 4. **Voucher Validation:** Áp dụng mã giảm giá, kiểm tra ràng buộc số tiền tối thiểu và ngày hết hạn.
 5. **Booking Lifecycle:** Tạo đơn đặt tour, tính thuế VAT 10%, quản lý giữ chỗ trong 15 phút.
