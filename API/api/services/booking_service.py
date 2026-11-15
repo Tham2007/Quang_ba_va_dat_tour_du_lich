@@ -180,6 +180,10 @@ def cancel_user_booking(db, booking_id, user_id):
 
 
 def confirm_customer_payment(db, booking_id, reference, user):
+    """Customer input is evidence for review, never proof of bank settlement.
+
+    Only an independently reconciled administrator workflow may set PAID.
+    """
     with db.begin_nested():
         lock_writes(db)
         sweep(db)
@@ -194,18 +198,18 @@ def confirm_customer_payment(db, booking_id, reference, user):
             fail(409, "Đơn không còn chờ thanh toán.")
         if payment_reference_used(db, reference, except_booking_id=booking.id):
             fail(409, "Mã giao dịch đã được sử dụng cho đơn khác.")
-        booking.status = "PAID"
         booking.payment_evidence = reference
-        booking.payment_confirmed_at = now()
         audit(
             db,
             user,
-            "PAYMENT_CONFIRMED",
+            "PAYMENT_EVIDENCE_SUBMITTED",
             booking.id,
             {"proofReference": reference, "amount": booking.total_price},
         )
     db.commit()
-    return booking_dict(booking)
+    result = booking_dict(booking)
+    result["paymentReview"] = "PENDING_MANUAL_VERIFICATION"
+    return result
 
 
 def booking_dict(b):
