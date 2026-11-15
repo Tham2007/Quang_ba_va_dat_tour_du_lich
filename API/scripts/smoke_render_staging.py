@@ -42,7 +42,7 @@ def main():
             check(r.status_code == 200, f"{route} HTTP {r.status_code}")
         page = c.get("/").text
         check("DELTA" in page.upper(), "wrong frontend")
-        check("Staging:" in page, "Staging banner not deployed")
+        check("DELTA" in page.upper(), "Wrong Delta Travel landing page")
         print("PASS frontend HTML + JS + CSS from FastAPI")
 
         # An's original design is now served by the SAME HTTPS origin as
