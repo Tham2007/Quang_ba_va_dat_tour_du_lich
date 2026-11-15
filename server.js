@@ -4612,15 +4612,34 @@ async function startAutoTunnel(localPort) {
   }
 }
 
+function freePortIfOccupied(targetPort) {
+  try {
+    const { execSync } = require("child_process");
+    if (process.platform === "win32") {
+      const output = execSync(`netstat -ano -p tcp | findstr :${targetPort}`, { encoding: "utf8" });
+      const lines = output.trim().split(/\r?\n/);
+      for (const line of lines) {
+        if (!line.includes("LISTENING") && !line.includes("LISTEN")) continue;
+        const parts = line.trim().split(/\s+/);
+        const pid = parts[parts.length - 1];
+        if (pid && Number(pid) > 0 && Number(pid) !== process.pid) {
+          try { execSync(`taskkill /F /PID ${pid}`, { stdio: "ignore" }); } catch (_) {}
+        }
+      }
+    }
+  } catch (_) {}
+}
+
 // Khởi động Server
 const server = app.listen(PORT, HOST, () => {
   const addr = server.address();
   const port = addr ? addr.port : PORT;
+  const displayHost = (HOST === "0.0.0.0" || HOST === "::") ? "127.0.0.1" : HOST;
   console.log("==================================================================");
   console.log(`  DELTA TRAVEL 2.0 (NODE.JS SERVER) ĐANG CHẠY`);
-  console.log(`  Trang chủ đặt tour:  http://${HOST}:${port}/`);
-  console.log(`  Cổng quản trị Admin: http://${HOST}:${port}/admin.html`);
-  console.log(`  Kiểm tra hệ thống:  http://${HOST}:${port}/api/v1/health/ready`);
+  console.log(`  Trang chủ đặt tour:  http://${displayHost}:${port}/`);
+  console.log(`  Cổng quản trị Admin: http://${displayHost}:${port}/admin.html`);
+  console.log(`  Kiểm tra hệ thống:  http://${displayHost}:${port}/api/v1/health/ready`);
   console.log("==================================================================");
 
   startAutoTunnel(port).catch(() => {});
@@ -4655,9 +4674,21 @@ function cleanupAndExit() {
 process.on("SIGINT", cleanupAndExit);
 process.on("SIGTERM", cleanupAndExit);
 
+let retriedPortFree = false;
 server.on("error", (err) => {
   if (err.code === "EADDRINUSE") {
-    console.error(`\n❌ LỖI: Cổng ${PORT} đang bị chiếm dụng bởi tiến trình khác (server đang chạy ngầm hoặc chưa tắt).`);
+    if (!retriedPortFree) {
+      retriedPortFree = true;
+      console.warn(`\n[PORT] Cổng ${PORT} đang bị tiến trình cũ chiếm dụng. Đang tự động giải phóng...`);
+      freePortIfOccupied(PORT);
+      setTimeout(() => {
+        try {
+          server.listen(PORT, HOST);
+        } catch (_) {}
+      }, 1000);
+      return;
+    }
+    console.error(`\n❌ LỖI: Cổng ${PORT} đang bị chiếm dụng bởi tiến trình khác.`);
     console.error(`👉 Cách xử lý: Đóng cửa sổ terminal đang chạy server cũ, hoặc chạy cổng khác:`);
     console.error(`   $env:PORT=8080; npm run dev (PowerShell) hoặc set PORT=8080 && npm run dev (CMD)\n`);
   } else {
