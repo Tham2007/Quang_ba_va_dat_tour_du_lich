@@ -1351,15 +1351,39 @@ function handleTourImageFileSelect(e) {
     return;
   }
   const fileNameEl = document.getElementById("formTourImageFileName");
-  if (fileNameEl) fileNameEl.textContent = `(${file.name} - ${(file.size / 1024).toFixed(0)}KB)`;
+  if (fileNameEl) fileNameEl.textContent = `(${file.name} - ${(file.size / 1024).toFixed(0)}KB - Đang đồng bộ...)`;
 
   const reader = new FileReader();
-  reader.onload = function(evt) {
+  reader.onload = async function(evt) {
     const base64Data = evt.target.result;
     const imgInput = document.getElementById("formTourImage");
     const previewImg = document.getElementById("formTourImagePreview");
     if (imgInput) imgInput.value = base64Data;
     if (previewImg) previewImg.src = base64Data;
+
+    try {
+      const tourId = document.getElementById("formTourId")?.value.trim() || "tour";
+      if (typeof DeltaAPI !== "undefined" && typeof DeltaAPI.adminUploadImage === "function") {
+        const uploadRes = await DeltaAPI.adminUploadImage(base64Data, tourId);
+        if (uploadRes && uploadRes.success && uploadRes.data && uploadRes.data.url) {
+          const savedUrl = uploadRes.data.url;
+          if (imgInput) imgInput.value = savedUrl;
+          if (previewImg) previewImg.src = savedUrl;
+          if (fileNameEl) fileNameEl.textContent = `(${file.name} - ${(file.size / 1024).toFixed(0)}KB - Đã lưu)`;
+          const galleryInput = document.getElementById("formTourImages");
+          if (galleryInput) {
+            const lines = galleryInput.value.split("\n").map(s => s.trim()).filter(Boolean);
+            if (!lines.includes(savedUrl)) {
+              galleryInput.value = [savedUrl, ...lines].join("\n");
+            }
+          }
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Upload ảnh trực tiếp gặp lỗi, giữ base64 để lưu:", err);
+    }
+    if (fileNameEl) fileNameEl.textContent = `(${file.name} - ${(file.size / 1024).toFixed(0)}KB)`;
   };
   reader.readAsDataURL(file);
 }
@@ -1831,10 +1855,23 @@ async function handleSaveTourSubmit(e) {
   const availableSeats = Number(document.getElementById("formTourSeats").value) || 20;
   const status = document.getElementById("formTourStatus").value;
   const badge = document.getElementById("formTourBadge")?.value.trim() || "";
-  const image = document.getElementById("formTourImage").value.trim() || "assets/images/halong.png";
+  let image = document.getElementById("formTourImage").value.trim() || "assets/images/halong.png";
+  if (image.startsWith("data:image/") && typeof DeltaAPI !== "undefined" && typeof DeltaAPI.adminUploadImage === "function") {
+    try {
+      const uploadRes = await DeltaAPI.adminUploadImage(image, id);
+      if (uploadRes && uploadRes.success && uploadRes.data && uploadRes.data.url) {
+        image = uploadRes.data.url;
+        const imgInput = document.getElementById("formTourImage");
+        if (imgInput) imgInput.value = image;
+      }
+    } catch (e) {
+      console.warn("Không thể upload ảnh khi lưu:", e);
+    }
+  }
+
   const galleryInput = document.getElementById("formTourImages")?.value || "";
   const galleryImages = [...new Set(galleryInput.split(/\r?\n/).map(url => url.trim()).filter(Boolean))];
-  if (!image.startsWith("data:") && !galleryImages.includes(image)) {
+  if (!galleryImages.includes(image)) {
     galleryImages.unshift(image);
   }
   if (galleryImages.length > 12) {
@@ -1849,7 +1886,7 @@ async function handleSaveTourSubmit(e) {
     ? apiImagesRaw
     : (Array.isArray(existingTour?.images) ? existingTour.images.filter(u => !u.startsWith("data:") && u.length <= 1200) : []);
   if (apiImages.length === 0) {
-    apiImages.push("assets/images/halong.png");
+    apiImages.push(image.startsWith("data:") ? "assets/images/halong.png" : image);
   }
 
   const descRaw = document.getElementById("formTourDesc")?.value.trim() || "";
@@ -1973,6 +2010,7 @@ async function handleSaveTourSubmit(e) {
         terms: tourData.terms,
         itinerary: tourData.itinerary,
         active: status === "ACTIVE",
+        image: tourData.image,
         images: apiImages,
         available_seats: tourData.availableSeats
       });
@@ -1996,6 +2034,7 @@ async function handleSaveTourSubmit(e) {
         original_price: Math.max(effectiveOriginalPrice, 1),
         flash_sale: tourData.isFlashSale,
         badge: tourData.badge,
+        image: tourData.image,
         images: apiImages,
         description: tourData.highlights.join("\n"),
         inclusions: tourData.inclusions,

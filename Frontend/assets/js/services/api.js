@@ -356,6 +356,13 @@ const DeltaAPI = (() => {
     });
   }
 
+  async function adminUploadImage(image, tourId) {
+    return await request("/admin/upload-image", {
+      method: "POST",
+      body: { image, tourId }
+    });
+  }
+
   async function adminFetchBookings() {
     return await request("/admin/bookings");
   }
@@ -502,6 +509,7 @@ const DeltaAPI = (() => {
     adminFetchTourDetails,
     adminReplaceTourDetails,
     adminDeleteTour,
+    adminUploadImage,
     adminFetchBookings,
     adminGetBookings: adminFetchBookings,
     adminPatchBooking,

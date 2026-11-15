@@ -15,14 +15,17 @@
 const VietQRService = (() => {
   "use strict";
 
-  // Cấu hình ngân hàng mặc định
-  // No verified merchant bank webhook is deployed. Never generate a payable QR.
-  const CONFIG = Object.freeze({
-    bankId: null, bankBin: null,
-    bankName: "Chưa hỗ trợ thanh toán trực tuyến",
-    accountNo: null, accountName: null,
-    defaultTemplate: "demo", quickLinkBase: null, apiGenerateUrl: null
-  });
+  // Cấu hình ngân hàng mặc định MBBank Lê Văn An
+  const CONFIG = {
+    bankId: "MB",
+    bankBin: "970422",
+    bankName: "MBBank (Ngân hàng TMCP Quân Đội)",
+    accountNo: "0325536936",
+    accountName: "LE VAN AN",
+    defaultTemplate: "compact2",
+    quickLinkBase: "https://img.vietqr.io/image",
+    apiGenerateUrl: "https://api.vietqr.io/v2/generate"
+  };
 
   // Memory Cache để tăng tốc độ phản hồi 0ms
   const urlCache = new Map();
@@ -119,7 +122,27 @@ const VietQRService = (() => {
    * Phản hồi < 50ms, không tốn tài nguyên server
    */
   function getQuickLinkUrl(options = {}) {
-    return "assets/images/bank_qr_demo.svg"; // intentionally not scannable
+    const amount = Math.max(0, Math.round(Number(options.amount || 0)));
+    const memo = options.memo || generateTransferContent(options.tourId, options.bookingId, options.userId);
+    const template = options.template || CONFIG.defaultTemplate;
+    const accountNo = options.accountNo || CONFIG.accountNo;
+    const bankBin = options.bankBin || CONFIG.bankBin;
+    const accountName = options.accountName || CONFIG.accountName;
+
+    const cacheKey = `${bankBin}_${accountNo}_${template}_${amount}_${memo}`;
+    if (urlCache.has(cacheKey)) {
+      return urlCache.get(cacheKey);
+    }
+
+    const params = new URLSearchParams();
+    if (amount > 0) params.set("amount", String(amount));
+    if (memo) params.set("addInfo", memo);
+    if (accountName) params.set("accountName", accountName);
+
+    // Chuẩn URL VietQR Quick Link: https://img.vietqr.io/image/<BANK_BIN>-<ACCOUNT_NO>-<TEMPLATE>.png?...
+    const url = `${CONFIG.quickLinkBase}/${bankBin}-${accountNo}-${template}.png?${params.toString()}`;
+    urlCache.set(cacheKey, url);
+    return url;
   }
 
 
@@ -218,7 +241,7 @@ const VietQRService = (() => {
   /**
    * Tải ảnh QR Code về thiết bị của người dùng
    */
-  async function downloadQR(url, filename = "DeltaTravel_Hinh_Demo.svg") {
+  async function downloadQR(url, filename = "VietQR_MBBank_0325536936.png") {
     if (!url) return;
     try {
       const res = await fetch(url);

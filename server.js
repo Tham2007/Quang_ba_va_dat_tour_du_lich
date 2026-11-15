@@ -1050,6 +1050,34 @@ function initDatabase() {
 
 initDatabase();
 
+// Tự động lưu ảnh base64 thành file ảnh thực tế trên ổ cứng (Frontend/assets/images/uploads/)
+function saveBase64Image(dataUri, tourId) {
+  if (!dataUri || typeof dataUri !== "string" || !dataUri.startsWith("data:image/")) {
+    return dataUri;
+  }
+  try {
+    const match = dataUri.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
+    if (!match) return dataUri;
+    const rawExt = match[1].toLowerCase();
+    const ext = (rawExt === "jpeg" || rawExt === "jpg") ? "jpg" : (rawExt === "png" ? "png" : (rawExt === "webp" ? "webp" : "jpg"));
+    const base64Data = match[2];
+    const buffer = Buffer.from(base64Data, "base64");
+
+    const uploadDir = path.join(FRONTEND_DIR, "assets", "images", "uploads");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    const safeId = String(tourId || "tour").replace(/[^a-zA-Z0-9_-]/g, "_");
+    const fileName = `${safeId}_${Date.now()}.${ext}`;
+    const filePath = path.join(uploadDir, fileName);
+    fs.writeFileSync(filePath, buffer);
+    return `assets/images/uploads/${fileName}`;
+  } catch (err) {
+    console.warn("[UPLOAD] Lỗi lưu ảnh base64:", err.message);
+    return dataUri;
+  }
+}
+
 // Serializers
 function tourImages(imageValue) {
   if (!imageValue) return [];
@@ -3209,11 +3237,17 @@ app.post("/api/v1/admin/tours", requireAdmin, (req, res) => {
   if (existing) return res.status(409).json({ detail: "Mã tour đã tồn tại." });
 
   let imageValue = data.image || "";
+  if (typeof imageValue === "string" && imageValue.startsWith("data:image/")) {
+    imageValue = saveBase64Image(imageValue, data.id);
+  }
   if (Array.isArray(data.images) && data.images.length > 0) {
-    if (data.images.length > 12 || data.images.some(img => typeof img !== "string" || img.length > 1200)) {
+    const processedImages = data.images.map(img =>
+      (typeof img === "string" && img.startsWith("data:image/")) ? saveBase64Image(img, data.id) : img
+    );
+    if (processedImages.length > 12 || processedImages.some(img => typeof img !== "string" || img.length > 1200)) {
       return res.status(422).json({ detail: "Danh sách ảnh tour không hợp lệ." });
     }
-    imageValue = JSON.stringify(data.images);
+    imageValue = JSON.stringify(processedImages);
   }
   const activeFlag = data.active === undefined ? 1 : (data.active ? 1 : 0);
   const inclusionsJson = JSON.stringify(safeJsonStringArray(data.inclusions));
@@ -3254,10 +3288,38 @@ app.post("/api/v1/admin/tours", requireAdmin, (req, res) => {
   res.status(201).json(publicTour(t));
 });
 
+app.post("/api/v1/admin/upload-image", requireAdmin, (req, res) => {
+  const { image, tourId } = req.body || {};
+  if (!image || typeof image !== "string" || !image.startsWith("data:image/")) {
+    return res.status(400).json({ detail: "Dữ liệu ảnh base64 không hợp lệ." });
+  }
+  const savedPath = saveBase64Image(image, tourId || "tour");
+  res.json({ success: true, url: savedPath });
+});
+
 app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
   const { tour_id } = req.params;
   const t = db.prepare("SELECT * FROM tours WHERE id = ?").get(tour_id);
   if (!t) return res.status(404).json({ detail: "Không tìm thấy tour." });
+
+  // Chuẩn hóa và lưu ảnh bìa/danh sách ảnh nếu là base64
+  const patchBody = { ...(req.body || {}) };
+  if (typeof patchBody.image === "string" && patchBody.image.startsWith("data:image/")) {
+    patchBody.image = saveBase64Image(patchBody.image, tour_id);
+  }
+  if (Array.isArray(patchBody.images)) {
+    patchBody.images = patchBody.images.map(img =>
+      (typeof img === "string" && img.startsWith("data:image/")) ? saveBase64Image(img, tour_id) : img
+    );
+    if (patchBody.image && !patchBody.images.includes(patchBody.image)) {
+      patchBody.images.unshift(patchBody.image);
+    }
+  } else if (patchBody.image) {
+    patchBody.images = [patchBody.image];
+  }
+  if (Array.isArray(patchBody.images) && patchBody.images.length > 0) {
+    delete patchBody.image;
+  }
 
   // Xử lý cập nhật số chỗ mở bán đồng bộ xuống bảng lịch khởi hành (schedules)
   const incomingSeats = req.body?.available_seats ?? req.body?.availableSeats;
@@ -3306,12 +3368,16 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
   };
   const fields = [];
   const params = [];
-  for (const [key, val] of Object.entries(req.body || {})) {
+  const seenCols = new Set();
+  for (const [key, rawVal] of Object.entries(patchBody)) {
     if (!Object.hasOwn(columns, key)) {
       return res.status(422).json({ detail: `Không hỗ trợ cập nhật trường "${key}".` });
     }
     const col = columns[key];
     if (col === null) continue; // Đã xử lý ở bảng liên quan (như schedules)
+    if (seenCols.has(col)) continue;
+    seenCols.add(col);
+    let val = rawVal;
     if (val !== undefined && val !== null) {
       if (key === "images" &&
           (!Array.isArray(val) || val.length > 12 ||

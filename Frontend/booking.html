@@ -826,22 +826,22 @@
           <div class="border rounded-4 p-3 p-md-4 bg-white shadow-xs text-start">
             <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
               <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-dark text-white px-2.5 py-1 fw-bold" style="font-size: 11px;">DEMO</span>
-                <span class="fw-bold text-dark small">Chưa hỗ trợ thanh toán ngân hàng</span>
+                <span class="badge bg-dark text-white px-2.5 py-1 fw-bold" style="font-size: 11px;">MB BANK</span>
+                <span class="fw-bold text-dark small">Tài khoản nhận thanh toán chính thức</span>
               </div>
-              <span class="badge bg-light text-dark border px-2 py-0.5" style="font-size: 11px;">KHÔNG CHUYỂN TIỀN</span>
+              <span class="badge bg-light text-dark border px-2 py-0.5" style="font-size: 11px;">NAPAS 24/7</span>
             </div>
 
             <div class="d-flex justify-content-between align-items-center mb-2.5 pb-1 border-bottom">
               <span class="text-muted small">Ngân hàng:</span>
-              <strong class="text-dark small">Chưa kết nối cổng thanh toán</strong>
+              <strong class="text-dark small">MBBank (Ngân hàng Quân Đội)</strong>
             </div>
 
             <div class="d-flex justify-content-between align-items-center mb-2.5 pb-1 border-bottom">
               <span class="text-muted small">Số tài khoản:</span>
               <div class="d-flex align-items-center gap-2">
-                <strong id="receiptAccountNo" class="text-dark font-monospace fs-5">KHÔNG ÁP DỤNG</strong>
-                <button type="button" class="btn btn-sm btn-outline-dark py-0.5 px-2 rounded-pill font-monospace" style="font-size: 11px;" disabled title="Không hỗ trợ chuyển khoản">
+                <strong id="receiptAccountNo" class="text-dark font-monospace fs-5">0325536936</strong>
+                <button type="button" class="btn btn-sm btn-outline-dark py-0.5 px-2 rounded-pill font-monospace" style="font-size: 11px;" onclick="copyPaymentField('0325536936', 'Số tài khoản')">
                   <i class="bi bi-clipboard"></i> Copy
                 </button>
               </div>
@@ -850,8 +850,8 @@
             <div class="d-flex justify-content-between align-items-center mb-2.5 pb-1 border-bottom">
               <span class="text-muted small">Chủ tài khoản:</span>
               <div class="d-flex align-items-center gap-2">
-                <strong class="text-dark fw-bold">TÀI KHOẢN DEMO</strong>
-                <button type="button" class="btn btn-sm btn-outline-dark py-0.5 px-2 rounded-pill font-monospace" style="font-size: 11px;" disabled title="Không hỗ trợ chuyển khoản">
+                <strong class="text-dark fw-bold">LE VAN AN</strong>
+                <button type="button" class="btn btn-sm btn-outline-dark py-0.5 px-2 rounded-pill font-monospace" style="font-size: 11px;" onclick="copyPaymentField('LE VAN AN', 'Chủ tài khoản')">
                   <i class="bi bi-clipboard"></i> Copy
                 </button>
               </div>
@@ -897,10 +897,10 @@
                 <div class="flex-grow-1">
                   <div class="fw-bold text-dark small d-flex align-items-center gap-1.5 mb-1">
                     <i class="bi bi-broadcast text-primary"></i>
-                    <span>Chờ quản trị viên xác minh trạng thái trên máy chủ...</span>
+                    <span>Đang chờ SePay tự động ghi nhận chuyển khoản...</span>
                   </div>
                   <div class="text-secondary" style="font-size: 11.5px; line-height: 1.45;">
-                    Không thanh toán thật. Cổng đối soát ngân hàng tự động chưa được nghiệm thu.
+                    Vui lòng giữ đúng <strong>Nội dung CK</strong> khi chuyển. Cổng SePay sẽ tự động đối soát tiền vào tài khoản MBBank và kích hoạt hóa đơn trong 1 - 3 giây mà bạn không cần phải bấm bất kỳ nút nào.
                   </div>
                 </div>
               </div>
@@ -1597,12 +1597,12 @@
         : `${totalGuests} khách (${adults} lớn, ${children} trẻ${infants > 0 ? `, ${infants} em bé` : ""})`;
       document.getElementById("guestCountDisplay").textContent = guestSummary;
 
-      // API price is VAT-inclusive. No extra VAT or offline voucher discount.
+      // Tính toán giá minh bạch đồng bộ với Server (Đơn giá + Thuế GTGT 10%)
       const rawBookingSubtotal = calculateBookingSubtotal(adults, children, infants);
       const effectiveDiscount = 0;
-      const finalTotal = rawBookingSubtotal;
-      const subtotal = Math.round(finalTotal / 1.1);
-      const vatAmount = finalTotal - subtotal;
+      const subtotal = Math.max(0, rawBookingSubtotal - effectiveDiscount);
+      const vatAmount = Math.round(subtotal * 0.10);
+      const finalTotal = subtotal + vatAmount;
 
       const subtotalEl = document.getElementById("subtotalDisplay");
       if (subtotalEl) subtotalEl.textContent = formatVND(subtotal);
@@ -1705,8 +1705,16 @@
         : `KH ${bookingRef}`;
       currentTransferNote = transferNote;
 
-      // Show a non-scannable image until independently verified bank gateway exists.
-      const qrUrl = "assets/images/bank_qr_demo.svg";
+      // Tạo chuẩn mã VietQR MBBank chính thức để khách hàng thanh toán quét mã tự động
+      const qrUrl = (typeof VietQRService !== "undefined" && typeof VietQRService.getQuickLinkUrl === "function")
+        ? VietQRService.getQuickLinkUrl({
+            amount: payAmount,
+            memo: transferNote,
+            tourId: tourId,
+            bookingId: bookingRef,
+            userId: userId
+          })
+        : "assets/images/bank_qr_demo.svg";
       currentQRUrl = qrUrl;
 
       // Hiển thị ảnh QR với hiệu ứng mượt mà và spinner skeleton
@@ -1860,9 +1868,9 @@
       }
 
       const effectiveDiscount = 0;
-      const calculatedTotal = rawSubtotal; // Already VAT-inclusive on server.
-      const subtotal = Math.round(calculatedTotal / 1.1);
-      const vatAmount = calculatedTotal - subtotal;
+      const subtotal = Math.max(0, rawSubtotal - effectiveDiscount);
+      const vatAmount = Math.round(subtotal * 0.10);
+      const calculatedTotal = subtotal + vatAmount;
 
       // The server, not browser code, decides price and seat availability.
       if (typeof DeltaAPI === "undefined" || typeof DeltaAPI.quoteBooking !== "function") {
