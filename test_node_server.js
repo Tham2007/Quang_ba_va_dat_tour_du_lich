@@ -640,11 +640,19 @@ async function runTests() {
 
     // 2. Tạo mã % có trần max_discount, chưa đến hạn, đã hết hạn, ngừng hoạt động, đơn tối thiểu
     const nowMs = Date.now();
+    const vRand = Math.random().toString(36).substring(2, 7).toUpperCase();
+    const capCode = "CAP500K_" + vRand;
+    const futureCode = "FUT_" + vRand;
+    const expiredCode = "EXP_" + vRand;
+    const pausedCode = "PAUSED_" + vRand;
+    const freeCode = "FREE_" + vRand;
+    const oneOnlyCode = "ONE_" + vRand;
+
     const createPctCap = await req("/api/v1/admin/vouchers", {
       method: "POST",
       headers: adminHeaders,
       body: {
-        code: "CAP500K",
+        code: capCode,
         name: "Giảm 50% tối đa 500K cho DL-HL01",
         discount_type: "percent",
         discount_value: 50,
@@ -662,7 +670,7 @@ async function runTests() {
     });
     const valPctCap = await req("/api/v1/vouchers/validate", {
       method: "POST",
-      body: { code: "CAP500K", tour_id: "DL-HL01", adults: 1 }
+      body: { code: capCode, tour_id: "DL-HL01", adults: 1 }
     });
     const valLowMin = await req("/api/v1/vouchers/validate", {
       method: "POST",
@@ -674,7 +682,7 @@ async function runTests() {
       method: "POST",
       headers: adminHeaders,
       body: {
-        code: "FUTURE2027",
+        code: futureCode,
         name: "Mã tương lai",
         discount_type: "fixed",
         discount_value: 100000,
@@ -687,14 +695,14 @@ async function runTests() {
     });
     const valFuture = await req("/api/v1/vouchers/validate", {
       method: "POST",
-      body: { code: "FUTURE2027", tour_id: "DL-HL01", adults: 1 }
+      body: { code: futureCode, tour_id: "DL-HL01", adults: 1 }
     });
 
     await req("/api/v1/admin/vouchers", {
       method: "POST",
       headers: adminHeaders,
       body: {
-        code: "EXPIRED2020",
+        code: expiredCode,
         name: "Mã hết hạn",
         discount_type: "fixed",
         discount_value: 100000,
@@ -707,14 +715,14 @@ async function runTests() {
     });
     const valExpired = await req("/api/v1/vouchers/validate", {
       method: "POST",
-      body: { code: "EXPIRED2020", tour_id: "DL-HL01", adults: 1 }
+      body: { code: expiredCode, tour_id: "DL-HL01", adults: 1 }
     });
 
     const inactiveCreate = await req("/api/v1/admin/vouchers", {
       method: "POST",
       headers: adminHeaders,
       body: {
-        code: "PAUSED10",
+        code: pausedCode,
         name: "Mã tạm ngừng",
         discount_type: "fixed",
         discount_value: 100000,
@@ -726,19 +734,19 @@ async function runTests() {
     });
     const valInactive = await req("/api/v1/vouchers/validate", {
       method: "POST",
-      body: { code: "PAUSED10", tour_id: "DL-HL01", adults: 1 }
+      body: { code: pausedCode, tour_id: "DL-HL01", adults: 1 }
     });
     const valNotExist = await req("/api/v1/vouchers/validate", {
       method: "POST",
       body: { code: "KHONGTONTAI99", tour_id: "DL-HL01", adults: 1 }
     });
     assert("Voucher 2: Phần trăm có trần max_discount, minOrder, chưa tới hạn, hết hạn, tạm ngừng, không tồn tại",
-      (createPctCap.status === 201 || createPctCap.status === 409) &&
+      createPctCap.status === 201 &&
       valPctCap.status === 200 && valPctCap.json?.discountAmount === 500000 && valPctCap.json?.totalPrice === 3390000 &&
       valLowMin.status === 422 && valLowMin.json?.errorCode === "VOUCHER_MIN_ORDER" &&
       valFuture.status === 422 && valFuture.json?.errorCode === "VOUCHER_NOT_STARTED" &&
       valExpired.status === 422 && valExpired.json?.errorCode === "VOUCHER_EXPIRED" &&
-      (inactiveCreate.status === 201 || inactiveCreate.status === 409) && valInactive.status === 422 && valInactive.json?.errorCode === "VOUCHER_INACTIVE" &&
+      inactiveCreate.status === 201 && valInactive.status === 422 && valInactive.json?.errorCode === "VOUCHER_INACTIVE" &&
       valNotExist.status === 422 && valNotExist.json?.errorCode === "VOUCHER_NOT_FOUND",
       `cap=${createPctCap.status}/${valPctCap.json?.discountAmount} lowMin=${valLowMin.status}/${valLowMin.json?.errorCode} fut=${valFuture.json?.errorCode} exp=${valExpired.json?.errorCode} inact=${inactiveCreate.status}/${valInactive.json?.errorCode} no=${valNotExist.json?.errorCode}`);
 
@@ -747,7 +755,7 @@ async function runTests() {
       method: "POST",
       headers: adminHeaders,
       body: {
-        code: "FREEALL",
+        code: freeCode,
         name: "Giảm cố định cực lớn",
         discount_type: "fixed",
         discount_value: 5000000,
@@ -762,7 +770,7 @@ async function runTests() {
     });
     const quoteFree = await req("/api/v1/bookings/quote", {
       method: "POST",
-      body: { schedule_id: mcSchedId, adults: 1, voucher_code: "FREEALL" }
+      body: { schedule_id: mcSchedId, adults: 1, voucher_code: freeCode }
     });
     const spoofedBook = await req("/api/v1/bookings", {
       method: "POST",
@@ -782,7 +790,7 @@ async function runTests() {
       spoofedBook.status === 201 && spoofedBook.json?.discountAmount === 0 && spoofedBook.json?.totalPrice === 4279000,
       `quote=${quoteFree.status}:${quoteFree.json?.discountAmount}/${quoteFree.json?.totalPrice}:${quoteFree.json?.detail} spoof=${spoofedBook.status}:${spoofedBook.json?.discountAmount}/${spoofedBook.json?.totalPrice}:${spoofedBook.json?.detail}`);
 
-    // 4. Đặt đơn với CAP500K -> dùng lại lần 2 bị chặn (per_user_limit: 1) -> hủy đơn hoàn lại lượt & dùng lại thành công!
+    // 4. Đặt đơn với capCode -> dùng lại lần 2 bị chặn (per_user_limit: 1) -> hủy đơn hoàn lại lượt & dùng lại thành công!
     const bookCap1 = await req("/api/v1/bookings", {
       method: "POST",
       headers: { ...authHeaders, "Idempotency-Key": crypto.randomUUID() },
@@ -792,7 +800,7 @@ async function runTests() {
         customer_name: "Khách Dùng Mã",
         customer_phone: newPhone,
         customer_email: testEmail,
-        voucher_code: "CAP500K",
+        voucher_code: capCode,
         discount_amount: 9999999
       }
     });
@@ -805,7 +813,7 @@ async function runTests() {
         customer_name: "Khách Dùng Mã",
         customer_phone: newPhone,
         customer_email: testEmail,
-        voucher_code: "CAP500K"
+        voucher_code: capCode
       }
     });
     await req(`/api/v1/bookings/${bookCap1.json?.id}/cancel`, {
@@ -822,7 +830,7 @@ async function runTests() {
         customer_name: "Khách Dùng Mã",
         customer_phone: newPhone,
         customer_email: testEmail,
-        voucher_code: "CAP500K"
+        voucher_code: capCode
       }
     });
     assert("Voucher 4: Giới hạn lượt dùng/khách hàng & hoàn lại lượt khi hủy đơn",
@@ -846,7 +854,6 @@ async function runTests() {
       body: { code: "BANMOI", tour_id: "DL-HL01", adults: 1 }
     });
 
-    const oneOnlyCode = "ONE_" + Math.random().toString(36).substring(2, 7).toUpperCase();
     const raceVoucherRes = await req("/api/v1/admin/vouchers", {
       method: "POST",
       headers: adminHeaders,

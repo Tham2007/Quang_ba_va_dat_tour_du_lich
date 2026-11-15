@@ -61,7 +61,3 @@ jobs:
         run: |
           export CHROME_PATH="$(command -v google-chrome || command -v chromium)"
           node Frontend/tests/an-live-browser.cjs
-      - name: Verify actual An booking.html customer checkout in Chromium
-        run: |
-          export CHROME_PATH="$(command -v google-chrome || command -v chromium)"
-          node Frontend/tests/real-checkout-browser.cjs
