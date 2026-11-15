@@ -46,13 +46,17 @@ _CITY_ALIASES = (
 
 def _fold(value: str) -> str:
     decomposed = unicodedata.normalize("NFD", str(value).casefold())
-    return "".join(c for c in decomposed if unicodedata.category(c) != "Mn").replace("đ", "d")
+    return "".join(c for c in decomposed if unicodedata.category(c) != "Mn").replace(
+        "đ", "d"
+    )
 
 
 def _redact_personal_data(value: str) -> str:
     """Do not forward contact details or identity numbers to the model."""
     value = re.sub(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", "[email]", value)
-    return re.sub(r"(?<!\d)\+?\d[\d\s.-]{8,}\d(?!\d)", "[số điện thoại hoặc mã số]", value)
+    return re.sub(
+        r"(?<!\d)\+?\d[\d\s.-]{8,}\d(?!\d)", "[số điện thoại hoặc mã số]", value
+    )
 
 
 def _active_catalog(db: Session):
@@ -91,9 +95,14 @@ def _active_catalog(db: Session):
                 "region": tour.region,
                 "description": tour.description[:260],
                 # These times/seats may originate from a seeded demonstration DB.
-                "nextDemoSchedule": schedule.departure_at.isoformat() if schedule else None,
-                "demoRemainingSeats": max(0, schedule.total_seats - schedule.reserved_seats)
-                if schedule else None,
+                "nextDemoSchedule": schedule.departure_at.isoformat()
+                if schedule
+                else None,
+                "demoRemainingSeats": max(
+                    0, schedule.total_seats - schedule.reserved_seats
+                )
+                if schedule
+                else None,
             }
         )
     return tours, catalog
@@ -111,11 +120,14 @@ def _cards(tours: list[Tour], body: AssistantMessage):
             if any(_fold(alias) in text for alias in aliases):
                 places.extend(_fold(a) for a in aliases)
         departure_question = bool(
-            re.search(r"\b(khoi hanh tu|di tu|xuat phat tu|departing from|from)\b", text)
+            re.search(
+                r"\b(khoi hanh tu|di tu|xuat phat tu|departing from|from)\b", text
+            )
         )
         if places:
             tours = [
-                t for t in tours
+                t
+                for t in tours
                 if any(
                     place in _fold(t.departure if departure_question else t.title)
                     for place in places
@@ -123,8 +135,7 @@ def _cards(tours: list[Tour], body: AssistantMessage):
             ]
         else:
             tours = [
-                t for t in tours
-                if len(_fold(t.title)) > 5 and _fold(t.title) in text
+                t for t in tours if len(_fold(t.title)) > 5 and _fold(t.title) in text
             ]
     return [
         {
@@ -219,17 +230,22 @@ def assistant_message(
         messages.append(
             {"role": entry.role, "content": _redact_personal_data(entry.content)}
         )
-    messages.append(
-        {"role": "user", "content": _redact_personal_data(body.message)}
-    )
+    messages.append({"role": "user", "content": _redact_personal_data(body.message)})
 
     try:
         answer = _chat_with_groq(messages, model, api_key)
     except urllib.error.HTTPError as exc:
         # Never log API keys, headers, provider response or user conversation.
         _LOG.warning("Groq request rejected (HTTP %s)", exc.code)
-    except (urllib.error.URLError, TimeoutError, ValueError, KeyError, IndexError,
-            OSError, json.JSONDecodeError):
+    except (
+        urllib.error.URLError,
+        TimeoutError,
+        ValueError,
+        KeyError,
+        IndexError,
+        OSError,
+        json.JSONDecodeError,
+    ):
         _LOG.warning("Groq request unavailable")
     else:
         return {
