@@ -67,9 +67,10 @@ def main():
 
         r = c.get("/api/v1/tours")
         check(r.status_code == 200, f"tour list HTTP {r.status_code}")
-        tours = r.json()
-        check(len(tours) >= 1, "no seeded tours")
-        check(tours[0]["price"] > 0, "price from DB invalid")
+        catalog = r.json()
+        tours = catalog.get("items", []) if isinstance(catalog, dict) else catalog
+        check(isinstance(tours, list) and len(tours) >= 1, "no seeded tours")
+        check(all(t.get("price", 0) > 0 for t in tours), "price from DB invalid")
         check(c.get("/api/v1/auth/me").status_code == 401, "anonymous user should be 401")
         print(f"PASS database catalog: {len(tours)} tours; anonymous auth 401")
 
@@ -77,7 +78,7 @@ def main():
         phone = "09" + "".join(str(int(ch, 16) % 10) for ch in ident[:8])
         user = {
             "full_name": "KTHP Test Synthetic",
-            "email": "kthp-" + ident[:16] + "@example.invalid",
+            "email": "kthp-" + ident[:16] + "@example.test",
             "phone": phone,
             "password": "UniqueTestPassword1!-" + ident,
         }
@@ -92,15 +93,28 @@ def main():
         headers = {"X-CSRF-Token": csrf}
         print("PASS HTTPS registration, Secure cookies, session, role=CUSTOMER")
 
-        schedules = c.get("/api/v1/tours/" + tours[0]["id"] + "/schedules")
-        check(schedules.status_code == 200, f"schedules HTTP {schedules.status_code}")
         cutoff = datetime.now(timezone.utc) + timedelta(hours=80)
-        allowed = next((
-            x for x in schedules.json()
-            if x["availableSeats"] > 0
-            and datetime.fromisoformat(x["departureAt"].replace("Z", "+00:00")) > cutoff
-        ), None)
-        check(bool(allowed), "no seats in synthetic staging")
+        allowed = None
+        chosen_tour_id = None
+        # A seed tour may have an expired or sold-out departure. Search every tour.
+        for tour in tours:
+            schedules = c.get("/api/v1/tours/" + tour["id"] + "/schedules")
+            if schedules.status_code != 200:
+                continue
+            for schedule in schedules.json():
+                try:
+                    future = datetime.fromisoformat(
+                        schedule["departureAt"].replace("Z", "+00:00")
+                    ) > cutoff
+                except (KeyError, TypeError, ValueError):
+                    future = False
+                if schedule.get("availableSeats", 0) > 0 and future:
+                    allowed = schedule
+                    chosen_tour_id = tour["id"]
+                    break
+            if allowed:
+                break
+        check(bool(allowed), "No bookable departure later than 80h on public staging")
         seats_before = allowed["availableSeats"]
         body = {
             "schedule_id": allowed["id"],
@@ -129,7 +143,7 @@ def main():
         check(replay.status_code == 201 and replay.json()["id"] == order["id"], "booking retry not idempotent")
         existing = c.get("/api/v1/bookings")
         check(existing.status_code == 200 and any(x["id"] == order["id"] for x in existing.json()), "booking was not stored")
-        now = c.get("/api/v1/tours/" + tours[0]["id"] + "/schedules")
+        now = c.get("/api/v1/tours/" + chosen_tour_id + "/schedules")
         held = next(x for x in now.json() if x["id"] == allowed["id"])
         check(held["availableSeats"] == seats_before - 1, "one booking must reserve one seat")
         print("PASS live server: quote + CSRF + idempotent booking + database inventory decremented")
@@ -145,7 +159,7 @@ def main():
 
         cancel = c.post("/api/v1/bookings/" + order["id"] + "/cancel", json={}, headers=headers)
         check(cancel.status_code == 200, f"cancel HTTP {cancel.status_code}: {cancel.text[:200]}")
-        restored = next(x for x in c.get("/api/v1/tours/" + tours[0]["id"] + "/schedules").json() if x["id"] == allowed["id"])
+        restored = next(x for x in c.get("/api/v1/tours/" + chosen_tour_id + "/schedules").json() if x["id"] == allowed["id"])
         check(restored["availableSeats"] == seats_before, "cancel must restore seat")
         check(c.get("/api/v1/admin/metrics").status_code == 403, "customers must not access admin")
         print("PASS live server: cancel restores seat; admin protected 403")
