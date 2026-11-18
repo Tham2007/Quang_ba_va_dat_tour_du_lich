@@ -46,7 +46,22 @@ const ORIGIN = "http://127.0.0.1:8999";
     await page.locator("#customerPhone").fill("0912345678");
     await page.locator("#customerEmail").fill(email);
     await page.evaluate(async()=>{await submitBookingOrder();});
-    await page.locator("#bookingSuccessReceipt").waitFor({state:"visible",timeout:20000});
+    try {
+      await page.locator("#bookingSuccessReceipt").waitFor({state:"visible",timeout:20000});
+    } catch (waitError) {
+      const diag = await page.evaluate(() => ({
+        receiptDisplay: document.getElementById("bookingSuccessReceipt")?.style.display,
+        appNotice: [...document.querySelectorAll("[role='alert'], .alert, .swal2-html-container, .app-dialog")].map(el => el.textContent.trim().slice(0, 190)).filter(Boolean).slice(-5),
+        unitPrice: window.currentTour?.price ?? null,
+        scheduleSelected: document.getElementById("bookingScheduleSelect")?.value?.length > 0
+      }));
+      console.error("DIAGNOSTIC checkout receipt absent",JSON.stringify({
+        quotedTotal:quote.body.totalPrice,
+        ...diag,
+        browserErrors:errors.slice(0,3)
+      }));
+      throw waitError;
+    }
 
     const rows=await page.evaluate(async()=>{
       const r=await fetch("/api/v1/bookings",{credentials:"same-origin"});
