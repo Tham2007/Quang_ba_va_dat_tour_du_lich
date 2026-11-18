@@ -342,25 +342,26 @@
                       <div class="row g-3">
                         <div class="col-md-6">
                           <label class="form-label small fw-bold text-dark mb-1">
-                            Giá Gốc Niêm Yết (đ)
-                            <span class="badge bg-light text-secondary border ms-1 fw-normal">Có thể nhập tự do</span>
+                            Tổng Chi Phí Gốc (đ)
+                            <span class="badge bg-light text-secondary border ms-1 fw-normal">Tự động cộng dồn</span>
                           </label>
                           <div class="input-group">
-                            <input type="number" class="form-control form-control-lg fw-bold text-secondary" id="formTourOriginalPrice" placeholder="VD: 4890000" min="0" step="1000">
+                            <input type="number" class="form-control form-control-lg fw-bold text-secondary" id="formTourOriginalPrice" placeholder="0" min="0" step="1000">
                             <span class="input-group-text bg-light text-dark fw-semibold">VNĐ</span>
                           </div>
-                          <div class="form-text text-muted small">Giá niêm yết ban đầu (dùng hiển thị giá gạch ngang ưu đãi trên website).</div>
+                          <div class="form-text text-muted small">Tổng chi phí gốc nội bộ trên mỗi khách (tự động cộng dồn từ các khoản chi nội bộ bên dưới, bảo mật chỉ Admin xem, không hiển thị cho khách hàng).</div>
                         </div>
 
                         <div class="col-md-6">
                           <label class="form-label small fw-bold text-dark mb-1">
-                            Giá Khuyến Mãi Bán (đ) <span class="text-danger">*</span>
+                            Giá Tour (đ) <span class="text-danger">*</span>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1 fw-normal">Hiển thị cho khách hàng</span>
                           </label>
                           <div class="input-group">
                             <input type="number" class="form-control form-control-lg fw-bold text-danger" id="formTourPrice" placeholder="VD: 3890000" min="1000" step="1000" required>
                             <span class="input-group-text bg-light text-dark fw-semibold">VNĐ</span>
                           </div>
-                          <div class="form-text text-muted small">Giá thực tế khách hàng thanh toán (chưa gồm 10% VAT).</div>
+                          <div class="form-text text-muted small">Giá tour chính thức được hiển thị cho khách hàng xem và đặt tour trên website (chưa gồm 10% VAT).</div>
                         </div>
 
                         <div class="col-md-4">

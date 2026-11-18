@@ -1545,7 +1545,7 @@ function openTourModal(tourId = null, initialTab = "basic") {
   baseCostInput.readOnly = false;
   baseCostInput.removeAttribute("readonly");
   baseCostInput.removeAttribute("disabled");
-  baseCostInput.title = "Giá gốc niêm yết (hiển thị gạch ngang ưu đãi). Nhập số tiền trực tiếp.";
+  baseCostInput.title = "Tổng chi phí gốc nội bộ (tự động cộng dồn từ các khoản chi nội bộ bên dưới, bảo mật chỉ Admin xem).";
   document.getElementById("formTourPrice").value = tour ? tour.price : "";
   document.getElementById("formTourDeparture").value = tour ? (tour.departure || "") : "Hà Nội / TP.HCM";
   document.getElementById("formTourTransport").value = tour ? (tour.transport || "") : "Xe du lịch đời mới / Máy bay";
@@ -1615,7 +1615,12 @@ function openTourModal(tourId = null, initialTab = "basic") {
       document.getElementById("formTourPrice").value = result.data.tour.price;
       const base = document.getElementById("formTourOriginalPrice");
       if (base) {
-        base.value = result.data.tour?.originalPrice || result.data.baseCost || "";
+        if (Array.isArray(result.data.costItems) && result.data.costItems.length > 0) {
+          const sumCosts = result.data.costItems.reduce((acc, c) => acc + (Number(c.amountPerPerson || c.amount_per_person) || 0), 0);
+          base.value = sumCosts || result.data.baseCost || result.data.tour?.originalPrice || "";
+        } else {
+          base.value = result.data.tour?.originalPrice || result.data.baseCost || "";
+        }
         base.readOnly = false;
         base.removeAttribute("readonly");
       }
@@ -1724,6 +1729,7 @@ function appendAdminCostItem(item = {}, target) {
   row.querySelectorAll("input,select").forEach(field => {
     field.addEventListener("input", updateAdminBaseCost);
     field.addEventListener("change", updateAdminBaseCost);
+    field.addEventListener("keyup", updateAdminBaseCost);
   });
   row.querySelector("button").addEventListener("click", () => {
     row.remove();
@@ -1735,10 +1741,12 @@ function appendAdminCostItem(item = {}, target) {
 
 function updateAdminBaseCost() {
   const costInputs = document.querySelectorAll("#adminTourCostRows .cost-amount");
-  if (costInputs.length > 0) {
+  const output = document.getElementById("formTourOriginalPrice");
+  if (!output) return;
+  const costRows = document.querySelectorAll("#adminTourCostRows .admin-tour-cost-row");
+  if (costRows.length > 0) {
     const total = [...costInputs].reduce((sum, input) => sum + (Number(input.value) || 0), 0);
-    const output = document.getElementById("formTourOriginalPrice");
-    if (output && (!output.value || output.value === "0")) output.value = total;
+    output.value = total;
   }
 }
 
@@ -2047,13 +2055,13 @@ async function handleSaveTourSubmit(e) {
 
   if (!title || price <= 0) {
     if (typeof showAppNotice === "function") {
-      showAppNotice("Vui lòng nhập tên tour và giá khuyến mãi bán hợp lệ (> 0đ).", "Thiếu Thông Tin", "warning");
+      showAppNotice("Vui lòng nhập tên tour và giá tour hợp lệ (> 0đ).", "Thiếu Thông Tin", "warning");
     }
     return;
   }
   if (calculatedBaseCost > 0 && price <= calculatedBaseCost) {
     if (typeof showAppNotice === "function") {
-      showAppNotice("Giá bán phải cao hơn tổng chi phí gốc nội bộ. Vui lòng kiểm tra các khoản chi.", "Giá Bán Không Hợp Lệ", "warning");
+      showAppNotice("Giá tour phải cao hơn tổng chi phí gốc nội bộ. Vui lòng kiểm tra các khoản chi.", "Giá Tour Không Hợp Lệ", "warning");
     }
     return;
   }
@@ -2064,9 +2072,9 @@ async function handleSaveTourSubmit(e) {
   const tours = [...AdminState.tours];
   const existingIdx = tours.findIndex(t => t.id === id);
 
-  const effectiveOriginalPrice = originalPrice > 0
-    ? originalPrice
-    : (calculatedBaseCost > 0 ? calculatedBaseCost : (tours[existingIdx]?.originalPrice || price));
+  const effectiveOriginalPrice = (costItems.length > 0 && calculatedBaseCost > 0)
+    ? calculatedBaseCost
+    : (originalPrice > 0 ? originalPrice : (calculatedBaseCost > 0 ? calculatedBaseCost : (tours[existingIdx]?.originalPrice || price)));
   const computedFlashSale = badge.toUpperCase().includes("FLASH SALE");
 
   const tourData = {
@@ -2179,7 +2187,7 @@ async function handleSaveTourSubmit(e) {
     existingIdx !== -1 ? "UPDATE_TOUR" : "CREATE_TOUR",
     "Tour",
     id,
-    `Đã lưu giá bán ${price.toLocaleString("vi-VN")} đ, giá gốc ${effectiveOriginalPrice.toLocaleString("vi-VN")} đ và lịch trình ${itinerary.length} ngày.`
+    `Đã lưu giá tour ${price.toLocaleString("vi-VN")} đ, tổng chi phí gốc ${effectiveOriginalPrice.toLocaleString("vi-VN")} đ và lịch trình ${itinerary.length} ngày.`
   );
   showAdminToast(`Đã lưu & đồng bộ tour ${id}, chi phí và lịch trình lên hệ thống khách hàng.`, "success");
   saveToursData(tours);
