@@ -2,7 +2,7 @@ const mssql = require("mssql");
 
 const config = {
   user: "db_ad0b71_dattour_admin",
-  password: "Phamtham312007@",
+  password: process.env.DELTA_MSSQL_PASSWORD || '',
   server: "sql8020.site4now.net",
   port: 1433,
   database: "db_ad0b71_dattour",

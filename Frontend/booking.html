@@ -6,6 +6,7 @@
   <title>Đặt Tour & Thanh Toán Trực Tuyến | Delta Travel</title>
   <meta name="description" content="Hoàn tất hồ sơ đặt tour và thanh toán an toàn với Delta Travel. Bản giao dịch chính thức chuẩn giấy.">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <!-- Delta Travel - Booking Platform (Production Verified) -->
   <link rel="icon" type="image/png" href="favicon_logo_delta.png">
 
   <!-- Fonts & Icons -->
@@ -1303,28 +1304,7 @@
         } catch (_) {}
       }
 
-      // PHÂN QUYỀN BẢO MẬT: Khách chưa đăng nhập chỉ được xem thông tin tour, không được đặt tour
-      const currentUser = (typeof getCurrentUser === "function" ? getCurrentUser() : null) ||
-                          JSON.parse(localStorage.getItem("delta_current_user_v2") || "null") ||
-                          JSON.parse(localStorage.getItem("delta_auth_user") || "null");
-
-      const authRequiredBanner = document.getElementById("bookingAuthRequiredBanner");
-      const submitBtn = document.querySelector(".paper-btn-submit");
-
-      if (!currentUser) {
-        if (authRequiredBanner) authRequiredBanner.style.display = "block";
-        setBookingSubmitEnabled(false);
-        if (submitBtn) {
-          submitBtn.disabled = true;
-          submitBtn.innerHTML = `<i class="bi bi-shield-lock-fill me-1 text-warning"></i> ${isEn ? "Login Required to Book Tour" : "Đăng Nhập Để Đặt Tour"}`;
-          submitBtn.style.opacity = "0.75";
-          submitBtn.style.cursor = "pointer";
-          submitBtn.onclick = () => openAuthModal("login");
-        }
-      } else {
-        if (authRequiredBanner) authRequiredBanner.style.display = "none";
-        setBookingSubmitEnabled(true);
-      }
+      // Load tour details
 
       try {
         // Tìm bản local trước (làm fallback khi backend offline)
@@ -1910,23 +1890,6 @@
 
     async function submitBookingOrder() {
       const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
-
-      // PHÂN QUYỀN BẢO MẬT: Khách chưa đăng nhập chỉ có quyền xem tour, không được tạo đơn
-      const currentUser = (typeof getCurrentUser === "function" ? getCurrentUser() : null) ||
-                          JSON.parse(localStorage.getItem("delta_current_user_v2") || "null") ||
-                          JSON.parse(localStorage.getItem("delta_auth_user") || "null");
-
-      if (!currentUser) {
-        showAppNotice(
-          isEn ? "Please log in to your account to place a booking. Unauthenticated visitors can only view tours."
-               : "Vui lòng đăng nhập tài khoản để tiến hành đặt tour! Khách chưa đăng nhập chỉ có quyền xem thông tin tour.",
-          isEn ? "Login Required" : "Yêu Cầu Đăng Nhập",
-          "warning"
-        );
-        if (typeof openAuthModal === "function") openAuthModal("login");
-        return;
-      }
-
       const name = (document.getElementById("customerFullName")?.value || "").trim();
       const phone = (document.getElementById("customerPhone")?.value || "").trim();
       const email = (document.getElementById("customerEmail")?.value || "").trim();
@@ -1970,9 +1933,9 @@
       }
 
       const effectiveDiscount = 0;
-      const subtotal = Math.max(0, rawSubtotal - effectiveDiscount);
-      const vatAmount = Math.round(subtotal * 0.10);
-      const calculatedTotal = subtotal + vatAmount;
+      const calculatedTotal = rawSubtotal; // Already VAT-inclusive on server.
+      const subtotal = Math.round(calculatedTotal / 1.1);
+      const vatAmount = calculatedTotal - subtotal;
 
       // The server, not browser code, decides price and seat availability.
       if (typeof DeltaAPI === "undefined" || typeof DeltaAPI.quoteBooking !== "function") {

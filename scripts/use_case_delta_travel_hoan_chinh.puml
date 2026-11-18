@@ -1,0 +1,99 @@
+@startuml use_case_delta_travel_hoan_chinh
+title Hệ thống Website Quảng bá và Đặt tour Du lịch
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam actorStyle awesome
+
+actor "Khách viếng thăm" as Guest
+actor "Khách hàng" as Customer
+actor "Quản trị viên" as Admin
+
+Customer -up-|> Guest
+
+rectangle "Hệ thống Website Quảng bá và Đặt tour Du lịch" {
+  ' Nhóm 1: Khách viếng thăm
+  usecase "Đăng ký tài khoản" as UC_Register
+  usecase "Tìm kiếm và lọc tour" as UC_Search
+  usecase "Xem bài viết quảng bá" as UC_ViewArticle
+  usecase "Gửi yêu cầu tư vấn" as UC_Consult
+  usecase "Xem chi tiết tour" as UC_TourDetail
+  usecase "Đăng nhập" as UC_Login
+  usecase "Quên mật khẩu" as UC_ForgotPass
+
+  ' Nhóm 2: Khách hàng
+  usecase "Đặt tour trực tuyến" as UC_BookOnline
+  usecase "Quản lý tour yêu thích" as UC_Wishlist
+  usecase "Quản lý hồ sơ cá nhân" as UC_Profile
+
+  ' Nhóm 3: Tương tác Khách hàng & Quản trị viên
+  usecase "Thanh toán và đối soát đơn" as UC_Payment
+  usecase "Hiển thị thông tin tour và bài viết" as UC_DisplayTourArticle
+  usecase "Đánh giá và kiểm duyệt tour" as UC_Review
+  usecase "Đặt tour và xử lý đơn" as UC_OrderProcess
+  usecase "Yêu cầu đổi / hủy tour" as UC_ChangeCancel
+  usecase "Cập nhật trạng thái thanh toán" as UC_UpdatePaymentStatus
+
+  ' Nhóm 4: Quản trị viên
+  usecase "Quản lý tài khoản và phân quyền" as UC_AdminUsers
+  usecase "Quản lý thông tin tour" as UC_AdminTour
+  usecase "Quản lý lịch khởi hành" as UC_AdminSchedule
+  usecase "Quản lý bài viết quảng bá" as UC_AdminArticle
+  usecase "Xem thống kê báo cáo" as UC_AdminReports
+  usecase "Quản lý đơn đặt tour" as UC_AdminOrders
+  usecase "Tra cứu nhật ký hệ thống" as UC_AdminAudit
+}
+
+' Liên kết Khách viếng thăm
+Guest -- UC_Register
+Guest -- UC_Search
+Guest -- UC_ViewArticle
+Guest -- UC_Consult
+Guest -- UC_TourDetail
+Guest -- UC_Login
+
+' Quan hệ Include & Extend phía người dùng
+UC_ForgotPass .> UC_Login : <<extend>>\n(Chọn quên mật khẩu)
+UC_BookOnline .> UC_Login : <<include>>
+UC_Wishlist .> UC_Login : <<include>>
+
+' Liên kết Khách hàng
+Customer -- UC_BookOnline
+Customer -- UC_Wishlist
+Customer -- UC_Profile
+
+' Liên kết tương tác: Khách hàng và Quản trị viên
+Customer -- UC_Payment
+UC_Payment -- Admin
+
+Customer -- UC_DisplayTourArticle
+UC_DisplayTourArticle -- Admin
+
+Customer -- UC_Review
+UC_Review -- Admin
+
+Customer -- UC_OrderProcess
+UC_OrderProcess -- Admin
+
+Customer -- UC_ChangeCancel
+UC_ChangeCancel -- Admin
+
+' Quan hệ Extend & Include giữa các khối tương tác và quản trị
+UC_Review ..> UC_OrderProcess : <<extend>>\n(Đơn đã hoàn thành)
+UC_ChangeCancel ..> UC_OrderProcess : <<extend>>\n(Đơn đủ điều kiện đổi/hủy)
+UC_UpdatePaymentStatus ..> UC_ChangeCancel : <<extend>>\n(Có hoàn tiền / chênh lệch)
+
+UC_AdminOrders .> UC_UpdatePaymentStatus : <<include>>
+
+' Liên kết Quản trị viên
+Admin -- UC_AdminUsers
+Admin -- UC_AdminTour
+Admin -- UC_AdminSchedule
+Admin -- UC_AdminArticle
+Admin -- UC_AdminReports
+Admin -- UC_AdminOrders
+Admin -- UC_UpdatePaymentStatus
+Admin -- UC_AdminAudit
+@enduml

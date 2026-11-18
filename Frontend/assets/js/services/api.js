@@ -417,6 +417,12 @@ const DeltaAPI = (() => {
     });
   }
 
+  async function adminDeleteSchedule(scheduleId) {
+    return await request(`/admin/schedules/${encodeURIComponent(scheduleId)}`, {
+      method: "DELETE"
+    });
+  }
+
   async function adminFetchVouchers() {
     return await request("/admin/vouchers");
   }
@@ -525,6 +531,7 @@ const DeltaAPI = (() => {
     adminGetTours: adminFetchTours,
     adminCreateTour,
     adminPatchTour,
+    adminUpdateTour: adminPatchTour,
     adminFetchTourDetails,
     adminReplaceTourDetails,
     adminDeleteTour,
@@ -542,6 +549,7 @@ const DeltaAPI = (() => {
     adminGetSchedules: adminFetchSchedules,
     adminCreateSchedule,
     adminPatchSchedule,
+    adminDeleteSchedule,
     adminFetchVouchers,
     adminCreateVoucher,
     adminPatchVoucher,

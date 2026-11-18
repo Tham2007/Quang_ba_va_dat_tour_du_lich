@@ -2342,8 +2342,8 @@ async function handleToggleScheduleStatus(schId) {
         showAdminToast("Không thể kết nối máy chủ để cập nhật lịch.", "error");
         return;
       }
-      if (!response?.success && !response?.isOffline) {
-        showAdminToast(response?.error || "Không thể cập nhật trạng thái lịch.", "error");
+      if (!response?.success) {
+        showAdminToast(response?.error || "Không thể cập nhật trạng thái lịch trên SQL Server.", "error");
         return;
       }
     }
@@ -2463,8 +2463,8 @@ async function handleSaveScheduleSubmit(e) {
       showAdminToast("Không thể kết nối máy chủ để lưu lịch khởi hành.", "error");
       return;
     }
-    if (!response?.success && !response?.isOffline) {
-      showAdminToast(response?.error || "Không thể lưu lịch khởi hành.", "error");
+    if (!response?.success) {
+      showAdminToast(response?.error || "Không thể lưu lịch khởi hành lên máy chủ SQL Server.", "error");
       return;
     }
     if (response?.success && response?.data) {

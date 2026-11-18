@@ -5,7 +5,7 @@ const config = {
   port: 1433,
   database: "db_ad0b71_dattour",
   user: "db_ad0b71_dattour_admin",
-  password: "Phamtham312007@",
+  password: process.env.DELTA_MSSQL_PASSWORD || '',
   options: {
     encrypt: false,
     trustServerCertificate: true,

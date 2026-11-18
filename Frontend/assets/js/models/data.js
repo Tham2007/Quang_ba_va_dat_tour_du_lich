@@ -1404,7 +1404,7 @@ function getToursData() {
     const raw = localStorage.getItem(DELTA_STORAGE_KEYS.TOURS);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length >= DEFAULT_TOURS.length) {
+      if (Array.isArray(parsed) && parsed.length > 0) {
         let updated = false;
         parsed.forEach(t => {
           const def = DEFAULT_TOURS.find(d => String(d.id).toUpperCase() === String(t.id).toUpperCase());
@@ -1413,7 +1413,7 @@ function getToursData() {
               t.images = def.images;
               updated = true;
             }
-            if (!t.itinerary || !t.itinerary.length || (Array.isArray(def.itinerary) && t.itinerary.length < def.itinerary.length)) {
+            if (!t.itinerary || !t.itinerary.length) {
               t.itinerary = def.itinerary;
               t.daysCount = def.daysCount || def.itinerary.length;
               updated = true;

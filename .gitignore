@@ -12,4 +12,9 @@ Thumbs.db
 Frontend/3D Image data/
 Frontend/3d-frames/
 cloudflared.exe
+crops/
+extracted_images/
+user_extracted_images/
+scripts/clean_images/
+vietravel_screenshot.png
 

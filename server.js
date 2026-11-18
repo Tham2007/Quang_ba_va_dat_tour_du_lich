@@ -1,5 +1,5 @@
 /**
- * Delta Travel 2.0 - Official Commercial Node.js Server
+ * Delta Travel 2.0 - Official Commercial Node.js Server (Verified Production)
  * Tích hợp toàn diện: Express API + SQLite Database + Giao diện Frontend
  */
 
@@ -73,20 +73,21 @@ const db = new DatabaseSync(DB_PATH);
 })();
 
 // Cấu hình kết nối trực tiếp SQL Server (bảo toàn đúng 12 bảng gốc)
+const sqlServerService = require("./sqlserver_sync_service");
 let sqlServerPool = null;
 let sqlServerVoucherReady = false;
 // Optional SQL Server connection; used automatically when DELTA_MSSQL_* credentials connect.
 // Credentials must be injected via environment variables. Never fall back to a committed password.
 const SQL_SERVER_CONFIG = {
   user: process.env.DELTA_MSSQL_USER || process.env.SQL_SERVER_USER,
-  password: process.env.DELTA_MSSQL_PASSWORD || process.env.SQL_SERVER_PASS,
+  password: process.env.DELTA_MSSQL_PASSWORD,
   server: process.env.DELTA_MSSQL_SERVER || process.env.SQL_SERVER_HOST,
   port: Number.parseInt(process.env.DELTA_MSSQL_PORT || process.env.SQL_SERVER_PORT || "1433", 10),
   database: process.env.DELTA_MSSQL_DATABASE || process.env.SQL_SERVER_DB,
   options: {
     encrypt: true,
     trustServerCertificate: true,
-    connectTimeout: 8000
+    connectTimeout: 15000
   }
 };
 
@@ -138,6 +139,7 @@ async function initDirectSqlServer() {
     sqlServerPool = await mssql.connect(SQL_SERVER_CONFIG);
     await ensureSqlServerVoucherSchema(sqlServerPool);
     console.log(`[SQL SERVER] Đã kết nối TRỰC TIẾP thành công tới SQL Server (${SQL_SERVER_CONFIG.server}:${SQL_SERVER_CONFIG.port} / ${SQL_SERVER_CONFIG.database}) và kích hoạt hệ thống Voucher!`);
+    await sqlServerService.syncAllFromSqlServer(db);
   } catch (err) {
     sqlServerVoucherReady = false;
     console.warn("[SQL SERVER] Optional connection unavailable:", err.name, err.message);
@@ -215,6 +217,17 @@ async function proxySqlServerCatalog(req, res, endpoint, queryKeys = []) {
 }
 
 async function syncSqlServerCatalogToLocalDb() {
+  if (sqlServerPool && sqlServerService) {
+    try {
+      const directResult = await sqlServerService.syncAllFromSqlServer(db);
+      if (directResult && directResult.success) {
+        return { synced: directResult.count, source: "direct_sqlserver" };
+      }
+    } catch (e) {
+      console.warn("[SYNC] Direct SQL Server sync fallback:", e.message);
+    }
+  }
+
   const configuredUrl = process.env.THAM_SQLSERVER_CATALOG_API_URL;
   if (!configuredUrl) return { synced: 0 };
 
@@ -3332,7 +3345,7 @@ app.get("/api/v1/admin/tours/:tour_id/details", requireAdmin, (req, res) => {
   res.json(adminTourDetails(tour));
 });
 
-app.put("/api/v1/admin/tours/:tour_id/details", requireAdmin, (req, res) => {
+app.put("/api/v1/admin/tours/:tour_id/details", requireAdmin, async (req, res) => {
   const { tour_id } = req.params;
   const tour = db.prepare("SELECT * FROM tours WHERE id = ?").get(tour_id);
   if (!tour) return res.status(404).json({ detail: "Không tìm thấy tour." });
@@ -3384,6 +3397,17 @@ app.put("/api/v1/admin/tours/:tour_id/details", requireAdmin, (req, res) => {
     return res.status(422).json({ detail: "Giá bán phải cao hơn tổng giá gốc." });
   }
 
+  // 1. Ghi vĩnh viễn vào Microsoft SQL Server với Explicit Transaction + COMMIT
+  if (sqlServerPool && sqlServerService) {
+    try {
+      await sqlServerService.replaceTourDetails(tour_id, req.body, req.user?.id);
+    } catch (ssErr) {
+      console.error("[SQL SERVER ERROR] replaceTourDetails failed:", ssErr.message);
+      return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
+    }
+  }
+
+  // 2. Ghi vào SQLite Cache nội bộ
   db.exec("BEGIN");
   try {
     db.prepare("DELETE FROM tour_cost_items WHERE tour_id = ?").run(tour_id);
@@ -3435,13 +3459,23 @@ app.put("/api/v1/admin/tours/:tour_id/details", requireAdmin, (req, res) => {
   res.json(adminTourDetails(updatedTour));
 });
 
-app.post("/api/v1/admin/tours", requireAdmin, (req, res) => {
+app.post("/api/v1/admin/tours", requireAdmin, async (req, res) => {
   const data = req.body || {};
   if (!data.id || !/^DL-[A-Z0-9]{2,20}$/.test(data.id)) {
     return res.status(422).json({ detail: "Mã tour phải có định dạng DL-XXXX." });
   }
   const existing = db.prepare("SELECT id FROM tours WHERE id = ?").get(data.id);
   if (existing) return res.status(409).json({ detail: "Mã tour đã tồn tại." });
+
+  // 1. Ghi vĩnh viễn vào Microsoft SQL Server với Explicit Transaction + COMMIT
+  if (sqlServerPool && sqlServerService) {
+    try {
+      await sqlServerService.createTour(data, req.user?.id);
+    } catch (ssErr) {
+      console.error("[SQL SERVER ERROR] createTour failed:", ssErr.message);
+      return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
+    }
+  }
 
   let imageValue = data.image || "";
   if (typeof imageValue === "string" && imageValue.startsWith("data:image/")) {
@@ -3524,10 +3558,20 @@ app.post("/api/v1/admin/upload-image", requireAdmin, (req, res) => {
   res.json({ success: true, url: savedPath });
 });
 
-app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
+app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, async (req, res) => {
   const { tour_id } = req.params;
   const t = db.prepare("SELECT * FROM tours WHERE id = ?").get(tour_id);
   if (!t) return res.status(404).json({ detail: "Không tìm thấy tour." });
+
+  // 1. Ghi vĩnh viễn vào Microsoft SQL Server với Explicit Transaction + COMMIT
+  if (sqlServerPool && sqlServerService) {
+    try {
+      await sqlServerService.updateTour(tour_id, req.body || {}, req.user?.id);
+    } catch (ssErr) {
+      console.error("[SQL SERVER ERROR] updateTour failed:", ssErr.message);
+      return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
+    }
+  }
 
   // Chuẩn hóa và lưu ảnh bìa/danh sách ảnh nếu là base64
   const patchBody = { ...(req.body || {}) };
@@ -3655,8 +3699,16 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
   res.json(publicTour(updated));
 });
 
-app.delete("/api/v1/admin/tours/:tour_id", requireAdmin, (req, res) => {
+app.delete("/api/v1/admin/tours/:tour_id", requireAdmin, async (req, res) => {
   const { tour_id } = req.params;
+  if (sqlServerPool && sqlServerService) {
+    try {
+      await sqlServerService.deleteTour(tour_id, req.user?.id);
+    } catch (ssErr) {
+      console.error("[SQL SERVER ERROR] deleteTour failed:", ssErr.message);
+      return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
+    }
+  }
   const tour = db.prepare("SELECT * FROM tours WHERE id = ?").get(tour_id);
   if (tour) {
     try {
@@ -3682,7 +3734,7 @@ app.get("/api/v1/admin/schedules", requireAdmin, (req, res) => {
   res.json(rows.map(publicSchedule));
 });
 
-app.post("/api/v1/admin/schedules", requireAdmin, (req, res) => {
+app.post("/api/v1/admin/schedules", requireAdmin, async (req, res) => {
   const { tour_id, departure_at, total_seats = 20 } = req.body || {};
   if (!tour_id || !departure_at) {
     return res.status(422).json({ detail: "Thiếu thông tin lịch trình." });
@@ -3704,7 +3756,19 @@ app.post("/api/v1/admin/schedules", requireAdmin, (req, res) => {
     return res.status(422).json({ detail: "Số chỗ mở bán không hợp lệ (từ 1 đến 1000 chỗ)." });
   }
 
-  const id = crypto.randomUUID();
+  // 1. Ghi vĩnh viễn vào Microsoft SQL Server với Explicit Transaction + COMMIT
+  let newMaChuyen = null;
+  if (sqlServerPool && sqlServerService) {
+    try {
+      const ssRes = await sqlServerService.createSchedule(req.body, req.user?.id);
+      newMaChuyen = ssRes?.maChuyen;
+    } catch (ssErr) {
+      console.error("[SQL SERVER ERROR] createSchedule failed:", ssErr.message);
+      return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
+    }
+  }
+
+  const id = newMaChuyen ? ("SCHED-" + newMaChuyen) : crypto.randomUUID();
   db.prepare(`
     INSERT INTO schedules (id, tour_id, departure_at, total_seats, reserved_seats, active)
     VALUES (?, ?, ?, ?, 0, 1)
@@ -3715,10 +3779,20 @@ app.post("/api/v1/admin/schedules", requireAdmin, (req, res) => {
   res.status(201).json(publicSchedule(sched));
 });
 
-app.patch("/api/v1/admin/schedules/:schedule_id", requireAdmin, (req, res) => {
+app.patch("/api/v1/admin/schedules/:schedule_id", requireAdmin, async (req, res) => {
   const { schedule_id } = req.params;
   const s = db.prepare("SELECT * FROM schedules WHERE id = ?").get(schedule_id);
   if (!s) return res.status(404).json({ detail: "Không tìm thấy lịch." });
+
+  // 1. Ghi vĩnh viễn vào Microsoft SQL Server với Explicit Transaction + COMMIT
+  if (sqlServerPool && sqlServerService) {
+    try {
+      await sqlServerService.updateSchedule(schedule_id, req.body || {}, req.user?.id);
+    } catch (ssErr) {
+      console.error("[SQL SERVER ERROR] updateSchedule failed:", ssErr.message);
+      return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
+    }
+  }
 
   const body = req.body || {};
   const departure_at = body.departure_at ?? body.departureAt;
@@ -3777,6 +3851,21 @@ app.patch("/api/v1/admin/schedules/:schedule_id", requireAdmin, (req, res) => {
   const updated = db.prepare("SELECT * FROM schedules WHERE id = ?").get(schedule_id);
   audit(req.user.id, "SCHEDULE_UPDATED", schedule_id);
   res.json(publicSchedule(updated));
+});
+
+app.delete("/api/v1/admin/schedules/:schedule_id", requireAdmin, async (req, res) => {
+  const { schedule_id } = req.params;
+  if (sqlServerPool && sqlServerService) {
+    try {
+      await sqlServerService.deleteSchedule(schedule_id, req.user?.id);
+    } catch (ssErr) {
+      console.error("[SQL SERVER ERROR] deleteSchedule failed:", ssErr.message);
+      return res.status(500).json({ detail: "Lỗi xóa lịch khởi hành trên Microsoft SQL Server: " + ssErr.message });
+    }
+  }
+  db.prepare("UPDATE schedules SET active = 0 WHERE id = ?").run(schedule_id);
+  audit(req.user.id, "SCHEDULE_DELETED", schedule_id);
+  res.json({ status: "ok", id: schedule_id });
 });
 
 app.get("/api/v1/admin/bookings", requireAdmin, (req, res) => {

@@ -1,0 +1,213 @@
+@startuml mvc_class_diagram_delta_travel
+top to bottom direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 10
+skinparam roundCorner 6
+
+skinparam class {
+    BackgroundColor white
+    ArrowColor #0D47A1
+    BorderColor #1565C0
+    HeaderBackgroundColor #E3F2FD
+}
+
+skinparam package {
+    BackgroundColor #F8F9FA
+    BorderColor #263238
+    FontColor #0D47A1
+    FontStyle bold
+}
+
+title SƠ ĐỒ LỚP CHI TIẾT THEO KIẾN TRÚC MVC 3 TẦNG HAI CHIỀU - DELTA TRAVEL
+
+package "1. TẦNG HIỂN THỊ (VIEW LAYER - Client Interface)" as ViewPkg #E8F5E9 {
+    class HomeCatalogView {
+        +renderTourList()
+        +applyFilters()
+        +showContactModal()
+    }
+    class TourDetailView {
+        +renderTourDetail()
+        +renderGallery()
+        +renderItinerary()
+    }
+    class AuthModalView {
+        +renderLoginForm()
+        +renderRegisterForm()
+        +renderForgotModal()
+    }
+    class BookingCheckoutView {
+        +renderBookingForm()
+        +collectPassengers()
+        +submitBookingRequest()
+    }
+    class VietQRModalView {
+        +renderDynamicQR()
+        +uploadPaymentReceipt()
+        +countdownTimer()
+    }
+    class MyBookingsView {
+        +renderOrderHistory()
+        +submitCancelRequest()
+    }
+    class AdminDashboardView {
+        +renderOverviewStats()
+        +renderTourManager()
+        +renderOrderApprovalTable()
+        +renderAuditLogViewer()
+    }
+
+    HomeCatalogView -[hidden]down- TourDetailView
+    AuthModalView -[hidden]down- BookingCheckoutView
+    VietQRModalView -[hidden]down- MyBookingsView
+    MyBookingsView -[hidden]down- AdminDashboardView
+
+    HomeCatalogView -[hidden]right- AuthModalView
+    AuthModalView -[hidden]right- VietQRModalView
+}
+
+package "2. TẦNG ĐIỀU KHIỂN (CONTROLLER LAYER - Application Orchestration)" as CtrlPkg #E3F2FD {
+    class AccountController {
+        +register(RegisterDTO): Response
+        +login(LoginDTO): Response
+        +getProfile(userId): Response
+        +updateProfile(ProfileDTO): Response
+    }
+    class TourCatalogController {
+        +getCategories(): Response
+        +searchTours(FilterDTO): Response
+        +getTourDetail(tourId): Response
+    }
+    class BookingProcessController {
+        +createBooking(BookingDTO): Response
+        +getUserBookings(userId): Response
+        +requestCancelTour(CancelDTO): Response
+    }
+    class PaymentCallbackController {
+        +generateVietQR(bookingId): Response
+        +uploadReceipt(ReceiptDTO): Response
+        +reconcilePayment(ref): Response
+    }
+    class AdminManagementController {
+        +saveTour(TourDTO): Response
+        +saveSchedule(ScheduleDTO): Response
+        +approveOrder(bookingId): Response
+        +queryAuditLogs(): Response
+    }
+
+    AccountController -[hidden]down- TourCatalogController
+    BookingProcessController -[hidden]down- PaymentCallbackController
+    
+    AccountController -[hidden]right- BookingProcessController
+    BookingProcessController -[hidden]right- AdminManagementController
+}
+
+package "3. TẦNG MÔ HÌNH (MODEL LAYER - 12 Bảng CSDL và Data Access)" as ModelPkg #FFF3E0 {
+    class TourDbContext {
+        +DbSet<User> Users
+        +DbSet<Tour> Tours
+        +DbSet<Booking> Bookings
+        +beginSerializableTx()
+        +commitTx()
+    }
+    class NguoiDung {
+        +int MaNguoiDung
+        +string HoTen, Email, Phone
+        +string MatKhauHash, VaiTro
+        +bool verifyPassword(pwd)
+    }
+    class Tour {
+        +int MaTour, MaDanhMuc
+        +string TenTour, DiemDen
+        +decimal GiaCoBan
+        +int SoNgay, SoDem
+    }
+    class ChuyenKhoiHanh {
+        +int MaChuyen, MaTour
+        +DateTime NgayKhoiHanh
+        +decimal GiaNguoiLon
+        +int SoChoToiDa, SoChoDaDat
+        +bool checkAndLockSeats(qty)
+        +void restoreSeats(qty)
+    }
+    class DatTour {
+        +int MaDatTour, MaNguoiDung
+        +string MaBooking, TrangThai
+        +DateTime NgayDat
+        +decimal TongTien
+        +void changeStatus(status)
+    }
+    class ChiTietHanhKhach {
+        +int MaHanhKhach, MaDatTour
+        +string HoTen, LoaiKhach, SoGiayTo
+    }
+    class ThanhToan {
+        +int MaThanhToan, MaDatTour
+        +string PhuongThuc, MaGiaoDich
+        +decimal SoTienThanhToan
+        +string TrangThai
+    }
+    class AuditLog {
+        +int MaLog
+        +string TenBang, HanhDong
+        +string NguoiThucHien
+        +DateTime ThoiGian
+    }
+
+    TourDbContext -[hidden]down- NguoiDung
+    Tour -[hidden]down- ChuyenKhoiHanh
+    ChuyenKhoiHanh -[hidden]down- DatTour
+    ChiTietHanhKhach -[hidden]down- ThanhToan
+    ThanhToan -[hidden]down- AuditLog
+
+    TourDbContext -[hidden]right- Tour
+    Tour -[hidden]right- ChiTietHanhKhach
+}
+
+' ========================================================
+' KÊNH TƯƠNG TÁC 3 TẦNG (THỂ HIỆN RÕ 2 CHIỀU)
+' ========================================================
+
+' [1] View -> Controller
+HomeCatalogView -down-> TourCatalogController : [1] HTTP GET Search
+BookingCheckoutView -down-> BookingProcessController : [1] HTTP POST BookingDTO
+VietQRModalView -down-> PaymentCallbackController : [1] HTTP POST Receipt
+AuthModalView -down-> AccountController : [1] HTTP POST AuthDTO
+AdminDashboardView -down-> AdminManagementController : [1] HTTP Admin Cmd
+
+' [2] Controller -> Model (CHIỀU THUẬN)
+AccountController -down-> NguoiDung : [2a] Query/Verify
+TourCatalogController -down-> Tour : [2a] LINQ Filter
+BookingProcessController -down-> TourDbContext : [2a] Open Serializable Tx
+BookingProcessController -down-> ChuyenKhoiHanh : [2b] Lock & Deduct Seats
+BookingProcessController -down-> DatTour : [2c] Insert Booking
+BookingProcessController -down-> ChiTietHanhKhach : [2d] Insert Passengers
+PaymentCallbackController -down-> ThanhToan : [2a] Save Payment
+AdminManagementController -down-> AuditLog : [2a] Write Audit
+
+' [3] Model ..> Controller (CHIỀU QUAY NGƯỢC LẠI - CỐT LÕI)
+NguoiDung .up[#B71C1C,dashed,thickness=2].> AccountController : [3a] Return UserEntity, AuthResult
+Tour .up[#B71C1C,dashed,thickness=2].> TourCatalogController : [3b] Return TourDetailDTO, Gallery, Seats
+ChuyenKhoiHanh .up[#B71C1C,dashed,thickness=2].> BookingProcessController : [3c] Return SeatLockResult (Success/Fail)\nThrows SeatShortageException
+DatTour .up[#B71C1C,dashed,thickness=2].> BookingProcessController : [3d] Return BookingState, Fires OnSeatsLockedEvent
+ThanhToan .up[#B71C1C,dashed,thickness=2].> PaymentCallbackController : [3e] Return PaymentStatus, Fires OnPaymentVerifiedEvent
+ChuyenKhoiHanh .up[#B71C1C,dashed,thickness=2].> BookingProcessController : [3f] Return RestoredSeats, Fires OnBookingCancelledEvent
+TourDbContext .up[#B71C1C,dashed,thickness=2].> AdminManagementController : [3g] Return CommitStatus, AuditRecords
+
+' [4] Controller ..> View
+AccountController .up.> AuthModalView : [4] Set-Cookie (JWT)
+TourCatalogController .up.> HomeCatalogView : [4] HTTP 200 JSON Tours
+BookingProcessController .up.> BookingCheckoutView : [4] HTTP 201 Created Booking
+PaymentCallbackController .up.> VietQRModalView : [4] HTTP 200 QR Details
+AdminManagementController .up.> AdminDashboardView : [4] HTTP 200 AdminDataDTO
+
+' Model Associations
+Tour "1" *-- "0..*" ChuyenKhoiHanh
+ChuyenKhoiHanh "1" *-- "0..*" DatTour
+DatTour "1" *-- "1..*" ChiTietHanhKhach
+DatTour "1" *-- "0..1" ThanhToan
+NguoiDung "1" *-- "0..*" DatTour
+@enduml
