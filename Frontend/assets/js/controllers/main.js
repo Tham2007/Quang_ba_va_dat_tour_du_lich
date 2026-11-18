@@ -1367,6 +1367,54 @@ async function openItineraryModal(tourId) {
     ];
   }
 
+  function escapeHtml(value) {
+    return String(value || "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    })[char]);
+  }
+
+  function renderPeriodActivities(rawText) {
+    if (!rawText) return '<p class="text-muted fst-italic mb-0">Chưa có thông tin chi tiết.</p>';
+    const text = String(rawText).trim();
+    if (!text) return '<p class="text-muted fst-italic mb-0">Chưa có thông tin chi tiết.</p>';
+
+    // Tách các mốc thời gian nếu bị dính liền trên 1 dòng
+    // Ví dụ: 08:00 – 09:00: ... 09:00 – 09:30: ... hoặc 08h00 - 09h30: ... hoặc 08:00: ...
+    const normalized = text.replace(
+      /(?<!^)(?<![–—\-\/toàđ])\s+(?=\b\d{1,2}[:h]\d{2}(?:\s*[–—\-]\s*\d{1,2}[:h]\d{2})?\s*(?:[:\-–—]|\s+[A-ZÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬĐÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴ]))/g,
+      "\n"
+    );
+
+    const lines = normalized.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    if (lines.length === 0) return '<p class="text-muted fst-italic mb-0">Chưa có thông tin chi tiết.</p>';
+
+    if (lines.length === 1 && !lines[0].match(/^\d{1,2}[:h]\d{2}/i)) {
+      return `<p class="itinerary-desc-single mb-0">${escapeHtml(lines[0])}</p>`;
+    }
+
+    const itemsHtml = lines.map(line => {
+      const timeMatch = line.match(/^(\d{1,2}[:h]\d{2}(?:\s*[–—\-]\s*\d{1,2}[:h]\d{2})?\s*[:\-–—]?)(.*)$/i);
+      if (timeMatch && timeMatch[1]) {
+        const timeTag = timeMatch[1].trim();
+        const desc = (timeMatch[2] || "").trim();
+        return `
+          <div class="itinerary-milestone-row">
+            <span class="milestone-time-badge"><i class="bi bi-clock me-1"></i>${escapeHtml(timeTag)}</span>
+            <span class="milestone-desc">${escapeHtml(desc)}</span>
+          </div>
+        `;
+      }
+      return `
+        <div class="itinerary-milestone-row">
+          <span class="milestone-bullet">•</span>
+          <span class="milestone-desc">${escapeHtml(line)}</span>
+        </div>
+      `;
+    }).join("");
+
+    return `<div class="itinerary-milestones-list">${itemsHtml}</div>`;
+  }
+
   const timelineEl = document.getElementById("itineraryTimeline");
   if (timelineEl) {
     timelineEl.innerHTML = itineraryDays.map((day, idx) => {
@@ -1382,8 +1430,8 @@ async function openItineraryModal(tourId) {
                 <div class="period-icon-wrap period-morning"><i class="bi bi-calendar-check"></i></div>
                 <div class="period-content">
                   <h6>${escapeHtml([activity.startTime, activity.title].filter(Boolean).join(" · "))}</h6>
-                  <p>${escapeHtml(activity.description || "")}</p>
-                  ${activity.location ? `<small>${escapeHtml(activity.location)}</small>` : ""}
+                  ${renderPeriodActivities(activity.description || "")}
+                  ${activity.location ? `<small class="text-muted d-block mt-1"><i class="bi bi-geo-alt me-1"></i>${escapeHtml(activity.location)}</small>` : ""}
                 </div>
               </div>
             `).join("")}
@@ -1410,7 +1458,7 @@ async function openItineraryModal(tourId) {
             </div>
             <div class="period-content">
               <h6>${morningLabel}</h6>
-              <p>${escapeHtml(morningText)}</p>
+              ${renderPeriodActivities(morningText)}
             </div>
           </div>
 
@@ -1421,7 +1469,7 @@ async function openItineraryModal(tourId) {
             </div>
             <div class="period-content">
               <h6>${afternoonLabel}</h6>
-              <p>${escapeHtml(afternoonText)}</p>
+              ${renderPeriodActivities(afternoonText)}
             </div>
           </div>
 
@@ -1432,18 +1480,12 @@ async function openItineraryModal(tourId) {
             </div>
             <div class="period-content">
               <h6>${eveningLabel}</h6>
-              <p>${escapeHtml(eveningText)}</p>
+              ${renderPeriodActivities(eveningText)}
             </div>
           </div>
         </div>
       `;
     }).join("");
-  }
-
-  function escapeHtml(value) {
-    return String(value || "").replace(/[&<>"']/g, char => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    })[char]);
   }
 
   // 3. Điền Dịch vụ bao gồm & Không bao gồm

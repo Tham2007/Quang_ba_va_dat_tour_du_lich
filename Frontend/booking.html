@@ -332,6 +332,66 @@
       color: #334155;
       margin: 0;
       flex: 1;
+      white-space: pre-line;
+      line-height: 1.6;
+    }
+
+    .paper-itinerary-desc .itinerary-milestones-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      margin-top: 0.15rem;
+      width: 100%;
+    }
+
+    .paper-itinerary-desc .itinerary-milestone-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.55rem;
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
+
+    .paper-itinerary-desc .milestone-time-badge {
+      display: inline-flex;
+      align-items: center;
+      background: #f1f5f9;
+      color: #0f172a;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 0.78rem;
+      padding: 0.12rem 0.5rem;
+      border-radius: 5px;
+      border: 1px solid #cbd5e1;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .paper-itinerary-desc .milestone-time-badge i {
+      color: #0284c7;
+      font-size: 0.75rem;
+    }
+
+    .paper-itinerary-desc .milestone-bullet {
+      color: #0284c7;
+      font-weight: bold;
+      margin-right: 0.2rem;
+      flex-shrink: 0;
+    }
+
+    .paper-itinerary-desc .milestone-desc {
+      color: #334155;
+      flex: 1;
+      word-break: break-word;
+      white-space: pre-line;
+    }
+
+    @media (max-width: 576px) {
+      .paper-itinerary-desc .itinerary-milestone-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.2rem;
+      }
     }
 
     /* Stepper (+ / -) cho Người lớn, Trẻ em, Em bé */
@@ -1367,11 +1427,11 @@
                 const desc = item.description || item.title || "";
                 const cat = String(item.category || "").toLowerCase();
                 if (cat === "meal" || String(item.title || "").includes("Buổi tối")) {
-                  entry.evening = entry.evening ? `${entry.evening}; ${desc}` : desc;
+                  entry.evening = entry.evening ? `${entry.evening}\n${desc}` : desc;
                 } else if (cat === "activity" || String(item.title || "").includes("Buổi chiều")) {
-                  entry.afternoon = entry.afternoon ? `${entry.afternoon}; ${desc}` : desc;
+                  entry.afternoon = entry.afternoon ? `${entry.afternoon}\n${desc}` : desc;
                 } else {
-                  entry.morning = entry.morning ? `${entry.morning}; ${desc}` : desc;
+                  entry.morning = entry.morning ? `${entry.morning}\n${desc}` : desc;
                 }
               });
               tour.itinerary = Array.from(grouped.values());
@@ -1502,6 +1562,52 @@
       const afternoonLabel = isEn ? "Afternoon" : "Buổi chiều";
       const eveningLabel = isEn ? "Evening" : "Buổi tối";
 
+      function escapeHtml(value) {
+        return String(value || "").replace(/[&<>"']/g, char => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        })[char]);
+      }
+
+      function renderBookingPeriodActivities(rawText) {
+        if (!rawText) return '<span class="text-muted fst-italic">Chưa có thông tin chi tiết.</span>';
+        const text = String(rawText).trim();
+        if (!text) return '<span class="text-muted fst-italic">Chưa có thông tin chi tiết.</span>';
+
+        const normalized = text.replace(
+          /(?<!^)(?<![–—\-\/toàđ])\s+(?=\b\d{1,2}[:h]\d{2}(?:\s*[–—\-]\s*\d{1,2}[:h]\d{2})?\s*(?:[:\-–—]|\s+[A-ZÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬĐÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴ]))/g,
+          "\n"
+        );
+
+        const lines = normalized.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        if (lines.length === 0) return '<span class="text-muted fst-italic">Chưa có thông tin chi tiết.</span>';
+
+        if (lines.length === 1 && !lines[0].match(/^\d{1,2}[:h]\d{2}/i)) {
+          return `<span class="milestone-desc">${escapeHtml(lines[0])}</span>`;
+        }
+
+        const itemsHtml = lines.map(line => {
+          const timeMatch = line.match(/^(\d{1,2}[:h]\d{2}(?:\s*[–—\-]\s*\d{1,2}[:h]\d{2})?\s*[:\-–—]?)(.*)$/i);
+          if (timeMatch && timeMatch[1]) {
+            const timeTag = timeMatch[1].trim();
+            const desc = (timeMatch[2] || "").trim();
+            return `
+              <div class="itinerary-milestone-row">
+                <span class="milestone-time-badge"><i class="bi bi-clock me-1"></i>${escapeHtml(timeTag)}</span>
+                <span class="milestone-desc">${escapeHtml(desc)}</span>
+              </div>
+            `;
+          }
+          return `
+            <div class="itinerary-milestone-row">
+              <span class="milestone-bullet">•</span>
+              <span class="milestone-desc">${escapeHtml(line)}</span>
+            </div>
+          `;
+        }).join("");
+
+        return `<div class="itinerary-milestones-list">${itemsHtml}</div>`;
+      }
+
       container.innerHTML = days.map((d, idx) => {
         const dayNum = d.day || (idx + 1);
         const dayTitle = d.title || (isEn ? `Day ${dayNum} Highlights` : `Lịch trình ngày ${dayNum}`);
@@ -1517,15 +1623,15 @@
             </div>
             <div class="paper-itinerary-period">
               <span class="paper-itinerary-tag"><i class="bi bi-brightness-alt-high-fill text-warning me-1"></i>${morningLabel}</span>
-              <p class="paper-itinerary-desc">${mText}</p>
+              <div class="paper-itinerary-desc">${renderBookingPeriodActivities(mText)}</div>
             </div>
             <div class="paper-itinerary-period">
               <span class="paper-itinerary-tag"><i class="bi bi-sun-fill text-primary me-1"></i>${afternoonLabel}</span>
-              <p class="paper-itinerary-desc">${aText}</p>
+              <div class="paper-itinerary-desc">${renderBookingPeriodActivities(aText)}</div>
             </div>
             <div class="paper-itinerary-period">
               <span class="paper-itinerary-tag"><i class="bi bi-moon-stars-fill text-secondary me-1"></i>${eveningLabel}</span>
-              <p class="paper-itinerary-desc">${eText}</p>
+              <div class="paper-itinerary-desc">${renderBookingPeriodActivities(eText)}</div>
             </div>
           </div>
         `;
