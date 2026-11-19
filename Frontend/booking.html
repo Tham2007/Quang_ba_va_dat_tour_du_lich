@@ -657,7 +657,7 @@
           <div class="row g-3">
             <div class="col-12 col-md-6">
               <label class="paper-label" for="bookingScheduleSelect" data-i18n="booking_sched_label">Ngày khởi hành khả dụng *</label>
-              <select id="bookingScheduleSelect" class="paper-control">
+              <select id="bookingScheduleSelect" class="paper-control" onchange="syncGuestLimits()">
                 <option value="">Đang nạp lịch khởi hành...</option>
               </select>
             </div>
@@ -674,7 +674,7 @@
                 <button type="button" class="paper-stepper-btn" onclick="stepGuest('numAdults', -1)" aria-label="Giảm người lớn">
                   <i class="bi bi-dash-lg"></i>
                 </button>
-                <input type="number" id="numAdults" class="paper-control paper-stepper-input" value="1" min="1" max="50" oninput="recalcPrice()">
+                <input type="number" id="numAdults" class="paper-control paper-stepper-input" value="1" min="1" max="1" oninput="onGuestInput('numAdults')" onchange="onGuestInput('numAdults')">
                 <button type="button" class="paper-stepper-btn" onclick="stepGuest('numAdults', 1)" aria-label="Tăng người lớn">
                   <i class="bi bi-plus-lg"></i>
                 </button>
@@ -686,7 +686,7 @@
                 <button type="button" class="paper-stepper-btn" onclick="stepGuest('numChildren', -1)" aria-label="Giảm trẻ em">
                   <i class="bi bi-dash-lg"></i>
                 </button>
-                <input type="number" id="numChildren" class="paper-control paper-stepper-input" value="0" min="0" max="20" oninput="recalcPrice()">
+                <input type="number" id="numChildren" class="paper-control paper-stepper-input" value="0" min="0" max="0" oninput="onGuestInput('numChildren')" onchange="onGuestInput('numChildren')">
                 <button type="button" class="paper-stepper-btn" onclick="stepGuest('numChildren', 1)" aria-label="Tăng trẻ em">
                   <i class="bi bi-plus-lg"></i>
                 </button>
@@ -698,7 +698,7 @@
                 <button type="button" class="paper-stepper-btn" onclick="stepGuest('numInfants', -1)" aria-label="Giảm em bé">
                   <i class="bi bi-dash-lg"></i>
                 </button>
-                <input type="number" id="numInfants" class="paper-control paper-stepper-input" value="0" min="0" max="10" oninput="recalcPrice()">
+                <input type="number" id="numInfants" class="paper-control paper-stepper-input" value="0" min="0" max="0" oninput="onGuestInput('numInfants')" onchange="onGuestInput('numInfants')">
                 <button type="button" class="paper-stepper-btn" onclick="stepGuest('numInfants', 1)" aria-label="Tăng em bé">
                   <i class="bi bi-plus-lg"></i>
                 </button>
@@ -1293,16 +1293,140 @@
       showAppNotice(msg);
     };
 
+    function getSelectedScheduleAvailableSeats() {
+      const select = document.getElementById("bookingScheduleSelect");
+      const schedId = select?.value;
+      if (!schedId || select?.disabled) return 0;
+      const selectedOption = select.selectedOptions ? select.selectedOptions[0] : null;
+      if (selectedOption && selectedOption.dataset && selectedOption.dataset.seats !== undefined) {
+        const ds = Number(selectedOption.dataset.seats);
+        if (Number.isFinite(ds)) return Math.max(0, ds);
+      }
+      if (Array.isArray(currentSchedules)) {
+        const cleanId = String(schedId).replace(/^SCHED-/i, '');
+        const found = currentSchedules.find(s => 
+          String(s.id) === String(schedId) ||
+          String(s.id).replace(/^SCHED-/i, '') === cleanId
+        );
+        if (found) return Math.max(0, Number(found.availableSeats) || 0);
+      }
+      return 0;
+    }
+
+    function syncGuestLimits() {
+      const avail = getSelectedScheduleAvailableSeats();
+      const adultsInput = document.getElementById("numAdults");
+      const childrenInput = document.getElementById("numChildren");
+      const infantsInput = document.getElementById("numInfants");
+
+      if (avail <= 0) {
+        if (adultsInput) { adultsInput.max = "0"; adultsInput.value = "0"; }
+        if (childrenInput) { childrenInput.max = "0"; childrenInput.value = "0"; }
+        if (infantsInput) { infantsInput.max = "0"; infantsInput.value = "0"; }
+        setBookingSubmitEnabled(false);
+      } else {
+        setBookingSubmitEnabled(true);
+        if (adultsInput) adultsInput.max = String(avail);
+        if (childrenInput) childrenInput.max = String(Math.max(0, avail - 1));
+        if (infantsInput) infantsInput.max = String(avail);
+
+        let a = parseInt(adultsInput?.value || 1, 10);
+        let c = parseInt(childrenInput?.value || 0, 10);
+        let i = parseInt(infantsInput?.value || 0, 10);
+        if (isNaN(a) || a < 1) a = 1;
+        if (isNaN(c) || c < 0) c = 0;
+        if (isNaN(i) || i < 0) i = 0;
+
+        if (a + c + i > avail) {
+          if (a > avail) {
+            a = Math.max(1, avail);
+            c = 0;
+            i = 0;
+          } else {
+            const rem = avail - a;
+            if (c > rem) {
+              c = Math.max(0, rem);
+              i = 0;
+            } else {
+              i = Math.max(0, rem - c);
+            }
+          }
+          if (adultsInput) adultsInput.value = a;
+          if (childrenInput) childrenInput.value = c;
+          if (infantsInput) infantsInput.value = i;
+        }
+      }
+      recalcPrice();
+    }
+
     // Hàm điều khiển Stepper (+ / -) cho Người lớn, Trẻ em, Em bé và tính lại giá vé ngay lập tức
     function stepGuest(inputId, delta) {
       const input = document.getElementById(inputId);
       if (!input) return;
+      const avail = getSelectedScheduleAvailableSeats();
+      if (avail <= 0) {
+        showAppNotice("Chuyến khởi hành này hiện đã hết chỗ trống. Vui lòng chọn ngày khởi hành khác.", "Hết Chỗ", "warning");
+        return;
+      }
+      const a = parseInt(document.getElementById("numAdults")?.value || 0, 10);
+      const c = parseInt(document.getElementById("numChildren")?.value || 0, 10);
+      const i = parseInt(document.getElementById("numInfants")?.value || 0, 10);
+      const currentRequested = a + c + i;
+
+      if (delta > 0 && currentRequested + delta > avail) {
+        showAppNotice(
+          `Chuyến khởi hành không đủ chỗ. Hiện chỉ còn ${avail} chỗ trống. Vui lòng giảm số lượng khách hoặc chọn chuyến khác.`,
+          "Không Đủ Chỗ",
+          "warning"
+        );
+        return;
+      }
+
       let val = parseInt(input.value || 0, 10);
-      if (isNaN(val)) val = 0;
+      if (isNaN(val)) val = (inputId === "numAdults") ? 1 : 0;
       const min = parseInt(input.min || 0, 10);
-      const max = parseInt(input.max || 99, 10);
-      val = Math.max(min, Math.min(max, val + delta));
+      val = Math.max(min, Math.min(avail, val + delta));
       input.value = val;
+      recalcPrice();
+    }
+
+    // Xử lý khi khách nhập tay trực tiếp số lượng hành khách
+    function onGuestInput(inputId) {
+      const avail = getSelectedScheduleAvailableSeats();
+      const aInput = document.getElementById("numAdults");
+      const cInput = document.getElementById("numChildren");
+      const iInput = document.getElementById("numInfants");
+      let a = parseInt(aInput?.value || 0, 10);
+      let c = parseInt(cInput?.value || 0, 10);
+      let i = parseInt(iInput?.value || 0, 10);
+      if (isNaN(a) || a < 1) a = 1;
+      if (isNaN(c) || c < 0) c = 0;
+      if (isNaN(i) || i < 0) i = 0;
+
+      if (avail <= 0) {
+        if (aInput) aInput.value = 0;
+        if (cInput) cInput.value = 0;
+        if (iInput) iInput.value = 0;
+        showAppNotice("Chuyến khởi hành này hiện đã hết chỗ trống. Vui lòng chọn ngày khởi hành khác.", "Hết Chỗ", "warning");
+        return;
+      }
+      if (a + c + i > avail) {
+        showAppNotice(
+          `Chuyến khởi hành không đủ chỗ. Hiện chỉ còn ${avail} chỗ trống. Vui lòng giảm số lượng khách hoặc chọn chuyến khác.`,
+          "Không Đủ Chỗ",
+          "warning"
+        );
+        if (inputId === "numAdults") {
+          a = Math.max(1, avail - c - i);
+          if (aInput) aInput.value = a;
+        } else if (inputId === "numChildren") {
+          c = Math.max(0, avail - a - i);
+          if (cInput) cInput.value = c;
+        } else {
+          i = Math.max(0, avail - a - c);
+          if (iInput) iInput.value = i;
+        }
+      }
       recalcPrice();
     }
 
@@ -1682,12 +1806,16 @@
         }
 
         select.disabled = false;
-        setBookingSubmitEnabled(true);
         select.innerHTML = schedules.map(s => {
           const dStr = new Date(s.departureAt).toLocaleDateString(isEn ? "en-US" : "vi-VN");
-          const seatsStr = isEn ? `${s.availableSeats} seats left` : `Còn ${s.availableSeats} chỗ`;
-          return `<option value="${s.id}" ${Number(s.availableSeats) <= 0 ? "disabled" : ""}>${dStr} · ${seatsStr}</option>`;
+          const avail = Math.max(0, Number(s.availableSeats) || 0);
+          const isSoldOut = avail <= 0;
+          const seatsStr = isSoldOut
+            ? (isEn ? "Sold Out" : "Hết chỗ")
+            : (isEn ? `${avail} seats left` : `Còn ${avail} chỗ`);
+          return `<option value="${s.id}" data-seats="${avail}" ${isSoldOut ? "disabled" : ""}>${dStr} · ${seatsStr}</option>`;
         }).join("");
+        syncGuestLimits();
       } catch (err) {
         if (backendOnline) {
           currentSchedules = [];
@@ -2005,10 +2133,28 @@
       const children = Math.max(0, parseInt(document.getElementById("numChildren")?.value || 0, 10));
       const infants = Math.max(0, parseInt(document.getElementById("numInfants")?.value || 0, 10));
 
-      if (!currentTour || !scheduleId || scheduleSelect?.disabled) {
+      const selectedSched = currentSchedules?.find(s => 
+        String(s.id) === String(scheduleId) ||
+        String(s.id).replace(/^SCHED-/i, '') === String(scheduleId).replace(/^SCHED-/i, '')
+      );
+      const currentAvail = selectedSched 
+        ? Math.max(0, Number(selectedSched.availableSeats) || 0)
+        : getSelectedScheduleAvailableSeats();
+      const requestedGuests = adults + children + infants;
+
+      if (!currentTour || !scheduleId || scheduleSelect?.disabled || currentAvail <= 0) {
         showAppNotice(
-          isEn ? "This tour currently has no open departure schedules available for booking." : "Tour này hiện chưa có lịch khởi hành mở bán khả dụng.",
+          isEn ? "This tour currently has no open departure schedules available for booking." : `Chuyến khởi hành không đủ chỗ. Hiện chỉ còn ${currentAvail} chỗ trống. Vui lòng giảm số lượng khách hoặc chọn chuyến khác.`,
           isEn ? "Unavailable" : "Chưa Có Lịch Mở Bán",
+          "warning"
+        );
+        return;
+      }
+
+      if (requestedGuests > currentAvail) {
+        showAppNotice(
+          `Chuyến khởi hành không đủ chỗ. Hiện chỉ còn ${currentAvail} chỗ trống. Vui lòng giảm số lượng khách hoặc chọn chuyến khác.`,
+          isEn ? "Capacity Exceeded" : "Không Đủ Chỗ",
           "warning"
         );
         return;

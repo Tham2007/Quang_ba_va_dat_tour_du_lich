@@ -744,8 +744,10 @@ def create_booking(body: BookingBody, user: Annotated[dict, Depends(_authenticat
             """), {"sid": ident}).mappings().first()
             if not schedule or schedule["TrangThaiChuyen"] != "Mở bán":
                 _fail(409, "Chuyến khởi hành chưa mở bán hoặc không hợp lệ.")
-            if schedule["SoChoToiDa"]-schedule["SoChoDaDat"] < body.adults:
-                _fail(409, "Tour không còn đủ chỗ.")
+            total_seats_requested = int(body.adults) + int(getattr(body, "children", 0) or 0)
+            avail_seats = int(schedule["SoChoToiDa"]) - int(schedule["SoChoDaDat"])
+            if avail_seats < total_seats_requested:
+                _fail(409, f"Chuyến khởi hành không đủ chỗ. Hiện chỉ còn {avail_seats} chỗ trống. Vui lòng giảm số lượng khách hoặc chọn chuyến khác.")
             if body.voucher_code:
                 if not _has_voucher_schema(conn):
                     _fail(422, "CSDL SQL Server chưa kích hoạt bảng mã ưu đãi.")
@@ -755,7 +757,7 @@ def create_booking(body: BookingBody, user: Annotated[dict, Depends(_authenticat
                     tour_id=int(schedule["MaTour"]),
                     category_name=schedule["TenDanhMuc"],
                     tour_title=schedule["TenTour"],
-                    subtotal=int(Decimal(str(schedule["GiaThucTe"]))) * body.adults,
+                    subtotal=int(Decimal(str(schedule["GiaThucTe"]))) * total_seats_requested,
                     user=user,
                     customer_email=body.customer_email,
                     customer_phone=body.customer_phone,
@@ -769,7 +771,7 @@ def create_booking(body: BookingBody, user: Annotated[dict, Depends(_authenticat
                         @HoTenTruongDoan=:name, @SoDienThoai=:phone,
                         @MaDatTourMoi=@new_id OUTPUT,
                         @MaCodeUuDai=:voucher;
-                """), {"uid": user_id, "sid": ident, "seats": body.adults,
+                """), {"uid": user_id, "sid": ident, "seats": total_seats_requested,
                        "name": body.customer_name.strip(), "phone": body.customer_phone,
                        "voucher": body.voucher_code})
             else:
@@ -779,7 +781,7 @@ def create_booking(body: BookingBody, user: Annotated[dict, Depends(_authenticat
                         @MaKhachHang=:uid, @MaChuyen=:sid, @SoLuongKhach=:seats,
                         @HoTenTruongDoan=:name, @SoDienThoai=:phone,
                         @MaDatTourMoi=@new_id OUTPUT;
-                """), {"uid": user_id, "sid": ident, "seats": body.adults,
+                """), {"uid": user_id, "sid": ident, "seats": total_seats_requested,
                        "name": body.customer_name.strip(), "phone": body.customer_phone})
             # Procedure returns a SELECT with MaDatTour and TongTienThanhToan.
             first = result.mappings().first()

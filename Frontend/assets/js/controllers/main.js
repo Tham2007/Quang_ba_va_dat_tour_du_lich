@@ -1716,14 +1716,19 @@ function changePassengerQty(type, delta) {
 
   let current = parseInt(input.value) || 0;
   let min = (type === "Adults") ? 1 : 0; // Ít nhất phải có 1 người lớn
-  const selected = AppState.currentSchedules.find(schedule => schedule.id === document.getElementById("bookingDepartureDate")?.value);
-  const max = selected ? selected.availableSeats : 20;
+  const schedVal = document.getElementById("bookingDepartureDate")?.value;
+  const cleanVal = String(schedVal || '').replace(/^SCHED-/i, '');
+  const selected = AppState.currentSchedules.find(schedule => 
+    String(schedule.id) === String(schedVal) ||
+    String(schedule.id).replace(/^SCHED-/i, '') === cleanVal
+  );
+  const max = selected ? Math.max(0, Number(selected.availableSeats) || 0) : 0;
 
   const total = ["Adults", "Children", "Infants"].reduce((sum, passengerType) => {
     return sum + (Number(document.getElementById(`qty${passengerType}`)?.value) || 0);
   }, 0);
-  if (delta > 0 && total >= max) {
-    showToast(`Chỉ còn ${max} chỗ cho ngày khởi hành này.`, "warning");
+  if (delta > 0 && total + delta > max) {
+    showToast(`Chuyến khởi hành không đủ chỗ. Hiện chỉ còn ${max} chỗ trống. Vui lòng giảm số lượng khách hoặc chọn chuyến khác.`, "warning");
     return;
   }
 
@@ -2005,8 +2010,9 @@ async function handleBookingSubmission(e) {
   }
   const pricing = calculateOrderPricing();
   const requestedSeats = pricing.adultQty + pricing.childQty + pricing.infantQty;
-  if (selectedSchedule && requestedSeats > selectedSchedule.availableSeats) {
-    showToast(`Số khách vượt quá số chỗ còn (${selectedSchedule.availableSeats}).`, "error");
+  const maxSeats = selectedSchedule ? Math.max(0, Number(selectedSchedule.availableSeats) || 0) : 0;
+  if (!selectedSchedule || requestedSeats > maxSeats || maxSeats <= 0) {
+    showToast(`Chuyến khởi hành không đủ chỗ. Hiện chỉ còn ${maxSeats} chỗ trống. Vui lòng giảm số lượng khách hoặc chọn chuyến khác.`, "error");
     return;
   }
 

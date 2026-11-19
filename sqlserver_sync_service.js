@@ -109,7 +109,7 @@ async function resolveMaTour(poolRef, tourId) {
 }
 
 /**
- * Resolve MaChuyen from schedule ID (e.g. "1", "SCHED-1", or UUID)
+ * Resolve MaChuyen from schedule ID (e.g. "1", "SCHED-1")
  */
 async function resolveMaChuyen(poolRef, scheduleId) {
   if (!scheduleId) return null;
@@ -493,7 +493,16 @@ async function updateSchedule(scheduleId, patchData, userId = null) {
 
     const totalSeats = patchData.total_seats ?? patchData.totalSeats;
     if (totalSeats !== undefined && !isNaN(Number(totalSeats))) {
-      req.input('seats', mssql.Int, Number(totalSeats));
+      const seatsNum = Number(totalSeats);
+      // Kiểm tra sức chứa không được nhỏ hơn số chỗ đã đặt (SoChoDaDat)
+      const curReq = new mssql.Request(tx);
+      curReq.input('mc', mssql.Int, maChuyen);
+      const curRes = await curReq.query('SELECT SoChoDaDat FROM dbo.CHUYENKHOIHANH WHERE MaChuyen = @mc');
+      const bookedSoFar = curRes.recordset[0]?.SoChoDaDat || 0;
+      if (seatsNum < bookedSoFar) {
+        throw new Error(`Không thể giảm số chỗ mở bán (${seatsNum}) thấp hơn số chỗ đã có khách đặt (${bookedSoFar} chỗ).`);
+      }
+      req.input('seats', mssql.Int, seatsNum);
       updates.push('SoChoToiDa = @seats');
     }
 
@@ -568,7 +577,234 @@ async function deleteSchedule(scheduleId, userId = null) {
 }
 
 /**
- * 8. SYNC ALL DATA FROM SQL SERVER INTO SQLITE CACHE
+ * 8. CREATE BOOKING (Đặt tour an toàn với Transaction & Khóa Concurrency UPDLOCK, HOLDLOCK)
+ * Đảm bảo ghi trực tiếp xuống dbo.DATTOUR và kích hoạt Trigger TRG_DATTOUR_CheckAndLockSeats
+ */
+async function createBooking({
+  scheduleId,
+  tourId,
+  customerName,
+  customerPhone,
+  customerEmail,
+  adults = 1,
+  children = 0,
+  infants = 0,
+  totalSeats = 1,
+  totalPrice = 0,
+  note = "",
+  bookingRef = "",
+  bookingId = "",
+  voucherCode = null,
+  userId = null,
+  tx: externalTx = null
+}) {
+  const p = await getPool();
+  if (!p) return { success: true, offline: true };
+
+  const maChuyen = await resolveMaChuyen(p, scheduleId);
+  if (!maChuyen) {
+    return { success: true, localOnly: true };
+  }
+
+  const isExternalTx = Boolean(externalTx);
+  const tx = isExternalTx ? externalTx : new mssql.Transaction(p);
+  if (!isExternalTx) {
+    await tx.begin();
+  }
+  try {
+    // 1. Khóa chuyến khởi hành với UPDLOCK, HOLDLOCK chống race condition khi nhiều khách cùng đặt chỗ
+    const lockReq = new mssql.Request(tx);
+    lockReq.input('mc', mssql.Int, maChuyen);
+    const schedRes = await lockReq.query(`
+      SELECT MaChuyen, MaTour, SoChoToiDa, SoChoDaDat, TrangThaiChuyen, GiaThucTe
+      FROM dbo.CHUYENKHOIHANH WITH (UPDLOCK, HOLDLOCK)
+      WHERE MaChuyen = @mc
+    `);
+
+    if (schedRes.recordset.length === 0) {
+      throw new Error("Chuyến khởi hành không tồn tại trong hệ thống.");
+    }
+
+    const schedRow = schedRes.recordset[0];
+    if (schedRow.TrangThaiChuyen !== 'Mở bán') {
+      throw new Error("Chuyến khởi hành này hiện đã đóng hoặc không còn mở bán.");
+    }
+
+    const availableSeats = Number(schedRow.SoChoToiDa) - Number(schedRow.SoChoDaDat);
+    const requestedSeats = Number(totalSeats) || (Number(adults) + Number(children));
+
+    if (requestedSeats > availableSeats) {
+      throw new Error(`Chuyến khởi hành không đủ chỗ. Hiện chỉ còn ${Math.max(0, availableSeats)} chỗ trống. Vui lòng giảm số lượng khách hoặc chọn chuyến khác.`);
+    }
+
+    // 2. Tìm hoặc tự động khởi tạo người dùng khách hàng trong dbo.NGUOIDUNG
+    const emailStr = String(customerEmail || "").trim().toLowerCase();
+    const nameStr = String(customerName || "Khách Hàng").trim();
+    const phoneStr = String(customerPhone || "0900000000").trim();
+
+    const uReq = new mssql.Request(tx);
+    uReq.input('email', mssql.VarChar(100), emailStr);
+    uReq.input('name', mssql.NVarChar(100), nameStr);
+    uReq.input('phone', mssql.VarChar(15), phoneStr);
+
+    const userRes = await uReq.query(`
+      DECLARE @uid INT;
+      SELECT TOP 1 @uid = MaNguoiDung FROM dbo.NGUOIDUNG WHERE LOWER(Email) = @email;
+      IF @uid IS NULL
+      BEGIN
+        INSERT INTO dbo.NGUOIDUNG (HoTen, Email, SoDienThoai, MatKhau, DiaChi, TrangThai, NgayTao)
+        VALUES (@name, @email, @phone, '$2a$12$GUEST_PASSWORD_AUTO_REGISTERED_HASH', N'Việt Nam', 1, GETDATE());
+        SET @uid = SCOPE_IDENTITY();
+      END
+      SELECT @uid AS MaNguoiDung;
+    `);
+
+    const maKhachHang = userRes.recordset[0].MaNguoiDung;
+
+    // 3. Thêm đơn đặt tour mới vào dbo.DATTOUR
+    // Trigger TRG_DATTOUR_CheckAndLockSeats trên SQL Server sẽ tự động kiểm tra số chỗ,
+    // tăng SoChoDaDat, chuyển TrangThaiChuyen = 'Hết chỗ' nếu hết chỗ và ghi AUDITLOG.
+    const bReq = new mssql.Request(tx);
+    bReq.input('mkh', mssql.Int, maKhachHang);
+    bReq.input('mc', mssql.Int, maChuyen);
+    bReq.input('slk', mssql.Int, requestedSeats);
+    bReq.input('tt', mssql.Decimal(18, 2), totalPrice);
+
+    const datTourRes = await bReq.query(`
+      INSERT INTO dbo.DATTOUR (MaKhachHang, MaChuyen, NgayDat, SoLuongKhach, TongTien, TrangThaiDat, TrangThaiThanhToan)
+      VALUES (@mkh, @mc, GETDATE(), @slk, @tt, N'Chờ xác nhận', N'Chưa thanh toán');
+      SELECT CAST(SCOPE_IDENTITY() AS INT) AS MaDatTour;
+    `);
+
+    const maDatTour = datTourRes.recordset[0].MaDatTour;
+
+    // 4. Thêm thông tin trưởng đoàn / hành khách vào dbo.CHITIET_HANHKHACH
+    const hkReq = new mssql.Request(tx);
+    hkReq.input('mdt', mssql.Int, maDatTour);
+    hkReq.input('ht', mssql.NVarChar(100), nameStr);
+    hkReq.input('sdt', mssql.VarChar(15), phoneStr);
+    await hkReq.query(`
+      INSERT INTO dbo.CHITIET_HANHKHACH (MaDatTour, HoTen, SoDienThoai)
+      VALUES (@mdt, @ht, @sdt)
+    `);
+
+    // 5. Ghi nhận nhật ký liên kết External ID
+    const aReq = new mssql.Request(tx);
+    aReq.input('uid', mssql.Int, maKhachHang);
+    aReq.input('hd', mssql.NVarChar(100), 'BOOKING_SQLSERVER_CREATED');
+    aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify({
+      maDatTour,
+      maChuyen,
+      bookingRef,
+      bookingId,
+      requestedSeats,
+      totalPrice,
+      voucherCode
+    }));
+    await aReq.query(`
+      INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
+      VALUES (@uid, @hd, NULL, @moi, GETDATE())
+    `);
+
+    // Lấy lại số liệu chỗ cập nhật nhất từ SQL Server trong cùng transaction (tránh đọc bị khóa)
+    const checkReq = new mssql.Request(tx);
+    checkReq.input('mc', mssql.Int, maChuyen);
+    const postRes = await checkReq.query(`
+      SELECT SoChoToiDa, SoChoDaDat, TrangThaiChuyen FROM dbo.CHUYENKHOIHANH WHERE MaChuyen = @mc
+    `);
+    const postRow = postRes.recordset[0] || {};
+
+    if (!isExternalTx) {
+      await tx.commit();
+      console.log(`[SQL SERVER] COMMITTED CREATE dbo.DATTOUR (MaDatTour: ${maDatTour}, MaChuyen: ${maChuyen}, Khách: ${requestedSeats})`);
+    }
+
+    return {
+      success: true,
+      maDatTour,
+      maChuyen,
+      totalSeats: postRow.SoChoToiDa,
+      reservedSeats: postRow.SoChoDaDat,
+      availableSeats: Math.max(0, postRow.SoChoToiDa - postRow.SoChoDaDat),
+      trangThaiChuyen: postRow.TrangThaiChuyen
+    };
+  } catch (err) {
+    if (!isExternalTx) {
+      await tx.rollback().catch(() => {});
+    }
+    console.error('[SQL SERVER] ROLLBACK CREATE BOOKING:', err.message);
+    throw err;
+  }
+}
+
+/**
+ * 9. CANCEL BOOKING (Hủy đơn & hoàn trả số chỗ về dbo.CHUYENKHOIHANH)
+ */
+async function cancelBooking({ bookingRef, bookingId, scheduleId, seats = 1, userId = null }) {
+  const p = await getPool();
+  if (!p) return;
+
+  const tx = new mssql.Transaction(p);
+  await tx.begin();
+  try {
+    const maChuyen = await resolveMaChuyen(p, scheduleId);
+    let cancelledInDatTour = false;
+
+    // Tìm kiếm đơn trong AUDITLOG bằng bookingRef hoặc bookingId
+    if (bookingRef || bookingId) {
+      const searchRef = '%' + (bookingRef || bookingId) + '%';
+      const findReq = new mssql.Request(tx);
+      findReq.input('ref', mssql.NVarChar(mssql.MAX), searchRef);
+      const findRes = await findReq.query(`
+        SELECT TOP 1 TRY_CAST(JSON_VALUE(DuLieuMoi, '$.maDatTour') AS INT) AS MaDatTour
+        FROM dbo.AUDITLOG
+        WHERE HanhDong = 'BOOKING_SQLSERVER_CREATED' AND DuLieuMoi LIKE @ref
+        ORDER BY MaLog DESC
+      `);
+      const maDatTour = findRes.recordset?.[0]?.MaDatTour;
+      if (maDatTour) {
+        const uReq = new mssql.Request(tx);
+        uReq.input('mdt', mssql.Int, maDatTour);
+        // Trigger TRG_DATTOUR_HandleCancellation tự động hoàn chỗ trên CHUYENKHOIHANH
+        await uReq.query(`UPDATE dbo.DATTOUR SET TrangThaiDat = N'Đã hủy' WHERE MaDatTour = @mdt`);
+        cancelledInDatTour = true;
+      }
+    }
+
+    if (!cancelledInDatTour && maChuyen) {
+      // Cập nhật trực tiếp CHUYENKHOIHANH nếu không tìm thấy MaDatTour
+      const sReq = new mssql.Request(tx);
+      sReq.input('mc', mssql.Int, maChuyen);
+      sReq.input('seats', mssql.Int, Number(seats) || 1);
+      await sReq.query(`
+        UPDATE dbo.CHUYENKHOIHANH
+        SET SoChoDaDat = CASE WHEN SoChoDaDat >= @seats THEN SoChoDaDat - @seats ELSE 0 END,
+            TrangThaiChuyen = N'Mở bán'
+        WHERE MaChuyen = @mc
+      `);
+    }
+
+    const aReq = new mssql.Request(tx);
+    aReq.input('uid', mssql.Int, userId ? Number(userId) || null : null);
+    aReq.input('hd', mssql.NVarChar(100), 'BOOKING_SQLSERVER_CANCELLED');
+    aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify({ bookingRef, bookingId, scheduleId, seats }));
+    await aReq.query(`
+      INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
+      VALUES (@uid, @hd, NULL, @moi, GETDATE())
+    `);
+
+    await tx.commit();
+    console.log(`[SQL SERVER] COMMITTED CANCEL BOOKING (${bookingRef || bookingId}) -> Released ${seats} seats on schedule ${scheduleId}`);
+    return { success: true };
+  } catch (err) {
+    await tx.rollback().catch(() => {});
+    console.error('[SQL SERVER] ROLLBACK CANCEL BOOKING:', err.message);
+    throw err;
+  }
+}
+
+/**
+ * 10. SYNC ALL DATA FROM SQL SERVER INTO SQLITE CACHE
  * Đọc toàn bộ danh sách tours, schedules, itineraries từ SQL Server
  * và nạp vào SQLite để đảm bảo đồng bộ 100% hai chiều.
  */
@@ -706,5 +942,7 @@ module.exports = {
   createSchedule,
   updateSchedule,
   deleteSchedule,
+  createBooking,
+  cancelBooking,
   syncAllFromSqlServer
 };

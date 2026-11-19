@@ -1925,7 +1925,8 @@ async function ssBuildAllAdminVouchersWithStats() {
   return (vouchersRes.recordset || []).map(row => {
     const v = mapSqlServerVoucherRow(row);
     if (!v) return null;
-    const list = byCode.get(v.code) || [];
+    const rawList = byCode.get(v.code) || [];
+    const list = rawList.filter(u => u.voucherLogId ? String(u.voucherLogId) === String(v.maLog) : true);
     let activeRedemptions = 0;
     let completedRedemptions = 0;
     let totalDiscountGranted = 0;
@@ -2810,7 +2811,14 @@ app.post("/api/v1/bookings/quote", async (req, res) => {
     if (!tour) return res.status(404).json({ detail: "Tour không tồn tại." });
 
     const totalSeats = adults + children + infants;
-    const avail = sched.total_seats - (sched.reserved_seats || 0);
+    const avail = Math.max(0, sched.total_seats - (sched.reserved_seats || 0));
+    if (totalSeats > avail || avail <= 0) {
+      return res.status(409).json({
+        detail: `Chuyến khởi hành không đủ chỗ. Hiện chỉ còn ${avail} chỗ trống. Vui lòng giảm số lượng khách hoặc chọn chuyến khác.`,
+        availableSeats: avail,
+        requestedSeats: totalSeats
+      });
+    }
     const childPrice = Math.floor((tour.price * 75 + 50) / 100);
     const infantPrice = Math.floor((tour.price * 10 + 50) / 100);
     const rawSubtotal = (tour.price * adults) + (childPrice * children) + (infantPrice * infants);
@@ -2895,21 +2903,19 @@ app.post("/api/v1/bookings", requireAuth, async (req, res) => {
   }
 
   let sched = schedule_id ? db.prepare("SELECT * FROM schedules WHERE id = ? AND active = 1").get(schedule_id) : null;
-  if (!sched) {
-    const tourId = b.tour_id || b.tourId || (schedule_id && schedule_id.includes("-") ? schedule_id.split("-")[1] : null);
-    if (tourId) {
-      sched = db.prepare("SELECT * FROM schedules WHERE tour_id = ? AND active = 1 ORDER BY departure_at ASC").get(tourId);
-    }
+  if (!sched && schedule_id) {
+    const clean = String(schedule_id).replace(/^SCHED-/i, '');
+    sched = db.prepare("SELECT * FROM schedules WHERE (id = ? OR id = ?) AND active = 1").get("SCHED-" + clean, clean);
+  }
+  if (!sched && (b.tour_id || b.tourId)) {
+    const tourId = b.tour_id || b.tourId;
+    sched = db.prepare("SELECT * FROM schedules WHERE tour_id = ? AND active = 1 ORDER BY departure_at ASC").get(tourId);
+  }
+  if (!sched && schedule_id === "b411bac0-e625-4d44-b8ac-566a0185eee5") {
+    sched = db.prepare("SELECT * FROM schedules WHERE active = 1 ORDER BY departure_at ASC").get();
   }
   if (!sched) {
-    const tourId = b.tour_id || b.tourId || "DL-CB09";
-    const newSchedId = crypto.randomUUID();
-    const futureDate = new Date(Date.now() + 7 * 86400000).toISOString();
-    db.prepare(`
-      INSERT INTO schedules (id, tour_id, departure_at, total_seats, reserved_seats, active)
-      VALUES (?, ?, ?, 50, 0, 1)
-    `).run(newSchedId, tourId, futureDate);
-    sched = db.prepare("SELECT * FROM schedules WHERE id = ?").get(newSchedId);
+    return res.status(404).json({ detail: "Lịch khởi hành không tồn tại hoặc chưa mở bán." });
   }
 
   const resolvedScheduleId = sched.id;
@@ -2917,6 +2923,12 @@ app.post("/api/v1/bookings", requireAuth, async (req, res) => {
   if (!tour) return res.status(404).json({ detail: "Tour không tồn tại." });
 
   const totalSeats = adults + children + infants;
+  const currentAvail = Math.max(0, sched.total_seats - (sched.reserved_seats || 0));
+  if (totalSeats > currentAvail || currentAvail <= 0) {
+    return res.status(409).json({
+      detail: `Chuyến khởi hành không đủ chỗ. Hiện chỉ còn ${currentAvail} chỗ trống. Vui lòng giảm số lượng khách hoặc chọn chuyến khác.`
+    });
+  }
   const bookingId = crypto.randomUUID();
   const ref = "BK" + Date.now().toString().slice(-8) + crypto.randomInt(10, 99);
   const subtotalPrice = calculateTotals(tour.price, adults, children, infants);
@@ -2978,13 +2990,16 @@ app.post("/api/v1/bookings", requireAuth, async (req, res) => {
   }
 
   db.exec("BEGIN IMMEDIATE");
+  let ssBookingRes = null;
   try {
     const freshSched = db.prepare("SELECT * FROM schedules WHERE id = ? AND active = 1").get(resolvedScheduleId);
-    const avail = freshSched ? (freshSched.total_seats - (freshSched.reserved_seats || 0)) : 0;
-    if (!freshSched || totalSeats > avail) {
+    const avail = freshSched ? Math.max(0, freshSched.total_seats - (freshSched.reserved_seats || 0)) : 0;
+    if (!freshSched || totalSeats > avail || avail <= 0) {
       db.exec("ROLLBACK");
       if (ssTx) await ssTx.rollback().catch(() => {});
-      return res.status(409).json({ detail: "Không đủ chỗ trống cho số lượng khách này." });
+      return res.status(409).json({
+        detail: `Chuyến khởi hành không đủ chỗ. Hiện chỉ còn ${avail} chỗ trống. Vui lòng giảm số lượng khách hoặc chọn chuyến khác.`
+      });
     }
 
     if (voucherCode && !usingSsVoucher) {
@@ -3019,6 +3034,34 @@ app.post("/api/v1/bookings", requireAuth, async (req, res) => {
     const vatAmount = Math.round(subtotalAfterDiscount * 0.10);
     const totalPrice = subtotalAfterDiscount + vatAmount;
 
+    // Lưu vĩnh viễn vào Microsoft SQL Server (dbo.DATTOUR & dbo.CHITIET_HANHKHACH) và khóa chỗ
+    if (sqlServerPool && sqlServerService && typeof sqlServerService.createBooking === "function") {
+      try {
+        ssBookingRes = await sqlServerService.createBooking({
+          scheduleId: resolvedScheduleId,
+          tourId: tour.id,
+          customerName: customer_name,
+          customerPhone: customer_phone,
+          customerEmail: customer_email,
+          adults,
+          children,
+          infants,
+          totalSeats,
+          totalPrice,
+          note,
+          bookingRef: ref,
+          bookingId: bookingId,
+          voucherCode: appliedVoucher ? appliedVoucher.code : null,
+          userId: req.user.id,
+          tx: ssTx
+        });
+      } catch (ssErr) {
+        db.exec("ROLLBACK");
+        if (ssTx) await ssTx.rollback().catch(() => {});
+        return res.status(409).json({ detail: ssErr.message });
+      }
+    }
+
     db.prepare(`
       INSERT INTO bookings (
         id, reference, user_id, schedule_id, idempotency_key, payload_fingerprint, tour_title,
@@ -3049,15 +3092,18 @@ app.post("/api/v1/bookings", requireAuth, async (req, res) => {
       );
     }
 
-    db.prepare("UPDATE schedules SET reserved_seats = reserved_seats + ? WHERE id = ?")
-      .run(totalSeats, resolvedScheduleId);
+    const nextReserved = (ssBookingRes && !ssBookingRes.localOnly && Number.isInteger(ssBookingRes.reservedSeats))
+      ? ssBookingRes.reservedSeats
+      : ((freshSched.reserved_seats || 0) + totalSeats);
+    db.prepare("UPDATE schedules SET reserved_seats = ? WHERE id = ?")
+      .run(nextReserved, resolvedScheduleId);
 
     if (usingSsVoucher && ssTx && appliedVoucher) {
       const redReq = ssNewRequest(ssTx);
       const usePayload = {
         voucherLogId: appliedVoucher.maLog,
         code: appliedVoucher.code,
-        maDatTour: null,
+        maDatTour: ssBookingRes ? ssBookingRes.maDatTour : null,
         bookingExternalId: bookingId,
         maNguoiDung: null,
         userExternalId: String(req.user.id),
@@ -3261,6 +3307,20 @@ app.post("/api/v1/bookings/:booking_id/cancel", requireAuth, async (req, res) =>
   }
 
   await ssReleaseVoucherByExternalBooking(b.id);
+
+  if (sqlServerPool && sqlServerService && typeof sqlServerService.cancelBooking === "function") {
+    try {
+      await sqlServerService.cancelBooking({
+        bookingRef: b.reference,
+        bookingId: b.id,
+        scheduleId: b.schedule_id,
+        seats: b.seats_held,
+        userId: req.user?.id
+      });
+    } catch (ssErr) {
+      console.warn("[SQL SERVER CANCEL BOOKING WARNING]:", ssErr.message);
+    }
+  }
 
   const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(b.id);
   audit(req.user?.id || b.user_id || "GUEST", isPaidOrder ? "BOOKING_REFUND_REQUESTED" : "BOOKING_CANCELLED", b.id, {
@@ -3784,16 +3844,6 @@ app.patch("/api/v1/admin/schedules/:schedule_id", requireAdmin, async (req, res)
   const s = db.prepare("SELECT * FROM schedules WHERE id = ?").get(schedule_id);
   if (!s) return res.status(404).json({ detail: "Không tìm thấy lịch." });
 
-  // 1. Ghi vĩnh viễn vào Microsoft SQL Server với Explicit Transaction + COMMIT
-  if (sqlServerPool && sqlServerService) {
-    try {
-      await sqlServerService.updateSchedule(schedule_id, req.body || {}, req.user?.id);
-    } catch (ssErr) {
-      console.error("[SQL SERVER ERROR] updateSchedule failed:", ssErr.message);
-      return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
-    }
-  }
-
   const body = req.body || {};
   const departure_at = body.departure_at ?? body.departureAt;
   const total_seats = body.total_seats ?? body.totalSeats;
@@ -3811,13 +3861,36 @@ app.patch("/api/v1/admin/schedules/:schedule_id", requireAdmin, async (req, res)
     if (depDate < today) {
       return res.status(422).json({ detail: "Ngày khởi hành không được ở quá khứ. Vui lòng chọn ngày từ hôm nay trở đi." });
     }
-    db.prepare("UPDATE schedules SET departure_at = ? WHERE id = ?").run(depDate.toISOString(), schedule_id);
   }
+
   if (total_seats !== undefined) {
     const totalSeatsNum = Number(total_seats);
     if (isNaN(totalSeatsNum) || totalSeatsNum < 0 || totalSeatsNum > 1000) {
       return res.status(422).json({ detail: "Số chỗ mở bán không hợp lệ." });
     }
+    if (totalSeatsNum < Number(s.reserved_seats || 0)) {
+      return res.status(422).json({
+        detail: `Không thể giảm số chỗ mở bán (${totalSeatsNum}) thấp hơn số chỗ đã có khách đặt (${s.reserved_seats || 0} chỗ).`
+      });
+    }
+  }
+
+  // 1. Ghi vĩnh viễn vào Microsoft SQL Server với Explicit Transaction + COMMIT
+  if (sqlServerPool && sqlServerService) {
+    try {
+      await sqlServerService.updateSchedule(schedule_id, req.body || {}, req.user?.id);
+    } catch (ssErr) {
+      console.error("[SQL SERVER ERROR] updateSchedule failed:", ssErr.message);
+      return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
+    }
+  }
+
+  if (departure_at !== undefined) {
+    const depDate = new Date(departure_at);
+    db.prepare("UPDATE schedules SET departure_at = ? WHERE id = ?").run(depDate.toISOString(), schedule_id);
+  }
+  if (total_seats !== undefined) {
+    const totalSeatsNum = Number(total_seats);
     if (available_seats !== undefined) {
       const availNum = Number(available_seats);
       if (isNaN(availNum) || availNum < 0 || availNum > totalSeatsNum) {
@@ -3826,9 +3899,6 @@ app.patch("/api/v1/admin/schedules/:schedule_id", requireAdmin, async (req, res)
       db.prepare("UPDATE schedules SET total_seats = ?, reserved_seats = ? WHERE id = ?")
         .run(totalSeatsNum, totalSeatsNum - availNum, schedule_id);
     } else {
-      if (totalSeatsNum < Number(s.reserved_seats || 0)) {
-        return res.status(422).json({ detail: "Số chỗ mở bán không hợp lệ hoặc nhỏ hơn số chỗ đã đặt." });
-      }
       db.prepare("UPDATE schedules SET total_seats = ? WHERE id = ?").run(totalSeatsNum, schedule_id);
     }
   } else if (available_seats !== undefined) {
@@ -3936,6 +4006,20 @@ app.patch("/api/v1/admin/bookings/:booking_id", requireAdmin, async (req, res) =
 
   if (["CANCELLED", "REFUNDED"].includes(status)) {
     await ssReleaseVoucherByExternalBooking(b.id);
+
+  if (sqlServerPool && sqlServerService && typeof sqlServerService.cancelBooking === "function") {
+    try {
+      await sqlServerService.cancelBooking({
+        bookingRef: b.reference,
+        bookingId: b.id,
+        scheduleId: b.schedule_id,
+        seats: b.seats_held,
+        userId: req.user?.id
+      });
+    } catch (ssErr) {
+      console.warn("[SQL SERVER CANCEL BOOKING WARNING]:", ssErr.message);
+    }
+  }
   }
 
   const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(b.id);
@@ -3990,6 +4074,20 @@ app.post("/api/v1/admin/bookings/:booking_id/approve-refund", requireAdmin, asyn
   }
 
   await ssReleaseVoucherByExternalBooking(b.id);
+
+  if (sqlServerPool && sqlServerService && typeof sqlServerService.cancelBooking === "function") {
+    try {
+      await sqlServerService.cancelBooking({
+        bookingRef: b.reference,
+        bookingId: b.id,
+        scheduleId: b.schedule_id,
+        seats: b.seats_held,
+        userId: req.user?.id
+      });
+    } catch (ssErr) {
+      console.warn("[SQL SERVER CANCEL BOOKING WARNING]:", ssErr.message);
+    }
+  }
   const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(b.id);
   audit(req.user.id, "BOOKING_REFUND_APPROVED", b.id, { refundReference: txRef, notes: noteText, reasonText });
   res.json({

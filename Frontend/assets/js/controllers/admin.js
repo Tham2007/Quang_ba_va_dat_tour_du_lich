@@ -2442,6 +2442,11 @@ async function handleSaveScheduleSubmit(e) {
   const schedules = [...AdminState.schedules];
   const idx = schedules.findIndex(s => s.id === id);
 
+  if (idx !== -1 && totalSeats < (schedules[idx].bookedSeats || 0)) {
+    showAdminToast(`Không thể giảm số chỗ mở bán (${totalSeats}) thấp hơn số chỗ đã có khách đặt (${schedules[idx].bookedSeats || 0} chỗ).`, "error");
+    return;
+  }
+
   let schData = {
     id,
     tourId,
