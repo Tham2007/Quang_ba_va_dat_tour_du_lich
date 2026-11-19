@@ -60,12 +60,18 @@ async function getPool() {
  */
 async function resolveMaTour(poolRef, tourId) {
   if (!tourId) return null;
+  const strId = String(tourId).trim().toUpperCase();
+  if (dynamicTourMap.has(strId)) return dynamicTourMap.get(strId);
+
   const num = Number(tourId);
   if (Number.isInteger(num) && num > 0) {
     const check = await poolRef.request()
       .input('mt', mssql.Int, num)
       .query('SELECT MaTour FROM dbo.TOUR WHERE MaTour = @mt');
-    if (check.recordset.length > 0) return num;
+    if (check.recordset.length > 0) {
+      dynamicTourMap.set(strId, num);
+      return num;
+    }
   }
 
   // Look up by matching title or known prefix
@@ -89,21 +95,45 @@ async function resolveMaTour(poolRef, tourId) {
     'DL-CD16': 19
   };
 
-  const strId = String(tourId).toUpperCase();
-  if (dynamicTourMap.has(strId)) return dynamicTourMap.get(strId);
   if (mapping[strId]) {
     const check = await poolRef.request()
       .input('mt', mssql.Int, mapping[strId])
       .query('SELECT MaTour FROM dbo.TOUR WHERE MaTour = @mt');
-    if (check.recordset.length > 0) return mapping[strId];
+    if (check.recordset.length > 0) {
+      dynamicTourMap.set(strId, mapping[strId]);
+      return mapping[strId];
+    }
   }
+
+  // Look up from dbo.AUDITLOG for dynamic/custom tours
+  try {
+    const auditCheck = await poolRef.request()
+      .input('pat1', mssql.NVarChar, `%"tourId":"${tourId}"%`)
+      .input('pat2', mssql.NVarChar, `%"tourId":"${strId}"%`)
+      .input('pat3', mssql.NVarChar, `%"id":"${tourId}"%`)
+      .query(`
+        SELECT TOP 1 DuLieuMoi FROM dbo.AUDITLOG 
+        WHERE (DuLieuMoi LIKE @pat1 OR DuLieuMoi LIKE @pat2 OR DuLieuMoi LIKE @pat3)
+        ORDER BY MaLog DESC
+      `);
+    if (auditCheck.recordset.length > 0) {
+      const parsed = JSON.parse(auditCheck.recordset[0].DuLieuMoi);
+      if (parsed && parsed.maTour) {
+        dynamicTourMap.set(strId, parsed.maTour);
+        return parsed.maTour;
+      }
+    }
+  } catch (_) {}
 
   // Fallback: search by title snippet
   const searchStr = '%' + String(tourId).replace(/^DL-[A-Z0-9]+-?/i, '').slice(0, 15) + '%';
   const q = await poolRef.request()
     .input('s', mssql.NVarChar, searchStr)
     .query('SELECT TOP 1 MaTour FROM dbo.TOUR WHERE TenTour LIKE @s ORDER BY MaTour ASC');
-  if (q.recordset.length > 0) return q.recordset[0].MaTour;
+  if (q.recordset.length > 0) {
+    dynamicTourMap.set(strId, q.recordset[0].MaTour);
+    return q.recordset[0].MaTour;
+  }
 
   return null;
 }
@@ -246,24 +276,63 @@ async function replaceTourDetails(tourId, details, userId = null) {
     }
 
     // 2. Cập nhật chi tiết lịch trình trong dbo.LICH_TRINH_DETAIL
-    if (Array.isArray(details.itinerary)) {
+    if (Array.isArray(details.itinerary) && details.itinerary.length > 0) {
       const delReq = new mssql.Request(tx);
       delReq.input('mt', mssql.Int, maTour);
       await delReq.query('DELETE FROM dbo.LICH_TRINH_DETAIL WHERE MaTour = @mt');
 
+      // Nhóm các phần trong ngày (Sáng, Chiều, Tối) thành 1 bản ghi chuẩn 3NF theo từng ngày
+      const dayMap = new Map();
       for (let i = 0; i < details.itinerary.length; i++) {
         const item = details.itinerary[i];
         const dayNum = Number(item.day_number ?? item.day ?? (i + 1));
-        const title = String(item.title || `Ngày ${dayNum}`).slice(0, 200);
-        const desc = String(item.description || item.noiDung || item.morning || 'Tham quan theo chương trình');
-        const meals = String(item.meals || item.buaAn || 'Sáng, Trưa, Tối').slice(0, 100);
+        if (!dayMap.has(dayNum)) {
+          dayMap.set(dayNum, {
+            day: dayNum,
+            title: '',
+            morning: '',
+            afternoon: '',
+            evening: '',
+            description: '',
+            meals: item.meals || item.buaAn || 'Sáng, Trưa, Tối'
+          });
+        }
+        const d = dayMap.get(dayNum);
+        if (item.title && (!d.title || d.title.startsWith(`Ngày ${dayNum}`))) {
+          d.title = String(item.title).replace(/\s*-\s*Buổi\s+(sáng|chiều|tối)\s*$/i, '').trim();
+        }
+        if (item.morning) d.morning = item.morning;
+        if (item.afternoon) d.afternoon = item.afternoon;
+        if (item.evening) d.evening = item.evening;
+        if (item.description) {
+          if (item.sequence === 1 || String(item.title).toLowerCase().includes('sáng')) {
+            d.morning = item.description;
+          } else if (item.sequence === 2 || String(item.title).toLowerCase().includes('chiều')) {
+            d.afternoon = item.description;
+          } else if (item.sequence === 3 || String(item.title).toLowerCase().includes('tối')) {
+            d.evening = item.description;
+          } else {
+            d.description = [d.description, item.description].filter(Boolean).join('\n');
+          }
+        }
+        if (item.meals || item.buaAn) d.meals = item.meals || item.buaAn;
+      }
+
+      for (const [dayNum, d] of dayMap.entries()) {
+        const title = (d.title || `Khám phá ngày ${dayNum}`).slice(0, 200);
+        const parts = [];
+        if (d.morning) parts.push(`BUỔI SÁNG\n${d.morning}`);
+        if (d.afternoon) parts.push(`BUỔI CHIỀU\n${d.afternoon}`);
+        if (d.evening) parts.push(`BUỔI TỐI\n${d.evening}`);
+        if (d.description) parts.push(d.description);
+        const fullDesc = parts.length > 0 ? parts.join('\n\n') : 'Tham quan theo chương trình';
 
         const insReq = new mssql.Request(tx);
         insReq.input('mt', mssql.Int, maTour);
         insReq.input('ngay', mssql.Int, dayNum);
         insReq.input('tieude', mssql.NVarChar(200), title);
-        insReq.input('noidung', mssql.NVarChar(mssql.MAX), desc);
-        insReq.input('buaan', mssql.NVarChar(100), meals);
+        insReq.input('noidung', mssql.NVarChar(mssql.MAX), fullDesc);
+        insReq.input('buaan', mssql.NVarChar(100), (d.meals || 'Sáng, Trưa, Tối').slice(0, 100));
         await insReq.query(`
           INSERT INTO dbo.LICH_TRINH_DETAIL (MaTour, NgayThu, TieuDeNgay, NoiDungChiTiet, BuaAn)
           VALUES (@mt, @ngay, @tieude, @noidung, @buaan)
@@ -271,11 +340,21 @@ async function replaceTourDetails(tourId, details, userId = null) {
       }
     }
 
-    // 3. Ghi vết AUDITLOG
+    // 3. Ghi vết AUDITLOG bảo toàn đầy đủ chi phí gốc nội bộ & lịch trình
+    const effectiveOrigPrice = Number(details.original_price ?? details.originalPrice ?? 0);
     const aReq = new mssql.Request(tx);
     aReq.input('uid', mssql.Int, userId ? Number(userId) || null : null);
     aReq.input('hd', mssql.NVarChar(100), 'ADMIN_REPLACE_TOUR_DETAILS');
-    aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify({ maTour, price, daysCount: details.itinerary?.length }));
+    aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify({
+      maTour,
+      tourId,
+      price,
+      original_price: effectiveOrigPrice,
+      originalPrice: effectiveOrigPrice,
+      cost_items: details.cost_items || details.costItems || [],
+      itinerary: details.itinerary || [],
+      daysCount: details.itinerary?.length || 0
+    }));
     await aReq.query(`
       INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
       VALUES (@uid, @hd, NULL, @moi, GETDATE())
@@ -838,15 +917,59 @@ async function syncAllFromSqlServer(sqliteDb) {
 
     console.log(`[SQL SERVER SYNC] Loaded ${tours.length} tours, ${scheds.length} schedules, ${itins.length} itineraries from SQL Server`);
 
-    // Map itineraries by MaTour
+    // Lấy vết cập nhật chi phí gốc và chi tiết lịch trình mới nhất từ dbo.AUDITLOG
+    let tourDetailsAudit = new Map();
+    try {
+      const auditRes = await p.request().query(`
+        SELECT DuLieuMoi FROM dbo.AUDITLOG
+        WHERE HanhDong IN ('ADMIN_REPLACE_TOUR_DETAILS', 'ADMIN_CREATE_TOUR', 'ADMIN_UPDATE_TOUR')
+        ORDER BY MaLog ASC
+      `);
+      for (const row of auditRes.recordset) {
+        try {
+          const d = JSON.parse(row.DuLieuMoi);
+          if (d && (d.maTour || d.tourId)) {
+            if (d.tourId) tourDetailsAudit.set(String(d.tourId).toUpperCase(), d);
+            if (d.maTour) tourDetailsAudit.set(String(d.maTour), d);
+          }
+        } catch (_) {}
+      }
+    } catch (aErr) {
+      console.warn('[SQL SERVER SYNC] Không thể đọc AuditLog:', aErr.message);
+    }
+
+    function parseNoiDungChiTiet(content) {
+      const str = String(content || '');
+      const morningMatch = str.match(/BUỔI SÁNG\s*([\s\S]*?)(?=BUỔI CHIỀU|BUỔI TỐI|$)/i);
+      const afternoonMatch = str.match(/BUỔI CHIỀU\s*([\s\S]*?)(?=BUỔI TỐI|$)/i);
+      const eveningMatch = str.match(/BUỔI TỐI\s*([\s\S]*?)$/i);
+      if (morningMatch || afternoonMatch || eveningMatch) {
+        return {
+          morning: morningMatch ? morningMatch[1].trim() : '',
+          afternoon: afternoonMatch ? afternoonMatch[1].trim() : '',
+          evening: eveningMatch ? eveningMatch[1].trim() : ''
+        };
+      }
+      return {
+        morning: str,
+        afternoon: '',
+        evening: ''
+      };
+    }
+
+    // Map itineraries by MaTour với cấu trúc morning/afternoon/evening
     const itinMap = new Map();
     for (const it of itins) {
       if (!itinMap.has(it.MaTour)) itinMap.set(it.MaTour, []);
+      const parsedDesc = parseNoiDungChiTiet(it.NoiDungChiTiet);
       itinMap.get(it.MaTour).push({
         day: it.NgayThu,
         day_number: it.NgayThu,
         title: it.TieuDeNgay,
         description: it.NoiDungChiTiet,
+        morning: parsedDesc.morning,
+        afternoon: parsedDesc.afternoon,
+        evening: parsedDesc.evening,
         meals: it.BuaAn
       });
     }
@@ -854,16 +977,13 @@ async function syncAllFromSqlServer(sqliteDb) {
     const now = new Date().toISOString();
     const regionMap = { 1: 'north', 2: 'central', 3: 'south', 4: 'north' };
 
-    // Reverse mapping to keep standard DL-codes for first 4 tours or by title
+    // Reverse mapping chuẩn 1-to-1 canonical cho 16 tour của Delta Travel
     const codeMap = {
       1: 'DL-HL01',
       2: 'DL-DN02',
       3: 'DL-PQ03',
       4: 'DL-SP05',
-      5: 'DL-DN02',
-      6: 'DL-PQ03',
       7: 'DL-DL04',
-      8: 'DL-SP05',
       9: 'DL-MT06',
       10: 'DL-NB07',
       11: 'DL-HG08',
@@ -878,13 +998,33 @@ async function syncAllFromSqlServer(sqliteDb) {
     };
 
     for (const t of tours) {
-      const tourId = codeMap[t.MaTour] || String(t.MaTour);
+      let tourId = codeMap[t.MaTour];
+      if (!tourId) {
+        const auditData = tourDetailsAudit.get(String(t.MaTour));
+        if (auditData && auditData.tourId) tourId = auditData.tourId;
+      }
+      if (!tourId) tourId = String(t.MaTour);
+      dynamicTourMap.set(String(tourId).toUpperCase(), t.MaTour);
+
+      const auditData = tourDetailsAudit.get(String(tourId).toUpperCase()) || tourDetailsAudit.get(String(t.MaTour));
       const region = regionMap[t.MaDanhMuc] || 'north';
       const duration = t.LichTrinhTongQuan ? t.LichTrinhTongQuan.split('|')[0].trim() : '3N2Đ';
       const price = Number(t.GiaKhuyenNghi) || 0;
-      const originalPrice = Math.round(price * 1.15);
+
+      // Bảo toàn Tổng chi phí gốc nội bộ: ưu tiên lấy từ AuditLog hoặc SQLite hiện có
+      let originalPrice = Number(auditData?.original_price ?? auditData?.originalPrice ?? 0);
+      if (!originalPrice || originalPrice <= 0) {
+        const existingTour = sqliteDb.prepare("SELECT original_price FROM tours WHERE id = ?").get(tourId);
+        if (existingTour && existingTour.original_price > 0) {
+          originalPrice = Number(existingTour.original_price);
+        } else {
+          originalPrice = Math.round(price * 1.15);
+        }
+      }
+
       const imagesJson = JSON.stringify([t.HinhAnhDaiDien || 'assets/images/halong.png']);
-      const itineraryJson = JSON.stringify(itinMap.get(t.MaTour) || []);
+      const tourItin = itinMap.get(t.MaTour) || [];
+      const itineraryJson = JSON.stringify(tourItin);
       const activeFlag = t.TrangThai ? 1 : 0;
 
       sqliteDb.prepare(`
@@ -900,11 +1040,56 @@ async function syncAllFromSqlServer(sqliteDb) {
           active = excluded.active,
           updated_at = excluded.updated_at
       `).run(tourId, 'tour-' + tourId.toLowerCase(), t.TenTour, region, duration, price, originalPrice, imagesJson, t.MoTaChiTiet || '', itineraryJson, activeFlag, now);
+
+      // Phục hồi chi tiết khoản chi nội bộ (tour_cost_items) vào SQLite
+      if (Array.isArray(auditData?.cost_items) && auditData.cost_items.length > 0) {
+        try {
+          sqliteDb.prepare("DELETE FROM tour_cost_items WHERE tour_id = ?").run(tourId);
+          const insertCost = sqliteDb.prepare(`
+            INSERT INTO tour_cost_items (id, tour_id, category, name, notes, amount_per_person)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `);
+          for (const ci of auditData.cost_items) {
+            insertCost.run(crypto.randomUUID(), tourId, ci.category || 'other', ci.name || 'Khoản chi', ci.notes || '', Number(ci.amount_per_person) || 0);
+          }
+        } catch (_) {}
+      }
+
+      // Phục hồi các buổi lịch trình vào bảng itinerary_items của SQLite
+      if (tourItin.length > 0) {
+        try {
+          sqliteDb.prepare("DELETE FROM itinerary_items WHERE tour_id = ?").run(tourId);
+          const insertItin = sqliteDb.prepare(`
+            INSERT INTO itinerary_items (id, tour_id, day_number, sequence, category, title, description, location, start_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+          for (const d of tourItin) {
+            const dNum = Number(d.day_number || d.day || 1);
+            if (d.morning) {
+              insertItin.run(crypto.randomUUID(), tourId, dNum, 1, 'transport', `${d.title} - Buổi sáng`, d.morning, '', null);
+            }
+            if (d.afternoon) {
+              insertItin.run(crypto.randomUUID(), tourId, dNum, 2, 'activity', `${d.title} - Buổi chiều`, d.afternoon, '', null);
+            }
+            if (d.evening) {
+              insertItin.run(crypto.randomUUID(), tourId, dNum, 3, 'meal', `${d.title} - Buổi tối`, d.evening, '', null);
+            }
+            if (!d.morning && !d.afternoon && !d.evening) {
+              insertItin.run(crypto.randomUUID(), tourId, dNum, 1, 'activity', d.title, d.description || '', '', null);
+            }
+          }
+        } catch (_) {}
+      }
     }
 
     // Sync schedules
     for (const s of scheds) {
-      const tourCode = codeMap[s.MaTour] || String(s.MaTour);
+      let tourCode = codeMap[s.MaTour];
+      if (!tourCode) {
+        const auditData = tourDetailsAudit.get(String(s.MaTour));
+        if (auditData && auditData.tourId) tourCode = auditData.tourId;
+      }
+      if (!tourCode) tourCode = String(s.MaTour);
       const schedId = 'SCHED-' + s.MaChuyen;
       const depAt = s.NgayKhoiHanh ? new Date(s.NgayKhoiHanh).toISOString() : now;
       const total = Number(s.SoChoToiDa) || 25;

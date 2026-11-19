@@ -2118,6 +2118,7 @@ async function handleSaveTourSubmit(e) {
         duration: tourData.duration,
         departure: tourData.departure,
         transport: tourData.transport,
+        price: tourData.price,
         original_price: Math.max(effectiveOriginalPrice, 1),
         flash_sale: tourData.isFlashSale,
         badge: tourData.badge,

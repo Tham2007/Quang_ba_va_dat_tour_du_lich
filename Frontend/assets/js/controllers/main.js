@@ -894,6 +894,9 @@ async function searchToursFromApi(page = 1) {
       filters.min_price === undefined && filters.max_price === undefined &&
       !filters.duration && !filters.transport && !filters.availability) {
     AppState.allTours = serverTours;
+    if (serverTours.length > 0) {
+      try { localStorage.setItem(DELTA_STORAGE_KEYS.TOURS, JSON.stringify(serverTours)); } catch (_) {}
+    }
     renderDestinations();
     if (!AppState.destinationCounts) refreshDestinationCounts();
   }
