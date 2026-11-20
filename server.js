@@ -1,5 +1,5 @@
 /**
- * Delta Travel 2.0 - Official Commercial Node.js Server (Verified Production)
+ * Delta Travel 2.0 - Official Commercial Node.js Server (Verified Production - Persistent Sync 2.0.1)
  * Tích hợp toàn diện: Express API + SQLite Database + Giao diện Frontend
  */
 
