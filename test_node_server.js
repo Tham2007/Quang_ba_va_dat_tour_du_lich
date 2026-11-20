@@ -297,7 +297,15 @@ async function runTests() {
     assert("GET /api/v1/admin/tours", admTours.status === 200 && admTours.json?.length > 0);
 
     // Admin create tour
-    const newTourId = "DL-NODE" + Math.floor(10 + Math.random() * 89);
+    let newTourId;
+    for (let attempts = 0; attempts < 200; attempts++) {
+      const candidate = "DL-NODE" + Math.floor(10 + Math.random() * 8900);
+      if (!db.prepare("SELECT id FROM tours WHERE id = ?").get(candidate)) {
+        newTourId = candidate;
+        break;
+      }
+    }
+    if (!newTourId) newTourId = "DL-NODE" + Date.now().toString().slice(-4);
     const createTourRes = await req("/api/v1/admin/tours", {
       method: "POST",
       headers: adminHeaders,
@@ -494,7 +502,15 @@ async function runTests() {
       filterDaNang1.json?.[0]?.title?.includes("Đà Nẵng"));
 
     // Sync Test 1: Admin tạo tour đầy đủ -> Public API + Itinerary + Auto Schedule + Toggle Active
-    const syncTourId = "DL-SYNC" + Math.floor(10 + Math.random() * 89);
+    let syncTourId;
+    for (let attempts = 0; attempts < 200; attempts++) {
+      const candidate = "DL-SYNC" + Math.floor(10 + Math.random() * 8900);
+      if (!db.prepare("SELECT id FROM tours WHERE id = ?").get(candidate)) {
+        syncTourId = candidate;
+        break;
+      }
+    }
+    if (!syncTourId) syncTourId = "DL-SYNC" + Date.now().toString().slice(-4);
     const syncCreateRes = await req("/api/v1/admin/tours", {
       method: "POST",
       headers: adminHeaders,
@@ -1343,6 +1359,46 @@ async function runTests() {
       tourInAdmin?.isExpired === true &&
       adminMetricsCheck.json?.expiredToursCount >= 1,
       `inPublic=${isTourInPublic} isExpired=${tourInAdmin?.isExpired} expiredCount=${adminMetricsCheck.json?.expiredToursCount}`);
+
+    // 12 Bảng SQL Server: Kiểm tra Danh mục (dbo.DANHMUC), Bài viết (dbo.BAIVIET_QUANGBA), Đánh giá (dbo.DANHGIA)
+    const catRes = await req("/api/v1/categories");
+    assert("12 Bảng: GET /api/v1/categories đồng bộ dbo.DANHMUC",
+      catRes.status === 200 && Array.isArray(catRes.json) && catRes.json.length >= 4,
+      `status=${catRes.status} count=${catRes.json?.length}`);
+
+    const articleRes = await req("/api/v1/articles");
+    assert("12 Bảng: GET /api/v1/articles đồng bộ dbo.BAIVIET_QUANGBA",
+      articleRes.status === 200 && Array.isArray(articleRes.json),
+      `status=${articleRes.status} count=${articleRes.json?.length}`);
+
+    const postArticleRes = await req("/api/v1/admin/articles", {
+      method: "POST",
+      headers: adminHeaders,
+      body: {
+        title: "Kinh nghiệm du lịch Phú Quốc 2026",
+        slug: "kinh-nghiem-phu-quoc-2026-" + Date.now(),
+        summary: "Cẩm nang toàn tập khám phá đảo ngọc",
+        content: "Chi tiết lịch trình và địa điểm hấp dẫn..."
+      }
+    });
+    assert("12 Bảng: POST /api/v1/admin/articles lưu vào dbo.BAIVIET_QUANGBA",
+      postArticleRes.status === 201 && postArticleRes.json?.success === true,
+      `status=${postArticleRes.status} resp=${JSON.stringify(postArticleRes.json)}`);
+
+    const postReviewRes = await req("/api/v1/reviews", {
+      method: "POST",
+      headers: authHeaders,
+      body: {
+        tour_id: "DL-HL01",
+        rating: 5,
+        content: "Tour Vịnh Hạ Long rất tuyệt vời, đồ ăn ngon và cảnh đẹp!"
+      }
+    });
+    const reviewsRes = await req("/api/v1/reviews?tour_id=DL-HL01");
+    assert("12 Bảng: POST & GET /api/v1/reviews lưu vào dbo.DANHGIA",
+      postReviewRes.status === 201 && postReviewRes.json?.success === true &&
+      reviewsRes.status === 200 && Array.isArray(reviewsRes.json),
+      `postStatus=${postReviewRes.status} getStatus=${reviewsRes.status}`);
 
     const catalogRequests = [];
     catalogMockServer = http.createServer((request, response) => {

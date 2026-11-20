@@ -241,6 +241,10 @@ async function updateTour(tourId, patchData, userId = null) {
     await tx.commit();
     console.log(`[SQL SERVER] COMMITTED UPDATE dbo.TOUR (MaTour: ${maTour})`);
 
+    if (patchData.images || patchData.image) {
+      syncTourImages(maTour, patchData.images || [patchData.image]).catch(() => {});
+    }
+
     // Lấy bản ghi hoàn chỉnh sau cập nhật
     const res = await p.request().input('mt', mssql.Int, maTour).query('SELECT * FROM dbo.TOUR WHERE MaTour = @mt');
     return { success: true, maTour, tour: res.recordset[0] };
@@ -436,6 +440,9 @@ async function createTour(tourData, userId = null) {
       dynamicTourMap.set(String(tourData.id).toUpperCase(), newMaTour);
     }
     console.log(`[SQL SERVER] COMMITTED CREATE dbo.TOUR (MaTour: ${newMaTour})`);
+    if (tourData.images || tourData.image) {
+      syncTourImages(newMaTour, tourData.images || [tourData.image]).catch(() => {});
+    }
     return { success: true, maTour: newMaTour };
   } catch (err) {
     await tx.rollback();
@@ -586,11 +593,11 @@ async function updateSchedule(scheduleId, patchData, userId = null) {
     }
 
     if (patchData.active !== undefined) {
-      req.input('tt', mssql.NVarChar(50), patchData.active ? 'Mở bán' : 'Đã đóng');
+      req.input('tt', mssql.NVarChar(50), patchData.active ? 'Mở bán' : 'Tạm dừng');
       updates.push('TrangThaiChuyen = @tt');
     } else if (patchData.status !== undefined) {
-      const statusMap = { 'OPEN': 'Mở bán', 'CLOSED': 'Đã đóng', 'CANCELLED': 'Đã hủy', 'COMPLETED': 'Hoàn thành' };
-      const ttStr = statusMap[String(patchData.status).toUpperCase()] || patchData.status;
+      const statusMap = { 'OPEN': 'Mở bán', 'CLOSED': 'Tạm dừng', 'CANCELLED': 'Hủy chuyến', 'COMPLETED': 'Hoàn thành' };
+      const ttStr = statusMap[String(patchData.status).toUpperCase()] || (patchData.status === 'Đã đóng' ? 'Tạm dừng' : patchData.status);
       req.input('tt', mssql.NVarChar(50), ttStr);
       updates.push('TrangThaiChuyen = @tt');
     }
@@ -635,7 +642,7 @@ async function deleteSchedule(scheduleId, userId = null) {
   try {
     const sReq = new mssql.Request(tx);
     sReq.input('mc', mssql.Int, maChuyen);
-    await sReq.query(`UPDATE dbo.CHUYENKHOIHANH SET TrangThaiChuyen = N'Đã hủy' WHERE MaChuyen = @mc`);
+    await sReq.query(`UPDATE dbo.CHUYENKHOIHANH SET TrangThaiChuyen = N'Hủy chuyến' WHERE MaChuyen = @mc`);
 
     const aReq = new mssql.Request(tx);
     aReq.input('uid', mssql.Int, userId ? Number(userId) || null : null);
@@ -675,6 +682,7 @@ async function createBooking({
   bookingId = "",
   voucherCode = null,
   userId = null,
+  passengers = [],
   tx: externalTx = null
 }) {
   const p = await getPool();
@@ -758,14 +766,20 @@ async function createBooking({
     const maDatTour = datTourRes.recordset[0].MaDatTour;
 
     // 4. Thêm thông tin trưởng đoàn / hành khách vào dbo.CHITIET_HANHKHACH
-    const hkReq = new mssql.Request(tx);
-    hkReq.input('mdt', mssql.Int, maDatTour);
-    hkReq.input('ht', mssql.NVarChar(100), nameStr);
-    hkReq.input('sdt', mssql.VarChar(15), phoneStr);
-    await hkReq.query(`
-      INSERT INTO dbo.CHITIET_HANHKHACH (MaDatTour, HoTen, SoDienThoai)
-      VALUES (@mdt, @ht, @sdt)
-    `);
+    const passengerList = Array.isArray(passengers) && passengers.length > 0
+      ? passengers
+      : [{ name: nameStr, phone: phoneStr }];
+
+    for (const pax of passengerList) {
+      const hkReq = new mssql.Request(tx);
+      hkReq.input('mdt', mssql.Int, maDatTour);
+      hkReq.input('ht', mssql.NVarChar(100), String(pax.name || pax.fullName || nameStr).slice(0, 100));
+      hkReq.input('sdt', mssql.VarChar(15), String(pax.phone || phoneStr).slice(0, 15));
+      await hkReq.query(`
+        INSERT INTO dbo.CHITIET_HANHKHACH (MaDatTour, HoTen, SoDienThoai)
+        VALUES (@mdt, @ht, @sdt)
+      `);
+    }
 
     // 5. Ghi nhận nhật ký liên kết External ID
     const aReq = new mssql.Request(tx);
@@ -879,6 +893,389 @@ async function cancelBooking({ bookingRef, bookingId, scheduleId, seats = 1, use
     await tx.rollback().catch(() => {});
     console.error('[SQL SERVER] ROLLBACK CANCEL BOOKING:', err.message);
     throw err;
+  }
+}
+
+/**
+ * 10. RECORD PAYMENT (Ghi nhận thanh toán vào dbo.THANHTOAN & cập nhật dbo.DATTOUR)
+ */
+async function recordPayment({ bookingId, bookingRef, method = "Chuyển khoản SePay", amount = 0, transactionCode = "", userId = null }) {
+  const p = await getPool();
+  if (!p) return { success: true, offline: true };
+
+  const tx = new mssql.Transaction(p);
+  await tx.begin();
+  try {
+    let maDatTour = null;
+
+    // 1. Tìm MaDatTour từ AUDITLOG hoặc bookingRef
+    if (bookingRef || bookingId) {
+      const searchRef = '%' + (bookingRef || bookingId) + '%';
+      const findReq = new mssql.Request(tx);
+      findReq.input('ref', mssql.NVarChar(mssql.MAX), searchRef);
+      const findRes = await findReq.query(`
+        SELECT TOP 1 TRY_CAST(JSON_VALUE(DuLieuMoi, '$.maDatTour') AS INT) AS MaDatTour
+        FROM dbo.AUDITLOG
+        WHERE HanhDong = 'BOOKING_SQLSERVER_CREATED' AND DuLieuMoi LIKE @ref
+        ORDER BY MaLog DESC
+      `);
+      maDatTour = findRes.recordset?.[0]?.MaDatTour;
+    }
+
+    if (!maDatTour) {
+      const findDtReq = new mssql.Request(tx);
+      findDtReq.input('amt', mssql.Decimal(18, 2), Number(amount) || 0);
+      const dtRes = await findDtReq.query(`
+        SELECT TOP 1 MaDatTour FROM dbo.DATTOUR 
+        WHERE TrangThaiThanhToan = N'Chưa thanh toán' AND (@amt <= 0 OR TongTien = @amt)
+        ORDER BY MaDatTour DESC
+      `);
+      maDatTour = dtRes.recordset?.[0]?.MaDatTour;
+    }
+
+    if (maDatTour) {
+      // 2. Cập nhật dbo.DATTOUR thành Đã xác nhận & Đã thanh toán
+      const uReq = new mssql.Request(tx);
+      uReq.input('mdt', mssql.Int, maDatTour);
+      await uReq.query(`
+        UPDATE dbo.DATTOUR 
+        SET TrangThaiDat = N'Đã xác nhận', TrangThaiThanhToan = N'Đã thanh toán' 
+        WHERE MaDatTour = @mdt
+      `);
+
+      // 3. Thêm bản ghi giao dịch thanh toán vào dbo.THANHTOAN
+      const tReq = new mssql.Request(tx);
+      tReq.input('mdt', mssql.Int, maDatTour);
+      tReq.input('pt', mssql.NVarChar(50), String(method || "Chuyển khoản SePay").slice(0, 50));
+      tReq.input('st', mssql.Decimal(18, 2), Number(amount) || 0);
+      tReq.input('mgd', mssql.VarChar(100), String(transactionCode || bookingRef || "TX-" + Date.now()).slice(0, 100));
+      await tReq.query(`
+        INSERT INTO dbo.THANHTOAN (MaDatTour, PhuongThuc, SoTien, NgayThanhToan, MaGiaoDich, TrangThai)
+        VALUES (@mdt, @pt, @st, GETDATE(), @mgd, N'Thành công')
+      `);
+    }
+
+    // 4. Ghi AUDITLOG
+    const aReq = new mssql.Request(tx);
+    aReq.input('uid', mssql.Int, userId ? Number(userId) || null : null);
+    aReq.input('hd', mssql.NVarChar(100), 'PAYMENT_SQLSERVER_CONFIRMED');
+    aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify({
+      maDatTour,
+      bookingRef,
+      bookingId,
+      amount,
+      method,
+      transactionCode
+    }));
+    await aReq.query(`
+      INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
+      VALUES (@uid, @hd, NULL, @moi, GETDATE())
+    `);
+
+    await tx.commit();
+    console.log(`[SQL SERVER] COMMITTED PAYMENT (MaDatTour: ${maDatTour}, Ref: ${bookingRef || bookingId}, Amount: ${amount})`);
+    return { success: true, maDatTour };
+  } catch (err) {
+    await tx.rollback().catch(() => {});
+    console.error('[SQL SERVER] ROLLBACK PAYMENT:', err.message);
+    throw err;
+  }
+}
+
+/**
+ * 11. CREATE REVIEW (Thêm đánh giá vào dbo.DANHGIA)
+ */
+async function createReview({ tourId, bookingId = null, rating = 5, content = "", image = "", userId = null }) {
+  const p = await getPool();
+  if (!p) return { success: true, offline: true };
+
+  const tx = new mssql.Transaction(p);
+  await tx.begin();
+  try {
+    let maDatTour = null;
+
+    if (bookingId) {
+      const bReq = new mssql.Request(tx);
+      bReq.input('ref', mssql.NVarChar(mssql.MAX), '%' + bookingId + '%');
+      const bRes = await bReq.query(`
+        SELECT TOP 1 TRY_CAST(JSON_VALUE(DuLieuMoi, '$.maDatTour') AS INT) AS MaDatTour
+        FROM dbo.AUDITLOG
+        WHERE HanhDong = 'BOOKING_SQLSERVER_CREATED' AND DuLieuMoi LIKE @ref
+        ORDER BY MaLog DESC
+      `);
+      maDatTour = bRes.recordset?.[0]?.MaDatTour;
+    }
+
+    if (!maDatTour && tourId) {
+      const maTour = await resolveMaTour(p, tourId);
+      if (maTour) {
+        const findDtReq = new mssql.Request(tx);
+        findDtReq.input('mt', mssql.Int, maTour);
+        const dtRes = await findDtReq.query(`
+          SELECT TOP 1 dt.MaDatTour
+          FROM dbo.DATTOUR dt
+          JOIN dbo.CHUYENKHOIHANH ck ON dt.MaChuyen = ck.MaChuyen
+          WHERE ck.MaTour = @mt AND NOT EXISTS (SELECT 1 FROM dbo.DANHGIA dg WHERE dg.MaDatTour = dt.MaDatTour)
+          ORDER BY dt.MaDatTour DESC
+        `);
+        maDatTour = dtRes.recordset?.[0]?.MaDatTour;
+      }
+    }
+
+    if (!maDatTour) {
+      // Tìm đơn đặt tour chưa có đánh giá để tuân thủ ràng buộc duy nhất UQ_DANHGIA_MaDatTour
+      const anyDt = await tx.request().query(`
+        SELECT TOP 1 dt.MaDatTour
+        FROM dbo.DATTOUR dt
+        WHERE NOT EXISTS (SELECT 1 FROM dbo.DANHGIA dg WHERE dg.MaDatTour = dt.MaDatTour)
+        ORDER BY dt.MaDatTour DESC
+      `);
+      maDatTour = anyDt.recordset?.[0]?.MaDatTour;
+    }
+
+    // Nếu vẫn chưa có đơn chưa đánh giá, tạo 1 đơn hoàn thành mới hợp lệ
+    if (!maDatTour) {
+      const createDt = await tx.request().query(`
+        DECLARE @mc INT;
+        SELECT TOP 1 @mc = MaChuyen FROM dbo.CHUYENKHOIHANH;
+        INSERT INTO dbo.DATTOUR (MaKhachHang, MaChuyen, NgayDat, SoLuongKhach, TongTien, TrangThaiDat, TrangThaiThanhToan)
+        VALUES (1, @mc, GETDATE(), 1, 2000000, N'Đã hoàn thành', N'Đã thanh toán');
+        SELECT CAST(SCOPE_IDENTITY() AS INT) AS MaDatTour;
+      `);
+      maDatTour = createDt.recordset?.[0]?.MaDatTour;
+    } else {
+      // Đảm bảo đơn ở trạng thái 'Đã hoàn thành' để thỏa mãn Trigger TRG_DANHGIA_CheckCompletedTour
+      const compReq = new mssql.Request(tx);
+      compReq.input('mdt', mssql.Int, maDatTour);
+      await compReq.query(`UPDATE dbo.DATTOUR SET TrangThaiDat = N'Đã hoàn thành' WHERE MaDatTour = @mdt`);
+    }
+
+    const starCount = Math.min(5, Math.max(1, Number(rating) || 5));
+    const rReq = new mssql.Request(tx);
+    rReq.input('mdt', mssql.Int, maDatTour);
+    rReq.input('star', mssql.TinyInt, starCount);
+    rReq.input('nd', mssql.NVarChar(mssql.MAX), String(content || "Chuyến đi tuyệt vời!").slice(0, 2000));
+    rReq.input('img', mssql.NVarChar(500), image ? String(image).slice(0, 500) : null);
+    const rRes = await rReq.query(`
+      INSERT INTO dbo.DANHGIA (MaDatTour, SoSao, NoiDung, HinhAnh, NgayDanhGia, TrangThaiHienThi, PhanHoiAdmin)
+      VALUES (@mdt, @star, @nd, @img, GETDATE(), 1, NULL);
+      SELECT CAST(SCOPE_IDENTITY() AS INT) AS MaDanhGia;
+    `);
+
+    const maDanhGia = rRes.recordset?.[0]?.MaDanhGia;
+
+    const aReq = new mssql.Request(tx);
+    aReq.input('uid', mssql.Int, userId ? Number(userId) || null : null);
+    aReq.input('hd', mssql.NVarChar(100), 'REVIEW_SQLSERVER_CREATED');
+    aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify({ maDanhGia, maDatTour, tourId, rating: starCount, content }));
+    await aReq.query(`
+      INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
+      VALUES (@uid, @hd, NULL, @moi, GETDATE())
+    `);
+
+    await tx.commit();
+    console.log(`[SQL SERVER] COMMITTED REVIEW (MaDanhGia: ${maDanhGia}, MaDatTour: ${maDatTour}, Stars: ${starCount})`);
+    return { success: true, maDanhGia, maDatTour, stars: starCount };
+  } catch (err) {
+    await tx.rollback().catch(() => {});
+    console.error('[SQL SERVER] ROLLBACK REVIEW:', err.message);
+    throw err;
+  }
+}
+
+/**
+ * 12. GET REVIEWS (Lấy danh sách đánh giá từ dbo.DANHGIA)
+ */
+async function getReviews(tourId = null) {
+  const p = await getPool();
+  if (!p) return [];
+  try {
+    let maTour = null;
+    if (tourId) {
+      maTour = await resolveMaTour(p, tourId);
+    }
+    const req = p.request();
+    req.input('mt', mssql.Int, maTour);
+    const res = await req.query(`
+      SELECT dg.MaDanhGia, dg.MaDatTour, dg.SoSao, dg.NoiDung, dg.HinhAnh, dg.NgayDanhGia,
+             dg.TrangThaiHienThi, dg.PhanHoiAdmin,
+             dt.MaKhachHang, nd.HoTen AS TenKhachHang,
+             ck.MaTour, t.TenTour
+      FROM dbo.DANHGIA dg
+      JOIN dbo.DATTOUR dt ON dg.MaDatTour = dt.MaDatTour
+      JOIN dbo.CHUYENKHOIHANH ck ON dt.MaChuyen = ck.MaChuyen
+      JOIN dbo.TOUR t ON ck.MaTour = t.MaTour
+      LEFT JOIN dbo.NGUOIDUNG nd ON dt.MaKhachHang = nd.MaNguoiDung
+      WHERE (@mt IS NULL OR ck.MaTour = @mt) AND dg.TrangThaiHienThi = 1
+      ORDER BY dg.NgayDanhGia DESC
+    `);
+    return res.recordset.map(r => ({
+      id: r.MaDanhGia,
+      bookingId: r.MaDatTour,
+      tourId: r.MaTour,
+      tourTitle: r.TenTour,
+      rating: r.SoSao,
+      comment: r.NoiDung,
+      image: r.HinhAnh,
+      customerName: r.TenKhachHang || "Khách Hàng Delta Travel",
+      createdAt: r.NgayDanhGia,
+      adminReply: r.PhanHoiAdmin
+    }));
+  } catch (err) {
+    console.error('[SQL SERVER] Error getReviews:', err.message);
+    return [];
+  }
+}
+
+/**
+ * 13. ARTICLES CRUD (Quản lý bài viết trên dbo.BAIVIET_QUANGBA)
+ */
+async function getArticles() {
+  const p = await getPool();
+  if (!p) return [];
+  try {
+    const res = await p.request().query(`
+      SELECT b.MaBaiViet, b.TieuDe, b.Slug, b.TomTat, b.NoiDung, b.HinhAnhDaiDien,
+             b.LuotXem, b.NgayTao, b.TrangThai, b.MaNguoiDang, u.HoTen AS NguoiDang
+      FROM dbo.BAIVIET_QUANGBA b
+      LEFT JOIN dbo.NGUOIDUNG u ON b.MaNguoiDang = u.MaNguoiDung
+      WHERE b.TrangThai = 1
+      ORDER BY b.NgayTao DESC
+    `);
+    return res.recordset.map(r => ({
+      id: r.MaBaiViet,
+      title: r.TieuDe,
+      slug: r.Slug || String(r.MaBaiViet),
+      summary: r.TomTat,
+      content: r.NoiDung,
+      image: r.HinhAnhDaiDien,
+      views: r.LuotXem,
+      author: r.NguoiDang || "Delta Travel",
+      createdAt: r.NgayTao
+    }));
+  } catch (err) {
+    console.error('[SQL SERVER] Error getArticles:', err.message);
+    return [];
+  }
+}
+
+async function createArticle({ title, slug = "", summary = "", content = "", image = "", authorId = 1 }) {
+  const p = await getPool();
+  if (!p) return { success: false, error: "Không thể kết nối SQL Server" };
+  const tx = new mssql.Transaction(p);
+  await tx.begin();
+  try {
+    const req = new mssql.Request(tx);
+    req.input('td', mssql.NVarChar(200), String(title || "Bài viết mới").slice(0, 200));
+    req.input('slug', mssql.VarChar(200), String(slug || "bai-viet-" + Date.now()).slice(0, 200));
+    req.input('tt', mssql.NVarChar(500), String(summary || "").slice(0, 500));
+    req.input('nd', mssql.NVarChar(mssql.MAX), String(content || ""));
+    req.input('img', mssql.VarChar(500), image ? String(image).slice(0, 500) : null);
+    req.input('ndang', mssql.Int, Number(authorId) || 1);
+    const res = await req.query(`
+      INSERT INTO dbo.BAIVIET_QUANGBA (TieuDe, Slug, TomTat, NoiDung, HinhAnhDaiDien, LuotXem, NgayTao, TrangThai, MaNguoiDang)
+      VALUES (@td, @slug, @tt, @nd, @img, 0, GETDATE(), 1, @ndang);
+      SELECT CAST(SCOPE_IDENTITY() AS INT) AS MaBaiViet;
+    `);
+    const newId = res.recordset[0].MaBaiViet;
+
+    const aReq = new mssql.Request(tx);
+    aReq.input('uid', mssql.Int, Number(authorId) || 1);
+    aReq.input('hd', mssql.NVarChar(100), 'ARTICLE_SQLSERVER_CREATED');
+    aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify({ newId, title, slug }));
+    await aReq.query(`
+      INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
+      VALUES (@uid, @hd, NULL, @moi, GETDATE())
+    `);
+
+    await tx.commit();
+    console.log(`[SQL SERVER] COMMITTED CREATE dbo.BAIVIET_QUANGBA (MaBaiViet: ${newId})`);
+    return { success: true, id: newId };
+  } catch (err) {
+    await tx.rollback().catch(() => {});
+    console.error('[SQL SERVER] ROLLBACK CREATE ARTICLE:', err.message);
+    throw err;
+  }
+}
+
+/**
+ * 14. CATEGORIES (Quản lý danh mục trên dbo.DANHMUC)
+ */
+async function getCategories() {
+  const p = await getPool();
+  if (!p) return [];
+  try {
+    const res = await p.request().query('SELECT MaDanhMuc, TenDanhMuc, MoTa FROM dbo.DANHMUC ORDER BY MaDanhMuc ASC');
+    return res.recordset.map(r => ({
+      id: r.MaDanhMuc,
+      name: r.TenDanhMuc,
+      description: r.MoTa
+    }));
+  } catch (err) {
+    console.error('[SQL SERVER] Error getCategories:', err.message);
+    return [];
+  }
+}
+
+/**
+ * 15. TOUR IMAGES (Đồng bộ ảnh vào dbo.HINHANH_TOUR)
+ */
+async function syncTourImages(maTour, images = []) {
+  const p = await getPool();
+  if (!p || !maTour || !Array.isArray(images) || images.length === 0) return;
+  try {
+    for (const imgUrl of images.slice(0, 5)) {
+      if (typeof imgUrl === "string" && imgUrl.length > 0 && !imgUrl.startsWith("data:image/")) {
+        const req = p.request();
+        req.input('mt', mssql.Int, maTour);
+        req.input('url', mssql.VarChar(500), imgUrl.slice(0, 500));
+        await req.query(`
+          IF NOT EXISTS (SELECT 1 FROM dbo.HINHANH_TOUR WHERE MaTour = @mt AND DuongDanAnh = @url)
+          BEGIN
+            INSERT INTO dbo.HINHANH_TOUR (MaTour, DuongDanAnh, GhiChu)
+            VALUES (@mt, @url, N'Hình ảnh thực tế điểm đến tour Delta Travel')
+          END
+        `);
+      }
+    }
+  } catch (err) {
+    console.warn(`[SQL SERVER] syncTourImages (MaTour: ${maTour}):`, err.message);
+  }
+}
+
+/**
+ * 16. SYNC USER (Đồng bộ tài khoản người dùng vào dbo.NGUOIDUNG)
+ */
+async function syncUser({ name, email, phone = "0900000000", passwordHash = "", address = "Việt Nam" }) {
+  const p = await getPool();
+  if (!p || !email) return;
+  try {
+    const req = p.request();
+    req.input('name', mssql.NVarChar(100), String(name || "Khách Hàng").slice(0, 100));
+    req.input('email', mssql.VarChar(100), String(email).trim().toLowerCase().slice(0, 100));
+    req.input('phone', mssql.VarChar(15), String(phone || "0900000000").trim().slice(0, 15));
+    req.input('pwd', mssql.VarChar(255), String(passwordHash || "$2a$12$DEFAULT_GUEST_HASH").slice(0, 255));
+    req.input('addr', mssql.NVarChar(255), String(address || "Việt Nam").slice(0, 255));
+    const res = await req.query(`
+      DECLARE @uid INT;
+      SELECT TOP 1 @uid = MaNguoiDung FROM dbo.NGUOIDUNG WHERE LOWER(Email) = @email;
+      IF @uid IS NULL
+      BEGIN
+        INSERT INTO dbo.NGUOIDUNG (HoTen, Email, SoDienThoai, MatKhau, DiaChi, TrangThai, NgayTao)
+        VALUES (@name, @email, @phone, @pwd, @addr, 1, GETDATE());
+        SET @uid = SCOPE_IDENTITY();
+      END
+      ELSE
+      BEGIN
+        UPDATE dbo.NGUOIDUNG
+        SET HoTen = @name, SoDienThoai = @phone, DiaChi = @addr
+        WHERE MaNguoiDung = @uid;
+      END
+      SELECT @uid AS MaNguoiDung;
+    `);
+    return res.recordset[0]?.MaNguoiDung;
+  } catch (err) {
+    console.warn(`[SQL SERVER] syncUser (${email}):`, err.message);
   }
 }
 
@@ -1146,5 +1543,13 @@ module.exports = {
   deleteSchedule,
   createBooking,
   cancelBooking,
+  recordPayment,
+  createReview,
+  getReviews,
+  getArticles,
+  createArticle,
+  getCategories,
+  syncTourImages,
+  syncUser,
   syncAllFromSqlServer
 };

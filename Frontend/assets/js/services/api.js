@@ -496,6 +496,26 @@ const DeltaAPI = (() => {
     });
   }
 
+  async function fetchCategories() {
+    return await request("/categories");
+  }
+
+  async function fetchArticles() {
+    return await request("/articles");
+  }
+
+  async function fetchReviews(tourId = null) {
+    const q = tourId ? `?tour_id=${encodeURIComponent(tourId)}` : "";
+    return await request(`/reviews${q}`);
+  }
+
+  async function createReview(reviewData) {
+    return await request("/reviews", {
+      method: "POST",
+      body: reviewData
+    });
+  }
+
   // Tự động kiểm tra sức khỏe server khi script tải
   document.addEventListener("DOMContentLoaded", () => {
     setTimeout(checkHealth, 500);
@@ -559,7 +579,11 @@ const DeltaAPI = (() => {
     fetchFavorites,
     addFavorite,
     removeFavorite,
-    assistantChat
+    assistantChat,
+    fetchCategories,
+    fetchArticles,
+    fetchReviews,
+    createReview
   };
 })();
 

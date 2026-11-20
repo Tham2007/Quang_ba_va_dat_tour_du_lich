@@ -2408,6 +2408,17 @@ app.post("/api/v1/auth/register", (req, res) => {
   const user = db.prepare("SELECT * FROM users WHERE id = ?").get(id);
   createSession(res, user);
   audit(id, "USER_REGISTERED", id, { email: user.email });
+
+  if (sqlServerPool && sqlServerService && typeof sqlServerService.syncUser === "function") {
+    sqlServerService.syncUser({
+      name: full_name.trim(),
+      email: cleanEmail,
+      phone: cleanPhone,
+      passwordHash: hashPassword(password),
+      address: "Việt Nam"
+    }).catch(e => console.warn("[SQL SERVER] syncUser failed:", e.message));
+  }
+
   res.status(201).json(userDict(user));
 });
 
@@ -2497,6 +2508,15 @@ app.patch("/api/v1/auth/profile", requireAuth, (req, res) => {
 
   const updated = db.prepare("SELECT * FROM users WHERE id = ?").get(req.user.id);
   audit(req.user.id, "PROFILE_UPDATED", req.user.id);
+
+  if (sqlServerPool && sqlServerService && typeof sqlServerService.syncUser === "function") {
+    sqlServerService.syncUser({
+      name: newName,
+      email: updated.email,
+      phone: newPhone
+    }).catch(e => console.warn("[SQL SERVER] syncUser update failed:", e.message));
+  }
+
   res.json(userDict(updated));
 });
 
@@ -4117,6 +4137,22 @@ app.post("/api/v1/admin/bookings/:booking_id/confirm-payment", requireAdmin, asy
     WHERE id = ?
   `).run(ref, now, now, b.id);
 
+  // Đồng bộ trạng thái thanh toán vĩnh viễn vào Microsoft SQL Server (dbo.THANHTOAN & dbo.DATTOUR)
+  if (sqlServerPool && sqlServerService && typeof sqlServerService.recordPayment === "function") {
+    try {
+      await sqlServerService.recordPayment({
+        bookingId: b.id,
+        bookingRef: b.reference,
+        method: "Chuyển khoản / Quản trị viên duyệt",
+        amount: b.total_price,
+        transactionCode: ref,
+        userId: req.user?.id
+      });
+    } catch (ssPayErr) {
+      console.warn("[SQL SERVER] Lỗi ghi nhận THANHTOAN:", ssPayErr.message);
+    }
+  }
+
   const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(b.id);
   audit(req.user.id, "PAYMENT_MANUALLY_VERIFIED", b.id, { proofReference: ref });
   const schedRow = db.prepare("SELECT * FROM schedules WHERE id = ?").get(updated.schedule_id);
@@ -4264,6 +4300,22 @@ async function handleSepayWebhook(req, res) {
     WHERE id = ?
   `).run(paymentEvidence, now, now, booking.id);
 
+  // Đồng bộ thanh toán SePay vào Microsoft SQL Server (dbo.THANHTOAN & dbo.DATTOUR)
+  if (sqlServerPool && sqlServerService && typeof sqlServerService.recordPayment === "function") {
+    try {
+      await sqlServerService.recordPayment({
+        bookingId: booking.id,
+        bookingRef: booking.reference,
+        method: `Chuyển khoản SePay (${gateway})`,
+        amount: transferAmount || booking.total_price,
+        transactionCode: paymentEvidence,
+        userId: booking.user_id
+      });
+    } catch (ssPayErr) {
+      console.warn("[SQL SERVER] Lỗi ghi nhận SePay THANHTOAN:", ssPayErr.message);
+    }
+  }
+
   const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(booking.id);
   audit("SEPAY_WEBHOOK", "PAYMENT_AUTO_CONFIRMED", booking.id, {
     provider: "SePay",
@@ -4341,6 +4393,128 @@ app.post("/api/v1/internal/tunnel-relay-register", (req, res) => {
     return res.json({ success: true, relayUrl: localTunnelRelayUrl });
   }
   return res.status(400).json({ success: false, message: "Invalid URL" });
+});
+
+// ==================================================================
+// ĐỒNG BỘ 12 BẢNG SQL SERVER: DANHMUC, BAIVIET_QUANGBA, DANHGIA
+// ==================================================================
+
+// 1. Quản lý Danh mục (dbo.DANHMUC)
+app.get("/api/v1/categories", async (req, res) => {
+  if (sqlServerService && typeof sqlServerService.getCategories === "function") {
+    try {
+      const cats = await sqlServerService.getCategories();
+      if (cats && cats.length > 0) return res.json(cats);
+    } catch (_) {}
+  }
+  res.json([
+    { id: 1, name: "Tour Kỳ Quan Miền Bắc", description: "Chiêm ngưỡng kỳ quan thiên nhiên thế giới Vịnh Hạ Long, Vịnh Lan Hạ và quần thể danh thắng" },
+    { id: 2, name: "Tour Miền Trung Di Sản", description: "Hành trình di sản văn hóa: Đà Nẵng, Bà Nà Hills, Phố cổ Hội An, Cố đô Huế" },
+    { id: 3, name: "Tour Biển Đảo Nghỉ Dưỡng", description: "Nghỉ dưỡng đẳng cấp tại Phú Quốc, Côn Đảo, Nha Trang, Vịnh Hạ Long" },
+    { id: 4, name: "Tour Khám Phá Vùng Cao Miền Bắc", description: "Chinh phục nóc nhà Đông Dương Fansipan Sa Pa, Mù Cang Chải, Hà Giang mùa hoa" }
+  ]);
+});
+
+// 2. Quản lý Bài viết Quảng bá (dbo.BAIVIET_QUANGBA)
+app.get("/api/v1/articles", async (req, res) => {
+  if (sqlServerService && typeof sqlServerService.getArticles === "function") {
+    try {
+      const articles = await sqlServerService.getArticles();
+      return res.json(articles);
+    } catch (e) {
+      return res.status(500).json({ detail: "Lỗi tải bài viết từ SQL Server: " + e.message });
+    }
+  }
+  res.json([]);
+});
+
+app.post("/api/v1/admin/articles", requireAdmin, async (req, res) => {
+  const { title, slug, summary, content, image } = req.body || {};
+  if (!title) return res.status(422).json({ detail: "Tiêu đề bài viết không được để trống." });
+  if (sqlServerService && typeof sqlServerService.createArticle === "function") {
+    try {
+      const result = await sqlServerService.createArticle({
+        title, slug, summary, content, image,
+        authorId: req.user?.id ? Number(req.user.id) || 1 : 1
+      });
+      audit(req.user.id, "ARTICLE_CREATED", result.id, { title });
+      return res.status(201).json(result);
+    } catch (e) {
+      return res.status(500).json({ detail: "Lỗi lưu bài viết vào SQL Server: " + e.message });
+    }
+  }
+  res.status(503).json({ detail: "SQL Server chưa sẵn sàng." });
+});
+
+// 3. Quản lý Đánh giá Tour (dbo.DANHGIA)
+app.get("/api/v1/reviews", async (req, res) => {
+  const tourId = req.query.tour_id || req.query.tourId || null;
+  if (sqlServerService && typeof sqlServerService.getReviews === "function") {
+    try {
+      const list = await sqlServerService.getReviews(tourId);
+      return res.json(list);
+    } catch (e) {
+      return res.status(500).json({ detail: "Lỗi tải đánh giá từ SQL Server: " + e.message });
+    }
+  }
+  res.json([]);
+});
+
+app.get("/api/v1/tours/:tour_id/reviews", async (req, res) => {
+  const { tour_id } = req.params;
+  if (sqlServerService && typeof sqlServerService.getReviews === "function") {
+    try {
+      const list = await sqlServerService.getReviews(tour_id);
+      return res.json(list);
+    } catch (e) {
+      return res.status(500).json({ detail: "Lỗi tải đánh giá từ SQL Server: " + e.message });
+    }
+  }
+  res.json([]);
+});
+
+app.post("/api/v1/tours/:tour_id/reviews", requireAuth, async (req, res) => {
+  const { tour_id } = req.params;
+  const { rating, comment, content, image, booking_id } = req.body || {};
+  if (sqlServerService && typeof sqlServerService.createReview === "function") {
+    try {
+      const revRes = await sqlServerService.createReview({
+        tourId: tour_id,
+        bookingId: booking_id,
+        rating: Number(rating) || 5,
+        content: comment || content || "Chuyến đi tuyệt vời!",
+        image: image || "",
+        userId: req.user?.id
+      });
+      audit(req.user.id, "REVIEW_CREATED", revRes.maDanhGia, { tour_id, rating });
+      return res.status(201).json({ success: true, ...revRes });
+    } catch (e) {
+      return res.status(500).json({ detail: "Lỗi lưu đánh giá vào SQL Server: " + e.message });
+    }
+  }
+  res.status(503).json({ detail: "SQL Server chưa sẵn sàng." });
+});
+
+app.post("/api/v1/reviews", requireAuth, async (req, res) => {
+  const { tour_id, tourId, rating, comment, content, image, booking_id } = req.body || {};
+  const targetTour = tour_id || tourId || null;
+  if (sqlServerService && typeof sqlServerService.createReview === "function") {
+    try {
+      const revRes = await sqlServerService.createReview({
+        tourId: targetTour,
+        bookingId: booking_id,
+        rating: Number(rating) || 5,
+        content: comment || content || "Chuyến đi tuyệt vời!",
+        image: image || "",
+        userId: req.user?.id
+      });
+      audit(req.user.id, "REVIEW_CREATED", revRes.maDanhGia, { targetTour, rating });
+      return res.status(201).json({ success: true, ...revRes });
+    } catch (e) {
+      return res.status(500).json({ detail: "Lỗi lưu đánh giá vào SQL Server: " + e.message });
+    }
+  }
+  res.status(503).json({ detail: "SQL Server chưa sẵn sàng." });
 });
 
 
