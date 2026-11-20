@@ -2185,9 +2185,10 @@
       }
 
       const effectiveDiscount = 0;
-      const calculatedTotal = rawSubtotal; // Already VAT-inclusive on server.
-      const subtotal = Math.round(calculatedTotal / 1.1);
-      const vatAmount = calculatedTotal - subtotal;
+      const subtotal = Math.max(0, rawSubtotal - effectiveDiscount);
+      const vatAmount = Math.round(subtotal * 0.10);
+      const calculatedTotalWithVat = subtotal + vatAmount;
+      const calculatedTotalPreVat = rawSubtotal;
 
       // The server, not browser code, decides price and seat availability.
       if (typeof DeltaAPI === "undefined" || typeof DeltaAPI.quoteBooking !== "function") {
@@ -2201,7 +2202,9 @@
         showAppNotice(quoted?.error || "Không xác minh được giá và số chỗ.", "Không Thể Đặt Tour", "error");
         return;
       }
-      if (Number(quoted.data.totalPrice) !== calculatedTotal) {
+      const quotedTotal = Number(quoted.data.totalPrice);
+      const isPriceMatch = quotedTotal === calculatedTotalWithVat || quotedTotal === calculatedTotalPreVat;
+      if (!isPriceMatch) {
         if (currentTour && Number.isSafeInteger(Number(quoted.data.unitPrice)) &&
             Number(quoted.data.unitPrice) > 0) currentTour.price = Number(quoted.data.unitPrice);
         recalcPrice();
@@ -2209,6 +2212,10 @@
           "Giá Đã Cập Nhật", "warning");
         return;
       }
+
+      const isWithVat = (quotedTotal === calculatedTotalWithVat);
+      const finalVatAmount = isWithVat ? vatAmount : 0;
+      const finalSubtotal = isWithVat ? subtotal : quotedTotal;
 
       const payload = {
         scheduleId: scheduleId,
@@ -2229,11 +2236,11 @@
         voucherCode: appliedVoucherCode || null,
         voucher_code: appliedVoucherCode || null,
         unitPrice: rawPrice,
-        subtotal: subtotal,
+        subtotal: finalSubtotal,
         discountAmount: effectiveDiscount,
-        vatRate: 10,
-        vatAmount: vatAmount,
-        totalPrice: calculatedTotal,
+        vatRate: isWithVat ? 10 : 0,
+        vatAmount: finalVatAmount,
+        totalPrice: quotedTotal,
         pickupLocation: document.getElementById("pickupLocationInput")?.value || "",
         specialRequests: document.getElementById("customerNotes")?.value || ""
       };
