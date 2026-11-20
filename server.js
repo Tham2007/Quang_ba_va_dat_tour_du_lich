@@ -2000,7 +2000,14 @@ function audit(actorId, eventType, subjectId, details = {}) {
     db.prepare(`
       INSERT INTO audit_events (id, actor_id, event_type, subject_id, details, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(crypto.randomUUID(), actorId, eventType, subjectId, JSON.stringify(details), new Date().toISOString());
+    `).run(
+      crypto.randomUUID(),
+      String(actorId ?? "system"),
+      String(eventType ?? "UNKNOWN"),
+      String(subjectId ?? ""),
+      JSON.stringify(details || {}),
+      new Date().toISOString()
+    );
   } catch (err) {
     console.error("Audit error:", err);
   }
@@ -4401,7 +4408,7 @@ app.post("/api/v1/internal/tunnel-relay-register", (req, res) => {
 
 // 1. Quản lý Danh mục (dbo.DANHMUC)
 app.get("/api/v1/categories", async (req, res) => {
-  if (sqlServerService && typeof sqlServerService.getCategories === "function") {
+  if (sqlServerPool && sqlServerService && typeof sqlServerService.getCategories === "function") {
     try {
       const cats = await sqlServerService.getCategories();
       if (cats && cats.length > 0) return res.json(cats);
@@ -4417,7 +4424,7 @@ app.get("/api/v1/categories", async (req, res) => {
 
 // 2. Quản lý Bài viết Quảng bá (dbo.BAIVIET_QUANGBA)
 app.get("/api/v1/articles", async (req, res) => {
-  if (sqlServerService && typeof sqlServerService.getArticles === "function") {
+  if (sqlServerPool && sqlServerService && typeof sqlServerService.getArticles === "function") {
     try {
       const articles = await sqlServerService.getArticles();
       if (articles && articles.length > 0) return res.json(articles);
@@ -4432,27 +4439,29 @@ app.get("/api/v1/articles", async (req, res) => {
 app.post("/api/v1/admin/articles", requireAdmin, async (req, res) => {
   const { title, slug, summary, content, image } = req.body || {};
   if (!title) return res.status(422).json({ detail: "Tiêu đề bài viết không được để trống." });
-  if (sqlServerService && typeof sqlServerService.createArticle === "function") {
+  if (sqlServerPool && sqlServerService && typeof sqlServerService.createArticle === "function") {
     try {
       const result = await sqlServerService.createArticle({
         title, slug, summary, content, image,
         authorId: req.user?.id ? Number(req.user.id) || 1 : 1
       });
-      audit(req.user.id, "ARTICLE_CREATED", result.id, { title });
-      return res.status(201).json(result);
+      if (result && result.success !== false) {
+        audit(req.user.id, "ARTICLE_CREATED", String(result.id ?? ""), { title });
+        return res.status(201).json(result);
+      }
     } catch (e) {
       console.warn("[SQL SERVER] createArticle offline fallback:", e.message);
     }
   }
   const mockId = Math.floor(Math.random() * 900) + 100;
-  audit(req.user?.id || "admin", "ARTICLE_CREATED", mockId, { title });
+  audit(req.user?.id || "admin", "ARTICLE_CREATED", String(mockId), { title });
   return res.status(201).json({ success: true, id: mockId, title, slug: slug || title });
 });
 
 // 3. Quản lý Đánh giá Tour (dbo.DANHGIA)
 app.get("/api/v1/reviews", async (req, res) => {
   const tourId = req.query.tour_id || req.query.tourId || null;
-  if (sqlServerService && typeof sqlServerService.getReviews === "function") {
+  if (sqlServerPool && sqlServerService && typeof sqlServerService.getReviews === "function") {
     try {
       const list = await sqlServerService.getReviews(tourId);
       if (list && list.length > 0) return res.json(list);
@@ -4465,7 +4474,7 @@ app.get("/api/v1/reviews", async (req, res) => {
 
 app.get("/api/v1/tours/:tour_id/reviews", async (req, res) => {
   const { tour_id } = req.params;
-  if (sqlServerService && typeof sqlServerService.getReviews === "function") {
+  if (sqlServerPool && sqlServerService && typeof sqlServerService.getReviews === "function") {
     try {
       const list = await sqlServerService.getReviews(tour_id);
       if (list && list.length > 0) return res.json(list);
@@ -4479,7 +4488,7 @@ app.get("/api/v1/tours/:tour_id/reviews", async (req, res) => {
 app.post("/api/v1/tours/:tour_id/reviews", requireAuth, async (req, res) => {
   const { tour_id } = req.params;
   const { rating, comment, content, image, booking_id } = req.body || {};
-  if (sqlServerService && typeof sqlServerService.createReview === "function") {
+  if (sqlServerPool && sqlServerService && typeof sqlServerService.createReview === "function") {
     try {
       const revRes = await sqlServerService.createReview({
         tourId: tour_id,
@@ -4489,21 +4498,23 @@ app.post("/api/v1/tours/:tour_id/reviews", requireAuth, async (req, res) => {
         image: image || "",
         userId: req.user?.id
       });
-      audit(req.user.id, "REVIEW_CREATED", revRes.maDanhGia, { tour_id, rating });
-      return res.status(201).json({ success: true, ...revRes });
+      if (revRes && revRes.success !== false) {
+        audit(req.user.id, "REVIEW_CREATED", String(revRes.maDanhGia ?? ""), { tour_id, rating });
+        return res.status(201).json({ success: true, ...revRes });
+      }
     } catch (e) {
       console.warn("[SQL SERVER] createReview offline fallback:", e.message);
     }
   }
   const mockRevId = Math.floor(Math.random() * 900) + 100;
-  audit(req.user?.id || "guest", "REVIEW_CREATED", mockRevId, { tour_id, rating });
+  audit(req.user?.id || "guest", "REVIEW_CREATED", String(mockRevId), { tour_id, rating });
   return res.status(201).json({ success: true, maDanhGia: mockRevId, tourId: tour_id, rating: Number(rating) || 5 });
 });
 
 app.post("/api/v1/reviews", requireAuth, async (req, res) => {
   const { tour_id, tourId, rating, comment, content, image, booking_id } = req.body || {};
   const targetTour = tour_id || tourId || null;
-  if (sqlServerService && typeof sqlServerService.createReview === "function") {
+  if (sqlServerPool && sqlServerService && typeof sqlServerService.createReview === "function") {
     try {
       const revRes = await sqlServerService.createReview({
         tourId: targetTour,
@@ -4513,14 +4524,16 @@ app.post("/api/v1/reviews", requireAuth, async (req, res) => {
         image: image || "",
         userId: req.user?.id
       });
-      audit(req.user.id, "REVIEW_CREATED", revRes.maDanhGia, { targetTour, rating });
-      return res.status(201).json({ success: true, ...revRes });
+      if (revRes && revRes.success !== false) {
+        audit(req.user.id, "REVIEW_CREATED", String(revRes.maDanhGia ?? ""), { targetTour, rating });
+        return res.status(201).json({ success: true, ...revRes });
+      }
     } catch (e) {
       console.warn("[SQL SERVER] createReview offline fallback:", e.message);
     }
   }
   const mockRevId = Math.floor(Math.random() * 900) + 100;
-  audit(req.user?.id || "guest", "REVIEW_CREATED", mockRevId, { targetTour, rating });
+  audit(req.user?.id || "guest", "REVIEW_CREATED", String(mockRevId), { targetTour, rating });
   return res.status(201).json({ success: true, maDanhGia: mockRevId, tourId: targetTour, rating: Number(rating) || 5 });
 });
 

@@ -33,11 +33,13 @@ const SQL_SERVER_CONFIG = {
   options: {
     encrypt: true,
     trustServerCertificate: true,
-    connectTimeout: 15000
+    connectTimeout: 5000
   }
 };
 
 let pool = null;
+let lastFailedConnectTime = 0;
+const CONNECT_COOLDOWN_MS = 30000;
 const dynamicTourMap = new Map();
 
 async function getPool() {
@@ -45,11 +47,15 @@ async function getPool() {
     return null;
   }
   if (pool && pool.connected) return pool;
+  if (Date.now() - lastFailedConnectTime < CONNECT_COOLDOWN_MS) {
+    return null;
+  }
   try {
     pool = await mssql.connect(SQL_SERVER_CONFIG);
     console.log('[SQL SERVER SERVICE] Connected to', SQL_SERVER_CONFIG.server, SQL_SERVER_CONFIG.database);
     return pool;
   } catch (err) {
+    lastFailedConnectTime = Date.now();
     console.warn('[SQL SERVER SERVICE] Optional connection error:', err.message);
     return null;
   }
