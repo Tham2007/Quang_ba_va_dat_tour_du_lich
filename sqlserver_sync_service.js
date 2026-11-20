@@ -1023,7 +1023,24 @@ async function syncAllFromSqlServer(sqliteDb) {
       }
 
       const imagesJson = JSON.stringify([t.HinhAnhDaiDien || 'assets/images/halong.png']);
-      const tourItin = itinMap.get(t.MaTour) || [];
+      // Ưu tiên lịch trình chi tiết: nếu AUDITLOG hoặc SQLite hiện tại đã có, bảo toàn bản chi tiết
+      let tourItin = itinMap.get(t.MaTour) || [];
+      if (Array.isArray(auditData?.itinerary) && auditData.itinerary.length > 0) {
+        tourItin = auditData.itinerary;
+      } else {
+        const existingTour = sqliteDb.prepare("SELECT itinerary_json FROM tours WHERE id = ?").get(tourId);
+        if (existingTour && existingTour.itinerary_json && existingTour.itinerary_json !== '[]') {
+          try {
+            const parsed = JSON.parse(existingTour.itinerary_json);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const hasRichItin = parsed.some(d => d.morning || d.afternoon || d.evening);
+              if (hasRichItin || tourItin.length === 0) {
+                tourItin = parsed;
+              }
+            }
+          } catch (_) {}
+        }
+      }
       const itineraryJson = JSON.stringify(tourItin);
       const activeFlag = t.TrangThai ? 1 : 0;
 

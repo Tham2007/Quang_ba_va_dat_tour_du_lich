@@ -869,20 +869,7 @@ function initDatabase() {
   const upsertTour = db.prepare(`
     INSERT INTO tours (id, slug, title, region, duration, price, original_price, image, departure, transport, flash_sale, description, itinerary_json, active, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      slug = excluded.slug,
-      title = excluded.title,
-      region = excluded.region,
-      duration = excluded.duration,
-      price = excluded.price,
-      original_price = excluded.original_price,
-      image = excluded.image,
-      departure = excluded.departure,
-      transport = excluded.transport,
-      flash_sale = excluded.flash_sale,
-      description = excluded.description,
-      itinerary_json = CASE WHEN excluded.itinerary_json != '[]' THEN excluded.itinerary_json ELSE tours.itinerary_json END,
-      updated_at = excluded.updated_at
+    ON CONFLICT(id) DO NOTHING
   `);
 
   const insertSchedule = db.prepare(`
@@ -954,10 +941,10 @@ function initDatabase() {
     });
   }
 
-  // Đồng bộ toàn diện vào bảng 3NF itinerary_items và cập nhật itinerary_json
+  // Đồng bộ toàn diện vào bảng 3NF itinerary_items và cập nhật itinerary_json (chỉ áp dụng nếu chưa có lịch trình)
   Object.entries(toursItineraryMap).forEach(([tourId, itinList]) => {
     if (Array.isArray(itinList) && itinList.length > 0) {
-      db.prepare("UPDATE tours SET itinerary_json = ? WHERE id = ?").run(JSON.stringify(itinList), tourId);
+      db.prepare("UPDATE tours SET itinerary_json = ? WHERE id = ? AND (itinerary_json IS NULL OR itinerary_json = '[]' OR itinerary_json = '')").run(JSON.stringify(itinList), tourId);
       const existingItinCount = db.prepare("SELECT COUNT(*) AS count FROM itinerary_items WHERE tour_id = ?").get(tourId).count;
       if (existingItinCount === 0) {
         const insertItinItem = db.prepare(`
@@ -3505,6 +3492,21 @@ app.put("/api/v1/admin/tours/:tour_id/details", requireAdmin, async (req, res) =
     }
 
     db.exec("COMMIT");
+
+    // Đồng bộ bền vững vào file API/tours_itinerary.json để bảo toàn tuyệt đối khi tắt mở server
+    if (!tour_id.startsWith("DL-NODE") && !tour_id.startsWith("DL-SYNC")) {
+      try {
+        const itinPath = path.join(__dirname, "API", "tours_itinerary.json");
+        let currentMap = {};
+        if (fs.existsSync(itinPath)) {
+          currentMap = JSON.parse(fs.readFileSync(itinPath, "utf8"));
+        }
+        currentMap[tour_id] = syncedItinerary;
+        fs.writeFileSync(itinPath, JSON.stringify(currentMap, null, 2), "utf8");
+      } catch (saveItinErr) {
+        console.warn("[ITINERARY] Không thể lưu tours_itinerary.json:", saveItinErr.message);
+      }
+    }
   } catch (err) {
     db.exec("ROLLBACK");
     return res.status(409).json({ detail: "Không thể lưu chi tiết tour: " + err.message });
