@@ -21,7 +21,7 @@ if (fs.existsSync(envPath)) {
         if (!process.env[k]) process.env[k] = v;
       }
     }
-  } catch (e) {}
+  } catch (e) { }
 }
 
 const SQL_SERVER_CONFIG = {
@@ -33,29 +33,74 @@ const SQL_SERVER_CONFIG = {
   options: {
     encrypt: true,
     trustServerCertificate: true,
-    connectTimeout: 5000
+    connectTimeout: 15000
   }
 };
 
 let pool = null;
-let lastFailedConnectTime = 0;
-const CONNECT_COOLDOWN_MS = 30000;
 const dynamicTourMap = new Map();
+const dynamicSchedMap = new Map();
+
+/**
+ * Chuẩn hóa danh sách ngày lịch trình thành mảng Day objects chuẩn 3NF:
+ * [{ day, day_number, title, morning, afternoon, evening, meals }]
+ */
+function normalizeItineraryDays(rawItinerary) {
+  if (!Array.isArray(rawItinerary) || rawItinerary.length === 0) return [];
+  const daysMap = new Map();
+  for (let i = 0; i < rawItinerary.length; i++) {
+    const item = rawItinerary[i];
+    const dayNum = Number(item.day_number || item.day || (i + 1));
+    if (!daysMap.has(dayNum)) {
+      daysMap.set(dayNum, {
+        day: dayNum,
+        day_number: dayNum,
+        title: '',
+        morning: '',
+        afternoon: '',
+        evening: '',
+        meals: item.meals || item.buaAn || 'Sáng, Trưa, Tối'
+      });
+    }
+    const d = daysMap.get(dayNum);
+    const cleanTitle = String(item.title || '')
+      .replace(/\s*-\s*Buổi\s+(sáng|chiều|tối)\s*$/i, '')
+      .trim();
+    if (cleanTitle && (!d.title || d.title.startsWith(`Ngày ${dayNum}`))) {
+      d.title = cleanTitle;
+    }
+    if (item.morning) d.morning = item.morning;
+    if (item.afternoon) d.afternoon = item.afternoon;
+    if (item.evening) d.evening = item.evening;
+    if (item.description) {
+      const seq = Number(item.sequence || 1);
+      const cat = String(item.category || '').toLowerCase();
+      const titleLower = String(item.title || '').toLowerCase();
+      if (seq === 1 || cat === 'morning' || cat === 'transport' || titleLower.includes('sáng')) {
+        if (!d.morning) d.morning = item.description;
+      } else if (seq === 2 || cat === 'activity' || titleLower.includes('chiều')) {
+        if (!d.afternoon) d.afternoon = item.description;
+      } else if (seq === 3 || cat === 'meal' || titleLower.includes('tối')) {
+        if (!d.evening) d.evening = item.description;
+      } else {
+        d.morning = [d.morning, item.description].filter(Boolean).join('\n');
+      }
+    }
+    if (item.meals || item.buaAn) d.meals = item.meals || item.buaAn;
+  }
+  return Array.from(daysMap.values()).sort((a, b) => a.day - b.day);
+}
 
 async function getPool() {
   if (!SQL_SERVER_CONFIG.user || !SQL_SERVER_CONFIG.password || !SQL_SERVER_CONFIG.server || !SQL_SERVER_CONFIG.database) {
     return null;
   }
   if (pool && pool.connected) return pool;
-  if (Date.now() - lastFailedConnectTime < CONNECT_COOLDOWN_MS) {
-    return null;
-  }
   try {
     pool = await mssql.connect(SQL_SERVER_CONFIG);
     console.log('[SQL SERVER SERVICE] Connected to', SQL_SERVER_CONFIG.server, SQL_SERVER_CONFIG.database);
     return pool;
   } catch (err) {
-    lastFailedConnectTime = Date.now();
     console.warn('[SQL SERVER SERVICE] Optional connection error:', err.message);
     return null;
   }
@@ -124,12 +169,13 @@ async function resolveMaTour(poolRef, tourId) {
       `);
     if (auditCheck.recordset.length > 0) {
       const parsed = JSON.parse(auditCheck.recordset[0].DuLieuMoi);
-      if (parsed && parsed.maTour) {
-        dynamicTourMap.set(strId, parsed.maTour);
-        return parsed.maTour;
+      if (parsed && (parsed.maTour || parsed.newMaTour)) {
+        const found = Number(parsed.maTour || parsed.newMaTour);
+        dynamicTourMap.set(strId, found);
+        return found;
       }
     }
-  } catch (_) {}
+  } catch (_) { }
 
   // Fallback: search by title snippet
   const searchStr = '%' + String(tourId).replace(/^DL-[A-Z0-9]+-?/i, '').slice(0, 15) + '%';
@@ -145,18 +191,59 @@ async function resolveMaTour(poolRef, tourId) {
 }
 
 /**
- * Resolve MaChuyen from schedule ID (e.g. "1", "SCHED-1")
+ * Resolve MaChuyen from schedule ID (e.g. "1", "SCHED-1", or UUID)
  */
-async function resolveMaChuyen(poolRef, scheduleId) {
+async function resolveMaChuyen(poolRef, scheduleId, tourId = null) {
   if (!scheduleId) return null;
-  const cleanId = String(scheduleId).replace(/^SCHED-/i, '');
+  const strId = String(scheduleId).trim();
+  if (dynamicSchedMap.has(strId)) return dynamicSchedMap.get(strId);
+
+  const cleanId = strId.replace(/^SCHED-/i, '');
   const num = Number(cleanId);
   if (Number.isInteger(num) && num > 0) {
     const check = await poolRef.request()
       .input('mc', mssql.Int, num)
       .query('SELECT MaChuyen FROM dbo.CHUYENKHOIHANH WHERE MaChuyen = @mc');
-    if (check.recordset.length > 0) return num;
+    if (check.recordset.length > 0) {
+      dynamicSchedMap.set(strId, num);
+      return num;
+    }
   }
+
+  // Look up from dbo.AUDITLOG for UUID scheduleId
+  try {
+    const aCheck = await poolRef.request()
+      .input('sid', mssql.NVarChar, `%"${scheduleId}"%`)
+      .query(`
+        SELECT TOP 1 DuLieuMoi FROM dbo.AUDITLOG
+        WHERE HanhDong IN ('ADMIN_CREATE_SCHEDULE', 'SCHEDULE_CREATED', 'BOOKING_SQLSERVER_CREATED')
+          AND DuLieuMoi LIKE @sid
+        ORDER BY MaLog DESC
+      `);
+    if (aCheck.recordset.length > 0) {
+      const d = JSON.parse(aCheck.recordset[0].DuLieuMoi);
+      if (d && d.maChuyen) {
+        const mcNum = Number(d.maChuyen);
+        dynamicSchedMap.set(strId, mcNum);
+        return mcNum;
+      }
+    }
+  } catch (_) { }
+
+  if (tourId) {
+    const maTour = await resolveMaTour(poolRef, tourId);
+    if (maTour) {
+      const sCheck = await poolRef.request()
+        .input('mt', mssql.Int, maTour)
+        .query('SELECT TOP 1 MaChuyen FROM dbo.CHUYENKHOIHANH WHERE MaTour = @mt ORDER BY MaChuyen DESC');
+      if (sCheck.recordset.length > 0) {
+        const found = sCheck.recordset[0].MaChuyen;
+        dynamicSchedMap.set(strId, found);
+        return found;
+      }
+    }
+  }
+
   return null;
 }
 
@@ -165,11 +252,10 @@ async function resolveMaChuyen(poolRef, scheduleId) {
  */
 async function updateTour(tourId, patchData, userId = null) {
   const p = await getPool();
-  if (!p) return;
+  if (!p) throw new Error("Chưa kết nối được với Microsoft SQL Server.");
   const maTour = await resolveMaTour(p, tourId);
   if (!maTour) {
-    console.warn(`[SQL SERVER] Không tìm thấy tour ${tourId} trong SQL Server (dbo.TOUR), bỏ qua.`);
-    return;
+    throw new Error(`Không tìm thấy tour ${tourId} trong SQL Server (dbo.TOUR).`);
   }
 
   const tx = new mssql.Transaction(p);
@@ -225,11 +311,25 @@ async function updateTour(tourId, patchData, userId = null) {
         const sReq = new mssql.Request(tx);
         sReq.input('mt', mssql.Int, maTour);
         sReq.input('sc', mssql.Int, seatsNum);
-        await sReq.query(`
+        const updRes = await sReq.query(`
           UPDATE dbo.CHUYENKHOIHANH
           SET SoChoToiDa = SoChoDaDat + @sc
           WHERE MaTour = @mt AND TrangThaiChuyen = N'Mở bán'
         `);
+        if (!updRes.rowsAffected || updRes.rowsAffected[0] === 0) {
+          const insSchedReq = new mssql.Request(tx);
+          const depDate = new Date(Date.now() + 7 * 86400000);
+          const retDate = new Date(Date.now() + 10 * 86400000);
+          insSchedReq.input('mt', mssql.Int, maTour);
+          insSchedReq.input('dep', mssql.DateTime, depDate);
+          insSchedReq.input('ret', mssql.DateTime, retDate);
+          insSchedReq.input('gia', mssql.Decimal(18, 2), patchData.price ? Number(patchData.price) : (oldData.GiaKhuyenNghi || 2000000));
+          insSchedReq.input('seats', mssql.Int, Math.max(1, seatsNum));
+          await insSchedReq.query(`
+            INSERT INTO dbo.CHUYENKHOIHANH (MaTour, NgayKhoiHanh, NgayKetThuc, GiaThucTe, SoChoToiDa, SoChoDaDat, TrangThaiChuyen)
+            VALUES (@mt, @dep, @ret, @gia, @seats, 0, N'Mở bán')
+          `);
+        }
       }
     }
 
@@ -248,7 +348,7 @@ async function updateTour(tourId, patchData, userId = null) {
     console.log(`[SQL SERVER] COMMITTED UPDATE dbo.TOUR (MaTour: ${maTour})`);
 
     if (patchData.images || patchData.image) {
-      syncTourImages(maTour, patchData.images || [patchData.image]).catch(() => {});
+      syncTourImages(maTour, patchData.images || [patchData.image]).catch(() => { });
     }
 
     // Lấy bản ghi hoàn chỉnh sau cập nhật
@@ -266,11 +366,10 @@ async function updateTour(tourId, patchData, userId = null) {
  */
 async function replaceTourDetails(tourId, details, userId = null) {
   const p = await getPool();
-  if (!p) return;
+  if (!p) throw new Error("Chưa kết nối được với Microsoft SQL Server.");
   const maTour = await resolveMaTour(p, tourId);
   if (!maTour) {
-    console.warn(`[SQL SERVER] Không tìm thấy tour ${tourId} trong SQL Server (dbo.TOUR), bỏ qua chi tiết.`);
-    return;
+    throw new Error(`Không tìm thấy tour ${tourId} trong SQL Server (dbo.TOUR).`);
   }
 
   const tx = new mssql.Transaction(p);
@@ -286,60 +385,24 @@ async function replaceTourDetails(tourId, details, userId = null) {
     }
 
     // 2. Cập nhật chi tiết lịch trình trong dbo.LICH_TRINH_DETAIL
-    if (Array.isArray(details.itinerary) && details.itinerary.length > 0) {
+    const normalizedItin = normalizeItineraryDays(details.itinerary);
+    if (normalizedItin.length > 0) {
       const delReq = new mssql.Request(tx);
       delReq.input('mt', mssql.Int, maTour);
       await delReq.query('DELETE FROM dbo.LICH_TRINH_DETAIL WHERE MaTour = @mt');
 
-      // Nhóm các phần trong ngày (Sáng, Chiều, Tối) thành 1 bản ghi chuẩn 3NF theo từng ngày
-      const dayMap = new Map();
-      for (let i = 0; i < details.itinerary.length; i++) {
-        const item = details.itinerary[i];
-        const dayNum = Number(item.day_number ?? item.day ?? (i + 1));
-        if (!dayMap.has(dayNum)) {
-          dayMap.set(dayNum, {
-            day: dayNum,
-            title: '',
-            morning: '',
-            afternoon: '',
-            evening: '',
-            description: '',
-            meals: item.meals || item.buaAn || 'Sáng, Trưa, Tối'
-          });
-        }
-        const d = dayMap.get(dayNum);
-        if (item.title && (!d.title || d.title.startsWith(`Ngày ${dayNum}`))) {
-          d.title = String(item.title).replace(/\s*-\s*Buổi\s+(sáng|chiều|tối)\s*$/i, '').trim();
-        }
-        if (item.morning) d.morning = item.morning;
-        if (item.afternoon) d.afternoon = item.afternoon;
-        if (item.evening) d.evening = item.evening;
-        if (item.description) {
-          if (item.sequence === 1 || String(item.title).toLowerCase().includes('sáng')) {
-            d.morning = item.description;
-          } else if (item.sequence === 2 || String(item.title).toLowerCase().includes('chiều')) {
-            d.afternoon = item.description;
-          } else if (item.sequence === 3 || String(item.title).toLowerCase().includes('tối')) {
-            d.evening = item.description;
-          } else {
-            d.description = [d.description, item.description].filter(Boolean).join('\n');
-          }
-        }
-        if (item.meals || item.buaAn) d.meals = item.meals || item.buaAn;
-      }
-
-      for (const [dayNum, d] of dayMap.entries()) {
-        const title = (d.title || `Khám phá ngày ${dayNum}`).slice(0, 200);
+      for (const d of normalizedItin) {
+        const title = (d.title || `Khám phá ngày ${d.day}`).slice(0, 200);
         const parts = [];
         if (d.morning) parts.push(`BUỔI SÁNG\n${d.morning}`);
         if (d.afternoon) parts.push(`BUỔI CHIỀU\n${d.afternoon}`);
         if (d.evening) parts.push(`BUỔI TỐI\n${d.evening}`);
-        if (d.description) parts.push(d.description);
+        if (d.description && parts.length === 0) parts.push(d.description);
         const fullDesc = parts.length > 0 ? parts.join('\n\n') : 'Tham quan theo chương trình';
 
         const insReq = new mssql.Request(tx);
         insReq.input('mt', mssql.Int, maTour);
-        insReq.input('ngay', mssql.Int, dayNum);
+        insReq.input('ngay', mssql.Int, d.day);
         insReq.input('tieude', mssql.NVarChar(200), title);
         insReq.input('noidung', mssql.NVarChar(mssql.MAX), fullDesc);
         insReq.input('buaan', mssql.NVarChar(100), (d.meals || 'Sáng, Trưa, Tối').slice(0, 100));
@@ -362,8 +425,9 @@ async function replaceTourDetails(tourId, details, userId = null) {
       original_price: effectiveOrigPrice,
       originalPrice: effectiveOrigPrice,
       cost_items: details.cost_items || details.costItems || [],
-      itinerary: details.itinerary || [],
-      daysCount: details.itinerary?.length || 0
+      itinerary: normalizedItin.length > 0 ? normalizedItin : (details.itinerary || []),
+      structured_itinerary: details.itinerary || [],
+      daysCount: normalizedItin.length || details.itinerary?.length || 0
     }));
     await aReq.query(`
       INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
@@ -371,7 +435,7 @@ async function replaceTourDetails(tourId, details, userId = null) {
     `);
 
     await tx.commit();
-    console.log(`[SQL SERVER] COMMITTED REPLACE DETAILS (MaTour: ${maTour}, Price: ${price}, Itinerary: ${details.itinerary?.length} days)`);
+    console.log(`[SQL SERVER] COMMITTED REPLACE DETAILS (MaTour: ${maTour}, Price: ${price}, Itinerary: ${normalizedItin.length} days)`);
     return { success: true, maTour };
   } catch (err) {
     await tx.rollback();
@@ -426,16 +490,22 @@ async function createTour(tourData, userId = null) {
     sReq.input('ret', mssql.DateTime, retDate);
     sReq.input('gia', mssql.Decimal(18, 2), gia);
     sReq.input('soCho', mssql.Int, seats);
-    await sReq.query(`
+    const sRes = await sReq.query(`
       INSERT INTO dbo.CHUYENKHOIHANH (MaTour, NgayKhoiHanh, NgayKetThuc, GiaThucTe, SoChoToiDa, SoChoDaDat, TrangThaiChuyen)
+      OUTPUT INSERTED.MaChuyen
       VALUES (@mt, @dep, @ret, @gia, @soCho, 0, N'Mở bán')
     `);
+    const newMaChuyen = sRes.recordset?.[0]?.MaChuyen;
+    if (newMaChuyen) {
+      dynamicSchedMap.set(String(newMaChuyen), newMaChuyen);
+      dynamicSchedMap.set('SCHED-' + newMaChuyen, newMaChuyen);
+    }
 
     // Ghi Audit Log
     const aReq = new mssql.Request(tx);
     aReq.input('uid', mssql.Int, userId ? Number(userId) || null : null);
     aReq.input('hd', mssql.NVarChar(100), 'ADMIN_CREATE_TOUR');
-    aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify({ maTour: newMaTour, tenTour, gia }));
+    aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify({ maTour: newMaTour, maChuyen: newMaChuyen, tenTour, gia }));
     await aReq.query(`
       INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
       VALUES (@uid, @hd, NULL, @moi, GETDATE())
@@ -445,11 +515,11 @@ async function createTour(tourData, userId = null) {
     if (tourData.id) {
       dynamicTourMap.set(String(tourData.id).toUpperCase(), newMaTour);
     }
-    console.log(`[SQL SERVER] COMMITTED CREATE dbo.TOUR (MaTour: ${newMaTour})`);
+    console.log(`[SQL SERVER] COMMITTED CREATE dbo.TOUR (MaTour: ${newMaTour}, MaChuyen: ${newMaChuyen})`);
     if (tourData.images || tourData.image) {
-      syncTourImages(newMaTour, tourData.images || [tourData.image]).catch(() => {});
+      syncTourImages(newMaTour, tourData.images || [tourData.image]).catch(() => { });
     }
-    return { success: true, maTour: newMaTour };
+    return { success: true, maTour: newMaTour, maChuyen: newMaChuyen };
   } catch (err) {
     await tx.rollback();
     console.error('[SQL SERVER] ROLLBACK CREATE TOUR:', err.message);
@@ -462,11 +532,10 @@ async function createTour(tourData, userId = null) {
  */
 async function deleteTour(tourId, userId = null) {
   const p = await getPool();
-  if (!p) return;
+  if (!p) throw new Error("Chưa kết nối được với Microsoft SQL Server.");
   const maTour = await resolveMaTour(p, tourId);
   if (!maTour) {
-    console.warn(`[SQL SERVER] Không tìm thấy tour ${tourId} trong SQL Server, bỏ qua xóa.`);
-    return;
+    throw new Error(`Không tìm thấy tour ${tourId} trong Microsoft SQL Server (dbo.TOUR).`);
   }
 
   const tx = new mssql.Transaction(p);
@@ -479,7 +548,7 @@ async function deleteTour(tourId, userId = null) {
     const aReq = new mssql.Request(tx);
     aReq.input('uid', mssql.Int, userId ? Number(userId) || null : null);
     aReq.input('hd', mssql.NVarChar(100), 'ADMIN_DEACTIVATE_TOUR');
-    aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify({ maTour }));
+    aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify({ maTour, tourId }));
     await aReq.query(`
       INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
       VALUES (@uid, @hd, NULL, @moi, GETDATE())
@@ -499,11 +568,10 @@ async function deleteTour(tourId, userId = null) {
  */
 async function createSchedule(payload, userId = null) {
   const p = await getPool();
-  if (!p) return null;
+  if (!p) throw new Error("Chưa kết nối được với Microsoft SQL Server.");
   const maTour = await resolveMaTour(p, payload.tour_id || payload.tourId);
   if (!maTour) {
-    console.warn(`[SQL SERVER] Không tìm thấy tour ${payload.tour_id} để tạo lịch trong SQL Server, bỏ qua.`);
-    return null;
+    throw new Error(`Không tìm thấy tour ${payload.tour_id || payload.tourId} trong Microsoft SQL Server để tạo lịch.`);
   }
 
   const tx = new mssql.Transaction(p);
@@ -559,11 +627,11 @@ async function createSchedule(payload, userId = null) {
  */
 async function updateSchedule(scheduleId, patchData, userId = null) {
   const p = await getPool();
-  if (!p) return;
-  const maChuyen = await resolveMaChuyen(p, scheduleId);
+  if (!p) throw new Error("Chưa kết nối được với Microsoft SQL Server.");
+  const maChuyen = await resolveMaChuyen(p, scheduleId, patchData.tour_id || patchData.tourId);
   if (!maChuyen) {
-    console.warn(`[SQL SERVER] Không tìm thấy chuyến khởi hành ${scheduleId} trong SQL Server, bỏ qua cập nhật.`);
-    return;
+    console.warn(`[SQL SERVER] Schedule ${scheduleId} not mapped in dbo.CHUYENKHOIHANH`);
+    return { success: true, localOnly: true };
   }
 
   const tx = new mssql.Transaction(p);
@@ -584,18 +652,24 @@ async function updateSchedule(scheduleId, patchData, userId = null) {
     }
 
     const totalSeats = patchData.total_seats ?? patchData.totalSeats;
+    const availSeats = patchData.available_seats ?? patchData.availableSeats;
     if (totalSeats !== undefined && !isNaN(Number(totalSeats))) {
       const seatsNum = Number(totalSeats);
-      // Kiểm tra sức chứa không được nhỏ hơn số chỗ đã đặt (SoChoDaDat)
-      const curReq = new mssql.Request(tx);
-      curReq.input('mc', mssql.Int, maChuyen);
-      const curRes = await curReq.query('SELECT SoChoDaDat FROM dbo.CHUYENKHOIHANH WHERE MaChuyen = @mc');
-      const bookedSoFar = curRes.recordset[0]?.SoChoDaDat || 0;
-      if (seatsNum < bookedSoFar) {
-        throw new Error(`Không thể giảm số chỗ mở bán (${seatsNum}) thấp hơn số chỗ đã có khách đặt (${bookedSoFar} chỗ).`);
-      }
       req.input('seats', mssql.Int, seatsNum);
       updates.push('SoChoToiDa = @seats');
+      if (availSeats !== undefined && !isNaN(Number(availSeats))) {
+        const reservedSeats = Math.max(0, seatsNum - Number(availSeats));
+        req.input('reserved', mssql.Int, reservedSeats);
+        updates.push('SoChoDaDat = @reserved');
+      }
+    } else if (availSeats !== undefined && !isNaN(Number(availSeats))) {
+      const curReq = new mssql.Request(tx);
+      curReq.input('mc', mssql.Int, maChuyen);
+      const curRes = await curReq.query('SELECT SoChoToiDa FROM dbo.CHUYENKHOIHANH WHERE MaChuyen = @mc');
+      const curTotal = curRes.recordset[0]?.SoChoToiDa || 25;
+      const reservedSeats = Math.max(0, curTotal - Number(availSeats));
+      req.input('reserved', mssql.Int, reservedSeats);
+      updates.push('SoChoDaDat = @reserved');
     }
 
     if (patchData.active !== undefined) {
@@ -634,13 +708,13 @@ async function updateSchedule(scheduleId, patchData, userId = null) {
 /**
  * 7. DELETE SCHEDULE (Hủy chuyến trong dbo.CHUYENKHOIHANH)
  */
-async function deleteSchedule(scheduleId, userId = null) {
+async function deleteSchedule(scheduleId, userId = null, tourId = null) {
   const p = await getPool();
-  if (!p) return;
-  const maChuyen = await resolveMaChuyen(p, scheduleId);
+  if (!p) throw new Error("Chưa kết nối được với Microsoft SQL Server.");
+  const maChuyen = await resolveMaChuyen(p, scheduleId, tourId);
   if (!maChuyen) {
-    console.warn(`[SQL SERVER] Không tìm thấy chuyến khởi hành ${scheduleId} trong SQL Server, bỏ qua xóa.`);
-    return;
+    console.warn(`[SQL SERVER] Schedule ${scheduleId} not mapped in dbo.CHUYENKHOIHANH`);
+    return { success: true, localOnly: true };
   }
 
   const tx = new mssql.Transaction(p);
@@ -666,6 +740,13 @@ async function deleteSchedule(scheduleId, userId = null) {
     await tx.rollback();
     throw err;
   }
+}
+
+function makeRequest(target) {
+  if (target && typeof target.request === 'function') {
+    return target.request();
+  }
+  return new mssql.Request(target);
 }
 
 /**
@@ -694,7 +775,7 @@ async function createBooking({
   const p = await getPool();
   if (!p) return { success: true, offline: true };
 
-  const maChuyen = await resolveMaChuyen(p, scheduleId);
+  const maChuyen = await resolveMaChuyen(p, scheduleId, tourId);
   if (!maChuyen) {
     return { success: true, localOnly: true };
   }
@@ -706,7 +787,7 @@ async function createBooking({
   }
   try {
     // 1. Khóa chuyến khởi hành với UPDLOCK, HOLDLOCK chống race condition khi nhiều khách cùng đặt chỗ
-    const lockReq = new mssql.Request(tx);
+    const lockReq = makeRequest(tx);
     lockReq.input('mc', mssql.Int, maChuyen);
     const schedRes = await lockReq.query(`
       SELECT MaChuyen, MaTour, SoChoToiDa, SoChoDaDat, TrangThaiChuyen, GiaThucTe
@@ -735,7 +816,7 @@ async function createBooking({
     const nameStr = String(customerName || "Khách Hàng").trim();
     const phoneStr = String(customerPhone || "0900000000").trim();
 
-    const uReq = new mssql.Request(tx);
+    const uReq = makeRequest(tx);
     uReq.input('email', mssql.VarChar(100), emailStr);
     uReq.input('name', mssql.NVarChar(100), nameStr);
     uReq.input('phone', mssql.VarChar(15), phoneStr);
@@ -757,7 +838,7 @@ async function createBooking({
     // 3. Thêm đơn đặt tour mới vào dbo.DATTOUR
     // Trigger TRG_DATTOUR_CheckAndLockSeats trên SQL Server sẽ tự động kiểm tra số chỗ,
     // tăng SoChoDaDat, chuyển TrangThaiChuyen = 'Hết chỗ' nếu hết chỗ và ghi AUDITLOG.
-    const bReq = new mssql.Request(tx);
+    const bReq = makeRequest(tx);
     bReq.input('mkh', mssql.Int, maKhachHang);
     bReq.input('mc', mssql.Int, maChuyen);
     bReq.input('slk', mssql.Int, requestedSeats);
@@ -777,7 +858,7 @@ async function createBooking({
       : [{ name: nameStr, phone: phoneStr }];
 
     for (const pax of passengerList) {
-      const hkReq = new mssql.Request(tx);
+      const hkReq = makeRequest(tx);
       hkReq.input('mdt', mssql.Int, maDatTour);
       hkReq.input('ht', mssql.NVarChar(100), String(pax.name || pax.fullName || nameStr).slice(0, 100));
       hkReq.input('sdt', mssql.VarChar(15), String(pax.phone || phoneStr).slice(0, 15));
@@ -788,7 +869,7 @@ async function createBooking({
     }
 
     // 5. Ghi nhận nhật ký liên kết External ID
-    const aReq = new mssql.Request(tx);
+    const aReq = makeRequest(tx);
     aReq.input('uid', mssql.Int, maKhachHang);
     aReq.input('hd', mssql.NVarChar(100), 'BOOKING_SQLSERVER_CREATED');
     aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify({
@@ -806,7 +887,7 @@ async function createBooking({
     `);
 
     // Lấy lại số liệu chỗ cập nhật nhất từ SQL Server trong cùng transaction (tránh đọc bị khóa)
-    const checkReq = new mssql.Request(tx);
+    const checkReq = makeRequest(tx);
     checkReq.input('mc', mssql.Int, maChuyen);
     const postRes = await checkReq.query(`
       SELECT SoChoToiDa, SoChoDaDat, TrangThaiChuyen FROM dbo.CHUYENKHOIHANH WHERE MaChuyen = @mc
@@ -829,7 +910,7 @@ async function createBooking({
     };
   } catch (err) {
     if (!isExternalTx) {
-      await tx.rollback().catch(() => {});
+      await tx.rollback().catch(() => { });
     }
     console.error('[SQL SERVER] ROLLBACK CREATE BOOKING:', err.message);
     throw err;
@@ -839,14 +920,14 @@ async function createBooking({
 /**
  * 9. CANCEL BOOKING (Hủy đơn & hoàn trả số chỗ về dbo.CHUYENKHOIHANH)
  */
-async function cancelBooking({ bookingRef, bookingId, scheduleId, seats = 1, userId = null }) {
+async function cancelBooking({ bookingRef, bookingId, scheduleId, seats = 1, userId = null, tourId = null }) {
   const p = await getPool();
   if (!p) return;
 
   const tx = new mssql.Transaction(p);
   await tx.begin();
   try {
-    const maChuyen = await resolveMaChuyen(p, scheduleId);
+    const maChuyen = await resolveMaChuyen(p, scheduleId, tourId);
     let cancelledInDatTour = false;
 
     // Tìm kiếm đơn trong AUDITLOG bằng bookingRef hoặc bookingId
@@ -896,7 +977,7 @@ async function cancelBooking({ bookingRef, bookingId, scheduleId, seats = 1, use
     console.log(`[SQL SERVER] COMMITTED CANCEL BOOKING (${bookingRef || bookingId}) -> Released ${seats} seats on schedule ${scheduleId}`);
     return { success: true };
   } catch (err) {
-    await tx.rollback().catch(() => {});
+    await tx.rollback().catch(() => { });
     console.error('[SQL SERVER] ROLLBACK CANCEL BOOKING:', err.message);
     throw err;
   }
@@ -982,7 +1063,7 @@ async function recordPayment({ bookingId, bookingRef, method = "Chuyển khoản
     console.log(`[SQL SERVER] COMMITTED PAYMENT (MaDatTour: ${maDatTour}, Ref: ${bookingRef || bookingId}, Amount: ${amount})`);
     return { success: true, maDatTour };
   } catch (err) {
-    await tx.rollback().catch(() => {});
+    await tx.rollback().catch(() => { });
     console.error('[SQL SERVER] ROLLBACK PAYMENT:', err.message);
     throw err;
   }
@@ -1083,7 +1164,7 @@ async function createReview({ tourId, bookingId = null, rating = 5, content = ""
     console.log(`[SQL SERVER] COMMITTED REVIEW (MaDanhGia: ${maDanhGia}, MaDatTour: ${maDatTour}, Stars: ${starCount})`);
     return { success: true, maDanhGia, maDatTour, stars: starCount };
   } catch (err) {
-    await tx.rollback().catch(() => {});
+    await tx.rollback().catch(() => { });
     console.error('[SQL SERVER] ROLLBACK REVIEW:', err.message);
     throw err;
   }
@@ -1198,8 +1279,79 @@ async function createArticle({ title, slug = "", summary = "", content = "", ima
     console.log(`[SQL SERVER] COMMITTED CREATE dbo.BAIVIET_QUANGBA (MaBaiViet: ${newId})`);
     return { success: true, id: newId };
   } catch (err) {
-    await tx.rollback().catch(() => {});
+    await tx.rollback().catch(() => { });
     console.error('[SQL SERVER] ROLLBACK CREATE ARTICLE:', err.message);
+    throw err;
+  }
+}
+
+async function updateArticle(articleId, { title, slug, summary, content, image, active = 1 }, userId = null) {
+  const p = await getPool();
+  if (!p) throw new Error("Không thể kết nối SQL Server");
+  const idNum = Number(articleId);
+  const tx = new mssql.Transaction(p);
+  await tx.begin();
+  try {
+    const req = new mssql.Request(tx);
+    req.input('id', mssql.Int, idNum);
+    req.input('td', mssql.NVarChar(200), title ? String(title).slice(0, 200) : null);
+    req.input('slug', mssql.VarChar(200), slug ? String(slug).slice(0, 200) : null);
+    req.input('tt', mssql.NVarChar(500), summary != null ? String(summary).slice(0, 500) : null);
+    req.input('nd', mssql.NVarChar(mssql.MAX), content != null ? String(content) : null);
+    req.input('img', mssql.VarChar(500), image != null ? String(image).slice(0, 500) : null);
+    req.input('tt_val', mssql.Bit, active ? 1 : 0);
+    await req.query(`
+      UPDATE dbo.BAIVIET_QUANGBA
+      SET TieuDe = COALESCE(@td, TieuDe),
+          Slug = COALESCE(@slug, Slug),
+          TomTat = COALESCE(@tt, TomTat),
+          NoiDung = COALESCE(@nd, NoiDung),
+          HinhAnhDaiDien = COALESCE(@img, HinhAnhDaiDien),
+          TrangThai = @tt_val
+      WHERE MaBaiViet = @id
+    `);
+
+    const aReq = new mssql.Request(tx);
+    aReq.input('uid', mssql.Int, userId ? Number(userId) || 1 : 1);
+    aReq.input('hd', mssql.NVarChar(100), 'ARTICLE_SQLSERVER_UPDATED');
+    aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify({ id: idNum, title, slug }));
+    await aReq.query(`
+      INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
+      VALUES (@uid, @hd, NULL, @moi, GETDATE())
+    `);
+
+    await tx.commit();
+    return { success: true, id: idNum };
+  } catch (err) {
+    await tx.rollback().catch(() => {});
+    throw err;
+  }
+}
+
+async function deleteArticle(articleId, userId = null) {
+  const p = await getPool();
+  if (!p) throw new Error("Không thể kết nối SQL Server");
+  const idNum = Number(articleId);
+  const tx = new mssql.Transaction(p);
+  await tx.begin();
+  try {
+    const req = new mssql.Request(tx);
+    req.input('id', mssql.Int, idNum);
+    await req.query(`UPDATE dbo.BAIVIET_QUANGBA SET TrangThai = 0 WHERE MaBaiViet = @id`);
+
+    const aReq = new mssql.Request(tx);
+    aReq.input('uid', mssql.Int, userId ? Number(userId) || 1 : 1);
+    aReq.input('hd', mssql.NVarChar(100), 'ARTICLE_SQLSERVER_DELETED');
+    aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify({ id: idNum }));
+    await aReq.query(`
+      INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
+      VALUES (@uid, @hd, NULL, @moi, GETDATE())
+    `);
+
+    await tx.commit();
+    return { success: true, id: idNum };
+  } catch (err) {
+    await tx.rollback().catch(() => {});
     throw err;
   }
 }
@@ -1335,7 +1487,7 @@ async function syncAllFromSqlServer(sqliteDb) {
             if (d.tourId) tourDetailsAudit.set(String(d.tourId).toUpperCase(), d);
             if (d.maTour) tourDetailsAudit.set(String(d.maTour), d);
           }
-        } catch (_) {}
+        } catch (_) { }
       }
     } catch (aErr) {
       console.warn('[SQL SERVER SYNC] Không thể đọc AuditLog:', aErr.message);
@@ -1441,10 +1593,11 @@ async function syncAllFromSqlServer(sqliteDb) {
                 tourItin = parsed;
               }
             }
-          } catch (_) {}
+          } catch (_) { }
         }
       }
-      const itineraryJson = JSON.stringify(tourItin);
+      const normalizedItinList = normalizeItineraryDays(tourItin);
+      const itineraryJson = JSON.stringify(normalizedItinList.length > 0 ? normalizedItinList : tourItin);
       const activeFlag = t.TrangThai ? 1 : 0;
 
       sqliteDb.prepare(`
@@ -1472,33 +1625,26 @@ async function syncAllFromSqlServer(sqliteDb) {
           for (const ci of auditData.cost_items) {
             insertCost.run(crypto.randomUUID(), tourId, ci.category || 'other', ci.name || 'Khoản chi', ci.notes || '', Number(ci.amount_per_person) || 0);
           }
-        } catch (_) {}
+        } catch (_) { }
       }
 
       // Phục hồi các buổi lịch trình vào bảng itinerary_items của SQLite
-      if (tourItin.length > 0) {
+      if (normalizedItinList.length > 0) {
         try {
           sqliteDb.prepare("DELETE FROM itinerary_items WHERE tour_id = ?").run(tourId);
           const insertItin = sqliteDb.prepare(`
             INSERT INTO itinerary_items (id, tour_id, day_number, sequence, category, title, description, location, start_time)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
           `);
-          for (const d of tourItin) {
+          for (const d of normalizedItinList) {
             const dNum = Number(d.day_number || d.day || 1);
-            if (d.morning) {
-              insertItin.run(crypto.randomUUID(), tourId, dNum, 1, 'transport', `${d.title} - Buổi sáng`, d.morning, '', null);
-            }
-            if (d.afternoon) {
-              insertItin.run(crypto.randomUUID(), tourId, dNum, 2, 'activity', `${d.title} - Buổi chiều`, d.afternoon, '', null);
-            }
-            if (d.evening) {
-              insertItin.run(crypto.randomUUID(), tourId, dNum, 3, 'meal', `${d.title} - Buổi tối`, d.evening, '', null);
-            }
-            if (!d.morning && !d.afternoon && !d.evening) {
-              insertItin.run(crypto.randomUUID(), tourId, dNum, 1, 'activity', d.title, d.description || '', '', null);
-            }
+            insertItin.run(crypto.randomUUID(), tourId, dNum, 1, 'transport', `${d.title || `Ngày ${dNum}`} - Buổi sáng`, d.morning || 'Khởi hành theo lịch trình', '', null);
+            insertItin.run(crypto.randomUUID(), tourId, dNum, 2, 'activity', `${d.title || `Ngày ${dNum}`} - Buổi chiều`, d.afternoon || 'Tham quan và trải nghiệm', '', null);
+            insertItin.run(crypto.randomUUID(), tourId, dNum, 3, 'meal', `${d.title || `Ngày ${dNum}`} - Buổi tối`, d.evening || 'Nghỉ ngơi hoặc tự do', '', null);
           }
-        } catch (_) {}
+        } catch (itinErr) {
+          console.error(`[SQL SERVER SYNC] Failed to sync itinerary_items for tour ${tourId}:`, itinErr.message);
+        }
       }
     }
 
@@ -1554,6 +1700,8 @@ module.exports = {
   getReviews,
   getArticles,
   createArticle,
+  updateArticle,
+  deleteArticle,
   getCategories,
   syncTourImages,
   syncUser,

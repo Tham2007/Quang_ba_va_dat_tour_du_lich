@@ -1603,7 +1603,7 @@ function openTourModal(tourId = null, initialTab = "basic") {
   const defItinerary = (defTour && Array.isArray(defTour.itinerary) && defTour.itinerary.length > 0)
     ? defTour.itinerary
     : (typeof DEFAULT_TOURS !== "undefined" ? DEFAULT_TOURS.find(d => String(d.id).toUpperCase() === String(tourId).toUpperCase())?.itinerary : null);
-  if (Array.isArray(defItinerary) && (!initialDays || initialDays.length < defItinerary.length)) {
+  if (Array.isArray(defItinerary) && (!initialDays || initialDays.length === 0)) {
     initialDays = defItinerary;
   }
   renderAdminItineraryDays(initialDays);

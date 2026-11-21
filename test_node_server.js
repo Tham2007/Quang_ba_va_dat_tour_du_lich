@@ -1083,6 +1083,25 @@ async function runTests() {
             if (idx >= 0) ssAuditRows.splice(idx, 1);
             return { rowsAffected: [idx >= 0 ? 1 : 0], recordset: [] };
           }
+          if (s.includes("dbo.CHUYENKHOIHANH")) {
+            return {
+              recordset: [{
+                MaChuyen: inputs.mc || 1,
+                MaTour: 1,
+                SoChoToiDa: 30,
+                SoChoDaDat: 0,
+                TrangThaiChuyen: "Mở bán",
+                GiaThucTe: 2000000
+              }],
+              rowsAffected: [1]
+            };
+          }
+          if (s.includes("dbo.NGUOIDUNG")) {
+            return { recordset: [{ MaNguoiDung: 1 }], rowsAffected: [1] };
+          }
+          if (s.includes("dbo.DATTOUR")) {
+            return { recordset: [{ MaDatTour: 999 }], rowsAffected: [1] };
+          }
           return { recordset: [], rowsAffected: [0] };
         }
       };

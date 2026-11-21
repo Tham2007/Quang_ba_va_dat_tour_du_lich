@@ -1314,6 +1314,14 @@
     }
 
     function syncGuestLimits() {
+      const select = document.getElementById("bookingScheduleSelect");
+      const selectedOpt = select ? select.selectedOptions[0] : null;
+      if (selectedOpt) {
+        const schedPrice = Number(selectedOpt.getAttribute("data-price") || 0);
+        if (schedPrice > 0 && currentTour && currentTour.price !== schedPrice) {
+          currentTour.price = schedPrice;
+        }
+      }
       const avail = getSelectedScheduleAvailableSeats();
       const adultsInput = document.getElementById("numAdults");
       const childrenInput = document.getElementById("numChildren");
@@ -1456,7 +1464,7 @@
 
     async function initPage() {
       const params = new URLSearchParams(window.location.search);
-      const tourId = params.get("tourId") || "DL-HL01";
+      const tourId = params.get("tourId") || params.get("id") || params.get("tour_id") || "DL-HL01";
       const bookingIdParam = params.get("bookingId");
       const isEn = typeof getAppLanguage === "function" && getAppLanguage() === "en";
 
@@ -1813,7 +1821,8 @@
           const seatsStr = isSoldOut
             ? (isEn ? "Sold Out" : "Hết chỗ")
             : (isEn ? `${avail} seats left` : `Còn ${avail} chỗ`);
-          return `<option value="${s.id}" data-seats="${avail}" ${isSoldOut ? "disabled" : ""}>${dStr} · ${seatsStr}</option>`;
+          const unitPrice = Number(s.unitPrice || s.price || (currentTour && currentTour.price) || 0);
+          return `<option value="${s.id}" data-seats="${avail}" data-price="${unitPrice}" ${isSoldOut ? "disabled" : ""}>${dStr} · ${seatsStr}</option>`;
         }).join("");
         syncGuestLimits();
       } catch (err) {
@@ -2203,13 +2212,16 @@
         return;
       }
       const quotedTotal = Number(quoted.data.totalPrice);
-      const isPriceMatch = quotedTotal === calculatedTotalWithVat || quotedTotal === calculatedTotalPreVat;
+      const isPriceMatch = (Math.abs(quotedTotal - calculatedTotalWithVat) <= 500) ||
+                           (Math.abs(quotedTotal - calculatedTotalPreVat) <= 500);
       if (!isPriceMatch) {
         if (currentTour && Number.isSafeInteger(Number(quoted.data.unitPrice)) &&
             Number(quoted.data.unitPrice) > 0) currentTour.price = Number(quoted.data.unitPrice);
         recalcPrice();
-        showAppNotice("Giá tour vừa được cập nhật từ máy chủ, vui lòng xem lại rồi đặt lần nữa.",
-          "Giá Đã Cập Nhật", "warning");
+        showAppNotice(
+          `Giá tour đã được cập nhật từ máy chủ: ${formatVND(quotedTotal)}. Vui lòng kiểm tra lại tổng tiền và nhấn Đặt Tour để xác nhận.`,
+          "Giá Đã Cập Nhật", "info"
+        );
         return;
       }
 

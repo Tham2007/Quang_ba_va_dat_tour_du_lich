@@ -14,7 +14,7 @@ const https = require("https");
 let nodemailer = null;
 try {
   nodemailer = require("nodemailer");
-} catch (_) {}
+} catch (_) { }
 
 // Tự động tải biến môi trường từ .env nếu có
 const envPath = path.resolve(__dirname, ".env");
@@ -30,7 +30,7 @@ if (fs.existsSync(envPath)) {
         if (!process.env[k]) process.env[k] = v;
       }
     }
-  } catch (e) {}
+  } catch (e) { }
 }
 
 const app = express();
@@ -69,7 +69,7 @@ const db = new DatabaseSync(DB_PATH);
         process.env[key] = val;
       }
     }
-  } catch {}
+  } catch { }
 })();
 
 // Cấu hình kết nối trực tiếp SQL Server (bảo toàn đúng 12 bảng gốc)
@@ -131,7 +131,7 @@ async function ensureSqlServerVoucherSchema(pool) {
 async function initDirectSqlServer() {
   // No SQL credentials: intentional SQLite demo. Do not attempt network auth.
   if (!SQL_SERVER_CONFIG.user || !SQL_SERVER_CONFIG.password ||
-      !SQL_SERVER_CONFIG.server || !SQL_SERVER_CONFIG.database) {
+    !SQL_SERVER_CONFIG.server || !SQL_SERVER_CONFIG.database) {
     return;
   }
   try {
@@ -310,7 +310,7 @@ async function syncSqlServerCatalogToLocalDb() {
             `).run(sid, tourId, depAt, total, reserved, active);
           }
         }
-      } catch (e) {}
+      } catch (e) { }
 
       try {
         const iRes = await fetch(`${configuredUrl}/api/v1/tours/${encodeURIComponent(tourId)}/itinerary`);
@@ -326,7 +326,7 @@ async function syncSqlServerCatalogToLocalDb() {
             insertItin.run(`ITIN-${tourId}-${dayNum}-${idx + 1}`, tourId, dayNum, idx + 1, item.title || "", item.description || "", item.meals || "");
           });
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if (sqlIds.length > 0) {
@@ -555,7 +555,7 @@ function initDatabase() {
       SET total_price = ROUND(subtotal_price - discount_amount + ROUND((subtotal_price - discount_amount) * 0.10))
       WHERE subtotal_price > 0 AND total_price = (subtotal_price - discount_amount)
     `).run();
-  } catch (_) {}
+  } catch (_) { }
 
   // Đảm bảo có đủ 16 tour thương mại chuẩn toàn quốc với bộ ảnh sắc nét
   const TOURS_16 = [
@@ -963,7 +963,7 @@ function initDatabase() {
 
   try {
     db.exec("ALTER TABLE users ADD COLUMN avatar TEXT;");
-  } catch (_) {}
+  } catch (_) { }
   for (const alterSql of [
     "ALTER TABLE tours ADD COLUMN badge TEXT DEFAULT '';",
     "ALTER TABLE tours ADD COLUMN inclusions_json TEXT DEFAULT '[]';",
@@ -976,7 +976,7 @@ function initDatabase() {
   ]) {
     try {
       db.exec(alterSql);
-    } catch (_) {}
+    } catch (_) { }
   }
 
   // Khởi tạo danh sách mã ưu đãi thương mại mẫu với phạm vi & điều kiện tách biệt
@@ -1092,7 +1092,7 @@ function initDatabase() {
       WHERE (reference = 'BK3887031139' OR (status = 'CANCELLED' AND (payment_evidence IS NOT NULL OR payment_confirmed_at IS NOT NULL)))
         AND status NOT IN ('REFUNDED')
     `).run();
-  } catch (_) {}
+  } catch (_) { }
 }
 
 initDatabase();
@@ -1254,7 +1254,7 @@ function safeJsonStringArray(raw) {
       try {
         const parsed = JSON.parse(trimmed);
         if (Array.isArray(parsed)) return parsed.map(item => String(item || "").trim()).filter(Boolean);
-      } catch (_) {}
+      } catch (_) { }
     }
     return trimmed.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   }
@@ -1393,7 +1393,7 @@ function userDict(u) {
   try {
     const row = db.prepare("SELECT COUNT(*) AS c FROM bookings WHERE user_id = ?").get(u.id);
     if (row && typeof row.c === "number") totalBookings = row.c;
-  } catch (_) {}
+  } catch (_) { }
 
   return {
     id: u.id,
@@ -1414,7 +1414,7 @@ function bookingDict(b) {
     try {
       const sched = db.prepare("SELECT tour_id FROM schedules WHERE id = ?").get(b.schedule_id);
       if (sched) tourId = sched.tour_id;
-    } catch (_) {}
+    } catch (_) { }
   }
   const totalPrice = Number(b.total_price) || 0;
   const discountAmount = Number(b.discount_amount || 0);
@@ -1815,7 +1815,7 @@ async function ssListVoucherUses(normCode = null, tx = null) {
   `);
   return (res.recordset || []).map(row => {
     let p = {};
-    try { p = JSON.parse(row.DuLieuMoi || "{}"); } catch {}
+    try { p = JSON.parse(row.DuLieuMoi || "{}"); } catch { }
     return {
       maLog: row.MaLog,
       code: String(p.code || row.DuLieuCu || "").toUpperCase(),
@@ -2000,14 +2000,7 @@ function audit(actorId, eventType, subjectId, details = {}) {
     db.prepare(`
       INSERT INTO audit_events (id, actor_id, event_type, subject_id, details, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
-      crypto.randomUUID(),
-      String(actorId ?? "system"),
-      String(eventType ?? "UNKNOWN"),
-      String(subjectId ?? ""),
-      JSON.stringify(details || {}),
-      new Date().toISOString()
-    );
+    `).run(crypto.randomUUID(), actorId, eventType, subjectId, JSON.stringify(details), new Date().toISOString());
   } catch (err) {
     console.error("Audit error:", err);
   }
@@ -2667,7 +2660,7 @@ app.get("/api/v1/tours/:tour_id/itinerary", async (req, res) => {
     try {
       const parsed = JSON.parse(tour.itinerary_json);
       if (Array.isArray(parsed)) dayObjects = parsed;
-    } catch (_) {}
+    } catch (_) { }
   }
   const expanded = [];
   dayObjects.forEach((d, idx) => {
@@ -2818,7 +2811,15 @@ app.post("/api/v1/bookings/quote", async (req, res) => {
       return res.status(422).json({ detail: "Thông tin tính giá không hợp lệ." });
     }
 
-    const sched = db.prepare("SELECT * FROM schedules WHERE id = ? AND active = 1").get(schedule_id);
+    let sched = db.prepare("SELECT * FROM schedules WHERE id = ? AND active = 1").get(schedule_id);
+    if (!sched && typeof schedule_id === "string") {
+      const altId = schedule_id.startsWith("SCHED-") ? schedule_id.slice(6) : ("SCHED-" + schedule_id);
+      sched = db.prepare("SELECT * FROM schedules WHERE (id = ? OR id = ?) AND active = 1").get(schedule_id, altId);
+    }
+    if (!sched && (body.tour_id || body.tourId)) {
+      const tId = body.tour_id || body.tourId;
+      sched = db.prepare("SELECT * FROM schedules WHERE tour_id = ? AND active = 1 ORDER BY departure_at ASC").get(tId);
+    }
     if (!sched) return res.status(404).json({ detail: "Lịch khởi hành không tồn tại." });
 
     const tour = db.prepare("SELECT * FROM tours WHERE id = ? AND active = 1").get(sched.tour_id);
@@ -2973,7 +2974,7 @@ app.post("/api/v1/bookings", requireAuth, async (req, res) => {
         customerPhone: customer_phone
       }, ssTx);
       if (!vRes.ok) {
-        await ssTx.rollback().catch(() => {});
+        await ssTx.rollback().catch(() => { });
         return res.status(vRes.status || 422).json({ detail: vRes.detail, errorCode: vRes.errorCode });
       }
       const nextUsedPayload = {
@@ -2992,13 +2993,13 @@ app.post("/api/v1/bookings", requireAuth, async (req, res) => {
           AND ISNULL(TRY_CAST(JSON_VALUE(CASE WHEN ISJSON(DuLieuMoi) = 1 THEN DuLieuMoi END, '$.usedCount') AS INT), 0) = @expectedUsed
       `);
       if (!qRes.rowsAffected || qRes.rowsAffected[0] !== 1) {
-        await ssTx.rollback().catch(() => {});
+        await ssTx.rollback().catch(() => { });
         return res.status(409).json({ detail: `Mã ưu đãi "${voucherCode}" đã hết lượt sử dụng.`, errorCode: "VOUCHER_EXHAUSTED" });
       }
       discountAmount = vRes.discountAmount;
       appliedVoucher = vRes.voucherRow;
     } catch (err) {
-      if (ssTx) await ssTx.rollback().catch(() => {});
+      if (ssTx) await ssTx.rollback().catch(() => { });
       return res.status(503).json({ detail: "Lỗi xác thực mã ưu đãi trên SQL Server: " + err.message });
     }
   }
@@ -3010,7 +3011,7 @@ app.post("/api/v1/bookings", requireAuth, async (req, res) => {
     const avail = freshSched ? Math.max(0, freshSched.total_seats - (freshSched.reserved_seats || 0)) : 0;
     if (!freshSched || totalSeats > avail || avail <= 0) {
       db.exec("ROLLBACK");
-      if (ssTx) await ssTx.rollback().catch(() => {});
+      if (ssTx) await ssTx.rollback().catch(() => { });
       return res.status(409).json({
         detail: `Chuyến khởi hành không đủ chỗ. Hiện chỉ còn ${avail} chỗ trống. Vui lòng giảm số lượng khách hoặc chọn chuyến khác.`
       });
@@ -3071,7 +3072,7 @@ app.post("/api/v1/bookings", requireAuth, async (req, res) => {
         });
       } catch (ssErr) {
         db.exec("ROLLBACK");
-        if (ssTx) await ssTx.rollback().catch(() => {});
+        if (ssTx) await ssTx.rollback().catch(() => { });
         return res.status(409).json({ detail: ssErr.message });
       }
     }
@@ -3140,8 +3141,8 @@ app.post("/api/v1/bookings", requireAuth, async (req, res) => {
 
     db.exec("COMMIT");
   } catch (err) {
-    try { db.exec("ROLLBACK"); } catch {}
-    if (ssTx) await ssTx.rollback().catch(() => {});
+    try { db.exec("ROLLBACK"); } catch { }
+    if (ssTx) await ssTx.rollback().catch(() => { });
     return res.status(409).json({ detail: "Lỗi ghi dữ liệu: " + err.message });
   }
 
@@ -3187,12 +3188,12 @@ app.get("/api/v1/bookings/:booking_id", (req, res) => {
 
 app.post("/api/v1/bookings/:booking_id/pay", requireAuth, (req, res) => {
   const { reference, payment_evidence, paymentEvidence, auto_confirm } = req.body || {};
-  const ref = (typeof reference === "string" && reference.trim()) 
-    ? reference.trim() 
-    : (typeof payment_evidence === "string" && payment_evidence.trim() 
-      ? payment_evidence.trim() 
-      : (typeof paymentEvidence === "string" && paymentEvidence.trim() 
-        ? paymentEvidence.trim() 
+  const ref = (typeof reference === "string" && reference.trim())
+    ? reference.trim()
+    : (typeof payment_evidence === "string" && payment_evidence.trim()
+      ? payment_evidence.trim()
+      : (typeof paymentEvidence === "string" && paymentEvidence.trim()
+        ? paymentEvidence.trim()
         : ("VIETQR-MB-0325536936-" + Date.now())));
 
   if (ref.length < 8) {
@@ -3296,8 +3297,8 @@ app.post("/api/v1/bookings/:booking_id/cancel", requireAuth, async (req, res) =>
   const newStatus = isPaidOrder ? "REFUND_PENDING" : "CANCELLED";
   const reasonText = isPaidOrder
     ? (effectiveBankInfo
-        ? `Khách hủy trong 24h - Yêu cầu hoàn tiền 100% [STK: ${effectiveBankInfo}]`
-        : (reason && reason !== "Khách hủy đơn" ? `Khách hủy trong 24h - ${reason}` : "Khách yêu cầu hủy trong 24h - Chờ hoàn tiền 100%"))
+      ? `Khách hủy trong 24h - Yêu cầu hoàn tiền 100% [STK: ${effectiveBankInfo}]`
+      : (reason && reason !== "Khách hủy đơn" ? `Khách hủy trong 24h - ${reason}` : "Khách yêu cầu hủy trong 24h - Chờ hoàn tiền 100%"))
     : (reason || "Khách hủy đơn chưa thanh toán");
 
   db.exec("BEGIN");
@@ -3444,10 +3445,10 @@ app.put("/api/v1/admin/tours/:tour_id/details", requireAdmin, async (req, res) =
   }
   for (const item of costItems) {
     if (!item || !costCategories.has(item.category) ||
-        typeof item.name !== "string" || item.name.trim().length < 2 || item.name.length > 150 ||
-        typeof (item.notes || "") !== "string" || (item.notes || "").length > 2000 ||
-        !Number.isInteger(item.amount_per_person) ||
-        item.amount_per_person < 0 || item.amount_per_person > 2_000_000_000) {
+      typeof item.name !== "string" || item.name.trim().length < 2 || item.name.length > 150 ||
+      typeof (item.notes || "") !== "string" || (item.notes || "").length > 2000 ||
+      !Number.isInteger(item.amount_per_person) ||
+      item.amount_per_person < 0 || item.amount_per_person > 2_000_000_000) {
       return res.status(422).json({ detail: "Thông tin khoản chi không hợp lệ." });
     }
   }
@@ -3455,13 +3456,13 @@ app.put("/api/v1/admin/tours/:tour_id/details", requireAdmin, async (req, res) =
   for (const item of itinerary) {
     const slot = item && `${item.day_number}:${item.sequence}`;
     if (!item || !Number.isInteger(item.day_number) || item.day_number < 1 || item.day_number > 365 ||
-        !Number.isInteger(item.sequence) || item.sequence < 1 || item.sequence > 100 ||
-        !itineraryCategories.has(item.category) ||
-        typeof item.title !== "string" || item.title.trim().length < 2 || item.title.length > 180 ||
-        typeof (item.description || "") !== "string" || (item.description || "").length > 4000 ||
-        typeof (item.location || "") !== "string" || (item.location || "").length > 180 ||
-        (item.start_time != null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(item.start_time)) ||
-        seenSlots.has(slot)) {
+      !Number.isInteger(item.sequence) || item.sequence < 1 || item.sequence > 100 ||
+      !itineraryCategories.has(item.category) ||
+      typeof item.title !== "string" || item.title.trim().length < 2 || item.title.length > 180 ||
+      typeof (item.description || "") !== "string" || (item.description || "").length > 4000 ||
+      typeof (item.location || "") !== "string" || (item.location || "").length > 180 ||
+      (item.start_time != null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(item.start_time)) ||
+      seenSlots.has(slot)) {
       return res.status(422).json({ detail: "Thông tin lịch trình không hợp lệ." });
     }
     seenSlots.add(slot);
@@ -3557,9 +3558,10 @@ app.post("/api/v1/admin/tours", requireAdmin, async (req, res) => {
   if (existing) return res.status(409).json({ detail: "Mã tour đã tồn tại." });
 
   // 1. Ghi vĩnh viễn vào Microsoft SQL Server với Explicit Transaction + COMMIT
+  let ssCreateResult = null;
   if (sqlServerPool && sqlServerService) {
     try {
-      await sqlServerService.createTour(data, req.user?.id);
+      ssCreateResult = await sqlServerService.createTour(data, req.user?.id);
     } catch (ssErr) {
       console.error("[SQL SERVER ERROR] createTour failed:", ssErr.message);
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
@@ -3607,10 +3609,11 @@ app.post("/api/v1/admin/tours", requireAdmin, async (req, res) => {
     const d = new Date();
     d.setDate(d.getDate() + 7);
     d.setUTCHours(2, 0, 0, 0);
+    const schedId = ssCreateResult?.maChuyen ? ("SCHED-" + ssCreateResult.maChuyen) : crypto.randomUUID();
     db.prepare(`
       INSERT INTO schedules (id, tour_id, departure_at, total_seats, reserved_seats, active)
       VALUES (?, ?, ?, ?, 0, 1)
-    `).run(crypto.randomUUID(), data.id, d.toISOString(), seatsNum);
+    `).run(schedId, data.id, d.toISOString(), seatsNum);
   }
 
   const t = db.prepare("SELECT * FROM tours WHERE id = ?").get(data.id);
@@ -3633,7 +3636,7 @@ app.post("/api/v1/admin/upload-image", requireAdmin, (req, res) => {
         let currentImages = [];
         try {
           currentImages = tourImages(tourExist.image);
-        } catch (_) {}
+        } catch (_) { }
         const filtered = currentImages.filter(img => !img.startsWith("assets/images/uploads/"));
         const newImages = [savedPath, ...filtered];
         db.prepare("UPDATE tours SET image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(JSON.stringify(newImages), tourId);
@@ -3690,12 +3693,12 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, async (req, res) => {
               try {
                 fs.unlinkSync(oldFilePath);
                 console.log(`[CLEANUP] Đã xóa ảnh cũ ${oldImg} của tour ${tour_id}`);
-              } catch (_) {}
+              } catch (_) { }
             }
           }
         }
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 
   // Xử lý cập nhật số chỗ mở bán đồng bộ xuống bảng lịch khởi hành (schedules)
@@ -3757,8 +3760,8 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, async (req, res) => {
     let val = rawVal;
     if (val !== undefined && val !== null) {
       if (key === "images" &&
-          (!Array.isArray(val) || val.length > 12 ||
-           val.some(image => typeof image !== "string" || image.length > 1200))) {
+        (!Array.isArray(val) || val.length > 12 ||
+          val.some(image => typeof image !== "string" || image.length > 1200))) {
         return res.status(422).json({ detail: "Danh sách ảnh tour không hợp lệ." });
       }
       fields.push(`${col} = ?`);
@@ -3806,12 +3809,12 @@ app.delete("/api/v1/admin/tours/:tour_id", requireAdmin, async (req, res) => {
         if (typeof oldImg === "string" && oldImg.startsWith("assets/images/uploads/")) {
           const oldFilePath = path.join(FRONTEND_DIR, oldImg.replace(/\//g, path.sep));
           if (fs.existsSync(oldFilePath)) {
-            try { fs.unlinkSync(oldFilePath); } catch (_) {}
+            try { fs.unlinkSync(oldFilePath); } catch (_) { }
           }
         }
       }
       deleteOldTourUploads(tour_id);
-    } catch (_) {}
+    } catch (_) { }
   }
   db.prepare("UPDATE tours SET active = 0, updated_at = ? WHERE id = ?").run(new Date().toISOString(), tour_id);
   audit(req.user.id, "TOUR_DEACTIVATED", tour_id);
@@ -3907,7 +3910,7 @@ app.patch("/api/v1/admin/schedules/:schedule_id", requireAdmin, async (req, res)
   // 1. Ghi vĩnh viễn vào Microsoft SQL Server với Explicit Transaction + COMMIT
   if (sqlServerPool && sqlServerService) {
     try {
-      await sqlServerService.updateSchedule(schedule_id, req.body || {}, req.user?.id);
+      await sqlServerService.updateSchedule(schedule_id, { ...(req.body || {}), tour_id: s.tour_id }, req.user?.id);
     } catch (ssErr) {
       console.error("[SQL SERVER ERROR] updateSchedule failed:", ssErr.message);
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
@@ -3954,9 +3957,10 @@ app.patch("/api/v1/admin/schedules/:schedule_id", requireAdmin, async (req, res)
 
 app.delete("/api/v1/admin/schedules/:schedule_id", requireAdmin, async (req, res) => {
   const { schedule_id } = req.params;
+  const s = db.prepare("SELECT * FROM schedules WHERE id = ?").get(schedule_id);
   if (sqlServerPool && sqlServerService) {
     try {
-      await sqlServerService.deleteSchedule(schedule_id, req.user?.id);
+      await sqlServerService.deleteSchedule(schedule_id, req.user?.id, s?.tour_id);
     } catch (ssErr) {
       console.error("[SQL SERVER ERROR] deleteSchedule failed:", ssErr.message);
       return res.status(500).json({ detail: "Lỗi xóa lịch khởi hành trên Microsoft SQL Server: " + ssErr.message });
@@ -4036,19 +4040,19 @@ app.patch("/api/v1/admin/bookings/:booking_id", requireAdmin, async (req, res) =
   if (["CANCELLED", "REFUNDED"].includes(status)) {
     await ssReleaseVoucherByExternalBooking(b.id);
 
-  if (sqlServerPool && sqlServerService && typeof sqlServerService.cancelBooking === "function") {
-    try {
-      await sqlServerService.cancelBooking({
-        bookingRef: b.reference,
-        bookingId: b.id,
-        scheduleId: b.schedule_id,
-        seats: b.seats_held,
-        userId: req.user?.id
-      });
-    } catch (ssErr) {
-      console.warn("[SQL SERVER CANCEL BOOKING WARNING]:", ssErr.message);
+    if (sqlServerPool && sqlServerService && typeof sqlServerService.cancelBooking === "function") {
+      try {
+        await sqlServerService.cancelBooking({
+          bookingRef: b.reference,
+          bookingId: b.id,
+          scheduleId: b.schedule_id,
+          seats: b.seats_held,
+          userId: req.user?.id
+        });
+      } catch (ssErr) {
+        console.warn("[SQL SERVER CANCEL BOOKING WARNING]:", ssErr.message);
+      }
     }
-  }
   }
 
   const updated = db.prepare("SELECT * FROM bookings WHERE id = ?").get(b.id);
@@ -4197,7 +4201,7 @@ async function handleSepayWebhook(req, res) {
       try {
         const computed = crypto.createHmac("sha256", configuredApiKey).update(JSON.stringify(b)).digest("hex");
         isValid = (computed === hmacSig);
-      } catch (_) {}
+      } catch (_) { }
     }
     // Nếu API key chưa khớp header nhưng thông tin số tài khoản khớp đúng tài khoản MBBank 0325536936
     const reqAcc = String(b.accountNumber || b.subAccount || "").trim();
@@ -4408,11 +4412,11 @@ app.post("/api/v1/internal/tunnel-relay-register", (req, res) => {
 
 // 1. Quản lý Danh mục (dbo.DANHMUC)
 app.get("/api/v1/categories", async (req, res) => {
-  if (sqlServerPool && sqlServerService && typeof sqlServerService.getCategories === "function") {
+  if (sqlServerService && typeof sqlServerService.getCategories === "function") {
     try {
       const cats = await sqlServerService.getCategories();
       if (cats && cats.length > 0) return res.json(cats);
-    } catch (_) {}
+    } catch (_) { }
   }
   res.json([
     { id: 1, name: "Tour Kỳ Quan Miền Bắc", description: "Chiêm ngưỡng kỳ quan thiên nhiên thế giới Vịnh Hạ Long, Vịnh Lan Hạ và quần thể danh thắng" },
@@ -4424,71 +4428,114 @@ app.get("/api/v1/categories", async (req, res) => {
 
 // 2. Quản lý Bài viết Quảng bá (dbo.BAIVIET_QUANGBA)
 app.get("/api/v1/articles", async (req, res) => {
-  if (sqlServerPool && sqlServerService && typeof sqlServerService.getArticles === "function") {
+  if (sqlServerService && typeof sqlServerService.getArticles === "function") {
     try {
       const articles = await sqlServerService.getArticles();
-      if (articles && articles.length > 0) return res.json(articles);
-    } catch (_) {}
+      return res.json(articles);
+    } catch (e) {
+      return res.status(500).json({ detail: "Lỗi tải bài viết từ SQL Server: " + e.message });
+    }
   }
-  res.json([
-    { id: 1, title: "Cẩm nang du lịch Côn Đảo", summary: "Kinh nghiệm du lịch tâm linh và biển đảo..." },
-    { id: 2, title: "Hành trình khám phá Sa Pa 4 mùa", summary: "Những điểm check-in không thể bỏ lỡ tại Sa Pa..." }
-  ]);
+  res.json([]);
 });
 
 app.post("/api/v1/admin/articles", requireAdmin, async (req, res) => {
   const { title, slug, summary, content, image } = req.body || {};
   if (!title) return res.status(422).json({ detail: "Tiêu đề bài viết không được để trống." });
-  if (sqlServerPool && sqlServerService && typeof sqlServerService.createArticle === "function") {
+  if (sqlServerService && typeof sqlServerService.createArticle === "function") {
     try {
       const result = await sqlServerService.createArticle({
         title, slug, summary, content, image,
         authorId: req.user?.id ? Number(req.user.id) || 1 : 1
       });
-      if (result && result.success !== false) {
-        audit(req.user.id, "ARTICLE_CREATED", String(result.id ?? ""), { title });
-        return res.status(201).json(result);
-      }
+      audit(req.user.id, "ARTICLE_CREATED", result.id, { title });
+      return res.status(201).json(result);
     } catch (e) {
-      console.warn("[SQL SERVER] createArticle offline fallback:", e.message);
+      return res.status(500).json({ detail: "Lỗi lưu bài viết vào SQL Server: " + e.message });
     }
   }
-  const mockId = Math.floor(Math.random() * 900) + 100;
-  audit(req.user?.id || "admin", "ARTICLE_CREATED", String(mockId), { title });
-  return res.status(201).json({ success: true, id: mockId, title, slug: slug || title });
+  res.status(503).json({ detail: "SQL Server chưa sẵn sàng." });
+});
+
+app.patch("/api/v1/admin/articles/:article_id", requireAdmin, async (req, res) => {
+  const { article_id } = req.params;
+  const { title, slug, summary, content, image, active } = req.body || {};
+  if (sqlServerService && typeof sqlServerService.updateArticle === "function") {
+    try {
+      const result = await sqlServerService.updateArticle(article_id, {
+        title, slug, summary, content, image, active
+      }, req.user?.id);
+      audit(req.user.id, "ARTICLE_UPDATED", article_id, { title });
+      return res.json(result);
+    } catch (e) {
+      return res.status(500).json({ detail: "Lỗi cập nhật bài viết vào SQL Server: " + e.message });
+    }
+  }
+  res.status(503).json({ detail: "SQL Server chưa sẵn sàng." });
+});
+
+app.put("/api/v1/admin/articles/:article_id", requireAdmin, async (req, res) => {
+  const { article_id } = req.params;
+  const { title, slug, summary, content, image, active } = req.body || {};
+  if (sqlServerService && typeof sqlServerService.updateArticle === "function") {
+    try {
+      const result = await sqlServerService.updateArticle(article_id, {
+        title, slug, summary, content, image, active
+      }, req.user?.id);
+      audit(req.user.id, "ARTICLE_UPDATED", article_id, { title });
+      return res.json(result);
+    } catch (e) {
+      return res.status(500).json({ detail: "Lỗi cập nhật bài viết vào SQL Server: " + e.message });
+    }
+  }
+  res.status(503).json({ detail: "SQL Server chưa sẵn sàng." });
+});
+
+app.delete("/api/v1/admin/articles/:article_id", requireAdmin, async (req, res) => {
+  const { article_id } = req.params;
+  if (sqlServerService && typeof sqlServerService.deleteArticle === "function") {
+    try {
+      const result = await sqlServerService.deleteArticle(article_id, req.user?.id);
+      audit(req.user.id, "ARTICLE_DELETED", article_id, {});
+      return res.json(result);
+    } catch (e) {
+      return res.status(500).json({ detail: "Lỗi xóa bài viết trong SQL Server: " + e.message });
+    }
+  }
+  res.status(503).json({ detail: "SQL Server chưa sẵn sàng." });
 });
 
 // 3. Quản lý Đánh giá Tour (dbo.DANHGIA)
 app.get("/api/v1/reviews", async (req, res) => {
   const tourId = req.query.tour_id || req.query.tourId || null;
-  if (sqlServerPool && sqlServerService && typeof sqlServerService.getReviews === "function") {
+  if (sqlServerService && typeof sqlServerService.getReviews === "function") {
     try {
       const list = await sqlServerService.getReviews(tourId);
-      if (list && list.length > 0) return res.json(list);
-    } catch (_) {}
+      return res.json(list);
+    } catch (e) {
+      return res.status(500).json({ detail: "Lỗi tải đánh giá từ SQL Server: " + e.message });
+    }
   }
-  res.json([
-    { id: 1, tourId: tourId || "DL-HL01", rating: 5, comment: "Dịch vụ tuyệt vời, hướng dẫn viên nhiệt tình!" }
-  ]);
+  res.json([]);
 });
 
 app.get("/api/v1/tours/:tour_id/reviews", async (req, res) => {
   const { tour_id } = req.params;
-  if (sqlServerPool && sqlServerService && typeof sqlServerService.getReviews === "function") {
+  if (sqlServerService && typeof sqlServerService.getReviews === "function") {
     try {
       const list = await sqlServerService.getReviews(tour_id);
-      if (list && list.length > 0) return res.json(list);
-    } catch (_) {}
+      return res.json(list);
+    } catch (e) {
+      return res.status(500).json({ detail: "Lỗi tải đánh giá từ SQL Server: " + e.message });
+    }
   }
-  res.json([
-    { id: 1, tourId: tour_id, rating: 5, comment: "Dịch vụ tuyệt vời, hướng dẫn viên nhiệt tình!" }
-  ]);
+  res.json([]);
 });
 
 app.post("/api/v1/tours/:tour_id/reviews", requireAuth, async (req, res) => {
   const { tour_id } = req.params;
   const { rating, comment, content, image, booking_id } = req.body || {};
-  if (sqlServerPool && sqlServerService && typeof sqlServerService.createReview === "function") {
+  if (sqlServerService && typeof sqlServerService.createReview === "function") {
     try {
       const revRes = await sqlServerService.createReview({
         tourId: tour_id,
@@ -4498,23 +4545,19 @@ app.post("/api/v1/tours/:tour_id/reviews", requireAuth, async (req, res) => {
         image: image || "",
         userId: req.user?.id
       });
-      if (revRes && revRes.success !== false) {
-        audit(req.user.id, "REVIEW_CREATED", String(revRes.maDanhGia ?? ""), { tour_id, rating });
-        return res.status(201).json({ success: true, ...revRes });
-      }
+      audit(req.user.id, "REVIEW_CREATED", revRes.maDanhGia, { tour_id, rating });
+      return res.status(201).json({ success: true, ...revRes });
     } catch (e) {
-      console.warn("[SQL SERVER] createReview offline fallback:", e.message);
+      return res.status(500).json({ detail: "Lỗi lưu đánh giá vào SQL Server: " + e.message });
     }
   }
-  const mockRevId = Math.floor(Math.random() * 900) + 100;
-  audit(req.user?.id || "guest", "REVIEW_CREATED", String(mockRevId), { tour_id, rating });
-  return res.status(201).json({ success: true, maDanhGia: mockRevId, tourId: tour_id, rating: Number(rating) || 5 });
+  res.status(503).json({ detail: "SQL Server chưa sẵn sàng." });
 });
 
 app.post("/api/v1/reviews", requireAuth, async (req, res) => {
   const { tour_id, tourId, rating, comment, content, image, booking_id } = req.body || {};
   const targetTour = tour_id || tourId || null;
-  if (sqlServerPool && sqlServerService && typeof sqlServerService.createReview === "function") {
+  if (sqlServerService && typeof sqlServerService.createReview === "function") {
     try {
       const revRes = await sqlServerService.createReview({
         tourId: targetTour,
@@ -4524,17 +4567,13 @@ app.post("/api/v1/reviews", requireAuth, async (req, res) => {
         image: image || "",
         userId: req.user?.id
       });
-      if (revRes && revRes.success !== false) {
-        audit(req.user.id, "REVIEW_CREATED", String(revRes.maDanhGia ?? ""), { targetTour, rating });
-        return res.status(201).json({ success: true, ...revRes });
-      }
+      audit(req.user.id, "REVIEW_CREATED", revRes.maDanhGia, { targetTour, rating });
+      return res.status(201).json({ success: true, ...revRes });
     } catch (e) {
-      console.warn("[SQL SERVER] createReview offline fallback:", e.message);
+      return res.status(500).json({ detail: "Lỗi lưu đánh giá vào SQL Server: " + e.message });
     }
   }
-  const mockRevId = Math.floor(Math.random() * 900) + 100;
-  audit(req.user?.id || "guest", "REVIEW_CREATED", String(mockRevId), { targetTour, rating });
-  return res.status(201).json({ success: true, maDanhGia: mockRevId, tourId: targetTour, rating: Number(rating) || 5 });
+  res.status(503).json({ detail: "SQL Server chưa sẵn sàng." });
 });
 
 
@@ -5032,7 +5071,7 @@ async function queryGroqChat(messages) {
 function findTourInText(text, allTours) {
   if (!text) return null;
   const lower = text.toLowerCase();
-  
+
   // 1. Kiểm tra mã tour chính xác (DL-XXXX)
   for (const t of allTours) {
     if (lower.includes(String(t.id).toLowerCase())) return t;
@@ -5056,8 +5095,8 @@ function findTourInText(text, allTours) {
 
   for (const kw of keywords) {
     if (kw.keys.some(k => lower.includes(k))) {
-      const match = allTours.find(t => 
-        (t.slug && t.slug.includes(kw.slug)) || 
+      const match = allTours.find(t =>
+        (t.slug && t.slug.includes(kw.slug)) ||
         (t.title && kw.keys.some(k => t.title.toLowerCase().includes(k)))
       );
       if (match) return match;
@@ -5328,7 +5367,7 @@ function registerRelayWithCloud(tunnelUrl) {
     if (res && res.success) {
       console.log(`  🔗 Đã kết nối Webhook Relay: Render -> Localhost (${tunnelUrl})`);
     }
-  }).catch(() => {});
+  }).catch(() => { });
 }
 
 async function startAutoTunnel(localPort) {
@@ -5352,7 +5391,7 @@ async function startAutoTunnel(localPort) {
         if (match) {
           tunnelEstablished = true;
           const tunnelUrl = match[0];
-          activeTunnel = { url: tunnelUrl, close: () => { try { cf.kill(); } catch (_) {} } };
+          activeTunnel = { url: tunnelUrl, close: () => { try { cf.kill(); } catch (_) { } } };
           console.log("==================================================================");
           console.log(`  🌐 Cloudflare Tunnel: ${tunnelUrl}`);
           console.log(`  💳 SePay Webhook URL: ${tunnelUrl}/api/v1/webhooks/sepay`);
@@ -5406,9 +5445,9 @@ async function startAutoTunnel(localPort) {
           finalTunnel = tunnel;
           break;
         }
-        try { tunnel.close(); } catch (_) {}
+        try { tunnel.close(); } catch (_) { }
       }
-    } catch (_) {}
+    } catch (_) { }
     await new Promise(r => setTimeout(r, 1500));
   }
 
@@ -5445,7 +5484,7 @@ async function startAutoTunnel(localPort) {
         await fetch(`${tunnelUrl}/api/v1/health/ready`, {
           headers: { "Bypass-Tunnel-Reminder": "true" }
         });
-      } catch (_) {}
+      } catch (_) { }
     }, 25000);
 
     finalTunnel.on("close", () => {
@@ -5474,11 +5513,11 @@ function freePortIfOccupied(targetPort) {
         const parts = line.trim().split(/\s+/);
         const pid = parts[parts.length - 1];
         if (pid && Number(pid) > 0 && Number(pid) !== process.pid) {
-          try { execSync(`taskkill /F /PID ${pid}`, { stdio: "ignore" }); } catch (_) {}
+          try { execSync(`taskkill /F /PID ${pid}`, { stdio: "ignore" }); } catch (_) { }
         }
       }
     }
-  } catch (_) {}
+  } catch (_) { }
 }
 
 // Xử lý lỗi toàn cục và chặn crash khi client gửi JSON sai định dạng
@@ -5503,7 +5542,7 @@ const server = app.listen(PORT, HOST, () => {
   console.log(`  Kiểm tra hệ thống:  http://${displayHost}:${port}/api/v1/health/ready`);
   console.log("==================================================================");
 
-  startAutoTunnel(port).catch(() => {});
+  startAutoTunnel(port).catch(() => { });
 
   initDirectSqlServer().catch(err => {
     console.warn("[SQL SERVER] Background initialization failed:", err.name);
@@ -5518,15 +5557,15 @@ const server = app.listen(PORT, HOST, () => {
 
 function cleanupAndExit() {
   if (cloudflaredProcess) {
-    try { cloudflaredProcess.kill(); } catch (_) {}
+    try { cloudflaredProcess.kill(); } catch (_) { }
     cloudflaredProcess = null;
   }
   if (tunnelKeepAliveTimer) {
-    try { clearInterval(tunnelKeepAliveTimer); } catch (_) {}
+    try { clearInterval(tunnelKeepAliveTimer); } catch (_) { }
     tunnelKeepAliveTimer = null;
   }
   if (activeTunnel) {
-    try { activeTunnel.close(); } catch (_) {}
+    try { activeTunnel.close(); } catch (_) { }
   }
   server.close(() => {
     process.exit(0);
@@ -5551,7 +5590,7 @@ server.on("error", (err) => {
       setTimeout(() => {
         try {
           server.listen(PORT, HOST);
-        } catch (_) {}
+        } catch (_) { }
       }, 1000);
       return;
     }

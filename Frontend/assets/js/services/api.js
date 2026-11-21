@@ -516,6 +516,26 @@ const DeltaAPI = (() => {
     });
   }
 
+  async function adminCreateArticle(articleData) {
+    return await request("/admin/articles", {
+      method: "POST",
+      body: articleData
+    });
+  }
+
+  async function adminUpdateArticle(articleId, articleData) {
+    return await request(`/admin/articles/${encodeURIComponent(articleId)}`, {
+      method: "PATCH",
+      body: articleData
+    });
+  }
+
+  async function adminDeleteArticle(articleId) {
+    return await request(`/admin/articles/${encodeURIComponent(articleId)}`, {
+      method: "DELETE"
+    });
+  }
+
   // Tự động kiểm tra sức khỏe server khi script tải
   document.addEventListener("DOMContentLoaded", () => {
     setTimeout(checkHealth, 500);
@@ -582,6 +602,9 @@ const DeltaAPI = (() => {
     assistantChat,
     fetchCategories,
     fetchArticles,
+    adminCreateArticle,
+    adminUpdateArticle,
+    adminDeleteArticle,
     fetchReviews,
     createReview
   };
