@@ -179,24 +179,33 @@
   "DL-CB09": [
     {
       "day": 1,
-      "title": "Hà Nội - Thái Nguyên - Cao Bằng - Thác Bản Giốc Oai Hùng",
-      "morning": "Khởi hành từ Hà Nội qua đèo Gió, đèo Khau Khang ngắm núi rừng Đông Bắc trập trùng.",
-      "afternoon": "Đến Trùng Khánh, chiêm ngưỡng vẻ đẹp kỳ vĩ của Thác Bản Giốc tung bọt trắng xóa giữa biên cương.",
-      "evening": "Nhận phòng khách sạn, thưởng thức vịt quay 7 vị và rau bò khai xào thịt bò thơm ngon."
+      "title": "Hà Nội - Thái Nguyên - Cao Bằng",
+      "morning": "Khởi hành từ Hà Nội qua đèo Gió, đèo Khau Khang ngắm cảnh Đông Bắc.",
+      "afternoon": "",
+      "evening": "",
+      "morningCategory": "transport",
+      "afternoonCategory": "activity",
+      "eveningCategory": "meal"
     },
     {
       "day": 2,
-      "title": "Động Ngườm Ngao - Làng Rèn Phúc Sen - Suối Lê Nin Núi Các Mác",
-      "morning": "Thám hiểm Động Ngườm Ngao khám phá kiệt tác thạch nhũ hình hoa sen úp ngược.",
-      "afternoon": "Ghé thăm làng nghề rèn dao Phúc Sen truyền thống của người Nùng An, viếng suối Lê Nin Pác Bó.",
-      "evening": "Dạo phố đêm Cao Bằng, thưởng thức bánh áp chao giòn rụm và chè hạt dẻ thơm bùi."
+      "title": "Động Ngườm Ngao - Thác Bản Giốc",
+      "morning": "Chiêm ngưỡng thác Bản Giốc hùng vĩ và thám hiểm động Ngườm Ngao.",
+      "afternoon": "",
+      "evening": "",
+      "morningCategory": "activity",
+      "afternoonCategory": "activity",
+      "eveningCategory": "meal"
     },
     {
       "day": 3,
-      "title": "Chợ Phiên Vùng Cao - Bắc Kạn - Hà Nội",
-      "morning": "Mua sắm đặc sản miến dong Phia Đén, nấm hương rừng và hạt dẻ Trùng Khánh.",
-      "afternoon": "Lên xe khởi hành về lại Hà Nội, dừng chân ngắm cảnh hồ Ba Bể xanh trong.",
-      "evening": "18:30 Về đến thủ đô Hà Nội, chia tay và hẹn gặp lại quý khách."
+      "title": "Suối Lê Nin - Núi Các Mác - Hà Nội",
+      "morning": "Thăm di tích Pác Bó, suối Lê Nin trong vắt và khởi hành về lại Hà Nội.",
+      "afternoon": "",
+      "evening": "",
+      "morningCategory": "activity",
+      "afternoonCategory": "activity",
+      "eveningCategory": "meal"
     }
   ],
   "DL-MC10": [
