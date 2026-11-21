@@ -12,7 +12,7 @@
 
   const TOTAL_FRAMES = 150;
   const FRAME_PREFIX = "ezgif-frame-";
-  const FRAME_EXT = ".png";
+  const FRAME_EXT = ".webp";
 
   // Stride = 1 để chuyển động liên tục từng khung hình mượt mà nhất
   const FRAME_STRIDE = 1;
