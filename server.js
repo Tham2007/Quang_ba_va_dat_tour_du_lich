@@ -1997,10 +1997,12 @@ async function ssReleaseVoucherByExternalBooking(bookingId) {
 
 function audit(actorId, eventType, subjectId, details = {}) {
   try {
+    const aId = actorId !== undefined && actorId !== null ? String(actorId) : "SYSTEM";
+    const sId = (subjectId !== undefined && subjectId !== null && String(subjectId).trim()) ? String(subjectId) : aId;
     db.prepare(`
       INSERT INTO audit_events (id, actor_id, event_type, subject_id, details, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(crypto.randomUUID(), actorId, eventType, subjectId, JSON.stringify(details), new Date().toISOString());
+    `).run(crypto.randomUUID(), aId, eventType, sId, JSON.stringify(details), new Date().toISOString());
   } catch (err) {
     console.error("Audit error:", err);
   }
