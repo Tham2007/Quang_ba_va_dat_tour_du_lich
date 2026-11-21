@@ -51,7 +51,7 @@ const DeltaAPI = (() => {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), options.timeout || 6000);
+    const timeoutId = setTimeout(() => controller.abort(), options.timeout || 15000);
 
     try {
       const response = await fetch(url, {
@@ -337,31 +337,37 @@ const DeltaAPI = (() => {
   async function adminCreateTour(tourPayload) {
     return await request("/admin/tours", {
       method: "POST",
-      body: tourPayload
+      body: tourPayload,
+      timeout: 25000
     });
   }
 
   async function adminPatchTour(tourId, patchData) {
     return await request(`/admin/tours/${encodeURIComponent(tourId)}`, {
       method: "PATCH",
-      body: patchData
+      body: patchData,
+      timeout: 25000
     });
   }
 
   async function adminFetchTourDetails(tourId) {
-    return await request(`/admin/tours/${encodeURIComponent(tourId)}/details`);
+    return await request(`/admin/tours/${encodeURIComponent(tourId)}/details`, {
+      timeout: 20000
+    });
   }
 
   async function adminReplaceTourDetails(tourId, details) {
     return await request(`/admin/tours/${encodeURIComponent(tourId)}/details`, {
       method: "PUT",
-      body: details
+      body: details,
+      timeout: 25000
     });
   }
 
   async function adminDeleteTour(tourId) {
     return await request(`/admin/tours/${encodeURIComponent(tourId)}`, {
-      method: "DELETE"
+      method: "DELETE",
+      timeout: 20000
     });
   }
 

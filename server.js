@@ -135,27 +135,35 @@ async function initDirectSqlServer() {
     return;
   }
   try {
-    const mssql = require("mssql");
-    sqlServerPool = await mssql.connect(SQL_SERVER_CONFIG);
-    await ensureSqlServerVoucherSchema(sqlServerPool);
-    console.log(`[SQL SERVER] Đã kết nối TRỰC TIẾP thành công tới SQL Server (${SQL_SERVER_CONFIG.server}:${SQL_SERVER_CONFIG.port} / ${SQL_SERVER_CONFIG.database}) và kích hoạt hệ thống Voucher!`);
-    await sqlServerService.syncAllFromSqlServer(db);
+    sqlServerPool = await sqlServerService.getPool();
+    if (sqlServerPool) {
+      await ensureSqlServerVoucherSchema(sqlServerPool);
+      console.log(`[SQL SERVER] Đã kết nối TRỰC TIẾP thành công tới SQL Server (${SQL_SERVER_CONFIG.server}:${SQL_SERVER_CONFIG.port} / ${SQL_SERVER_CONFIG.database}) và kích hoạt hệ thống Voucher!`);
+      await sqlServerService.syncAllFromSqlServer(db);
+    }
   } catch (err) {
     sqlServerVoucherReady = false;
     console.warn("[SQL SERVER] Optional connection unavailable:", err.name, err.message);
   }
 }
 
-async function getSqlServerPool() {
-  if (sqlServerPool && (sqlServerPool.connected !== false && typeof sqlServerPool.request === "function")) return sqlServerPool;
-  if (sqlServerService && typeof sqlServerService.getPool === "function") {
-    try {
-      const p = await sqlServerService.getPool();
-      if (p && (p.connected !== false && typeof p.request === "function")) {
-        sqlServerPool = p;
-        return p;
-      }
-    } catch (_) { }
+async function getSqlServerPool(maxRetries = 1) {
+  if (sqlServerPool && (sqlServerPool.connected !== false && typeof sqlServerPool.request === "function")) {
+    return sqlServerPool;
+  }
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (sqlServerService && typeof sqlServerService.getPool === "function") {
+      try {
+        const p = await sqlServerService.getPool();
+        if (p && (p.connected !== false && typeof p.request === "function")) {
+          sqlServerPool = p;
+          return p;
+        }
+      } catch (_) { }
+    }
+    if (attempt < maxRetries) {
+      await new Promise(r => setTimeout(r, 600));
+    }
   }
   return null;
 }
@@ -5712,6 +5720,9 @@ server.on("error", (err) => {
 
 function setSqlServerTestConnection(pool, ready = false) {
   sqlServerPool = pool;
+  if (sqlServerService && typeof sqlServerService.setPool === "function") {
+    sqlServerService.setPool(pool);
+  }
   sqlServerVoucherReady = Boolean(pool && ready);
 }
 

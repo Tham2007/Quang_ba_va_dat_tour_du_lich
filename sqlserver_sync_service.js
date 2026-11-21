@@ -30,6 +30,12 @@ const SQL_SERVER_CONFIG = {
   server: process.env.DELTA_MSSQL_SERVER || process.env.SQL_SERVER_HOST,
   port: Number.parseInt(process.env.DELTA_MSSQL_PORT || process.env.SQL_SERVER_PORT || '1433', 10),
   database: process.env.DELTA_MSSQL_DATABASE || process.env.SQL_SERVER_DB,
+  pool: {
+    max: 10,
+    min: 1,
+    idleTimeoutMillis: 30000,
+    acquireTimeoutMillis: 15000
+  },
   options: {
     encrypt: true,
     trustServerCertificate: true,
@@ -38,8 +44,13 @@ const SQL_SERVER_CONFIG = {
 };
 
 let pool = null;
+let connectPromise = null;
 const dynamicTourMap = new Map();
 const dynamicSchedMap = new Map();
+
+function setPool(p) {
+  pool = p;
+}
 
 /**
  * Chuẩn hóa danh sách ngày lịch trình thành mảng Day objects chuẩn 3NF:
@@ -95,15 +106,34 @@ async function getPool() {
   if (!SQL_SERVER_CONFIG.user || !SQL_SERVER_CONFIG.password || !SQL_SERVER_CONFIG.server || !SQL_SERVER_CONFIG.database) {
     return null;
   }
-  if (pool && pool.connected) return pool;
-  try {
-    pool = await mssql.connect(SQL_SERVER_CONFIG);
-    console.log('[SQL SERVER SERVICE] Connected to', SQL_SERVER_CONFIG.server, SQL_SERVER_CONFIG.database);
-    return pool;
-  } catch (err) {
-    console.warn('[SQL SERVER SERVICE] Optional connection error:', err.message);
-    return null;
-  }
+  if (pool && (pool.connected !== false && typeof pool.request === 'function')) return pool;
+  if (connectPromise) return await connectPromise;
+
+  connectPromise = (async () => {
+    try {
+      if (pool) {
+        try { await pool.close(); } catch (_) { }
+        pool = null;
+      }
+      const newPool = new mssql.ConnectionPool(SQL_SERVER_CONFIG);
+      await newPool.connect();
+      newPool.on('error', err => {
+        console.warn('[SQL SERVER SERVICE] Connection pool background error:', err.message);
+        if (pool === newPool) pool = null;
+      });
+      pool = newPool;
+      console.log('[SQL SERVER SERVICE] Connected to', SQL_SERVER_CONFIG.server, SQL_SERVER_CONFIG.database);
+      return pool;
+    } catch (err) {
+      console.warn('[SQL SERVER SERVICE] Connection error:', err.message);
+      pool = null;
+      return null;
+    } finally {
+      connectPromise = null;
+    }
+  })();
+
+  return await connectPromise;
 }
 
 /**
@@ -1758,6 +1788,7 @@ async function syncAllFromSqlServer(sqliteDb) {
 
 module.exports = {
   getPool,
+  setPool,
   resolveMaTour,
   resolveMaChuyen,
   updateTour,
