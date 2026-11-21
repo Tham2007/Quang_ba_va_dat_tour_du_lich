@@ -13,11 +13,9 @@ const DeltaAPI = (() => {
   "use strict";
 
   // Cấu hình URL gốc của Backend API
-  const isSameOriginApi = window.location.origin.includes(":8000") ||
-                          window.location.origin.includes(":8001") ||
-                          window.location.origin.includes(":8999") ||
-                          window.location.pathname.startsWith("/an-live") ||
-                          (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1" && window.location.protocol.startsWith("http"));
+  const isSameOriginApi = window.location.protocol.startsWith("http") &&
+                          !window.location.origin.includes(":5500") &&
+                          !window.location.origin.includes(":5501");
   const API_BASE_URL = isSameOriginApi ? "/api/v1" : "http://127.0.0.1:8000/api/v1";
 
   // Trạng thái kết nối API Backend

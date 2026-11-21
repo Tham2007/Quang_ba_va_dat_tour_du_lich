@@ -303,6 +303,40 @@ async function updateTour(tourId, patchData, userId = null) {
       await req.query(`UPDATE dbo.TOUR SET ${updates.join(', ')} WHERE MaTour = @maTour`);
     }
 
+    // 2.1. Cập nhật chi tiết lịch trình vào dbo.LICH_TRINH_DETAIL nếu có trong patchData
+    const rawItin = patchData.itinerary || patchData.itinerary_json;
+    let normalizedItin = [];
+    if (rawItin) {
+      const parsedItin = (typeof rawItin === 'string') ? JSON.parse(rawItin) : rawItin;
+      normalizedItin = normalizeItineraryDays(parsedItin);
+      if (normalizedItin.length > 0) {
+        const delReq = new mssql.Request(tx);
+        delReq.input('mt', mssql.Int, maTour);
+        await delReq.query('DELETE FROM dbo.LICH_TRINH_DETAIL WHERE MaTour = @mt');
+
+        for (const d of normalizedItin) {
+          const title = (d.title || `Khám phá ngày ${d.day}`).slice(0, 200);
+          const parts = [];
+          if (d.morning) parts.push(`BUỔI SÁNG\n${d.morning}`);
+          if (d.afternoon) parts.push(`BUỔI CHIỀU\n${d.afternoon}`);
+          if (d.evening) parts.push(`BUỔI TỐI\n${d.evening}`);
+          if (d.description && parts.length === 0) parts.push(d.description);
+          const fullDesc = parts.length > 0 ? parts.join('\n\n') : 'Tham quan theo chương trình';
+
+          const insReq = new mssql.Request(tx);
+          insReq.input('mt', mssql.Int, maTour);
+          insReq.input('ngay', mssql.Int, d.day);
+          insReq.input('tieude', mssql.NVarChar(200), title);
+          insReq.input('noidung', mssql.NVarChar(mssql.MAX), fullDesc);
+          insReq.input('buaan', mssql.NVarChar(100), (d.meals || 'Sáng, Trưa, Tối').slice(0, 100));
+          await insReq.query(`
+            INSERT INTO dbo.LICH_TRINH_DETAIL (MaTour, NgayThu, TieuDeNgay, NoiDungChiTiet, BuaAn)
+            VALUES (@mt, @ngay, @tieude, @noidung, @buaan)
+          `);
+        }
+      }
+    }
+
     // 3. Cập nhật số chỗ nếu có
     const incomingSeats = patchData.available_seats ?? patchData.availableSeats;
     if (incomingSeats !== undefined && incomingSeats !== null) {
@@ -338,7 +372,12 @@ async function updateTour(tourId, patchData, userId = null) {
     aReq.input('uid', mssql.Int, userId ? Number(userId) || null : null);
     aReq.input('hd', mssql.NVarChar(100), 'ADMIN_UPDATE_TOUR');
     aReq.input('cu', mssql.NVarChar(mssql.MAX), JSON.stringify({ maTour, giaCu: oldData.GiaKhuyenNghi, tenCu: oldData.TenTour }));
-    aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify(patchData));
+    aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify({
+      maTour,
+      tourId,
+      ...patchData,
+      itinerary: normalizedItin.length > 0 ? normalizedItin : (patchData.itinerary || [])
+    }));
     await aReq.query(`
       INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
       VALUES (@uid, @hd, @cu, @moi, GETDATE())
@@ -501,11 +540,46 @@ async function createTour(tourData, userId = null) {
       dynamicSchedMap.set('SCHED-' + newMaChuyen, newMaChuyen);
     }
 
+    // Chèn chi tiết lịch trình vào dbo.LICH_TRINH_DETAIL nếu có
+    const rawItin = tourData.itinerary || tourData.itinerary_json;
+    let normalizedItin = [];
+    if (rawItin) {
+      const parsedItin = (typeof rawItin === 'string') ? JSON.parse(rawItin) : rawItin;
+      normalizedItin = normalizeItineraryDays(parsedItin);
+      for (const d of normalizedItin) {
+        const title = (d.title || `Khám phá ngày ${d.day}`).slice(0, 200);
+        const parts = [];
+        if (d.morning) parts.push(`BUỔI SÁNG\n${d.morning}`);
+        if (d.afternoon) parts.push(`BUỔI CHIỀU\n${d.afternoon}`);
+        if (d.evening) parts.push(`BUỔI TỐI\n${d.evening}`);
+        if (d.description && parts.length === 0) parts.push(d.description);
+        const fullDesc = parts.length > 0 ? parts.join('\n\n') : 'Tham quan theo chương trình';
+
+        const insItinReq = new mssql.Request(tx);
+        insItinReq.input('mt', mssql.Int, newMaTour);
+        insItinReq.input('ngay', mssql.Int, d.day);
+        insItinReq.input('tieude', mssql.NVarChar(200), title);
+        insItinReq.input('noidung', mssql.NVarChar(mssql.MAX), fullDesc);
+        insItinReq.input('buaan', mssql.NVarChar(100), (d.meals || 'Sáng, Trưa, Tối').slice(0, 100));
+        await insItinReq.query(`
+          INSERT INTO dbo.LICH_TRINH_DETAIL (MaTour, NgayThu, TieuDeNgay, NoiDungChiTiet, BuaAn)
+          VALUES (@mt, @ngay, @tieude, @noidung, @buaan)
+        `);
+      }
+    }
+
     // Ghi Audit Log
     const aReq = new mssql.Request(tx);
     aReq.input('uid', mssql.Int, userId ? Number(userId) || null : null);
     aReq.input('hd', mssql.NVarChar(100), 'ADMIN_CREATE_TOUR');
-    aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify({ maTour: newMaTour, maChuyen: newMaChuyen, tenTour, gia }));
+    aReq.input('moi', mssql.NVarChar(mssql.MAX), JSON.stringify({
+      maTour: newMaTour,
+      tourId: tourData.id,
+      maChuyen: newMaChuyen,
+      tenTour,
+      gia,
+      itinerary: normalizedItin
+    }));
     await aReq.query(`
       INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
       VALUES (@uid, @hd, NULL, @moi, GETDATE())

@@ -1673,9 +1673,6 @@
           days = def.itinerary;
         }
       }
-      if (def && Array.isArray(def.itinerary) && days && days.length < def.itinerary.length) {
-        days = def.itinerary;
-      }
 
       if (!days || days.length === 0) {
         days = [

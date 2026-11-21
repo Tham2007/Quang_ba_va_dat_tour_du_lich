@@ -146,6 +146,20 @@ async function initDirectSqlServer() {
   }
 }
 
+async function getSqlServerPool() {
+  if (sqlServerPool && (sqlServerPool.connected !== false && typeof sqlServerPool.request === "function")) return sqlServerPool;
+  if (sqlServerService && typeof sqlServerService.getPool === "function") {
+    try {
+      const p = await sqlServerService.getPool();
+      if (p && (p.connected !== false && typeof p.request === "function")) {
+        sqlServerPool = p;
+        return p;
+      }
+    } catch (_) { }
+  }
+  return null;
+}
+
 // Helper ngày giờ ISO UTC
 function iso(d) {
   if (!d) return null;
@@ -217,7 +231,8 @@ async function proxySqlServerCatalog(req, res, endpoint, queryKeys = []) {
 }
 
 async function syncSqlServerCatalogToLocalDb() {
-  if (sqlServerPool && sqlServerService) {
+  const pool = await getSqlServerPool();
+  if (pool && sqlServerService) {
     try {
       const directResult = await sqlServerService.syncAllFromSqlServer(db);
       if (directResult && directResult.success) {
@@ -2411,15 +2426,17 @@ app.post("/api/v1/auth/register", (req, res) => {
   createSession(res, user);
   audit(id, "USER_REGISTERED", id, { email: user.email });
 
-  if (sqlServerPool && sqlServerService && typeof sqlServerService.syncUser === "function") {
-    sqlServerService.syncUser({
-      name: full_name.trim(),
-      email: cleanEmail,
-      phone: cleanPhone,
-      passwordHash: hashPassword(password),
-      address: "Việt Nam"
-    }).catch(e => console.warn("[SQL SERVER] syncUser failed:", e.message));
-  }
+  getSqlServerPool().then(pool => {
+    if (pool && sqlServerService && typeof sqlServerService.syncUser === "function") {
+      sqlServerService.syncUser({
+        name: full_name.trim(),
+        email: cleanEmail,
+        phone: cleanPhone,
+        passwordHash: hashPassword(password),
+        address: "Việt Nam"
+      }).catch(e => console.warn("[SQL SERVER] syncUser failed:", e.message));
+    }
+  }).catch(() => { });
 
   res.status(201).json(userDict(user));
 });
@@ -2511,13 +2528,15 @@ app.patch("/api/v1/auth/profile", requireAuth, (req, res) => {
   const updated = db.prepare("SELECT * FROM users WHERE id = ?").get(req.user.id);
   audit(req.user.id, "PROFILE_UPDATED", req.user.id);
 
-  if (sqlServerPool && sqlServerService && typeof sqlServerService.syncUser === "function") {
-    sqlServerService.syncUser({
-      name: newName,
-      email: updated.email,
-      phone: newPhone
-    }).catch(e => console.warn("[SQL SERVER] syncUser update failed:", e.message));
-  }
+  getSqlServerPool().then(pool => {
+    if (pool && sqlServerService && typeof sqlServerService.syncUser === "function") {
+      sqlServerService.syncUser({
+        name: newName,
+        email: updated.email,
+        phone: newPhone
+      }).catch(e => console.warn("[SQL SERVER] syncUser update failed:", e.message));
+    }
+  }).catch(() => { });
 
   res.json(userDict(updated));
 });
@@ -3052,7 +3071,8 @@ app.post("/api/v1/bookings", requireAuth, async (req, res) => {
     const totalPrice = subtotalAfterDiscount + vatAmount;
 
     // Lưu vĩnh viễn vào Microsoft SQL Server (dbo.DATTOUR & dbo.CHITIET_HANHKHACH) và khóa chỗ
-    if (sqlServerPool && sqlServerService && typeof sqlServerService.createBooking === "function") {
+    const pool = await getSqlServerPool();
+    if (pool && sqlServerService && typeof sqlServerService.createBooking === "function") {
       try {
         ssBookingRes = await sqlServerService.createBooking({
           scheduleId: resolvedScheduleId,
@@ -3325,7 +3345,8 @@ app.post("/api/v1/bookings/:booking_id/cancel", requireAuth, async (req, res) =>
 
   await ssReleaseVoucherByExternalBooking(b.id);
 
-  if (sqlServerPool && sqlServerService && typeof sqlServerService.cancelBooking === "function") {
+  const pool = await getSqlServerPool();
+  if (pool && sqlServerService && typeof sqlServerService.cancelBooking === "function") {
     try {
       await sqlServerService.cancelBooking({
         bookingRef: b.reference,
@@ -3475,13 +3496,16 @@ app.put("/api/v1/admin/tours/:tour_id/details", requireAdmin, async (req, res) =
   }
 
   // 1. Ghi vĩnh viễn vào Microsoft SQL Server với Explicit Transaction + COMMIT
-  if (sqlServerPool && sqlServerService) {
+  const pool = await getSqlServerPool();
+  if (pool && sqlServerService) {
     try {
       await sqlServerService.replaceTourDetails(tour_id, req.body, req.user?.id);
     } catch (ssErr) {
       console.error("[SQL SERVER ERROR] replaceTourDetails failed:", ssErr.message);
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
+  } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
+    return res.status(503).json({ detail: "Không thể kết nối máy chủ Microsoft SQL Server để lưu lịch trình và giá. Vui lòng thử lại sau ít giây." });
   }
 
   // 2. Ghi vào SQLite Cache nội bộ
@@ -3561,13 +3585,16 @@ app.post("/api/v1/admin/tours", requireAdmin, async (req, res) => {
 
   // 1. Ghi vĩnh viễn vào Microsoft SQL Server với Explicit Transaction + COMMIT
   let ssCreateResult = null;
-  if (sqlServerPool && sqlServerService) {
+  const pool = await getSqlServerPool();
+  if (pool && sqlServerService) {
     try {
       ssCreateResult = await sqlServerService.createTour(data, req.user?.id);
     } catch (ssErr) {
       console.error("[SQL SERVER ERROR] createTour failed:", ssErr.message);
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
+  } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
+    return res.status(503).json({ detail: "Không thể kết nối máy chủ Microsoft SQL Server để tạo tour. Vui lòng thử lại sau ít giây." });
   }
 
   let imageValue = data.image || "";
@@ -3618,6 +3645,27 @@ app.post("/api/v1/admin/tours", requireAdmin, async (req, res) => {
     `).run(schedId, data.id, d.toISOString(), seatsNum);
   }
 
+  // Cập nhật chi tiết các buổi lịch trình vào bảng itinerary_items của SQLite nếu có
+  if (Array.isArray(data.itinerary) && data.itinerary.length > 0) {
+    try {
+      db.prepare("DELETE FROM itinerary_items WHERE tour_id = ?").run(data.id);
+      const insertItin = db.prepare(`
+        INSERT INTO itinerary_items (id, tour_id, day_number, sequence, category, title, description, location, start_time)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      data.itinerary.forEach((d, idx) => {
+        const dNum = Number(d.day_number || d.day || (idx + 1));
+        const dayTitle = d.title || `Ngày ${dNum}`;
+        if (d.morning) insertItin.run(crypto.randomUUID(), data.id, dNum, 1, d.morningCategory || "transport", dayTitle + " - Buổi sáng", d.morning, "", "08:00");
+        if (d.afternoon) insertItin.run(crypto.randomUUID(), data.id, dNum, 2, d.afternoonCategory || "activity", dayTitle + " - Buổi chiều", d.afternoon, "", "14:00");
+        if (d.evening) insertItin.run(crypto.randomUUID(), data.id, dNum, 3, d.eveningCategory || "meal", dayTitle + " - Buổi tối", d.evening, "", "19:00");
+        if (!d.morning && !d.afternoon && !d.evening && d.description) {
+          insertItin.run(crypto.randomUUID(), data.id, dNum, 1, "activity", dayTitle, d.description, "", null);
+        }
+      });
+    } catch (_) { }
+  }
+
   const t = db.prepare("SELECT * FROM tours WHERE id = ?").get(data.id);
   audit(req.user.id, "TOUR_CREATED", data.id);
   res.status(201).json(publicTour(t));
@@ -3658,13 +3706,16 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, async (req, res) => {
   if (!t) return res.status(404).json({ detail: "Không tìm thấy tour." });
 
   // 1. Ghi vĩnh viễn vào Microsoft SQL Server với Explicit Transaction + COMMIT
-  if (sqlServerPool && sqlServerService) {
+  const pool = await getSqlServerPool();
+  if (pool && sqlServerService) {
     try {
       await sqlServerService.updateTour(tour_id, req.body || {}, req.user?.id);
     } catch (ssErr) {
       console.error("[SQL SERVER ERROR] updateTour failed:", ssErr.message);
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
+  } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
+    return res.status(503).json({ detail: "Không thể kết nối máy chủ Microsoft SQL Server để cập nhật tour. Vui lòng thử lại sau ít giây." });
   }
 
   // Chuẩn hóa và lưu ảnh bìa/danh sách ảnh nếu là base64
@@ -3788,6 +3839,44 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, async (req, res) => {
     db.prepare(`UPDATE tours SET ${fields.join(", ")} WHERE id = ?`).run(...params);
   }
 
+  // Cập nhật chi tiết các buổi lịch trình vào bảng itinerary_items của SQLite nếu có
+  const incomingItin = patchBody.itinerary || patchBody.itinerary_json;
+  if (incomingItin) {
+    try {
+      const parsedItin = typeof incomingItin === "string" ? JSON.parse(incomingItin) : incomingItin;
+      if (Array.isArray(parsedItin) && parsedItin.length > 0) {
+        db.prepare("DELETE FROM itinerary_items WHERE tour_id = ?").run(tour_id);
+        const insertItin = db.prepare(`
+          INSERT INTO itinerary_items (id, tour_id, day_number, sequence, category, title, description, location, start_time)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        parsedItin.forEach((d, idx) => {
+          const dNum = Number(d.day_number || d.day || (idx + 1));
+          const dayTitle = d.title || `Ngày ${dNum}`;
+          if (d.morning) insertItin.run(crypto.randomUUID(), tour_id, dNum, 1, d.morningCategory || "transport", dayTitle + " - Buổi sáng", d.morning, "", "08:00");
+          if (d.afternoon) insertItin.run(crypto.randomUUID(), tour_id, dNum, 2, d.afternoonCategory || "activity", dayTitle + " - Buổi chiều", d.afternoon, "", "14:00");
+          if (d.evening) insertItin.run(crypto.randomUUID(), tour_id, dNum, 3, d.eveningCategory || "meal", dayTitle + " - Buổi tối", d.evening, "", "19:00");
+          if (!d.morning && !d.afternoon && !d.evening && d.description) {
+            insertItin.run(crypto.randomUUID(), tour_id, dNum, 1, "activity", dayTitle, d.description, "", null);
+          }
+        });
+
+        // Đồng bộ bền vững vào file API/tours_itinerary.json
+        if (!tour_id.startsWith("DL-NODE") && !tour_id.startsWith("DL-SYNC")) {
+          try {
+            const itinPath = path.join(__dirname, "API", "tours_itinerary.json");
+            let currentMap = {};
+            if (fs.existsSync(itinPath)) {
+              currentMap = JSON.parse(fs.readFileSync(itinPath, "utf8"));
+            }
+            currentMap[tour_id] = parsedItin;
+            fs.writeFileSync(itinPath, JSON.stringify(currentMap, null, 2), "utf8");
+          } catch (_) { }
+        }
+      }
+    } catch (_) { }
+  }
+
   const updated = db.prepare("SELECT * FROM tours WHERE id = ?").get(tour_id);
   audit(req.user.id, "TOUR_UPDATED", tour_id);
   res.json(publicTour(updated));
@@ -3795,13 +3884,16 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, async (req, res) => {
 
 app.delete("/api/v1/admin/tours/:tour_id", requireAdmin, async (req, res) => {
   const { tour_id } = req.params;
-  if (sqlServerPool && sqlServerService) {
+  const pool = await getSqlServerPool();
+  if (pool && sqlServerService) {
     try {
       await sqlServerService.deleteTour(tour_id, req.user?.id);
     } catch (ssErr) {
       console.error("[SQL SERVER ERROR] deleteTour failed:", ssErr.message);
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
+  } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
+    return res.status(503).json({ detail: "Không thể kết nối máy chủ Microsoft SQL Server để xóa tour. Vui lòng thử lại sau ít giây." });
   }
   const tour = db.prepare("SELECT * FROM tours WHERE id = ?").get(tour_id);
   if (tour) {
@@ -3852,7 +3944,8 @@ app.post("/api/v1/admin/schedules", requireAdmin, async (req, res) => {
 
   // 1. Ghi vĩnh viễn vào Microsoft SQL Server với Explicit Transaction + COMMIT
   let newMaChuyen = null;
-  if (sqlServerPool && sqlServerService) {
+  const pool = await getSqlServerPool();
+  if (pool && sqlServerService) {
     try {
       const ssRes = await sqlServerService.createSchedule(req.body, req.user?.id);
       newMaChuyen = ssRes?.maChuyen;
@@ -3860,6 +3953,8 @@ app.post("/api/v1/admin/schedules", requireAdmin, async (req, res) => {
       console.error("[SQL SERVER ERROR] createSchedule failed:", ssErr.message);
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
+  } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
+    return res.status(503).json({ detail: "Không thể kết nối máy chủ Microsoft SQL Server để tạo lịch khởi hành. Vui lòng thử lại sau ít giây." });
   }
 
   const id = newMaChuyen ? ("SCHED-" + newMaChuyen) : crypto.randomUUID();
@@ -3910,13 +4005,16 @@ app.patch("/api/v1/admin/schedules/:schedule_id", requireAdmin, async (req, res)
   }
 
   // 1. Ghi vĩnh viễn vào Microsoft SQL Server với Explicit Transaction + COMMIT
-  if (sqlServerPool && sqlServerService) {
+  const pool = await getSqlServerPool();
+  if (pool && sqlServerService) {
     try {
       await sqlServerService.updateSchedule(schedule_id, { ...(req.body || {}), tour_id: s.tour_id }, req.user?.id);
     } catch (ssErr) {
       console.error("[SQL SERVER ERROR] updateSchedule failed:", ssErr.message);
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
+  } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
+    return res.status(503).json({ detail: "Không thể kết nối máy chủ Microsoft SQL Server để cập nhật lịch khởi hành. Vui lòng thử lại sau ít giây." });
   }
 
   if (departure_at !== undefined) {
@@ -3960,13 +4058,16 @@ app.patch("/api/v1/admin/schedules/:schedule_id", requireAdmin, async (req, res)
 app.delete("/api/v1/admin/schedules/:schedule_id", requireAdmin, async (req, res) => {
   const { schedule_id } = req.params;
   const s = db.prepare("SELECT * FROM schedules WHERE id = ?").get(schedule_id);
-  if (sqlServerPool && sqlServerService) {
+  const pool = await getSqlServerPool();
+  if (pool && sqlServerService) {
     try {
       await sqlServerService.deleteSchedule(schedule_id, req.user?.id, s?.tour_id);
     } catch (ssErr) {
       console.error("[SQL SERVER ERROR] deleteSchedule failed:", ssErr.message);
       return res.status(500).json({ detail: "Lỗi xóa lịch khởi hành trên Microsoft SQL Server: " + ssErr.message });
     }
+  } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
+    return res.status(503).json({ detail: "Không thể kết nối máy chủ Microsoft SQL Server để xóa lịch khởi hành. Vui lòng thử lại sau ít giây." });
   }
   db.prepare("UPDATE schedules SET active = 0 WHERE id = ?").run(schedule_id);
   audit(req.user.id, "SCHEDULE_DELETED", schedule_id);
@@ -4042,7 +4143,8 @@ app.patch("/api/v1/admin/bookings/:booking_id", requireAdmin, async (req, res) =
   if (["CANCELLED", "REFUNDED"].includes(status)) {
     await ssReleaseVoucherByExternalBooking(b.id);
 
-    if (sqlServerPool && sqlServerService && typeof sqlServerService.cancelBooking === "function") {
+    const pool = await getSqlServerPool();
+  if (pool && sqlServerService && typeof sqlServerService.cancelBooking === "function") {
       try {
         await sqlServerService.cancelBooking({
           bookingRef: b.reference,
@@ -4110,7 +4212,8 @@ app.post("/api/v1/admin/bookings/:booking_id/approve-refund", requireAdmin, asyn
 
   await ssReleaseVoucherByExternalBooking(b.id);
 
-  if (sqlServerPool && sqlServerService && typeof sqlServerService.cancelBooking === "function") {
+  const pool = await getSqlServerPool();
+  if (pool && sqlServerService && typeof sqlServerService.cancelBooking === "function") {
     try {
       await sqlServerService.cancelBooking({
         bookingRef: b.reference,
@@ -4151,7 +4254,8 @@ app.post("/api/v1/admin/bookings/:booking_id/confirm-payment", requireAdmin, asy
   `).run(ref, now, now, b.id);
 
   // Đồng bộ trạng thái thanh toán vĩnh viễn vào Microsoft SQL Server (dbo.THANHTOAN & dbo.DATTOUR)
-  if (sqlServerPool && sqlServerService && typeof sqlServerService.recordPayment === "function") {
+  const pool = await getSqlServerPool();
+  if (pool && sqlServerService && typeof sqlServerService.recordPayment === "function") {
     try {
       await sqlServerService.recordPayment({
         bookingId: b.id,
@@ -4314,7 +4418,8 @@ async function handleSepayWebhook(req, res) {
   `).run(paymentEvidence, now, now, booking.id);
 
   // Đồng bộ thanh toán SePay vào Microsoft SQL Server (dbo.THANHTOAN & dbo.DATTOUR)
-  if (sqlServerPool && sqlServerService && typeof sqlServerService.recordPayment === "function") {
+  const pool = await getSqlServerPool();
+  if (pool && sqlServerService && typeof sqlServerService.recordPayment === "function") {
     try {
       await sqlServerService.recordPayment({
         bookingId: booking.id,

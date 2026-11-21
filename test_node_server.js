@@ -85,7 +85,8 @@ async function runTests() {
 
     const scheds = await req(`/api/v1/tours/${firstTour.id}/schedules`);
     assert(`GET /api/v1/tours/${firstTour.id}/schedules`, scheds.status === 200 && scheds.json?.length > 0);
-    const scheduleId = scheds.json[0].id;
+    const chosenSched = scheds.json.find(s => (s.availableSeats ?? s.available_seats) >= 3) || scheds.json[0];
+    const scheduleId = chosenSched.id;
 
     // 4. Quote
     const quoteRes = await req("/api/v1/bookings/quote", {
