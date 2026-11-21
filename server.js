@@ -78,18 +78,26 @@ let sqlServerPool = null;
 let sqlServerVoucherReady = false;
 // Optional SQL Server connection; used automatically when DELTA_MSSQL_* credentials connect.
 // Credentials must be injected via environment variables. Never fall back to a committed password.
+const mssqlPassword = process.env.SQL_SERVER_PASS || process.env.SQL_SERVER_PASSWORD || process.env.DELTA_MSSQL_PASSWORD || process.env.MSSQL_PASSWORD;
 const SQL_SERVER_CONFIG = {
-  user: process.env.DELTA_MSSQL_USER || process.env.SQL_SERVER_USER,
-  password: process.env.DELTA_MSSQL_PASSWORD,
-  server: process.env.DELTA_MSSQL_SERVER || process.env.SQL_SERVER_HOST,
-  port: Number.parseInt(process.env.DELTA_MSSQL_PORT || process.env.SQL_SERVER_PORT || "1433", 10),
-  database: process.env.DELTA_MSSQL_DATABASE || process.env.SQL_SERVER_DB,
+  user: process.env.DELTA_MSSQL_USER || process.env.SQL_SERVER_USER || process.env.MSSQL_USER || "db_ad0b71_dattour_admin",
+  password: mssqlPassword,
+  server: process.env.DELTA_MSSQL_SERVER || process.env.SQL_SERVER_HOST || process.env.MSSQL_SERVER || "sql8020.site4now.net",
+  port: Number.parseInt(process.env.DELTA_MSSQL_PORT || process.env.SQL_SERVER_PORT || process.env.MSSQL_PORT || "1433", 10),
+  database: process.env.DELTA_MSSQL_DATABASE || process.env.SQL_SERVER_DB || process.env.MSSQL_DATABASE || "db_ad0b71_dattour",
   options: {
     encrypt: true,
     trustServerCertificate: true,
-    connectTimeout: 15000
+    connectTimeout: 20000
   }
 };
+
+function sqlServerUnavailableDetail(action) {
+  if (!SQL_SERVER_CONFIG.password) {
+    return "Chưa cấu hình mật khẩu SQL Server (SQL_SERVER_PASS hoặc DELTA_MSSQL_PASSWORD) trên Render Environment Variables.";
+  }
+  return `Không thể kết nối máy chủ Microsoft SQL Server để ${action}. Vui lòng thử lại sau ít giây.`;
+}
 
 function useSqlServerVouchers() {
   return Boolean(sqlServerPool && sqlServerVoucherReady);
@@ -130,8 +138,11 @@ async function ensureSqlServerVoucherSchema(pool) {
 
 async function initDirectSqlServer() {
   // No SQL credentials: intentional SQLite demo. Do not attempt network auth.
-  if (!SQL_SERVER_CONFIG.user || !SQL_SERVER_CONFIG.password ||
-    !SQL_SERVER_CONFIG.server || !SQL_SERVER_CONFIG.database) {
+  if (!SQL_SERVER_CONFIG.user || !SQL_SERVER_CONFIG.server || !SQL_SERVER_CONFIG.database) {
+    return;
+  }
+  if (!SQL_SERVER_CONFIG.password) {
+    console.warn("[SQL SERVER] Warning: Missing password! Ensure SQL_SERVER_PASS or DELTA_MSSQL_PASSWORD is set in Render Environment Variables.");
     return;
   }
   try {
@@ -3513,7 +3524,7 @@ app.put("/api/v1/admin/tours/:tour_id/details", requireAdmin, async (req, res) =
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
   } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
-    return res.status(503).json({ detail: "Không thể kết nối máy chủ Microsoft SQL Server để lưu lịch trình và giá. Vui lòng thử lại sau ít giây." });
+    return res.status(503).json({ detail: sqlServerUnavailableDetail("lưu lịch trình và giá") });
   }
 
   // 2. Ghi vào SQLite Cache nội bộ
@@ -3602,7 +3613,7 @@ app.post("/api/v1/admin/tours", requireAdmin, async (req, res) => {
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
   } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
-    return res.status(503).json({ detail: "Không thể kết nối máy chủ Microsoft SQL Server để tạo tour. Vui lòng thử lại sau ít giây." });
+    return res.status(503).json({ detail: sqlServerUnavailableDetail("tạo tour") });
   }
 
   let imageValue = data.image || "";
@@ -3723,7 +3734,7 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, async (req, res) => {
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
   } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
-    return res.status(503).json({ detail: "Không thể kết nối máy chủ Microsoft SQL Server để cập nhật tour. Vui lòng thử lại sau ít giây." });
+    return res.status(503).json({ detail: sqlServerUnavailableDetail("cập nhật tour") });
   }
 
   // Chuẩn hóa và lưu ảnh bìa/danh sách ảnh nếu là base64
@@ -3901,7 +3912,7 @@ app.delete("/api/v1/admin/tours/:tour_id", requireAdmin, async (req, res) => {
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
   } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
-    return res.status(503).json({ detail: "Không thể kết nối máy chủ Microsoft SQL Server để xóa tour. Vui lòng thử lại sau ít giây." });
+    return res.status(503).json({ detail: sqlServerUnavailableDetail("xóa tour") });
   }
   const tour = db.prepare("SELECT * FROM tours WHERE id = ?").get(tour_id);
   if (tour) {
@@ -3962,7 +3973,7 @@ app.post("/api/v1/admin/schedules", requireAdmin, async (req, res) => {
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
   } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
-    return res.status(503).json({ detail: "Không thể kết nối máy chủ Microsoft SQL Server để tạo lịch khởi hành. Vui lòng thử lại sau ít giây." });
+    return res.status(503).json({ detail: sqlServerUnavailableDetail("tạo lịch khởi hành") });
   }
 
   const id = newMaChuyen ? ("SCHED-" + newMaChuyen) : crypto.randomUUID();
@@ -4022,7 +4033,7 @@ app.patch("/api/v1/admin/schedules/:schedule_id", requireAdmin, async (req, res)
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
   } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
-    return res.status(503).json({ detail: "Không thể kết nối máy chủ Microsoft SQL Server để cập nhật lịch khởi hành. Vui lòng thử lại sau ít giây." });
+    return res.status(503).json({ detail: sqlServerUnavailableDetail("cập nhật lịch khởi hành") });
   }
 
   if (departure_at !== undefined) {
@@ -4075,7 +4086,7 @@ app.delete("/api/v1/admin/schedules/:schedule_id", requireAdmin, async (req, res
       return res.status(500).json({ detail: "Lỗi xóa lịch khởi hành trên Microsoft SQL Server: " + ssErr.message });
     }
   } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
-    return res.status(503).json({ detail: "Không thể kết nối máy chủ Microsoft SQL Server để xóa lịch khởi hành. Vui lòng thử lại sau ít giây." });
+    return res.status(503).json({ detail: sqlServerUnavailableDetail("xóa lịch khởi hành") });
   }
   db.prepare("UPDATE schedules SET active = 0 WHERE id = ?").run(schedule_id);
   audit(req.user.id, "SCHEDULE_DELETED", schedule_id);

@@ -29,3 +29,13 @@ services:
         value: "db_ad0b71_dattour_admin"
       - key: SQL_SERVER_PASS
         sync: false
+      - key: DELTA_MSSQL_SERVER
+        value: "sql8020.site4now.net"
+      - key: DELTA_MSSQL_PORT
+        value: "1433"
+      - key: DELTA_MSSQL_DATABASE
+        value: "db_ad0b71_dattour"
+      - key: DELTA_MSSQL_USER
+        value: "db_ad0b71_dattour_admin"
+      - key: DELTA_MSSQL_PASSWORD
+        sync: false

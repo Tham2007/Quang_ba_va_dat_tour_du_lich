@@ -85,7 +85,7 @@ async function runTests() {
 
     const scheds = await req(`/api/v1/tours/${firstTour.id}/schedules`);
     assert(`GET /api/v1/tours/${firstTour.id}/schedules`, scheds.status === 200 && scheds.json?.length > 0);
-    const chosenSched = scheds.json.find(s => (s.availableSeats ?? s.available_seats) >= 3) || scheds.json[0];
+    const chosenSched = scheds.json.find(s => (s.availableSeats ?? s.available_seats) >= 5) || scheds.json[0];
     const scheduleId = chosenSched.id;
 
     // 4. Quote
@@ -673,9 +673,9 @@ async function runTests() {
     const hlScheds = await req("/api/v1/tours/DL-HL01/schedules");
     const dnScheds = await req("/api/v1/tours/DL-DN02/schedules");
     const mcScheds = await req("/api/v1/tours/DL-MC10/schedules");
-    const hlSchedId = hlScheds.json?.[0]?.id;
-    const dnSchedId = dnScheds.json?.[0]?.id;
-    const mcSchedId = mcScheds.json?.[0]?.id;
+    const hlSchedId = (hlScheds.json?.find(s => s.status === "OPEN" && (s.availableSeats ?? s.available_seats) >= 5) || hlScheds.json?.[0])?.id;
+    const dnSchedId = (dnScheds.json?.find(s => s.status === "OPEN" && (s.availableSeats ?? s.available_seats) >= 5) || dnScheds.json?.[0])?.id;
+    const mcSchedId = (mcScheds.json?.find(s => s.status === "OPEN" && (s.availableSeats ?? s.available_seats) >= 5) || mcScheds.json?.[0])?.id;
 
     // 1. Seeded vouchers check: DELTA10 (chỉ Miền Bắc), HE2026 (chỉ tour biển đảo chỉ định)
     const vDeltaNorth = await req("/api/v1/vouchers/validate", {

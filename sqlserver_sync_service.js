@@ -25,21 +25,21 @@ if (fs.existsSync(envPath)) {
 }
 
 const SQL_SERVER_CONFIG = {
-  user: process.env.DELTA_MSSQL_USER || process.env.SQL_SERVER_USER,
-  password: process.env.DELTA_MSSQL_PASSWORD,
-  server: process.env.DELTA_MSSQL_SERVER || process.env.SQL_SERVER_HOST,
-  port: Number.parseInt(process.env.DELTA_MSSQL_PORT || process.env.SQL_SERVER_PORT || '1433', 10),
-  database: process.env.DELTA_MSSQL_DATABASE || process.env.SQL_SERVER_DB,
+  user: process.env.DELTA_MSSQL_USER || process.env.SQL_SERVER_USER || process.env.MSSQL_USER || "db_ad0b71_dattour_admin",
+  password: process.env.DELTA_MSSQL_PASSWORD || process.env.SQL_SERVER_PASS || process.env.SQL_SERVER_PASSWORD || process.env.MSSQL_PASSWORD,
+  server: process.env.DELTA_MSSQL_SERVER || process.env.SQL_SERVER_HOST || process.env.MSSQL_SERVER || "sql8020.site4now.net",
+  port: Number.parseInt(process.env.DELTA_MSSQL_PORT || process.env.SQL_SERVER_PORT || process.env.MSSQL_PORT || '1433', 10),
+  database: process.env.DELTA_MSSQL_DATABASE || process.env.SQL_SERVER_DB || process.env.MSSQL_DATABASE || "db_ad0b71_dattour",
   pool: {
     max: 10,
     min: 1,
     idleTimeoutMillis: 30000,
-    acquireTimeoutMillis: 15000
+    acquireTimeoutMillis: 20000
   },
   options: {
     encrypt: true,
     trustServerCertificate: true,
-    connectTimeout: 15000
+    connectTimeout: 20000
   }
 };
 
@@ -103,7 +103,11 @@ function normalizeItineraryDays(rawItinerary) {
 }
 
 async function getPool() {
-  if (!SQL_SERVER_CONFIG.user || !SQL_SERVER_CONFIG.password || !SQL_SERVER_CONFIG.server || !SQL_SERVER_CONFIG.database) {
+  if (!SQL_SERVER_CONFIG.user || !SQL_SERVER_CONFIG.server || !SQL_SERVER_CONFIG.database) {
+    return null;
+  }
+  if (!SQL_SERVER_CONFIG.password) {
+    console.warn('[SQL SERVER SERVICE] Warning: Missing SQL Server password. Ensure SQL_SERVER_PASS or DELTA_MSSQL_PASSWORD is set in Render Environment Variables.');
     return null;
   }
   if (pool && (pool.connected !== false && typeof pool.request === 'function')) return pool;
