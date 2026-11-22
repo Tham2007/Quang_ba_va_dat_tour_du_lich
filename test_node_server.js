@@ -667,6 +667,9 @@ async function runTests() {
       publicSchedsClosed.status === 200 &&
       publicSchedsClosed.json?.length === 0);
 
+    // Dọn dẹp tour thử nghiệm sau khi hoàn thành kiểm thử
+    await req(`/api/v1/admin/tours/${syncTourId}`, { method: "DELETE", headers: adminHeaders });
+
     // =========================================================================
     // VOUCHER / PROMO CODE TESTS (ĐẦY ĐỦ NGHIỆP VỤ & BẢO MẬT BACKEND)
     // =========================================================================
@@ -1379,6 +1382,9 @@ async function runTests() {
       tourInAdmin?.isExpired === true &&
       adminMetricsCheck.json?.expiredToursCount >= 1,
       `inPublic=${isTourInPublic} isExpired=${tourInAdmin?.isExpired} expiredCount=${adminMetricsCheck.json?.expiredToursCount}`);
+
+    // Dọn dẹp tour hết hạn thử nghiệm
+    await req(`/api/v1/admin/tours/${expiredTourId}`, { method: "DELETE", headers: adminHeaders });
 
     // 12 Bảng SQL Server: Kiểm tra Danh mục (dbo.DANHMUC), Bài viết (dbo.BAIVIET_QUANGBA), Đánh giá (dbo.DANHGIA)
     const catRes = await req("/api/v1/categories");

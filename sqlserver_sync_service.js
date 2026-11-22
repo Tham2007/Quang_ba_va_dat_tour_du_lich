@@ -1675,6 +1675,15 @@ async function syncAllFromSqlServer(sqliteDb) {
     };
 
     for (const t of tours) {
+      // Bỏ qua các tour thử nghiệm tự sinh hoặc tên test để giữ đúng 17 tour chuẩn
+      if (t.TenTour && (
+        t.TenTour.startsWith("Tour Đồng Bộ") ||
+        t.TenTour.startsWith("Tour Node.js") ||
+        t.TenTour.startsWith("Tour Hết Hạn")
+      )) {
+        continue;
+      }
+
       let tourId = codeMap[t.MaTour];
       if (!tourId) {
         const auditData = tourDetailsAudit.get(String(t.MaTour));
