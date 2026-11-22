@@ -16,9 +16,9 @@
 
   // Stride = 1 để chuyển động liên tục từng khung hình mượt mà nhất
   const FRAME_STRIDE = 1;
-  const PREFETCH_AHEAD = 18;
-  const PREFETCH_BEHIND = 8;
-  const MAX_CACHED_FRAMES = 150; // Giữ toàn bộ 150 khung trong bộ nhớ sau khi nạp nền
+  const PREFETCH_AHEAD = 12;
+  const PREFETCH_BEHIND = 6;
+  const MAX_CACHED_FRAMES = 24; // Giới hạn tối đa 24 khung hình lân cận (giảm từ 600MB xuống dưới 25MB RAM/VRAM)
 
   // Danh sách các đường dẫn dự phòng để tìm ảnh 3D
   const BASE_URLS = window.location.pathname.includes("/Frontend/")
@@ -104,6 +104,22 @@
       renderFrame(currentFrameIndex, true);
     }
 
+    // Dọn dẹp bộ nhớ RAM/VRAM định kỳ, giải phóng khung hình ở xa
+    function trimCache(currentFrame) {
+      if (frameCache.size <= MAX_CACHED_FRAMES) return;
+      const sorted = Array.from(frameCache.keys()).sort((a, b) => {
+        return Math.abs(b - currentFrame) - Math.abs(a - currentFrame);
+      });
+      while (frameCache.size > MAX_CACHED_FRAMES && sorted.length > 0) {
+        const evictFrame = sorted.shift();
+        const asset = frameCache.get(evictFrame);
+        if (asset && typeof asset.close === "function") {
+          try { asset.close(); } catch (_) { }
+        }
+        frameCache.delete(evictFrame);
+      }
+    }
+
     // Vẽ hình ảnh phủ kín màn hình (cover) với khả năng giữ lại khung hình gần nhất
     function drawImageCover(asset) {
       if (!asset || !renderWidth || !renderHeight) return;
@@ -116,7 +132,6 @@
       const drawWidth = imgWidth * scale;
       const drawHeight = imgHeight * scale;
 
-      ctx.clearRect(0, 0, renderWidth, renderHeight);
       ctx.drawImage(
         asset,
         (renderWidth - drawWidth) / 2,
@@ -162,6 +177,7 @@
 
         if (asset) {
           frameCache.set(frame, asset);
+          trimCache(currentFrameIndex);
           if (!isCanvasReady) {
             isCanvasReady = true;
             resizeCanvas();
@@ -175,15 +191,7 @@
 
       const img = new Image();
       img.decoding = "async";
-      img.onload = () => {
-        if (typeof createImageBitmap === "function") {
-          createImageBitmap(img, { premultiplyAlpha: "none", imageOrientation: "none" })
-            .then(done)
-            .catch(() => done(img));
-        } else {
-          done(img);
-        }
-      };
+      img.onload = () => done(img);
       img.onerror = () => done(null);
       img.src = getFrameUrl(frame);
     }
@@ -202,23 +210,11 @@
       }
     }
 
-    // Tải ngầm tuần tự toàn bộ 150 khung hình trong lúc nhàn rỗi (Idle background preload)
+    // Tải trước một số khung khởi động ban đầu để trải nghiệm mượt mà không chiếm dụng RAM
     function startIdlePreloadAll() {
-      let nextFrameToPreload = 2;
-      function preloadNextBatch() {
-        if (nextFrameToPreload > TOTAL_FRAMES) return;
-        const batchEnd = Math.min(TOTAL_FRAMES, nextFrameToPreload + 4);
-        for (let f = nextFrameToPreload; f <= batchEnd; f++) {
-          ensureFrame(f);
-        }
-        nextFrameToPreload = batchEnd + 1;
-        if (typeof window.requestIdleCallback === "function") {
-          window.requestIdleCallback(preloadNextBatch, { timeout: 1200 });
-        } else {
-          setTimeout(preloadNextBatch, 80);
-        }
+      for (let f = 2; f <= 16; f++) {
+        ensureFrame(f);
       }
-      setTimeout(preloadNextBatch, 300);
     }
 
     // Vẽ khung hình: nếu khung chưa kịp nạp, tự động dùng khung gần nhất có sẵn (Never-Blank)
@@ -283,15 +279,31 @@
       heroScrollable = section.offsetHeight - window.innerHeight;
     }
 
+    let isHeroVisible = true;
+    if (typeof IntersectionObserver !== "undefined") {
+      const heroObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          isHeroVisible = entry.isIntersecting;
+          if (isHeroVisible) {
+            measureHero();
+            startLerpLoop();
+          } else {
+            isRafRunning = false;
+          }
+        });
+      }, { threshold: 0.01 });
+      heroObserver.observe(section);
+    }
+
     // THUẬT TOÁN LERP & QUÁN TÍNH VẬT LÝ CHO CUỘN CHUỘT BUTTERY SMOOTH
     function startLerpLoop() {
-      if (isRafRunning) return;
+      if (!isHeroVisible || isRafRunning) return;
       isRafRunning = true;
       requestAnimationFrame(lerpTick);
     }
 
     function lerpTick() {
-      if (window.matchMedia("(max-width: 991.98px)").matches) {
+      if (!isHeroVisible || window.matchMedia("(max-width: 991.98px)").matches) {
         isRafRunning = false;
         return;
       }
@@ -374,7 +386,7 @@
     }
 
     function onScroll() {
-      if (heroScrollable <= 0) return;
+      if (!isHeroVisible || heroScrollable <= 0) return;
       targetProgress = Math.max(0, Math.min(1, (window.scrollY - heroTop) / heroScrollable));
       startLerpLoop();
     }

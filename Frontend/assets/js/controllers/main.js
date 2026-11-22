@@ -215,41 +215,65 @@ function initNavbarScroll() {
   const backToTopBtn = document.getElementById("backToTopBtn");
   const heroSection = document.getElementById("hero3DShowcase");
 
+  let cachedHeroThreshold = 0;
+  function updateHeroThreshold() {
+    if (heroSection) {
+      cachedHeroThreshold = Math.max(
+        0,
+        heroSection.offsetTop + heroSection.offsetHeight - window.innerHeight
+      );
+    } else {
+      cachedHeroThreshold = 60;
+    }
+  }
+  updateHeroThreshold();
+  window.addEventListener("resize", updateHeroThreshold, { passive: true });
+
+  let isTicking = false;
+  let lastHeroTransparent = null;
+  let lastScrolled = null;
+  let lastShowBackToTop = null;
+
   function updateNavbar() {
+    isTicking = false;
     const scrollY = window.scrollY;
 
     // Khi người dùng đang ở phần Hero 3D thì thanh bar hoàn toàn trong suốt
     if (heroSection) {
-      // Thời điểm hero (sticky) kết thúc và nội dung trắng bắt đầu trượt lên
-      const heroThreshold = Math.max(
-        0,
-        heroSection.offsetTop + heroSection.offsetHeight - window.innerHeight
-      );
-      if (scrollY < heroThreshold) {
-        if (!header?.classList.contains("ai-chat-open")) {
-          header?.classList.add("hero-transparent");
+      const isTransparent = scrollY < cachedHeroThreshold;
+      if (isTransparent !== lastHeroTransparent) {
+        lastHeroTransparent = isTransparent;
+        if (isTransparent) {
+          if (!header?.classList.contains("ai-chat-open")) {
+            header?.classList.add("hero-transparent");
+          }
+          navbar?.classList.remove("scrolled");
+        } else {
+          header?.classList.remove("hero-transparent");
+          navbar?.classList.add("scrolled");
         }
-        navbar?.classList.remove("scrolled");
-      } else {
-        header?.classList.remove("hero-transparent");
-        navbar?.classList.add("scrolled");
       }
     } else {
-      if (scrollY > 60) {
-        navbar?.classList.add("scrolled");
-      } else {
-        navbar?.classList.remove("scrolled");
+      const isScrolled = scrollY > 60;
+      if (isScrolled !== lastScrolled) {
+        lastScrolled = isScrolled;
+        navbar?.classList.toggle("scrolled", isScrolled);
       }
     }
 
-    if (scrollY > 300) {
-      backToTopBtn?.classList.add("show");
-    } else {
-      backToTopBtn?.classList.remove("show");
+    const showBackToTop = scrollY > 300;
+    if (showBackToTop !== lastShowBackToTop) {
+      lastShowBackToTop = showBackToTop;
+      backToTopBtn?.classList.toggle("show", showBackToTop);
     }
   }
 
-  window.addEventListener("scroll", updateNavbar, { passive: true });
+  window.addEventListener("scroll", () => {
+    if (!isTicking) {
+      isTicking = true;
+      requestAnimationFrame(updateNavbar);
+    }
+  }, { passive: true });
   updateNavbar();
 }
 
