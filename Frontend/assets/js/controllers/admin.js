@@ -89,6 +89,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   await refreshAdminData();
   renderCurrentTab();
+  checkSqlServerStatus();
 
   // Tự động mở modal sửa tour nếu có yêu cầu (hỗ trợ điều hướng sâu)
   const autoTour = sessionStorage.getItem("autoOpenTourId");
@@ -2196,6 +2197,7 @@ async function handleSaveTourSubmit(e) {
   bootstrap.Modal.getInstance(document.getElementById("adminTourModal"))?.hide();
   await refreshAdminData();
   renderCurrentTab();
+  checkSqlServerStatus();
 }
 
 function slugify(text) {
@@ -4235,4 +4237,59 @@ function showAdminToast(message, type = "info") {
     const el = document.getElementById(toastId);
     if (el) el.remove();
   }, 4000);
+}
+
+// =============================================================================
+// IX. TRẠNG THÁI & KẾT NỐI TRỰC TIẾP MICROSOFT SQL SERVER
+// =============================================================================
+async function checkSqlServerStatus() {
+  const btn = document.getElementById("sqlServerStatusBtn");
+  const icon = document.getElementById("sqlServerStatusIcon");
+  const txt = document.getElementById("sqlServerStatusText");
+  if (!btn || !icon || !txt) return;
+
+  try {
+    const res = await fetch("/api/v1/health/ready");
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    if (data.sqlServerConnected || data.sqlServerDiagnosticConnection) {
+      btn.className = "btn btn-outline-success btn-admin-sm";
+      icon.className = "bi bi-database-check text-success";
+      txt.textContent = "SQL Server: Đã kết nối";
+      txt.className = "text-success fw-bold";
+    } else {
+      btn.className = "btn btn-outline-danger btn-admin-sm";
+      icon.className = "bi bi-database-x text-danger";
+      txt.textContent = data.sqlServerConfigured ? "SQL Server: Mất kết nối (Bấm để thử lại)" : "SQL Server: Chưa cấu hình Pass";
+      txt.className = "text-danger fw-bold";
+    }
+  } catch (e) {
+    btn.className = "btn btn-outline-secondary btn-admin-sm";
+    icon.className = "bi bi-database text-muted";
+    txt.textContent = "SQL Server: Offline";
+    txt.className = "text-muted";
+  }
+}
+
+async function handleReconnectSqlServer() {
+  showAdminToast("Đang kết nối tới máy chủ Microsoft SQL Server...", "info");
+  try {
+    const res = await fetch("/api/v1/admin/sqlserver/reconnect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showAdminToast(data.message || "Kết nối SQL Server thành công!", "success");
+      await checkSqlServerStatus();
+      if (typeof refreshAdminData === "function") await refreshAdminData();
+      if (typeof renderCurrentTab === "function") renderCurrentTab();
+    } else {
+      showAdminToast(data.error || "Không thể kết nối SQL Server.", "error");
+      await checkSqlServerStatus();
+    }
+  } catch (err) {
+    showAdminToast("Lỗi gửi yêu cầu kết nối: " + err.message, "error");
+    await checkSqlServerStatus();
+  }
 }

@@ -32,7 +32,7 @@ const SQL_SERVER_CONFIG = {
   database: process.env.DELTA_MSSQL_DATABASE || process.env.SQL_SERVER_DB || process.env.MSSQL_DATABASE || "db_ad0b71_dattour",
   pool: {
     max: 10,
-    min: 1,
+    min: 0,
     idleTimeoutMillis: 30000,
     acquireTimeoutMillis: 20000
   },
@@ -102,16 +102,28 @@ function normalizeItineraryDays(rawItinerary) {
   return Array.from(daysMap.values()).sort((a, b) => a.day - b.day);
 }
 
-async function getPool() {
+let lastConnectionError = null;
+
+function isConfigured() {
+  return Boolean(SQL_SERVER_CONFIG.user && SQL_SERVER_CONFIG.password && SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.database);
+}
+
+function getLastError() {
+  return lastConnectionError;
+}
+
+async function getPool(forceReconnect = false) {
   if (!SQL_SERVER_CONFIG.user || !SQL_SERVER_CONFIG.server || !SQL_SERVER_CONFIG.database) {
+    lastConnectionError = "Thiếu cấu hình máy chủ SQL Server (server/user/database)";
     return null;
   }
   if (!SQL_SERVER_CONFIG.password) {
+    lastConnectionError = "Chưa cấu hình mật khẩu SQL Server (SQL_SERVER_PASS hoặc DELTA_MSSQL_PASSWORD)";
     console.warn('[SQL SERVER SERVICE] Warning: Missing SQL Server password. Ensure SQL_SERVER_PASS or DELTA_MSSQL_PASSWORD is set in Render Environment Variables.');
     return null;
   }
-  if (pool && (pool.connected !== false && typeof pool.request === 'function')) return pool;
-  if (connectPromise) return await connectPromise;
+  if (!forceReconnect && pool && (pool.connected !== false && typeof pool.request === 'function')) return pool;
+  if (!forceReconnect && connectPromise) return await connectPromise;
 
   connectPromise = (async () => {
     try {
@@ -126,9 +138,11 @@ async function getPool() {
         if (pool === newPool) pool = null;
       });
       pool = newPool;
+      lastConnectionError = null;
       console.log('[SQL SERVER SERVICE] Connected to', SQL_SERVER_CONFIG.server, SQL_SERVER_CONFIG.database);
       return pool;
     } catch (err) {
+      lastConnectionError = err.message;
       console.warn('[SQL SERVER SERVICE] Connection error:', err.message);
       pool = null;
       return null;
@@ -1793,6 +1807,8 @@ async function syncAllFromSqlServer(sqliteDb) {
 module.exports = {
   getPool,
   setPool,
+  isConfigured,
+  getLastError,
   resolveMaTour,
   resolveMaChuyen,
   updateTour,

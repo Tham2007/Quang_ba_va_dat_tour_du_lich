@@ -96,6 +96,10 @@ function sqlServerUnavailableDetail(action) {
   if (!SQL_SERVER_CONFIG.password) {
     return "Chưa cấu hình mật khẩu SQL Server (SQL_SERVER_PASS hoặc DELTA_MSSQL_PASSWORD) trên Render Environment Variables.";
   }
+  const lastErr = sqlServerService?.getLastError?.();
+  if (lastErr) {
+    return `Không thể kết nối máy chủ Microsoft SQL Server để ${action} (${lastErr}).`;
+  }
   return `Không thể kết nối máy chủ Microsoft SQL Server để ${action}. Vui lòng thử lại sau ít giây.`;
 }
 
@@ -2376,6 +2380,8 @@ app.get("/api/v1/health/ready", (req, res) => {
     db: ssReady ? "SQL Server (vouchers) + SQLite" : "SQLite demo (local booking writes)",
     sqlServerDiagnosticConnection: Boolean(sqlServerPool),
     sqlServerConnected: ssReady,
+    sqlServerConfigured: Boolean(SQL_SERVER_CONFIG.password),
+    sqlServerLastError: sqlServerService?.getLastError?.() || null,
     voucherDatabase: ssReady ? "SQL Server" : "SQLite demo",
     writesDatabase: ssReady ? "SQL Server (vouchers) + SQLite" : "SQLite demo",
     tours: row.c,
@@ -3400,6 +3406,48 @@ app.post("/api/v1/bookings/:booking_id/cancel", requireAuth, async (req, res) =>
 });
 
 // 6. Admin Endpoints
+app.get("/api/v1/admin/sqlserver/status", requireAdmin, async (req, res) => {
+  const isConn = Boolean(sqlServerPool && sqlServerPool.connected !== false);
+  res.json({
+    connected: isConn,
+    server: SQL_SERVER_CONFIG.server,
+    database: SQL_SERVER_CONFIG.database,
+    user: SQL_SERVER_CONFIG.user,
+    hasPassword: Boolean(SQL_SERVER_CONFIG.password),
+    lastError: sqlServerService?.getLastError?.() || null,
+    vouchersReady: sqlServerVoucherReady
+  });
+});
+
+app.post("/api/v1/admin/sqlserver/reconnect", requireAdmin, async (req, res) => {
+  try {
+    const p = await sqlServerService.getPool(true);
+    if (p) {
+      sqlServerPool = p;
+      await ensureSqlServerVoucherSchema(sqlServerPool);
+      const syncRes = await sqlServerService.syncAllFromSqlServer(db);
+      return res.json({
+        success: true,
+        message: `Đã kết nối thành công tới Microsoft SQL Server (${SQL_SERVER_CONFIG.server} / ${SQL_SERVER_CONFIG.database}) và đồng bộ ${syncRes?.count ?? 0} tour.`,
+        server: SQL_SERVER_CONFIG.server,
+        database: SQL_SERVER_CONFIG.database,
+        tourCount: syncRes?.count ?? 0
+      });
+    }
+    const err = sqlServerService?.getLastError?.() || "Không thể kết nối";
+    return res.status(503).json({
+      success: false,
+      error: `Kết nối máy chủ SQL Server thất bại: ${err}`,
+      detail: err,
+      hasPassword: Boolean(SQL_SERVER_CONFIG.password)
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: `Lỗi kết nối máy chủ SQL Server: ${err.message}`
+    });
+  }
+});
 app.get(["/api/v1/admin/metrics", "/api/v1/admin/dashboard"], requireAdmin, (req, res) => {
   const usersCount = db.prepare("SELECT COUNT(*) AS c FROM users").get().c;
   const toursCount = db.prepare("SELECT COUNT(*) AS c FROM tours").get().c;

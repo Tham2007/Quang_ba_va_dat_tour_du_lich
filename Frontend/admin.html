@@ -209,6 +209,9 @@
         </div>
 
         <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-admin-outline btn-admin-sm" id="sqlServerStatusBtn" onclick="handleReconnectSqlServer()" title="Trạng thái kết nối Microsoft SQL Server">
+            <i class="bi bi-database" id="sqlServerStatusIcon"></i> <span id="sqlServerStatusText">SQL Server: Đang kiểm tra...</span>
+          </button>
           <span class="admin-topbar-badge" id="adminTopbarBadge">OPERATIONS OVERVIEW</span>
           <button class="btn btn-admin-outline btn-admin-sm" onclick="refreshAdminData(); renderCurrentTab(); showAdminToast('Dữ liệu đã được làm mới!', 'info');">
             <i class="bi bi-arrow-repeat"></i> Làm Mới
