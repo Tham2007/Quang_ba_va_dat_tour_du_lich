@@ -453,7 +453,19 @@ async function refreshAdminData() {
       tasks.push(
         DeltaAPI.adminGetTours().then(res => {
           if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-            const serverTours = res.data.map(st => {
+            const cleanRawTours = res.data.filter(st => {
+              if (!st) return false;
+              const idStr = String(st.id || "");
+              const titleStr = String(st.title || "");
+              if (/^\d+$/.test(idStr) || idStr.startsWith("tour-") || idStr.startsWith("DL-SYNC") || idStr.startsWith("DL-NODE") || idStr.startsWith("DL-EXP")) {
+                return false;
+              }
+              if (titleStr.startsWith("Tour Đồng Bộ") || titleStr.startsWith("Tour Node.js") || titleStr.startsWith("Tour Hết Hạn")) {
+                return false;
+              }
+              return true;
+            });
+            const serverTours = cleanRawTours.map(st => {
               const defTour = getDefaultTourTemplate(st.id);
               let itinerary = Array.isArray(st.itinerary) ? st.itinerary : [];
               if (!itinerary.length && st.itineraryJson) {
@@ -508,7 +520,11 @@ async function refreshAdminData() {
                 terms
               };
             });
-            AdminState.tours = serverTours;
+            if (serverTours.length > 0) {
+              AdminState.tours = serverTours;
+              if (typeof saveToursData === "function") saveToursData(serverTours);
+              if (typeof renderCurrentTab === "function") renderCurrentTab();
+            }
           }
         }).catch(error => {
           console.error("Could not load admin tours from API.", error);

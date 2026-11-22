@@ -1,4 +1,4 @@
-const db = require('../sqlserver_sync_service');
+const db = require('./sqlserver_sync_service');
 const { DatabaseSync } = require('node:sqlite');
 
 async function cleanup() {
@@ -83,3 +83,4 @@ cleanup().catch(e => {
   console.error(e);
   process.exit(1);
 });
+

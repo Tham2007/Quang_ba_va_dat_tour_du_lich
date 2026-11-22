@@ -1403,9 +1403,29 @@ function getToursData() {
   try {
     const raw = localStorage.getItem(DELTA_STORAGE_KEYS.TOURS);
     if (raw) {
-      const parsed = JSON.parse(raw);
+      let parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        let updated = false;
+        // Tự động dọn sạch mọi tour test/trùng lặp cũ trong localStorage (như tour-36, tour-38, Tour Đồng Bộ Đà Lạt...)
+        const originalCount = parsed.length;
+        parsed = parsed.filter(t => {
+          if (!t) return false;
+          const idStr = String(t.id || "");
+          const titleStr = String(t.title || "");
+          if (/^\d+$/.test(idStr) || idStr.startsWith("tour-") || idStr.startsWith("DL-SYNC") || idStr.startsWith("DL-NODE") || idStr.startsWith("DL-EXP")) {
+            return false;
+          }
+          if (titleStr.startsWith("Tour Đồng Bộ") || titleStr.startsWith("Tour Node.js") || titleStr.startsWith("Tour Hết Hạn")) {
+            return false;
+          }
+          return true;
+        });
+
+        if (parsed.length === 0) {
+          localStorage.removeItem(DELTA_STORAGE_KEYS.TOURS);
+          return [...DEFAULT_TOURS];
+        }
+
+        let updated = parsed.length !== originalCount;
         parsed.forEach(t => {
           const def = DEFAULT_TOURS.find(d => String(d.id).toUpperCase() === String(t.id).toUpperCase());
           if (def) {
