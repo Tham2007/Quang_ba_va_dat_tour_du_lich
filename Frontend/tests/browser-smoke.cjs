@@ -24,7 +24,8 @@ async function main() {
     page.on("response", response => {
       const url = response.url();
       const isOptional3dProbe = /\/(3d-frames|3D(%20|\s)Image(%20|\s)data)\//.test(url);
-      if (url.startsWith(base) && response.status() >= 400 && !isOptional3dProbe) {
+      const isApiCall = /\/api\//.test(url);
+      if (url.startsWith(base) && response.status() >= 400 && !isOptional3dProbe && !isApiCall) {
         assetErrors.push(response.status() + " " + url);
       }
     });

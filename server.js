@@ -163,6 +163,7 @@ async function initDirectSqlServer() {
 }
 
 async function getSqlServerPool(maxRetries = 2) {
+  if (!SQL_SERVER_CONFIG.password) return null;
   if (sqlServerPool && (sqlServerPool.connected !== false && typeof sqlServerPool.request === "function")) {
     try {
       await sqlServerPool.request().query("SELECT 1");
@@ -3672,7 +3673,7 @@ app.put("/api/v1/admin/tours/:tour_id/details", requireAdmin, async (req, res) =
       console.error("[SQL SERVER ERROR] replaceTourDetails failed:", ssErr.message);
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
-  } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
+  } else if (SQL_SERVER_CONFIG.password) {
     return res.status(503).json({ detail: sqlServerUnavailableDetail("lưu lịch trình và giá") });
   }
 
@@ -3761,7 +3762,7 @@ app.post("/api/v1/admin/tours", requireAdmin, async (req, res) => {
       console.error("[SQL SERVER ERROR] createTour failed:", ssErr.message);
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
-  } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
+  } else if (SQL_SERVER_CONFIG.password) {
     return res.status(503).json({ detail: sqlServerUnavailableDetail("tạo tour") });
   }
 
@@ -3882,7 +3883,7 @@ app.patch("/api/v1/admin/tours/:tour_id", requireAdmin, async (req, res) => {
       console.error("[SQL SERVER ERROR] updateTour failed:", ssErr.message);
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
-  } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
+  } else if (SQL_SERVER_CONFIG.password) {
     return res.status(503).json({ detail: sqlServerUnavailableDetail("cập nhật tour") });
   }
 
@@ -4060,7 +4061,7 @@ app.delete("/api/v1/admin/tours/:tour_id", requireAdmin, async (req, res) => {
       console.error("[SQL SERVER ERROR] deleteTour failed:", ssErr.message);
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
-  } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
+  } else if (SQL_SERVER_CONFIG.password) {
     return res.status(503).json({ detail: sqlServerUnavailableDetail("xóa tour") });
   }
   const tour = db.prepare("SELECT * FROM tours WHERE id = ?").get(tour_id);
@@ -4121,7 +4122,7 @@ app.post("/api/v1/admin/schedules", requireAdmin, async (req, res) => {
       console.error("[SQL SERVER ERROR] createSchedule failed:", ssErr.message);
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
-  } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
+  } else if (SQL_SERVER_CONFIG.password) {
     return res.status(503).json({ detail: sqlServerUnavailableDetail("tạo lịch khởi hành") });
   }
 
@@ -4181,7 +4182,7 @@ app.patch("/api/v1/admin/schedules/:schedule_id", requireAdmin, async (req, res)
       console.error("[SQL SERVER ERROR] updateSchedule failed:", ssErr.message);
       return res.status(500).json({ detail: "Lỗi lưu vĩnh viễn vào Microsoft SQL Server: " + ssErr.message });
     }
-  } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
+  } else if (SQL_SERVER_CONFIG.password) {
     return res.status(503).json({ detail: sqlServerUnavailableDetail("cập nhật lịch khởi hành") });
   }
 
@@ -4234,7 +4235,7 @@ app.delete("/api/v1/admin/schedules/:schedule_id", requireAdmin, async (req, res
       console.error("[SQL SERVER ERROR] deleteSchedule failed:", ssErr.message);
       return res.status(500).json({ detail: "Lỗi xóa lịch khởi hành trên Microsoft SQL Server: " + ssErr.message });
     }
-  } else if (SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.user) {
+  } else if (SQL_SERVER_CONFIG.password) {
     return res.status(503).json({ detail: sqlServerUnavailableDetail("xóa lịch khởi hành") });
   }
   db.prepare("UPDATE schedules SET active = 0 WHERE id = ?").run(schedule_id);
