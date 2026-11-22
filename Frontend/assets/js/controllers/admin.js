@@ -2150,6 +2150,12 @@ async function handleSaveTourSubmit(e) {
         available_seats: tourData.availableSeats
       });
       if (!catalogUpdate.success) {
+        if (catalogUpdate.error && (catalogUpdate.error.includes("đăng nhập") || catalogUpdate.error.includes("hết hạn") || catalogUpdate.error.includes("quản trị"))) {
+          showAdminReauthPrompt("Phiên làm việc quản trị đã hết hạn. Vui lòng xác thực lại mật khẩu Admin để hoàn tất lưu tour:", async () => {
+            await saveTourForm(event);
+          });
+          return;
+        }
         showAdminToast(catalogUpdate.error || "Không thể cập nhật tour trên máy chủ.", "error");
         return;
       }
@@ -2180,6 +2186,12 @@ async function handleSaveTourSubmit(e) {
         available_seats: tourData.availableSeats
       });
       if (!created.success) {
+        if (created.error && (created.error.includes("đăng nhập") || created.error.includes("hết hạn") || created.error.includes("quản trị"))) {
+          showAdminReauthPrompt("Phiên làm việc quản trị đã hết hạn. Vui lòng xác thực lại mật khẩu Admin để hoàn tất tạo tour:", async () => {
+            await saveTourForm(event);
+          });
+          return;
+        }
         showAdminToast(created.error || "Không thể tạo tour trên máy chủ.", "error");
         return;
       }
@@ -2195,6 +2207,12 @@ async function handleSaveTourSubmit(e) {
       itinerary: structuredItinerary
     });
     if (!savedDetails.success) {
+      if (savedDetails.error && (savedDetails.error.includes("đăng nhập") || savedDetails.error.includes("hết hạn") || savedDetails.error.includes("quản trị"))) {
+        showAdminReauthPrompt("Phiên làm việc quản trị đã hết hạn. Vui lòng xác thực lại mật khẩu Admin để hoàn tất lưu giá và lịch trình:", async () => {
+          await saveTourForm(event);
+        });
+        return;
+      }
       showAdminToast(savedDetails.error || "Không thể lưu giá và lịch trình trên máy chủ.", "error");
       return;
     }
@@ -2224,6 +2242,112 @@ function slugify(text) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * Hiển thị hộp thoại xác thực lại Quản trị viên nhanh (không làm mất dữ liệu trên form đang nhập)
+ */
+function showAdminReauthPrompt(msg, onRetry) {
+  let modalEl = document.getElementById("adminReauthModal");
+  if (!modalEl) {
+    const div = document.createElement("div");
+    div.id = "adminReauthModal";
+    div.className = "modal fade";
+    div.tabIndex = -1;
+    div.setAttribute("data-bs-backdrop", "static");
+    div.innerHTML = `
+      <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+        <div class="modal-content shadow border-0 rounded-4">
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title fw-bold text-danger"><i class="bi bi-shield-lock-fill me-2"></i>Xác Thực Quản Trị Viên</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body py-3">
+            <p class="text-secondary small mb-3" id="adminReauthMsg"></p>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-muted">Email Quản trị:</label>
+              <input type="email" id="adminReauthEmail" class="form-control" readonly />
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-muted">Mật khẩu Admin:</label>
+              <input type="password" id="adminReauthPassword" class="form-control" placeholder="Nhập mật khẩu..." />
+            </div>
+            <div id="adminReauthError" class="alert alert-danger py-2 px-3 small d-none"></div>
+          </div>
+          <div class="modal-footer border-0 pt-0">
+            <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Đóng</button>
+            <button type="button" id="adminReauthSubmitBtn" class="btn btn-primary rounded-pill px-4">
+              <i class="bi bi-unlock-fill me-1"></i> Xác nhận & Lưu tiếp
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(div);
+    modalEl = div;
+  }
+
+  const curUser = (typeof getCurrentUser === "function") ? getCurrentUser() : AdminState.currentUser;
+  const emailInput = document.getElementById("adminReauthEmail");
+  const passInput = document.getElementById("adminReauthPassword");
+  const errBox = document.getElementById("adminReauthError");
+  const submitBtn = document.getElementById("adminReauthSubmitBtn");
+  const msgEl = document.getElementById("adminReauthMsg");
+
+  if (msgEl) msgEl.textContent = msg || "Phiên làm việc đã hết hạn. Vui lòng xác thực lại mật khẩu:";
+  if (emailInput) emailInput.value = curUser?.email || "admin@deltatravel.vn";
+  if (passInput) passInput.value = "";
+  if (errBox) errBox.classList.add("d-none");
+
+  const bsModal = new bootstrap.Modal(modalEl);
+  bsModal.show();
+
+  if (passInput) {
+    setTimeout(() => passInput.focus(), 300);
+    passInput.onkeydown = (e) => {
+      if (e.key === "Enter") submitBtn.click();
+    };
+  }
+
+  submitBtn.onclick = async () => {
+    const ident = emailInput.value.trim();
+    const pass = passInput.value.trim();
+    if (!pass) {
+      errBox.textContent = "Vui lòng nhập mật khẩu.";
+      errBox.classList.remove("d-none");
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang xác thực...';
+    try {
+      const res = await DeltaAPI.login(ident, pass);
+      if (res && res.success && res.data) {
+        if (res.data.role !== "ADMIN" && res.data.role !== "OPERATIONS") {
+          errBox.textContent = "Tài khoản không có quyền Admin.";
+          errBox.classList.remove("d-none");
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="bi bi-unlock-fill me-1"></i> Xác nhận & Lưu tiếp';
+          return;
+        }
+        if (typeof setCurrentUser === "function") setCurrentUser({ ...res.data });
+        AdminState.currentUser = res.data;
+        bsModal.hide();
+        showAdminToast("Đã xác thực lại tài khoản Quản trị viên thành công!", "success");
+        if (typeof onRetry === "function") {
+          await onRetry();
+        }
+      } else {
+        errBox.textContent = res?.error || "Mật khẩu quản trị không chính xác.";
+        errBox.classList.remove("d-none");
+      }
+    } catch (e) {
+      errBox.textContent = "Lỗi kết nối: " + e.message;
+      errBox.classList.remove("d-none");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="bi bi-unlock-fill me-1"></i> Xác nhận & Lưu tiếp';
+    }
+  };
 }
 
 // =============================================================================

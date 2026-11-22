@@ -45,7 +45,13 @@ const DeltaAPI = (() => {
       options.body = JSON.stringify(options.body);
     }
 
-    const csrf = getCsrfToken();
+    const storedToken = localStorage.getItem("delta_auth_token");
+    if (storedToken && !headers["Authorization"]) {
+      headers["Authorization"] = `Bearer ${storedToken}`;
+    }
+
+    const storedCsrf = localStorage.getItem("delta_csrf_token");
+    const csrf = getCsrfToken() || storedCsrf;
     if (csrf && !["GET", "HEAD"].includes(options.method || "GET")) {
       headers["X-CSRF-Token"] = csrf;
     }
@@ -261,10 +267,19 @@ const DeltaAPI = (() => {
   // ===========================================================================
 
   async function login(emailOrPhone, password) {
-    return await request("/auth/login", {
+    const res = await request("/auth/login", {
       method: "POST",
       body: { email: emailOrPhone, username: emailOrPhone, password }
     });
+    if (res.success && res.data) {
+      if (res.data.token) {
+        try { localStorage.setItem("delta_auth_token", res.data.token); } catch (_) { }
+      }
+      if (res.data.csrfToken) {
+        try { localStorage.setItem("delta_csrf_token", res.data.csrfToken); } catch (_) { }
+      }
+    }
+    return res;
   }
 
   async function payBooking(bookingId, reference) {
@@ -312,6 +327,10 @@ const DeltaAPI = (() => {
   }
 
   async function logout() {
+    try {
+      localStorage.removeItem("delta_auth_token");
+      localStorage.removeItem("delta_csrf_token");
+    } catch (_) { }
     return await request("/auth/logout", { method: "POST" });
   }
 

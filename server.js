@@ -162,14 +162,19 @@ async function initDirectSqlServer() {
   }
 }
 
-async function getSqlServerPool(maxRetries = 1) {
+async function getSqlServerPool(maxRetries = 2) {
   if (sqlServerPool && (sqlServerPool.connected !== false && typeof sqlServerPool.request === "function")) {
-    return sqlServerPool;
+    try {
+      await sqlServerPool.request().query("SELECT 1");
+      return sqlServerPool;
+    } catch (_) {
+      sqlServerPool = null;
+    }
   }
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (sqlServerService && typeof sqlServerService.getPool === "function") {
       try {
-        const p = await sqlServerService.getPool();
+        const p = await sqlServerService.getPool(attempt > 0);
         if (p && (p.connected !== false && typeof p.request === "function")) {
           sqlServerPool = p;
           return p;
@@ -177,7 +182,7 @@ async function getSqlServerPool(maxRetries = 1) {
       } catch (_) { }
     }
     if (attempt < maxRetries) {
-      await new Promise(r => setTimeout(r, 600));
+      await new Promise(r => setTimeout(r, 800));
     }
   }
   return null;
@@ -2286,31 +2291,110 @@ app.use((req, res, next) => {
   next();
 });
 
-// Auth helper
+// Auth helper & Stateless + Stateful Session Engine
+const DELTA_AUTH_SECRET = process.env.DELTA_SESSION_SECRET || process.env.SESSION_SECRET || "delta_jwt_hmac_secret_key_2026_durable";
+
+function signSessionToken(payload) {
+  const jsonStr = JSON.stringify(payload);
+  const b64 = Buffer.from(jsonStr, "utf8").toString("base64url");
+  const sig = crypto.createHmac("sha256", DELTA_AUTH_SECRET).update(b64).digest("hex");
+  return `delta_s1.${b64}.${sig}`;
+}
+
+function verifySessionToken(token) {
+  if (!token || typeof token !== "string" || !token.startsWith("delta_s1.")) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const b64 = parts[1];
+  const sig = parts[2];
+  try {
+    const expectedSig = crypto.createHmac("sha256", DELTA_AUTH_SECRET).update(b64).digest("hex");
+    if (!crypto.timingSafeEqual(Buffer.from(sig, "hex"), Buffer.from(expectedSig, "hex"))) {
+      return null;
+    }
+    const payload = JSON.parse(Buffer.from(b64, "base64url").toString("utf8"));
+    if (payload.exp && Date.now() > payload.exp) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
 function getSessionUser(req) {
-  const sessionToken = req.cookies.delta_session;
+  let sessionToken = req.cookies?.delta_session;
+  if (!sessionToken && req.headers?.authorization) {
+    sessionToken = req.headers.authorization.replace(/^Bearer\s+/i, "").trim();
+  }
+  if (!sessionToken && req.headers?.["x-session-token"]) {
+    sessionToken = String(req.headers["x-session-token"]).trim();
+  }
   if (!sessionToken) return null;
-  const th = tokenHash(sessionToken);
-  const row = db.prepare(`
-    SELECT s.token_hash, s.csrf_hash, s.expires_at, u.*
-    FROM sessions s
-    JOIN users u ON u.id = s.user_id
-    WHERE s.token_hash = ? AND s.expires_at > datetime('now') AND u.active = 1
-  `).get(th);
-  return row || null;
+
+  // 1. Kiểm tra session trong DB SQLite
+  try {
+    const th = tokenHash(sessionToken);
+    const row = db.prepare(`
+      SELECT s.token_hash, s.csrf_hash, s.expires_at, u.*
+      FROM sessions s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.token_hash = ? AND s.expires_at > datetime('now') AND u.active = 1
+    `).get(th);
+    if (row) return row;
+  } catch (err) {
+    console.warn("[AUTH] Lỗi tra cứu session DB:", err.message);
+  }
+
+  // 2. Fallback sang HMAC signed token (bền vững tuyệt đối khi Render redeploy / restart container)
+  const payload = verifySessionToken(sessionToken);
+  if (payload && payload.uid) {
+    try {
+      const user = db.prepare("SELECT * FROM users WHERE id = ? AND active = 1").get(payload.uid);
+      if (user) {
+        // Tự động re-seed session vào DB SQLite nếu chưa có
+        try {
+          const rawCsrf = randomToken();
+          const expDate = new Date(payload.exp || (Date.now() + 7 * 86400000));
+          db.prepare(`
+            INSERT OR REPLACE INTO sessions (token_hash, user_id, csrf_hash, expires_at, created_at)
+            VALUES (?, ?, ?, ?, ?)
+          `).run(tokenHash(sessionToken), user.id, tokenHash(rawCsrf), expDate.toISOString(), new Date().toISOString());
+        } catch (_) { }
+        return user;
+      }
+    } catch (err) {
+      console.warn("[AUTH] Lỗi nạp user từ signed token:", err.message);
+    }
+  }
+
+  return null;
 }
 
 function requireAuth(req, res, next) {
   const sessionUser = getSessionUser(req);
   if (!sessionUser) {
-    return res.status(401).json({ detail: "Bạn cần đăng nhập để đặt tour. Khách chưa đăng nhập chỉ có quyền xem thông tin tour." });
+    const reqUrl = (req.originalUrl || req.url || req.path || "").toLowerCase();
+    const isAdmin = reqUrl.includes("/admin");
+    const isBooking = reqUrl.includes("/bookings") || reqUrl.includes("/pay");
+
+    let detail = "Vui lòng đăng nhập tài khoản để tiếp tục.";
+    if (isAdmin) {
+      detail = "Phiên làm việc quản trị đã hết hạn hoặc chưa đăng nhập. Vui lòng đăng nhập lại tài khoản Admin.";
+    } else if (isBooking) {
+      detail = "Bạn cần đăng nhập để đặt tour. Khách chưa đăng nhập chỉ có quyền xem thông tin tour.";
+    }
+
+    return res.status(401).json({ detail, unauthenticated: true, isAdminAuthFailed: isAdmin });
   }
-  // Validate CSRF token for state-modifying methods
+
+  // Validate CSRF token for state-modifying methods (chỉ áp dụng cho cookie-based requests; Bearer token headers đã miễn nhiễm CSRF)
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
-    const headerCsrf = req.headers["x-csrf-token"];
-    const cookieCsrf = req.cookies.delta_csrf;
-    if (headerCsrf && cookieCsrf && (headerCsrf !== cookieCsrf || tokenHash(headerCsrf) !== sessionUser.csrf_hash)) {
-      return res.status(403).json({ detail: "CSRF token không hợp lệ." });
+    const isBearer = Boolean(req.headers?.authorization?.startsWith("Bearer "));
+    if (!isBearer) {
+      const headerCsrf = req.headers["x-csrf-token"];
+      const cookieCsrf = req.cookies?.delta_csrf;
+      if (headerCsrf && cookieCsrf && (headerCsrf !== cookieCsrf || tokenHash(headerCsrf) !== sessionUser.csrf_hash)) {
+        return res.status(403).json({ detail: "CSRF token không hợp lệ." });
+      }
     }
   }
   req.user = sessionUser;
@@ -2332,16 +2416,25 @@ function requireAdmin(req, res, next) {
 }
 
 function createSession(res, user) {
-  const rawSession = randomToken();
-  const rawCsrf = randomToken();
   const expires = new Date(Date.now() + 7 * 24 * 3600 * 1000); // 7 days
+  const rawCsrf = randomToken();
+  const signedToken = signSessionToken({
+    uid: user.id,
+    role: user.role,
+    email: user.email,
+    exp: expires.getTime()
+  });
 
-  db.prepare(`
-    INSERT INTO sessions (token_hash, user_id, csrf_hash, expires_at, created_at)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(tokenHash(rawSession), user.id, tokenHash(rawCsrf), expires.toISOString(), new Date().toISOString());
+  try {
+    db.prepare(`
+      INSERT INTO sessions (token_hash, user_id, csrf_hash, expires_at, created_at)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(tokenHash(signedToken), user.id, tokenHash(rawCsrf), expires.toISOString(), new Date().toISOString());
+  } catch (err) {
+    console.warn("[AUTH] Lỗi lưu session SQLite:", err.message);
+  }
 
-  res.cookie("delta_session", rawSession, {
+  res.cookie("delta_session", signedToken, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
@@ -2354,7 +2447,7 @@ function createSession(res, user) {
     expires
   });
 
-  return { rawSession, rawCsrf };
+  return { rawSession: signedToken, rawCsrf, expires };
 }
 
 // =============================================================================
@@ -2483,9 +2576,14 @@ app.post("/api/v1/auth/login", (req, res) => {
     return res.status(401).json({ detail: "Thông tin đăng nhập không chính xác." });
   }
 
-  createSession(res, user);
+  const sess = createSession(res, user);
   audit(user.id, "USER_LOGIN", user.id);
-  res.json(userDict(user));
+  res.json({
+    ...userDict(user),
+    token: sess.rawSession,
+    csrfToken: sess.rawCsrf,
+    expiresAt: sess.expires.toISOString()
+  });
 });
 
 app.post("/api/v1/auth/reset-password", (req, res) => {
@@ -2511,11 +2609,14 @@ app.post("/api/v1/auth/reset-password", (req, res) => {
   const newHash = hashPassword(pass);
   db.prepare("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?").run(newHash, new Date().toISOString(), user.id);
   audit(user.id, "PASSWORD_RESET", user.id, { email: user.email });
-  createSession(res, user);
+  const sess = createSession(res, user);
   res.json({
     success: true,
     message: "Đặt lại mật khẩu thành công!",
-    user: userDict(user)
+    user: userDict(user),
+    token: sess.rawSession,
+    csrfToken: sess.rawCsrf,
+    expiresAt: sess.expires.toISOString()
   });
 });
 

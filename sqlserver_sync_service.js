@@ -103,6 +103,19 @@ function normalizeItineraryDays(rawItinerary) {
 }
 
 let lastConnectionError = null;
+let lastPingTime = 0;
+
+// Giữ kết nối Microsoft SQL Server luôn hoạt động, tránh timeout ngắt kết nối sau 60s của hosting
+setInterval(async () => {
+  if (pool && pool.connected !== false && typeof pool.request === 'function') {
+    try {
+      await pool.request().query('SELECT 1');
+      lastPingTime = Date.now();
+    } catch (_) {
+      pool = null;
+    }
+  }
+}, 25000).unref();
 
 function isConfigured() {
   return Boolean(SQL_SERVER_CONFIG.user && SQL_SERVER_CONFIG.password && SQL_SERVER_CONFIG.server && SQL_SERVER_CONFIG.database);
@@ -122,7 +135,20 @@ async function getPool(forceReconnect = false) {
     console.warn('[SQL SERVER SERVICE] Warning: Missing SQL Server password. Ensure SQL_SERVER_PASS or DELTA_MSSQL_PASSWORD is set in Render Environment Variables.');
     return null;
   }
-  if (!forceReconnect && pool && (pool.connected !== false && typeof pool.request === 'function')) return pool;
+  if (!forceReconnect && pool && (pool.connected !== false && typeof pool.request === 'function')) {
+    // Nếu kết nối đã nhàn rỗi hơn 15 giây, kiểm tra ping trước khi trả về
+    if (Date.now() - lastPingTime > 15000) {
+      try {
+        await pool.request().query('SELECT 1');
+        lastPingTime = Date.now();
+        return pool;
+      } catch (_) {
+        pool = null;
+      }
+    } else {
+      return pool;
+    }
+  }
   if (!forceReconnect && connectPromise) return await connectPromise;
 
   connectPromise = (async () => {
@@ -138,6 +164,7 @@ async function getPool(forceReconnect = false) {
         if (pool === newPool) pool = null;
       });
       pool = newPool;
+      lastPingTime = Date.now();
       lastConnectionError = null;
       console.log('[SQL SERVER SERVICE] Connected to', SQL_SERVER_CONFIG.server, SQL_SERVER_CONFIG.database);
       return pool;
@@ -299,15 +326,24 @@ async function resolveMaChuyen(poolRef, scheduleId, tourId = null) {
  * 1. UPDATE TOUR (Transaction with COMMIT & ROLLBACK)
  */
 async function updateTour(tourId, patchData, userId = null) {
-  const p = await getPool();
+  let p = await getPool();
   if (!p) throw new Error("Chưa kết nối được với Microsoft SQL Server.");
-  const maTour = await resolveMaTour(p, tourId);
+  let maTour = await resolveMaTour(p, tourId);
   if (!maTour) {
     throw new Error(`Không tìm thấy tour ${tourId} trong SQL Server (dbo.TOUR).`);
   }
 
-  const tx = new mssql.Transaction(p);
-  await tx.begin();
+  let tx;
+  try {
+    tx = new mssql.Transaction(p);
+    await tx.begin();
+  } catch (txErr) {
+    console.warn("[SQL SERVER] Transaction begin failed, reconnecting pool:", txErr.message);
+    p = await getPool(true);
+    if (!p) throw txErr;
+    tx = new mssql.Transaction(p);
+    await tx.begin();
+  }
   try {
     // 1. Lấy dữ liệu cũ để ghi Audit
     const oldRes = await new mssql.Request(tx)
@@ -452,15 +488,24 @@ async function updateTour(tourId, patchData, userId = null) {
  * 2. REPLACE TOUR DETAILS (Giá bán & Lịch trình chi tiết từng ngày)
  */
 async function replaceTourDetails(tourId, details, userId = null) {
-  const p = await getPool();
+  let p = await getPool();
   if (!p) throw new Error("Chưa kết nối được với Microsoft SQL Server.");
-  const maTour = await resolveMaTour(p, tourId);
+  let maTour = await resolveMaTour(p, tourId);
   if (!maTour) {
     throw new Error(`Không tìm thấy tour ${tourId} trong SQL Server (dbo.TOUR).`);
   }
 
-  const tx = new mssql.Transaction(p);
-  await tx.begin();
+  let tx;
+  try {
+    tx = new mssql.Transaction(p);
+    await tx.begin();
+  } catch (txErr) {
+    console.warn("[SQL SERVER] Transaction begin failed in replaceTourDetails, reconnecting pool:", txErr.message);
+    p = await getPool(true);
+    if (!p) throw txErr;
+    tx = new mssql.Transaction(p);
+    await tx.begin();
+  }
   try {
     // 1. Cập nhật giá bán trong dbo.TOUR
     const price = Number(details.price);
