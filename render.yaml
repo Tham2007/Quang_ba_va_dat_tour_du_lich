@@ -17,7 +17,7 @@ services:
       - key: SEPAY_BANK_NAME
         value: "MBBank"
       - key: SEPAY_API_KEY
-        value: "DeltaTravel_MBBank_2026_SecKey"
+        sync: false
       - key: GROQ_API_KEY
         sync: false
       - key: SQL_SERVER_HOST
