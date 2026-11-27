@@ -149,7 +149,7 @@ PRINT N'==> Đang thiết lập các ràng buộc Check Constraints...';
 
 -- 1. Phân quyền vai trò người dùng chuẩn
 ALTER TABLE dbo.NGUOIDUNG ADD CONSTRAINT CK_NGUOIDUNG_VaiTro
-CHECK (VaiTro IN (N'Admin', N'NhanVien', N'KhachHang'));
+CHECK (VaiTro IN (N'Admin', N'NhanVien', N'KhachHang', N'CUSTOMER', N'ADMIN', N'STAFF'));
 
 -- 2. Giá khuyến nghị của Tour phải >= 0
 ALTER TABLE dbo.TOUR ADD CONSTRAINT CK_TOUR_GiaKhuyenNghi 

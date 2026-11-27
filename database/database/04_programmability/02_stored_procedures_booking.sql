@@ -341,9 +341,11 @@ BEGIN
     DECLARE @SoDonHetHan INT = 0;
 
     -- Lấy danh sách các đơn giữ chỗ quá 15 phút mà chưa thanh toán
+    DECLARE @GiaiPhong TABLE (MaDatTour INT);
+
     UPDATE dt
     SET dt.TrangThaiDat = N'Đã hủy'
-    OUTPUT deleted.MaDatTour
+    OUTPUT deleted.MaDatTour INTO @GiaiPhong
     FROM dbo.DATTOUR dt
     WHERE dt.TrangThaiDat = N'Chờ xác nhận'
       AND dt.TrangThaiThanhToan = N'Chưa thanh toán'
