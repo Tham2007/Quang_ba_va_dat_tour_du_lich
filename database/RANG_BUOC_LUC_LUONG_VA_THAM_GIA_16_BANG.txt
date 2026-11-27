@@ -1,0 +1,454 @@
+========================================================================================================================
+HỆ THỐNG CƠ SỞ DỮ LIỆU: WEBSITE QUẢNG BÁ VÀ ĐẶT TOUR DU LỊCH TRỰC TUYẾN (DELTA TRAVEL)
+TÀI LIỆU ĐẶC TẢ CHI TIẾT: RÀNG BUỘC LỰC LƯỢNG (CARDINALITY) & RÀNG BUỘC THAM GIA (PARTICIPATION)
+KHÓA CHÍNH (PK), KHÓA NGOẠI/KHÓA PHỤ (FK), KHÓA DUY NHẤT (UK) CỦA 16 BẢNG CHUẨN HÓA 3NF
+========================================================================================================================
+Ngày lập: 27/11/2026
+Phiên bản CSDL: 3NF - 16 Bảng nghiệp vụ hoàn chỉnh (Tương thích Microsoft SQL Server 2019/2022/Azure SQL)
+Chuẩn thiết kế: Codd's Relational Model, 3rd Normal Form (3NF), SRS Software Requirements Specification
+========================================================================================================================
+
+MỤC LỤC:
+PHẦN I.   CƠ SỞ LÝ THUYẾT VÀ QUY ƯỚC KÝ HIỆU HỌC THUẬT
+PHẦN II.  DANH MỤC 16 BẢNG DỮ LIỆU CHUẨN HÓA 3NF
+PHẦN III. ĐẶC TẢ CHI TIẾT TỪNG BẢNG: KHÓA CHÍNH (PK), KHÓA NGOẠI (FK), KHÓA DUY NHẤT (UK), RÀNG BUỘC CHECK
+PHẦN IV.  BẢNG TỔNG HỢP MA TRẬN RÀNG BUỘC LỰC LƯỢNG VÀ RÀNG BUỘC THAM GIA GIỮA CÁC BẢNG
+PHẦN V.   QUY TẮC TOÀN VẸN NGHIỆP VỤ (BUSINESS RULES) ĐẶC THÙ HỆ THỐNG
+PHẦN VI.  HƯỚNG DẪN BẢO TOÀN VÀ XÁC THỰC TRÊN MICROSOFT SQL SERVER
+
+========================================================================================================================
+PHẦN I. CƠ SỞ LÝ THUYẾT VÀ QUY ƯỚC KÝ HIỆU HỌC THUẬT
+========================================================================================================================
+
+1. RÀNG BUỘC LỰC LƯỢNG (CARDINALITY RATIO / MULTIPLICITY):
+   - Thể hiện số lượng thực thể của một tập thực thể này có thể liên kết với số lượng thực thể của tập thực thể khác.
+   - Các dạng quan hệ cơ bản:
+     + 1 - 1 (Một - Một / One-to-One): Một bản ghi ở Bảng A liên kết với tối đa một bản ghi ở Bảng B và ngược lại.
+     + 1 - N (Một - Nhiều / One-to-Many): Một bản ghi ở Bảng A liên kết với không hoặc nhiều bản ghi ở Bảng B.
+     + N - N (Nhiều - Nhiều / Many-to-Many): Một bản ghi ở Bảng A liên kết với nhiều bản ghi ở Bảng B và ngược lại.
+       (Trong mô hình quan hệ 3NF, quan hệ N - N luôn được chuẩn hóa tách thành 2 quan hệ 1 - N thông qua bảng trung gian).
+   - Ký hiệu cặp bản số (min, max):
+     + (0, 1): Tối thiểu 0, tối đa 1 (Tùy chọn, không bắt buộc, đơn nhất).
+     + (1, 1): Tối thiểu 1, tối đa 1 (Bắt buộc phải có đúng một đối tượng liên kết).
+     + (0, n): Tối thiểu 0, tối đa nhiều (Tùy chọn, có thể chưa có hoặc có nhiều đối tượng liên kết).
+     + (1, n): Tối thiểu 1, tối đa nhiều (Bắt buộc phải có ít nhất một đối tượng liên kết).
+
+2. RÀNG BUỘC THAM GIA (PARTICIPATION CONSTRAINT):
+   - RÀNG BUỘC THAM GIA TOÀN PHẦN (Total Participation / Bắt buộc / Mandatory):
+     + Định nghĩa: Mọi thực thể trong bảng con bắt buộc phải tham gia vào mối quan hệ với bảng cha.
+     + Biểu hiện vật lý trong SQL Server: Cột Khóa ngoại (Foreign Key) được khai báo NOT NULL. Không cho phép mồ côi.
+     + Ký hiệu ERD: Đường nối đôi (Double line) hoặc min = 1.
+   - RÀNG BUỘC THAM GIA MỘT PHẦN (Partial Participation / Tùy chọn / Optional):
+     + Định nghĩa: Thực thể trong bảng có thể tồn tại độc lập mà không nhất thiết phải liên kết với bảng kia.
+     + Biểu hiện vật lý trong SQL Server: Cột Khóa ngoại (Foreign Key) cho phép NULL.
+     + Ký hiệu ERD: Đường nối đơn (Single line) hoặc min = 0.
+
+3. CÁC LOẠI KHÓA (KEYS):
+   - Khóa chính (Primary Key - PK): Thuộc tính hoặc tập thuộc tính xác định duy nhất một hàng trong bảng, không chấp nhận NULL.
+   - Khóa ngoại / Khóa phụ (Foreign Key - FK): Cột trong bảng con tham chiếu đến Khóa chính của bảng cha để đảm bảo toàn vẹn tham chiếu.
+   - Khóa ứng viên / Khóa duy nhất (Unique Key - UK / Candidate Key): Cột có giá trị duy nhất trong toàn bảng, hỗ trợ tìm kiếm nhanh và chống trùng lặp.
+
+========================================================================================================================
+PHẦN II. DANH MỤC 16 BẢNG DỮ LIỆU CHUẨN HÓA 3NF
+========================================================================================================================
+
+ 1. NGUOIDUNG               : Quản lý tài khoản, thông tin người dùng và phân quyền (Admin, NhanVien, KhachHang).
+ 2. DANHMUC                 : Quản lý danh mục du lịch và phân vùng địa lý (Miền Bắc, Miền Trung, Miền Nam...).
+ 3. TOUR                    : Quản lý thông tin định danh và giới thiệu tổng quan tour du lịch.
+ 4. HINHANH_TOUR            : Thư viện bộ sưu tập ảnh (Slide/Gallery) của từng tour (Tách thuộc tính đa trị 1NF -> 3NF).
+ 5. LICH_TRINH_DETAIL       : Lịch trình chi tiết từng ngày của tour (Ngày 1, Ngày 2, Hoạt động, Bữa ăn...).
+ 6. CHUYENKHOIHANH          : Lịch khởi hành thực tế của tour theo ngày, quản lý sức chứa và số chỗ giữ/đã đặt.
+ 7. DATTOUR                 : Quản lý đơn đặt tour của khách hàng, thời hạn giữ chỗ 15 phút, tổng tiền và trạng thái.
+ 8. CHITIET_HANHKHACH       : Danh sách từng hành khách tham gia trong đơn đặt (Họ tên, ngày sinh, giới tính, SĐT).
+ 9. THANHTOAN               : Quản lý chứng từ giao dịch dòng tiền (Phân biệt Loại: 'Thanh toán', 'Hoàn tiền', 'Phụ thu').
+10. DANHGIA                 : Phản hồi chất lượng, số sao đánh giá sau khi hoàn thành chuyến đi (Quan hệ 1-1 với đơn hoàn tất).
+11. BAIVIET_QUANGBA         : Bài viết tin tức, cẩm nang du lịch và truyền thông quảng bá điểm đến.
+12. AUDITLOG                : Nhật ký giám sát an ninh, ghi vết biến động dữ liệu và thao tác hệ thống.
+13. YEUCAU_HOANTIEN_DOILICH : Phục vụ UC-10 - Tiếp nhận và xử lý yêu cầu hủy tour, hoàn tiền, đổi lịch của khách.
+14. TOUR_YEUTHICH           : Phục vụ UC-07 - Danh sách tour yêu thích (Wishlist) của từng khách hàng.
+15. LIENHE_TUVAN            : Phục vụ UC-04 - Tiếp nhận thông tin tư vấn từ khách vãng lai hoặc khách hàng có nhu cầu.
+16. BANNER_QUANGCAO         : Phục vụ UC-15 - Quản trị banner quảng cáo, slide trang chủ và các vị trí nổi bật.
+
+========================================================================================================================
+PHẦN III. ĐẶC TẢ CHI TIẾT TỪNG BẢNG
+========================================================================================================================
+
+------------------------------------------------------------------------------------------------------------------------
+1. BẢNG NGUOIDUNG (Tài khoản người dùng hệ thống)
+------------------------------------------------------------------------------------------------------------------------
+- Mục đích nghiệp vụ: Lưu trữ định danh, thông tin bảo mật và vai trò của mọi chủ thể truy cập hệ thống.
+- Khóa chính (PK):
+  + MaNguoiDung (INT, IDENTITY(1,1)) - Tự động tăng, định danh duy nhất người dùng.
+- Khóa ứng viên / Khóa duy nhất (UK):
+  + UQ_NGUOIDUNG_Email: Cột [Email] VARCHAR(100) UNIQUE NOT NULL (Ngăn chặn việc đăng ký trùng lặp tài khoản).
+- Khóa ngoại (FK):
+  + Không có (Đây là bảng thực thể gốc độc lập).
+- Ràng buộc kiểm tra (CHECK Constraints):
+  + CK_NGUOIDUNG_VaiTro: VaiTro IN (N'Admin', N'NhanVien', N'KhachHang', N'CUSTOMER', N'ADMIN', N'STAFF')
+    -> Đảm bảo phân quyền chặt chẽ 3 nhóm: Quản trị viên, Nhân viên vận hành, Khách hàng.
+  + DF_NGUOIDUNG_VaiTro: Mặc định là N'KhachHang'.
+  + TrangThai: BIT NOT NULL DEFAULT (1) (1: Hoạt động, 0: Bị khóa).
+
+------------------------------------------------------------------------------------------------------------------------
+2. BẢNG DANHMUC (Danh mục tour / Phân vùng du lịch)
+------------------------------------------------------------------------------------------------------------------------
+- Mục đích nghiệp vụ: Phân loại tour theo vị trí địa lý hoặc tính chất tour (Miền Bắc, Miền Trung, Miền Nam, Tour Biển...).
+- Khóa chính (PK):
+  + MaDanhMuc (INT, IDENTITY(1,1)) - Tự động tăng.
+- Khóa ứng viên / Khóa duy nhất (UK):
+  + UQ_DANHMUC_TenDanhMuc: Cột [TenDanhMuc] NVARCHAR(100) UNIQUE NOT NULL (Tên danh mục không trùng lặp).
+- Khóa ngoại (FK):
+  + Không có (Bảng danh mục gốc).
+
+------------------------------------------------------------------------------------------------------------------------
+3. BẢNG TOUR (Thông tin tour du lịch)
+------------------------------------------------------------------------------------------------------------------------
+- Mục đích nghiệp vụ: Quản lý sản phẩm tour du lịch cốt lõi của công ty lữ hành.
+- Khóa chính (PK):
+  + MaTour (INT, IDENTITY(1,1)) - Tự động tăng.
+- Khóa ngoại (FK):
+  + FK_TOUR_DANHMUC: Cột [MaDanhMuc] INT NOT NULL -> Tham chiếu DANHMUC(MaDanhMuc)
+    * Tính tham gia: THAM GIA TOÀN PHẦN (Total Participation) vì MaDanhMuc NOT NULL (Bắt buộc tour phải thuộc về 1 danh mục).
+    * Lực lượng (DANHMUC -> TOUR): 1 Danh mục có thể có (0..N) Tour; 1 Tour thuộc về đúng (1..1) Danh mục.
+    * Quy tắc tham chiếu: ON UPDATE CASCADE, ON DELETE NO ACTION (Ngăn chặn xóa danh mục khi vẫn còn tour trực thuộc).
+- Ràng buộc kiểm tra (CHECK Constraints):
+  + CK_TOUR_GiaKhuyenNghi: GiaKhuyenNghi >= 0 (Giá niêm yết không được âm).
+  + TrangThai: BIT NOT NULL DEFAULT (1) (1: Mở bán, 0: Tạm dừng hiển thị).
+
+------------------------------------------------------------------------------------------------------------------------
+4. BẢNG HINHANH_TOUR (Bộ sưu tập ảnh của Tour)
+------------------------------------------------------------------------------------------------------------------------
+- Mục đích nghiệp vụ: Lưu trữ các hình ảnh thực tế, slide show của tour (Chuẩn hóa loại bỏ thuộc tính đa trị).
+- Khóa chính (PK):
+  + MaHinhAnh (INT, IDENTITY(1,1)) - Tự động tăng.
+- Khóa ngoại (FK):
+  + FK_HINHANHTOUR_TOUR: Cột [MaTour] INT NOT NULL -> Tham chiếu TOUR(MaTour)
+    * Tính tham gia: THAM GIA TOÀN PHẦN (Total Participation) vì MaTour NOT NULL (Ảnh bắt buộc phải thuộc một tour cụ thể).
+    * Lực lượng (TOUR -> HINHANH_TOUR): 1 Tour có thể có (0..N) Hình ảnh; 1 Hình ảnh chỉ thuộc về đúng (1..1) Tour.
+    * Quy tắc tham chiếu: ON UPDATE CASCADE, ON DELETE CASCADE (Xóa tour thì hệ thống tự động xóa sạch ảnh gallery của tour đó).
+
+------------------------------------------------------------------------------------------------------------------------
+5. BẢNG LICH_TRINH_DETAIL (Lịch trình chi tiết từng ngày của Tour)
+------------------------------------------------------------------------------------------------------------------------
+- Mục đích nghiệp vụ: Mô tả chi tiết hành trình Ngày 1, Ngày 2, Ngày 3, các điểm tham quan và thực đơn bữa ăn.
+- Khóa chính (PK):
+  + MaLichTrinh (INT, IDENTITY(1,1)) - Tự động tăng.
+- Khóa ngoại (FK):
+  + FK_LICHTRINH_TOUR: Cột [MaTour] INT NOT NULL -> Tham chiếu TOUR(MaTour)
+    * Tính tham gia: THAM GIA TOÀN PHẦN (Total Participation) vì MaTour NOT NULL (Mỗi dòng lịch trình bắt buộc thuộc 1 tour).
+    * Lực lượng (TOUR -> LICH_TRINH_DETAIL): 1 Tour có (1..N) Ngày lịch trình; 1 Dòng chi tiết thuộc về đúng (1..1) Tour.
+    * Quy tắc tham chiếu: ON UPDATE CASCADE, ON DELETE CASCADE (Xóa tour thì dọn dẹp toàn bộ chi tiết ngày lịch trình).
+- Ràng buộc kiểm tra (CHECK Constraints):
+  + CK_LICHTRINH_NgayThu: NgayThu > 0 (Số thứ tự ngày phải là số nguyên dương).
+
+------------------------------------------------------------------------------------------------------------------------
+6. BẢNG CHUYENKHOIHANH (Lịch khởi hành thực tế của Tour)
+------------------------------------------------------------------------------------------------------------------------
+- Mục đích nghiệp vụ: Quản lý các chuyến đi cụ thể trong tương lai, giá bán theo đợt, số chỗ tối đa, số chỗ đã xác nhận và số chỗ giữ tạm.
+- Khóa chính (PK):
+  + MaChuyen (INT, IDENTITY(1,1)) - Tự động tăng.
+- Khóa ngoại (FK):
+  + FK_CHUYENKHOIHANH_TOUR: Cột [MaTour] INT NOT NULL -> Tham chiếu TOUR(MaTour)
+    * Tính tham gia: THAM GIA TOÀN PHẦN (Total Participation) vì MaTour NOT NULL.
+    * Lực lượng (TOUR -> CHUYENKHOIHANH): 1 Tour có thể mở (0..N) Chuyến khởi hành; 1 Chuyến bắt buộc thuộc về (1..1) Tour.
+    * Quy tắc tham chiếu: ON UPDATE CASCADE, ON DELETE NO ACTION (Không cho phép xóa tour nếu đã lên lịch chuyến khởi hành).
+- Ràng buộc kiểm tra (CHECK Constraints):
+  + CK_CHUYEN_ThoiGianHopLe: NgayKetThuc >= NgayKhoiHanh (Ngày kết thúc tour không được xảy ra trước ngày khởi hành).
+  + CK_CHUYEN_GiaThucTe: GiaThucTe >= 0.
+  + CK_CHUYEN_SoChoHopLe: SoChoToiDa > 0 AND SoChoDaDat >= 0 AND SoChoGiuCho >= 0 AND (SoChoDaDat + SoChoGiuCho) <= SoChoToiDa
+    -> Đảm bảo tổng số chỗ đã đặt và số chỗ khóa giữ tạm thời không bao giờ vượt quá sức chứa tối đa của phương tiện/chuyến đi.
+
+------------------------------------------------------------------------------------------------------------------------
+7. BẢNG DATTOUR (Đơn đặt tour du lịch)
+------------------------------------------------------------------------------------------------------------------------
+- Mục đích nghiệp vụ: Lưu trữ giao dịch đặt chỗ của khách, quản lý vòng đời đơn (Chờ xác nhận -> Đã xác nhận -> Hoàn thành / Đã hủy).
+- Khóa chính (PK):
+  + MaDatTour (INT, IDENTITY(1,1)) - Tự động tăng.
+- Khóa ngoại (FK):
+  + FK_DATTOUR_NGUOIDUNG: Cột [MaKhachHang] INT NOT NULL -> Tham chiếu NGUOIDUNG(MaNguoiDung)
+    * Tính tham gia: THAM GIA TOÀN PHẦN (Total) vì MaKhachHang NOT NULL (Đơn đặt bắt buộc phải có chủ thể người đặt).
+    * Lực lượng (NGUOIDUNG -> DATTOUR): 1 Khách hàng có thể có (0..N) Đơn đặt tour; 1 Đơn bắt buộc do đúng (1..1) Khách hàng sở hữu.
+    * Quy tắc tham chiếu: ON UPDATE NO ACTION, ON DELETE NO ACTION (Không được xóa tài khoản người dùng đã có lịch sử đặt chỗ).
+  + FK_DATTOUR_CHUYENKHOIHANH: Cột [MaChuyen] INT NOT NULL -> Tham chiếu CHUYENKHOIHANH(MaChuyen)
+    * Tính tham gia: THAM GIA TOÀN PHẦN (Total) vì MaChuyen NOT NULL (Đơn đặt bắt buộc phải chỉ định đúng chuyến khởi hành).
+    * Lực lượng (CHUYENKHOIHANH -> DATTOUR): 1 Chuyến khởi hành tiếp nhận (0..N) Đơn đặt tour; 1 Đơn chỉ áp dụng cho (1..1) Chuyến đi.
+    * Quy tắc tham chiếu: ON UPDATE NO ACTION, ON DELETE NO ACTION (Không cho phép xóa chuyến đi đã có người đặt).
+- Cột phục vụ nghiệp vụ giữ chỗ:
+  + ThoiHanGiuCho DATETIME NULL: Thời hạn tạm khóa chỗ (15 phút). Sau thời điểm này, Background job quét tự động hủy đơn và nhả chỗ.
+- Ràng buộc kiểm tra (CHECK Constraints):
+  + CK_DATTOUR_SoLuongKhach: SoLuongKhach > 0 (Số khách đặt tối thiểu từ 1 người).
+  + CK_DATTOUR_TongTien: TongTien >= 0.
+  + CK_DATTOUR_TrangThaiDat: TrangThaiDat IN (N'Chờ xác nhận', N'Đã xác nhận', N'Hoàn thành', N'Đã hủy').
+  + CK_DATTOUR_TrangThaiThanhToan: TrangThaiThanhToan IN (N'Chưa thanh toán', N'Đã thanh toán', N'Đã hoàn tiền').
+
+------------------------------------------------------------------------------------------------------------------------
+8. BẢNG CHITIET_HANHKHACH (Danh sách hành khách tham gia chuyến đi)
+------------------------------------------------------------------------------------------------------------------------
+- Mục đích nghiệp vụ: Lưu thông tin chi tiết từng thành viên trong đoàn phục vụ mua bảo hiểm lữ hành, khai báo danh sách tour.
+- Khóa chính (PK):
+  + MaHanhKhach (INT, IDENTITY(1,1)) - Tự động tăng.
+- Khóa ngoại (FK):
+  + FK_CHITIETHANHKHACH_DATTOUR: Cột [MaDatTour] INT NOT NULL -> Tham chiếu DATTOUR(MaDatTour)
+    * Tính tham gia: THAM GIA TOÀN PHẦN (Total) vì MaDatTour NOT NULL (Mỗi hành khách bắt buộc phải thuộc một đơn đặt tour cụ thể).
+    * Lực lượng (DATTOUR -> CHITIET_HANHKHACH): 1 Đơn đặt tour bắt buộc có (1..N) Hành khách (Khớp với SoLuongKhach);
+      1 Hành khách chỉ thuộc về duy nhất (1..1) Đơn đặt tour.
+    * Quy tắc tham chiếu: ON UPDATE CASCADE, ON DELETE CASCADE (Hủy/xóa đơn đặt tour thì tự động dọn dẹp danh sách hành khách).
+- Ràng buộc toàn vẹn mở rộng (Trigger):
+  + TRG_CHITIET_HANHKHACH_KiemTraSoLuong: Đảm bảo số lượng dòng hành khách nhập vào không vượt quá SoLuongKhach của đơn.
+
+------------------------------------------------------------------------------------------------------------------------
+9. BẢNG THANHTOAN (Chứng từ giao dịch thanh toán & Hoàn tiền)
+------------------------------------------------------------------------------------------------------------------------
+- Mục đích nghiệp vụ: Ghi nhận lịch sử dòng tiền vào/ra (Thanh toán đơn tour, hoàn tiền khi hủy tour, phụ thu phát sinh).
+- Khóa chính (PK):
+  + MaThanhToan (INT, IDENTITY(1,1)) - Tự động tăng.
+- Khóa ngoại (FK):
+  + FK_THANHTOAN_DATTOUR: Cột [MaDatTour] INT NOT NULL -> Tham chiếu DATTOUR(MaDatTour)
+    * Tính tham gia: THAM GIA TOÀN PHẦN (Total) vì MaDatTour NOT NULL (Giao dịch tài chính bắt buộc phải gắn với một đơn đặt tour).
+    * Lực lượng (DATTOUR -> THANHTOAN): 1 Đơn đặt tour có thể phát sinh (0..N) Giao dịch (0: Chưa thanh toán, 1: Thanh toán đủ,
+      hoặc nhiều giao dịch: thanh toán đợt 1, phụ thu, hoàn tiền hủy tour); 1 Giao dịch thuộc về (1..1) Đơn tour.
+    * Quy tắc tham chiếu: ON UPDATE NO ACTION, ON DELETE NO ACTION (Tuyệt đối không xóa dữ liệu kế toán chứng từ tài chính).
+- Cột phân loại giao dịch (Giải quyết yêu cầu phân định Thu tiền vs Hoàn tiền):
+  + LoaiGiaoDich: NVARCHAR(50) NOT NULL DEFAULT (N'Thanh toán')
+- Ràng buộc kiểm tra (CHECK Constraints):
+  + CK_THANHTOAN_SoTien: SoTien > 0 (Số tiền giao dịch thực tế luôn dương; bản chất dòng tiền thu/chi do LoaiGiaoDich định nghĩa).
+  + CK_THANHTOAN_LoaiGiaoDich: LoaiGiaoDich IN (N'Thanh toán', N'Hoàn tiền', N'Phụ thu').
+  + CK_THANHTOAN_TrangThai: TrangThai IN (N'Chờ xử lý', N'Thành công', N'Thất bại').
+
+------------------------------------------------------------------------------------------------------------------------
+10. BẢNG DANHGIA (Đánh giá chất lượng dịch vụ của khách hàng)
+------------------------------------------------------------------------------------------------------------------------
+- Mục đích nghiệp vụ: Tiếp nhận nhận xét, chấm điểm sao (1 đến 5 sao) của khách sau khi hoàn thành chuyến đi.
+- Khóa chính (PK):
+  + MaDanhGia (INT, IDENTITY(1,1)) - Tự động tăng.
+- Khóa ứng viên / Khóa duy nhất (UK):
+  + UQ_DANHGIA_MaDatTour: Cột [MaDatTour] INT UNIQUE NOT NULL (Đảm bảo mỗi đơn đặt tour chỉ được gửi đánh giá tối đa một lần).
+- Khóa ngoại (FK):
+  + FK_DANHGIA_DATTOUR: Cột [MaDatTour] INT NOT NULL -> Tham chiếu DATTOUR(MaDatTour)
+    * Tính tham gia:
+      - Phía DANHGIA: THAM GIA TOÀN PHẦN (Total) vì MaDatTour NOT NULL (Mỗi đánh giá bắt buộc phải gắn với 1 đơn đặt tour).
+      - Phía DATTOUR: THAM GIA MỘT PHẦN (Partial) (Đơn tour có thể chưa có đánh giá hoặc khách không gửi đánh giá).
+    * Lực lượng (DATTOUR -> DANHGIA): 1 Đơn đặt tour có thể có (0..1) Đánh giá; 1 Đánh giá thuộc về đúng (1..1) Đơn đặt tour.
+      => Đây là mối quan hệ Một - Một tùy chọn (1 - 1 Optional Relationship).
+    * Quy tắc tham chiếu: ON UPDATE CASCADE, ON DELETE CASCADE.
+- Ràng buộc kiểm tra (CHECK Constraints):
+  + CK_DANHGIA_SoSao: SoSao BETWEEN 1 AND 5 (Thang điểm hợp lệ từ 1 sao đến 5 sao).
+- Ràng buộc logic nghiệp vụ (Trigger):
+  + TRG_DANHGIA_CheckCompletedTour: Chỉ cho phép gửi đánh giá khi đơn tour ở trạng thái 'Hoàn thành' và chuyến đi đã kết thúc.
+
+------------------------------------------------------------------------------------------------------------------------
+11. BẢNG BAIVIET_QUANGBA (Bài viết tin tức, cẩm nang và SEO)
+------------------------------------------------------------------------------------------------------------------------
+- Mục đích nghiệp vụ: Đăng tải bài viết truyền thông, cẩm nang hướng dẫn du lịch và quảng bá hình ảnh điểm đến.
+- Khóa chính (PK):
+  + MaBaiViet (INT, IDENTITY(1,1)) - Tự động tăng.
+- Khóa ứng viên / Khóa duy nhất (UK):
+  + UQ_BAIVIET_Slug: Cột [Slug] VARCHAR(255) UNIQUE (Đường dẫn thân thiện cho SEO không được trùng nhau).
+- Khóa ngoại (FK):
+  + FK_BAIVIET_NGUOIDUNG: Cột [MaNguoiDang] INT NOT NULL -> Tham chiếu NGUOIDUNG(MaNguoiDung)
+    * Tính tham gia: THAM GIA TOÀN PHẦN (Total) vì MaNguoiDang NOT NULL (Mọi bài viết bắt buộc phải có tác giả đăng).
+    * Lực lượng (NGUOIDUNG -> BAIVIET_QUANGBA): 1 Quản trị viên/Nhân viên có thể đăng (0..N) Bài viết; 1 Bài viết thuộc về (1..1) Tác giả.
+    * Quy tắc tham chiếu: ON UPDATE CASCADE, ON DELETE NO ACTION.
+- Ràng buộc kiểm tra (CHECK Constraints):
+  + CK_BAIVIET_LuotXem: LuotXem >= 0.
+
+------------------------------------------------------------------------------------------------------------------------
+12. BẢNG AUDITLOG (Nhật ký kiểm toán hệ thống & An ninh)
+------------------------------------------------------------------------------------------------------------------------
+- Mục đích nghiệp vụ: Ghi vết toàn bộ hành vi nhạy cảm (Sửa giá tour, xác nhận thanh toán, giải phóng giữ chỗ hết hạn, hủy tour...).
+- Khóa chính (PK):
+  + MaLog (INT, IDENTITY(1,1)) - Tự động tăng.
+- Khóa ngoại (FK):
+  + FK_AUDITLOG_NGUOIDUNG: Cột [MaNguoiThucHien] INT NULL -> Tham chiếu NGUOIDUNG(MaNguoiDung)
+    * Tính tham gia: THAM GIA MỘT PHẦN (Partial Participation) vì MaNguoiThucHien cho phép NULL.
+      (Khi hành động được thực hiện bởi Background Job tự động hoặc Trigger hệ thống, MaNguoiThucHien sẽ mang giá trị NULL).
+    * Lực lượng (NGUOIDUNG -> AUDITLOG): 1 Người dùng thực hiện (0..N) Hành vi được ghi log; 1 Bản ghi log có thể gắn với (0..1) Người dùng.
+    * Quy tắc tham chiếu: ON UPDATE CASCADE, ON DELETE SET NULL (Nếu tài khoản người dùng bị xóa, lịch sử log vẫn bảo toàn và gán về NULL).
+
+------------------------------------------------------------------------------------------------------------------------
+13. BẢNG YEUCAU_HOANTIEN_DOILICH (Quản lý yêu cầu Đổi / Hủy / Hoàn tiền - UC-10)
+------------------------------------------------------------------------------------------------------------------------
+- Mục đích nghiệp vụ: Tiếp nhận phiếu yêu cầu của khách hàng khi cần hủy tour hoàn tiền, dời ngày khởi hành hoặc sửa thông tin hành khách.
+- Khóa chính (PK):
+  + MaYeuCau (INT, IDENTITY(1,1)) - Tự động tăng.
+- Khóa ngoại (FK):
+  + FK_YEUCAU_DATTOUR: Cột [MaDatTour] INT NOT NULL -> Tham chiếu DATTOUR(MaDatTour)
+    * Tính tham gia: THAM GIA TOÀN PHẦN (Total) vì MaDatTour NOT NULL (Yêu cầu phải gắn với một đơn đặt tour cụ thể).
+    * Lực lượng (DATTOUR -> YEUCAU_HOANTIEN_DOILICH): 1 Đơn tour có thể có (0..N) Yêu cầu đổi/hủy; 1 Yêu cầu thuộc (1..1) Đơn tour.
+    * Quy tắc tham chiếu: ON UPDATE NO ACTION, ON DELETE NO ACTION.
+  + FK_YEUCAU_KHACHHANG: Cột [MaKhachHang] INT NOT NULL -> Tham chiếu NGUOIDUNG(MaNguoiDung)
+    * Tính tham gia: THAM GIA TOÀN PHẦN (Total) vì MaKhachHang NOT NULL (Bắt buộc người gửi là khách hàng đã đăng ký).
+    * Lực lượng (NGUOIDUNG -> YEUCAU_HOANTIEN_DOILICH): 1 Khách hàng có thể gửi (0..N) Yêu cầu; 1 Yêu cầu do (1..1) Khách hàng tạo.
+    * Quy tắc tham chiếu: ON UPDATE NO ACTION, ON DELETE NO ACTION.
+  + FK_YEUCAU_NGUOIXULY: Cột [NguoiXuLy] INT NULL -> Tham chiếu NGUOIDUNG(MaNguoiDung)
+    * Tính tham gia: THAM GIA MỘT PHẦN (Partial) vì NguoiXuLy cho phép NULL (Khi yêu cầu mới gửi ở trạng thái 'Chờ xử lý', chưa có nhân viên tiếp nhận).
+    * Lực lượng (NGUOIDUNG -> YEUCAU_HOANTIEN_DOILICH): 1 Nhân viên xử lý (0..N) Yêu cầu; 1 Yêu cầu có thể được xử lý bởi (0..1) Nhân viên.
+    * Quy tắc tham chiếu: ON UPDATE NO ACTION, ON DELETE NO ACTION.
+- Ràng buộc kiểm tra (CHECK Constraints):
+  + CK_YEUCAU_LoaiYeuCau: LoaiYeuCau IN (N'Hủy tour hoàn tiền', N'Đổi lịch khởi hành', N'Đổi thông tin hành khách').
+  + CK_YEUCAU_TrangThai: TrangThai IN (N'Chờ xử lý', N'Đã duyệt', N'Từ chối').
+
+------------------------------------------------------------------------------------------------------------------------
+14. BẢNG TOUR_YEUTHICH (Danh sách tour yêu thích của khách hàng - UC-07)
+------------------------------------------------------------------------------------------------------------------------
+- Mục đích nghiệp vụ: Lưu lại danh sách tour khách hàng quan tâm để xem lại sau (Wishlist).
+  (Bản chất đây là bảng phân rã giải quyết mối quan hệ Nhiều - Nhiều [N - N] giữa NGUOIDUNG và TOUR).
+- Khóa chính (PK):
+  + MaYeuThich (INT, IDENTITY(1,1)) - Tự động tăng.
+- Khóa ứng viên / Khóa duy nhất phức hợp (Composite Unique Key):
+  + UQ_TOUR_YEUTHICH: Cặp [MaNguoiDung, MaTour] UNIQUE NOT NULL (Một người dùng không thể bấm thích lặp lại cùng một tour nhiều lần).
+- Khóa ngoại (FK):
+  + FK_YEUTHICH_NGUOIDUNG: Cột [MaNguoiDung] INT NOT NULL -> Tham chiếu NGUOIDUNG(MaNguoiDung)
+    * Tính tham gia: THAM GIA TOÀN PHẦN (Total) vì MaNguoiDung NOT NULL.
+    * Lực lượng (NGUOIDUNG -> TOUR_YEUTHICH): 1 Người dùng có thể lưu (0..N) Tour yêu thích; 1 Bản ghi yêu thích thuộc về (1..1) Người dùng.
+    * Quy tắc tham chiếu: ON UPDATE CASCADE, ON DELETE CASCADE (Xóa người dùng thì xóa danh sách yêu thích của người đó).
+  + FK_YEUTHICH_TOUR: Cột [MaTour] INT NOT NULL -> Tham chiếu TOUR(MaTour)
+    * Tính tham gia: THAM GIA TOÀN PHẦN (Total) vì MaTour NOT NULL.
+    * Lực lượng (TOUR -> TOUR_YEUTHICH): 1 Tour có thể được (0..N) Người dùng lưu thích; 1 Bản ghi yêu thích gắn với (1..1) Tour.
+    * Quy tắc tham chiếu: ON UPDATE CASCADE, ON DELETE CASCADE (Xóa tour thì dọn dẹp các lượt lưu thích liên quan).
+
+------------------------------------------------------------------------------------------------------------------------
+15. BẢNG LIENHE_TUVAN (Yêu cầu tư vấn của khách viếng thăm - UC-04)
+------------------------------------------------------------------------------------------------------------------------
+- Mục đích nghiệp vụ: Tiếp nhận số điện thoại, câu hỏi cần tư vấn từ khách truy cập website (kể cả chưa đăng nhập tài khoản).
+- Khóa chính (PK):
+  + MaLienHe (INT, IDENTITY(1,1)) - Tự động tăng.
+- Khóa ngoại (FK):
+  + FK_LIENHE_TOUR: Cột [MaTour] INT NULL -> Tham chiếu TOUR(MaTour)
+    * Tính tham gia: THAM GIA MỘT PHẦN (Partial) vì MaTour cho phép NULL (Khách hàng có thể hỏi tư vấn về 1 tour cụ thể, hoặc hỏi chính sách chung).
+    * Lực lượng (TOUR -> LIENHE_TUVAN): 1 Tour có thể có (0..N) Lượt hỏi tư vấn; 1 Liên hệ tư vấn có thể liên quan đến (0..1) Tour.
+    * Quy tắc tham chiếu: ON UPDATE SET NULL, ON DELETE SET NULL (Nếu tour bị xóa, thông tin liên hệ của khách vẫn giữ nguyên để CSKH chăm sóc).
+  + FK_LIENHE_NGUOIXULY: Cột [NguoiXuLy] INT NULL -> Tham chiếu NGUOIDUNG(MaNguoiDung)
+    * Tính tham gia: THAM GIA MỘT PHẦN (Partial) vì NguoiXuLy cho phép NULL (Ban đầu ở trạng thái 'Chưa xử lý', chưa gán cho nhân viên nào).
+    * Lực lượng (NGUOIDUNG -> LIENHE_TUVAN): 1 Nhân viên CSKH tiếp nhận (0..N) Khách tư vấn; 1 Liên hệ được hỗ trợ bởi (0..1) Nhân viên.
+    * Quy tắc tham chiếu: ON UPDATE NO ACTION, ON DELETE NO ACTION.
+- Ràng buộc kiểm tra (CHECK Constraints):
+  + CK_LIENHE_TrangThai: TrangThai IN (N'Chưa xử lý', N'Đã liên hệ', N'Đã hủy').
+
+------------------------------------------------------------------------------------------------------------------------
+16. BẢNG BANNER_QUANGCAO (Quản trị banner quảng cáo & slide trang chủ - UC-15)
+------------------------------------------------------------------------------------------------------------------------
+- Mục đích nghiệp vụ: Quản lý vị trí hiển thị, hình ảnh banner truyền thông, link điều hướng và thời gian chiến dịch khuyến mãi.
+- Khóa chính (PK):
+  + MaBanner (INT, IDENTITY(1,1)) - Tự động tăng.
+- Khóa ngoại (FK):
+  + FK_BANNER_NGUOITAO: Cột [MaNguoiTao] INT NOT NULL -> Tham chiếu NGUOIDUNG(MaNguoiDung)
+    * Tính tham gia: THAM GIA TOÀN PHẦN (Total) vì MaNguoiTao NOT NULL (Bắt buộc người đăng tải banner là tài khoản Quản trị/Nhân viên).
+    * Lực lượng (NGUOIDUNG -> BANNER_QUANGCAO): 1 Admin có thể tạo (0..N) Banner; 1 Banner bắt buộc do đúng (1..1) Admin tạo.
+    * Quy tắc tham chiếu: ON UPDATE CASCADE, ON DELETE NO ACTION.
+- Ràng buộc kiểm tra (CHECK Constraints):
+  + CK_BANNER_ViTri: ViTri IN (N'TrangChu_Hero', N'TrangChu_GiuaTrang', N'Sidebar').
+  + ThuTuHienThi: INT NOT NULL DEFAULT (1) (Thứ tự hiển thị ưu tiên trên giao diện).
+  + TrangThai: BIT NOT NULL DEFAULT (1) (1: Đang hiển thị, 0: Tạm ẩn).
+
+========================================================================================================================
+PHẦN IV. BẢNG TỔNG HỢP MA TRẬN RÀNG BUỘC LỰC LƯỢNG VÀ RÀNG BUỘC THAM GIA GIỮA CÁC BẢNG
+========================================================================================================================
+
++-----+-----------------------+-----------------------+------------------------------+--------------------+---------------------+----------------------+-------------------+-----------------------------+
+| STT | BẢNG CHA (PARENT)     | BẢNG CON (CHILD)      | TÊN RÀNG BUỘC KHÓA NGOẠI     | CỘT KHÓA NGOẠI     | LỰC LƯỢNG (CHA->CON)| LỰC LƯỢNG (CON->CHA) | TÍNH THAM GIA CON | HÀNH ĐỘNG THAM CHIẾU        |
++-----+-----------------------+-----------------------+------------------------------+--------------------+---------------------+----------------------+-------------------+-----------------------------+
+|  1  | DANHMUC               | TOUR                  | FK_TOUR_DANHMUC              | MaDanhMuc          | 1 - N (0, n)        | N - 1 (1, 1)         | TOÀN PHẦN (NOTNULL| ON UPDATE CASCADE / NOACTION|
+|  2  | TOUR                  | HINHANH_TOUR          | FK_HINHANHTOUR_TOUR          | MaTour             | 1 - N (0, n)        | N - 1 (1, 1)         | TOÀN PHẦN (NOTNULL| ON UPDATE CASCADE / CASCADE |
+|  3  | TOUR                  | LICH_TRINH_DETAIL     | FK_LICHTRINH_TOUR            | MaTour             | 1 - N (1, n)        | N - 1 (1, 1)         | TOÀN PHẦN (NOTNULL| ON UPDATE CASCADE / CASCADE |
+|  4  | TOUR                  | CHUYENKHOIHANH        | FK_CHUYENKHOIHANH_TOUR       | MaTour             | 1 - N (0, n)        | N - 1 (1, 1)         | TOÀN PHẦN (NOTNULL| ON UPDATE CASCADE / NOACTION|
+|  5  | NGUOIDUNG             | DATTOUR               | FK_DATTOUR_NGUOIDUNG         | MaKhachHang        | 1 - N (0, n)        | N - 1 (1, 1)         | TOÀN PHẦN (NOTNULL| ON UPDATE NOACT / NOACTION  |
+|  6  | CHUYENKHOIHANH        | DATTOUR               | FK_DATTOUR_CHUYENKHOIHANH    | MaChuyen           | 1 - N (0, n)        | N - 1 (1, 1)         | TOÀN PHẦN (NOTNULL| ON UPDATE NOACT / NOACTION  |
+|  7  | DATTOUR               | CHITIET_HANHKHACH     | FK_CHITIETHANHKHACH_DATTOUR  | MaDatTour          | 1 - N (1, n)        | N - 1 (1, 1)         | TOÀN PHẦN (NOTNULL| ON UPDATE CASCADE / CASCADE |
+|  8  | DATTOUR               | THANHTOAN             | FK_THANHTOAN_DATTOUR         | MaDatTour          | 1 - N (0, n)        | N - 1 (1, 1)         | TOÀN PHẦN (NOTNULL| ON UPDATE NOACT / NOACTION  |
+|  9  | DATTOUR               | DANHGIA               | FK_DANHGIA_DATTOUR           | MaDatTour (UNIQUE) | 1 - 1 (0, 1)        | 1 - 1 (1, 1)         | TOÀN PHẦN (NOTNULL| ON UPDATE CASCADE / CASCADE |
+| 10  | NGUOIDUNG             | BAIVIET_QUANGBA       | FK_BAIVIET_NGUOIDUNG         | MaNguoiDang        | 1 - N (0, n)        | N - 1 (1, 1)         | TOÀN PHẦN (NOTNULL| ON UPDATE CASCADE / NOACTION|
+| 11  | NGUOIDUNG             | AUDITLOG              | FK_AUDITLOG_NGUOIDUNG        | MaNguoiThucHien    | 1 - N (0, n)        | N - 1 (0, 1)         | MỘT PHẦN (NULL)   | ON UPDATE CASCADE / SET NULL|
+| 12  | DATTOUR               | YEUCAU_HOANTIEN_DOILICH| FK_YEUCAU_DATTOUR           | MaDatTour          | 1 - N (0, n)        | N - 1 (1, 1)         | TOÀN PHẦN (NOTNULL| ON UPDATE NOACT / NOACTION  |
+| 13  | NGUOIDUNG             | YEUCAU_HOANTIEN_DOILICH| FK_YEUCAU_KHACHHANG         | MaKhachHang        | 1 - N (0, n)        | N - 1 (1, 1)         | TOÀN PHẦN (NOTNULL| ON UPDATE NOACT / NOACTION  |
+| 14  | NGUOIDUNG             | YEUCAU_HOANTIEN_DOILICH| FK_YEUCAU_NGUOIXULY         | NguoiXuLy          | 1 - N (0, n)        | N - 1 (0, 1)         | MỘT PHẦN (NULL)   | ON UPDATE NOACT / NOACTION  |
+| 15  | NGUOIDUNG             | TOUR_YEUTHICH         | FK_YEUTHICH_NGUOIDUNG        | MaNguoiDung        | 1 - N (0, n)        | N - 1 (1, 1)         | TOÀN PHẦN (NOTNULL| ON UPDATE CASCADE / CASCADE |
+| 16  | TOUR                  | TOUR_YEUTHICH         | FK_YEUTHICH_TOUR             | MaTour             | 1 - N (0, n)        | N - 1 (1, 1)         | TOÀN PHẦN (NOTNULL| ON UPDATE CASCADE / CASCADE |
+| 17  | TOUR                  | LIENHE_TUVAN          | FK_LIENHE_TOUR               | MaTour             | 1 - N (0, n)        | N - 1 (0, 1)         | MỘT PHẦN (NULL)   | ON UPDATE SETNULL / SET NULL |
+| 18  | NGUOIDUNG             | LIENHE_TUVAN          | FK_LIENHE_NGUOIXULY          | NguoiXuLy          | 1 - N (0, n)        | N - 1 (0, 1)         | MỘT PHẦN (NULL)   | ON UPDATE NOACT / NOACTION  |
+| 19  | NGUOIDUNG             | BANNER_QUANGCAO       | FK_BANNER_NGUOITAO           | MaNguoiTao         | 1 - N (0, n)        | N - 1 (1, 1)         | TOÀN PHẦN (NOTNULL| ON UPDATE CASCADE / NOACTION|
++-----+-----------------------+-----------------------+------------------------------+--------------------+---------------------+----------------------+-------------------+-----------------------------+
+
+* Ghi chú về Bản số (min, max):
+- Bản số (1, 1): Thực thể con bắt buộc phải thuộc về đúng 1 thực thể cha (Ràng buộc toàn phần, FK NOT NULL).
+- Bản số (0, 1): Thực thể con có thể liên kết với tối đa 1 thực thể cha hoặc để trống (Ràng buộc một phần, FK NULL).
+- Bản số (0, n): Thực thể cha có thể có từ 0 đến nhiều thực thể con liên kết.
+- Bản số (1, n): Thực thể cha bắt buộc phải có ít nhất 1 thực thể con liên kết (Ví dụ: Đơn đặt tour bắt buộc có ít nhất 1 hành khách).
+
+========================================================================================================================
+PHẦN V. QUY TẮC TOÀN VẸN NGHIỆP VỤ (BUSINESS RULES) ĐẶC THÙ HỆ THỐNG
+========================================================================================================================
+
+1. QUY TẮC QUẢN LÝ SỐ CHỖ VÀ KHÓA TẠM GIỮ CHỖ (BR1 - INVENTORY & OVERBOOKING PREVENT):
+   - Công thức sức chứa thời gian thực:
+     SoChoConLai = SoChoToiDa - SoChoDaDat - SoChoGiuCho
+   - Luồng hoạt động:
+     + Khi khách hàng bấm Đặt Tour (Trạng thái đơn: 'Chờ xác nhận', 'Chưa thanh toán'):
+       Trigger TRG_DATTOUR_CheckAndLockSeats tự động tăng SoChoGiuCho lên và thiết lập ThoiHanGiuCho = DATEADD(MINUTE, 15, GETDATE()).
+     + Khi Kế toán/Admin xác nhận hoặc khách thanh toán thành công (sp_XacNhanThanhToanDonTour):
+       Trigger TRG_DATTOUR_HandleUpdateAndCancellation tự động trừ SoChoGiuCho và tăng SoChoDaDat tương ứng (Chốt chỗ chính thức).
+     + Khi hết thời hạn 15 phút mà khách chưa thanh toán:
+       Stored Procedure sp_GiaiPhongGiuChoHetHan tự động hủy đơn và giải phóng SoChoGiuCho về lại cho chuyến đi.
+     + Nếu khách hoặc admin chủ động hủy đơn: Toàn bộ số chỗ đã đặt/giữ được hoàn trả lại ngay lập tức.
+
+2. QUY TẮC ĐỒNG BỘ DANH SÁCH HÀNH KHÁCH (BR6 - PASSENGER INTEGRITY):
+   - Đơn đặt tour bắt buộc phải có ít nhất 1 hành khách (SoLuongKhach >= 1).
+   - Tổng số dòng ghi nhận trong bảng CHITIET_HANHKHACH bắt buộc phải bằng chính xác SoLuongKhach của đơn DATTOUR.
+   - Được kiểm soát 2 tầng:
+     + Tầng Procedure: sp_TaoDonDatTour_KemDanhSachKhach bóc tách mảng JSON danh sách khách, kiểm tra số lượng trước khi INSERT.
+     + Tầng Trigger: TRG_CHITIET_HANHKHACH_KiemTraSoLuong kiểm tra số lượng thực tế trong bảng con sau mỗi lệnh nạp dữ liệu.
+
+3. QUY TẮC PHÂN ĐỊNH DÒNG TIỀN THANH TOÁN VÀ HOÀN TIỀN (REFUND AUDIT):
+   - Bảng THANHTOAN quản lý cả chiều thu tiền vào và hoàn trả tiền ra thông qua cột LoaiGiaoDich:
+     + LoaiGiaoDich = N'Thanh toán': Thu tiền từ khách hàng.
+     + LoaiGiaoDich = N'Hoàn tiền': Trả tiền lại cho khách hàng khi hủy tour hoặc đổi lịch có chênh lệch giá.
+     + LoaiGiaoDich = N'Phụ thu': Thu thêm chi phí phát sinh nếu nâng hạng phòng hoặc đổi tour có giá cao hơn.
+   - Thủ tục sp_XacNhanHoanTienDonTour tự động cập nhật trạng thái đơn sang 'Đã hoàn tiền', đồng thời cập nhật bảng YEUCAU_HOANTIEN_DOILICH sang 'Đã duyệt'.
+
+4. QUY TẮC ĐÁNH GIÁ CHẤT LƯỢNG (REVIEW INTEGRITY):
+   - Một đơn đặt tour chỉ được gửi tối đa 1 đánh giá (Bảo đảm bởi ràng buộc UNIQUE trên cột MaDatTour của bảng DANHGIA).
+   - Chỉ được đánh giá khi đơn tour ở trạng thái 'Hoàn thành' (Trigger TRG_DANHGIA_CheckCompletedTour ngăn chặn việc gian lận đánh giá trước khi đi tour).
+
+5. QUY TẮC BẢO VỆ CHỨNG TỪ TÀI CHÍNH VÀ DỮ LIỆU LỊCH SỬ:
+   - Các bảng mang tính chất tài chính và kế toán (DATTOUR, THANHTOAN, YEUCAU_HOANTIEN_DOILICH) được cấu hình:
+     ON DELETE NO ACTION / ON UPDATE NO ACTION.
+   - Nghiêm cấm xóa vật lý (Hard Delete) các tài khoản người dùng hoặc chuyến đi đã phát sinh giao dịch tài chính nhằm đảm bảo tính toàn vẹn và phục vụ kiểm toán.
+
+========================================================================================================================
+PHẦN VI. HƯỚNG DẪN BẢO TOÀN VÀ XÁC THỰC TRÊN MICROSOFT SQL SERVER
+========================================================================================================================
+
+1. CÂU LỆNH T-SQL KIỂM TRA ĐẦY ĐỦ 16 BẢNG TRONG CSDL:
+   SELECT TABLE_NAME, TABLE_TYPE 
+   FROM INFORMATION_SCHEMA.TABLES 
+   WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA = 'dbo'
+   ORDER BY TABLE_NAME;
+
+2. CÂU LỆNH T-SQL KIỂM TRA TOÀN BỘ RÀNG BUỘC KHÓA NGOẠI (FOREIGN KEYS) VÀ TÍNH THAM GIA:
+   SELECT 
+       fk.name AS TenKhoaNgoai,
+       OBJECT_NAME(fk.parent_object_id) AS BangCon,
+       c1.name AS CotKhoaNgoai,
+       OBJECT_NAME(fk.referenced_object_id) AS BangCha,
+       c2.name AS CotKhoaChinh,
+       CASE WHEN c1.is_nullable = 1 THEN N'MỘT PHẦN (Optional)' ELSE N'TOÀN PHẦN (Mandatory)' END AS TinhThamGia,
+       fk.update_referential_action_desc AS HanhDongUpdate,
+       fk.delete_referential_action_desc AS HanhDongDelete
+   FROM sys.foreign_keys fk
+   JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
+   JOIN sys.columns c1 ON fkc.parent_object_id = c1.object_id AND fkc.parent_column_id = c1.column_id
+   JOIN sys.columns c2 ON fkc.referenced_object_id = c2.object_id AND fkc.referenced_column_id = c2.column_id
+   ORDER BY BangCha, BangCon;
+
+3. CÂU LỆNH T-SQL KIỂM TRA CÁC RÀNG BUỘC CHECK VÀ UNIQUE:
+   SELECT 
+       TABLE_NAME AS Bang,
+       CONSTRAINT_NAME AS TenRangBuoc,
+       CONSTRAINT_TYPE AS LoaiRangBuoc
+   FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+   WHERE CONSTRAINT_TYPE IN ('CHECK', 'UNIQUE')
+   ORDER BY TABLE_NAME, CONSTRAINT_TYPE;
+
+========================================================================================================================
+HẾT TÀI LIỆU - PHÊ DUYỆT BỞI HỆ THỐNG KIỂM TOÁN CSDL DELTA TRAVEL
+========================================================================================================================
