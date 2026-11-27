@@ -734,7 +734,7 @@ def create_booking(body: BookingBody, user: Annotated[dict, Depends(_authenticat
                 VALUES (:uid, CONVERT(uniqueidentifier,:key), :fingerprint)
             """), {"uid": user_id, "key": key, "fingerprint": fingerprint})
             schedule = conn.execute(text("""
-                SELECT c.MaChuyen, c.SoChoToiDa, c.SoChoDaDat, c.TrangThaiChuyen,
+                SELECT c.MaChuyen, c.SoChoToiDa, c.SoChoDaDat, ISNULL(c.SoChoGiuCho, 0) AS SoChoGiuCho, c.TrangThaiChuyen,
                        c.GiaThucTe, t.MaTour, t.TenTour, dm.TenDanhMuc
                 FROM dbo.CHUYENKHOIHANH c WITH (UPDLOCK, HOLDLOCK)
                 JOIN dbo.TOUR t ON c.MaTour=t.MaTour
@@ -745,7 +745,7 @@ def create_booking(body: BookingBody, user: Annotated[dict, Depends(_authenticat
             if not schedule or schedule["TrangThaiChuyen"] != "Mở bán":
                 _fail(409, "Chuyến khởi hành chưa mở bán hoặc không hợp lệ.")
             total_seats_requested = int(body.adults) + int(getattr(body, "children", 0) or 0)
-            avail_seats = int(schedule["SoChoToiDa"]) - int(schedule["SoChoDaDat"])
+            avail_seats = int(schedule["SoChoToiDa"]) - int(schedule["SoChoDaDat"]) - int(schedule["SoChoGiuCho"])
             if avail_seats < total_seats_requested:
                 _fail(409, f"Chuyến khởi hành không đủ chỗ. Hiện chỉ còn {avail_seats} chỗ trống. Vui lòng giảm số lượng khách hoặc chọn chuyến khác.")
             if body.voucher_code:

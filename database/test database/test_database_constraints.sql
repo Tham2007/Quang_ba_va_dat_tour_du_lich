@@ -1,5 +1,5 @@
 -- ==========================================================================================
--- TEST DATABASE SQL SERVER (12 BẢNG 3NF - CONSTRAINTS & TRIGGERS)
+-- TEST DATABASE SQL SERVER (16 BẢNG 3NF - CONSTRAINTS & TRIGGERS)
 -- Thư mục: database/test database/test_database_constraints.sql
 -- Phạm vi: Kiểm thử ràng buộc UNIQUE, CHECK, FOREIGN KEY và TRIGGER nghiệp vụ trên SQL Server.
 -- Nguyên tắc an toàn: Mọi test case đều chạy trong Transaction và ROLLBACK sạch sẽ.
@@ -10,7 +10,7 @@ SET NOCOUNT ON;
 GO
 
 PRINT N'======================================================================';
-PRINT N'  [TEST DATABASE] BẮT ĐẦU KIỂM THỬ RÀNG BUỘC 12 BẢNG & TRIGGER';
+PRINT N'  [TEST DATABASE] BẮT ĐẦU KIỂM THỬ RÀNG BUỘC 16 BẢNG & TRIGGER';
 PRINT N'======================================================================';
 GO
 
@@ -140,6 +140,81 @@ BEGIN CATCH
         PRINT CONCAT(N'[PASS] TC-DB-04B: Đã chặn SoChoDaDat > SoChoToiDa bởi CK_CHUYEN_SoChoHopLe (Error 547) -> ', @MsgCK);
     ELSE
         PRINT CONCAT(N'[FAIL] TC-DB-04B: Lỗi không đúng kỳ vọng (', @ErrCK, N'): ', @MsgCK);
+END CATCH;
+GO
+
+-- ------------------------------------------------------------------------------------------
+-- TC-DB-05: Test Ràng buộc CHECK VaiTro trên dbo.NGUOIDUNG (CK_NGUOIDUNG_VaiTro)
+-- Kỳ vọng: Bị từ chối bởi lỗi 547 (CHECK Constraint Violation) khi chèn vai trò không hợp lệ
+-- ------------------------------------------------------------------------------------------
+BEGIN TRANSACTION;
+BEGIN TRY
+    INSERT INTO dbo.NGUOIDUNG (HoTen, Email, SoDienThoai, MatKhau, VaiTro)
+    VALUES (N'Người dùng sai vai trò', 'invalid_role_test@deltatravel.vn', '0909999888', 'scrypt$hash', N'SuperHacker');
+
+    ROLLBACK TRANSACTION;
+    RAISERROR(N'[FAIL] TC-DB-05: Không chặn được VaiTro không hợp lệ!', 16, 1);
+END TRY
+BEGIN CATCH
+    DECLARE @ErrRole INT = ERROR_NUMBER();
+    DECLARE @MsgRole NVARCHAR(4000) = ERROR_MESSAGE();
+    IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+
+    IF @ErrRole = 547
+        PRINT CONCAT(N'[PASS] TC-DB-05: Đã chặn VaiTro không hợp lệ bởi CK_NGUOIDUNG_VaiTro (Error 547) -> ', @MsgRole);
+    ELSE
+        PRINT CONCAT(N'[FAIL] TC-DB-05: Lỗi không đúng kỳ vọng (', @ErrRole, N'): ', @MsgRole);
+END CATCH;
+GO
+
+-- ------------------------------------------------------------------------------------------
+-- TC-DB-06: Test Ràng buộc CHECK LoaiGiaoDich trên dbo.THANHTOAN (CK_THANHTOAN_LoaiGiaoDich)
+-- Kỳ vọng: Bị từ chối bởi lỗi 547 khi chèn Loại giao dịch không nằm trong danh mục quy định
+-- ------------------------------------------------------------------------------------------
+BEGIN TRANSACTION;
+BEGIN TRY
+    DECLARE @MaDat_TT INT = (SELECT TOP 1 MaDatTour FROM dbo.DATTOUR ORDER BY MaDatTour);
+    INSERT INTO dbo.THANHTOAN (MaDatTour, LoaiGiaoDich, PhuongThuc, SoTien, MaGiaoDich)
+    VALUES (@MaDat_TT, N'Rút tiền cá nhân', N'Chuyển khoản', 5000000, 'TX_INVALID_999');
+
+    ROLLBACK TRANSACTION;
+    RAISERROR(N'[FAIL] TC-DB-06: Không chặn được LoaiGiaoDich không hợp lệ!', 16, 1);
+END TRY
+BEGIN CATCH
+    DECLARE @ErrPay INT = ERROR_NUMBER();
+    DECLARE @MsgPay NVARCHAR(4000) = ERROR_MESSAGE();
+    IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+
+    IF @ErrPay = 547
+        PRINT CONCAT(N'[PASS] TC-DB-06: Đã chặn LoaiGiaoDich không hợp lệ bởi CK_THANHTOAN_LoaiGiaoDich (Error 547) -> ', @MsgPay);
+    ELSE
+        PRINT CONCAT(N'[FAIL] TC-DB-06: Lỗi không đúng kỳ vọng (', @ErrPay, N'): ', @MsgPay);
+END CATCH;
+GO
+
+-- ------------------------------------------------------------------------------------------
+-- TC-DB-07: Test Ràng buộc CHECK SoChoGiuCho (CK_CHUYEN_SoChoHopLe: SoChoDaDat + SoChoGiuCho <= SoChoToiDa)
+-- Kỳ vọng: Bị từ chối bởi lỗi 547 khi tổng chỗ đã đặt + giữ chỗ vượt quá số chỗ tối đa
+-- ------------------------------------------------------------------------------------------
+BEGIN TRANSACTION;
+BEGIN TRY
+    DECLARE @MaChuyen_Hold INT = (SELECT TOP 1 MaChuyen FROM dbo.CHUYENKHOIHANH ORDER BY MaChuyen);
+    UPDATE dbo.CHUYENKHOIHANH
+    SET SoChoGiuCho = SoChoToiDa + 1
+    WHERE MaChuyen = @MaChuyen_Hold;
+
+    ROLLBACK TRANSACTION;
+    RAISERROR(N'[FAIL] TC-DB-07: Không chặn được SoChoDaDat + SoChoGiuCho > SoChoToiDa!', 16, 1);
+END TRY
+BEGIN CATCH
+    DECLARE @ErrHold INT = ERROR_NUMBER();
+    DECLARE @MsgHold NVARCHAR(4000) = ERROR_MESSAGE();
+    IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+
+    IF @ErrHold = 547
+        PRINT CONCAT(N'[PASS] TC-DB-07: Đã chặn giữ chỗ vượt số chỗ tối đa bởi CK_CHUYEN_SoChoHopLe (Error 547) -> ', @MsgHold);
+    ELSE
+        PRINT CONCAT(N'[FAIL] TC-DB-07: Lỗi không đúng kỳ vọng (', @ErrHold, N'): ', @MsgHold);
 END CATCH;
 GO
 

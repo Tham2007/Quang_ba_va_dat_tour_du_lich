@@ -165,14 +165,14 @@ def _schedules(reader: SqlServerReader, tour_id: int | None = None, schedule_id:
         conditions.append("c.MaChuyen=:schedule_id")
         params["schedule_id"] = schedule_id
     return reader.rows("""SELECT c.MaChuyen, c.MaTour, c.NgayKhoiHanh, c.NgayKetThuc,
-                                c.GiaThucTe, c.SoChoToiDa, c.SoChoDaDat, c.TrangThaiChuyen
+                                c.GiaThucTe, c.SoChoToiDa, c.SoChoDaDat, ISNULL(c.SoChoGiuCho, 0) AS SoChoGiuCho, c.TrangThaiChuyen
                          FROM dbo.CHUYENKHOIHANH c JOIN dbo.TOUR t ON t.MaTour=c.MaTour
                          WHERE """ + " AND ".join(conditions) + " ORDER BY c.NgayKhoiHanh, c.MaChuyen", params)
 
 
 def _schedule(row):
     total = int(row["SoChoToiDa"])
-    occupied = int(row["SoChoDaDat"])
+    occupied = int(row["SoChoDaDat"]) + int(row.get("SoChoGiuCho", 0) or 0)
     if total < 1 or occupied < 0 or occupied > total:
         raise HTTPException(503, "Dữ liệu sức chứa không hợp lệ.")
     return {"id": str(row["MaChuyen"]), "tourId": str(row["MaTour"]),

@@ -10,16 +10,16 @@ GO
 
 PRINT N'==> Đang tiến hành nạp dữ liệu mẫu (Sample Realistic Seed Data)...';
 
--- 1. NẠP DỮ LIỆU BẢNG NGUOIDUNG (Lưu ý: Không có cột VaiTro)
+-- 1. NẠP DỮ LIỆU BẢNG NGUOIDUNG (Kèm cột VaiTro: Admin, NhanVien, KhachHang)
 SET IDENTITY_INSERT dbo.NGUOIDUNG ON;
-INSERT INTO dbo.NGUOIDUNG (MaNguoiDung, HoTen, Email, SoDienThoai, MatKhau, DiaChi, TrangThai, NgayTao)
+INSERT INTO dbo.NGUOIDUNG (MaNguoiDung, HoTen, Email, SoDienThoai, MatKhau, DiaChi, VaiTro, TrangThai, NgayTao)
 VALUES 
-(1, N'Trần Quốc Toản', 'admin@tourvietnam.vn', '0901234567', '$2a$12$K8yR6jP2x1V9qZ0wY7s8uOp.QzZ9wJ6mX.1Y6o5b8w3e9u4k7h2a', N'Hoàn Kiếm, Hà Nội', 1, '2026-01-10'),
-(2, N'Lê Thị Mai', 'dieuhanh@tourvietnam.vn', '0912345678', '$2a$12$K8yR6jP2x1V9qZ0wY7s8uOp.QzZ9wJ6mX.1Y6o5b8w3e9u4k7h2a', N'Hải Châu, Đà Nẵng', 1, '2026-01-15'),
-(3, N'Hoàng Văn Dũng', 'ketoan@tourvietnam.vn', '0987654321', '$2a$12$K8yR6jP2x1V9qZ0wY7s8uOp.QzZ9wJ6mX.1Y6o5b8w3e9u4k7h2a', N'Quận 1, TP. Hồ Chí Minh', 1, '2026-02-01'),
-(4, N'Nguyễn Văn An', 'nguyenvanan@gmail.com', '0933112233', '$2a$12$K8yR6jP2x1V9qZ0wY7s8uOp.QzZ9wJ6mX.1Y6o5b8w3e9u4k7h2a', N'Cầu Giấy, Hà Nội', 1, '2026-03-01'),
-(5, N'Phạm Thị Hương', 'phamhuong88@gmail.com', '0944556677', '$2a$12$K8yR6jP2x1V9qZ0wY7s8uOp.QzZ9wJ6mX.1Y6o5b8w3e9u4k7h2a', N'Thanh Xuân, Hà Nội', 1, '2026-03-10'),
-(6, N'Đỗ Minh Quân', 'minhquan.travel@outlook.com', '0977889900', '$2a$12$K8yR6jP2x1V9qZ0wY7s8uOp.QzZ9wJ6mX.1Y6o5b8w3e9u4k7h2a', N'Bình Thạnh, TP. Hồ Chí Minh', 1, '2026-04-05');
+(1, N'Trần Quốc Toản', 'admin@tourvietnam.vn', '0901234567', '$2a$12$K8yR6jP2x1V9qZ0wY7s8uOp.QzZ9wJ6mX.1Y6o5b8w3e9u4k7h2a', N'Hoàn Kiếm, Hà Nội', N'Admin', 1, '2026-01-10'),
+(2, N'Lê Thị Mai', 'dieuhanh@tourvietnam.vn', '0912345678', '$2a$12$K8yR6jP2x1V9qZ0wY7s8uOp.QzZ9wJ6mX.1Y6o5b8w3e9u4k7h2a', N'Hải Châu, Đà Nẵng', N'NhanVien', 1, '2026-01-15'),
+(3, N'Hoàng Văn Dũng', 'ketoan@tourvietnam.vn', '0987654321', '$2a$12$K8yR6jP2x1V9qZ0wY7s8uOp.QzZ9wJ6mX.1Y6o5b8w3e9u4k7h2a', N'Quận 1, TP. Hồ Chí Minh', N'NhanVien', 1, '2026-02-01'),
+(4, N'Nguyễn Văn An', 'nguyenvanan@gmail.com', '0933112233', '$2a$12$K8yR6jP2x1V9qZ0wY7s8uOp.QzZ9wJ6mX.1Y6o5b8w3e9u4k7h2a', N'Cầu Giấy, Hà Nội', N'KhachHang', 1, '2026-03-01'),
+(5, N'Phạm Thị Hương', 'phamhuong88@gmail.com', '0944556677', '$2a$12$K8yR6jP2x1V9qZ0wY7s8uOp.QzZ9wJ6mX.1Y6o5b8w3e9u4k7h2a', N'Thanh Xuân, Hà Nội', N'KhachHang', 1, '2026-03-10'),
+(6, N'Đỗ Minh Quân', 'minhquan.travel@outlook.com', '0977889900', '$2a$12$K8yR6jP2x1V9qZ0wY7s8uOp.QzZ9wJ6mX.1Y6o5b8w3e9u4k7h2a', N'Bình Thạnh, TP. Hồ Chí Minh', N'KhachHang', 1, '2026-04-05');
 SET IDENTITY_INSERT dbo.NGUOIDUNG OFF;
 GO
 
@@ -100,26 +100,26 @@ VALUES
 SET IDENTITY_INSERT dbo.LICH_TRINH_DETAIL OFF;
 GO
 
--- 6. NẠP DỮ LIỆU BẢNG CHUYENKHOIHANH (Lịch khởi hành thực tế)
+-- 6. NẠP DỮ LIỆU BẢNG CHUYENKHOIHANH (Lịch khởi hành thực tế, kèm SoChoGiuCho = 0)
 SET IDENTITY_INSERT dbo.CHUYENKHOIHANH ON;
-INSERT INTO dbo.CHUYENKHOIHANH (MaChuyen, MaTour, NgayKhoiHanh, NgayKetThuc, GiaThucTe, SoChoToiDa, SoChoDaDat, TrangThaiChuyen)
+INSERT INTO dbo.CHUYENKHOIHANH (MaChuyen, MaTour, NgayKhoiHanh, NgayKetThuc, GiaThucTe, SoChoToiDa, SoChoDaDat, SoChoGiuCho, TrangThaiChuyen)
 VALUES 
 -- Tour Hàn Quốc
-(1, 1, '2026-11-15 08:00', '2026-11-19 18:00', 12990000, 25, 18, N'Mở bán'),
-(2, 1, '2026-12-20 08:00', '2026-12-24 18:00', 14500000, 25, 25, N'Hết chỗ'),
-(3, 1, '2027-01-10 08:00', '2027-01-14 18:00', 12990000, 25, 4, N'Mở bán'),
+(1, 1, '2026-11-15 08:00', '2026-11-19 18:00', 12990000, 25, 18, 0, N'Mở bán'),
+(2, 1, '2026-12-20 08:00', '2026-12-24 18:00', 14500000, 25, 25, 0, N'Hết chỗ'),
+(3, 1, '2027-01-10 08:00', '2027-01-14 18:00', 12990000, 25, 4, 0, N'Mở bán'),
 
 -- Tour Đà Nẵng
-(4, 2, '2026-11-10 07:30', '2026-11-13 17:00', 4690000, 30, 20, N'Mở bán'),
-(5, 2, '2026-12-05 07:30', '2026-12-08 17:00', 4890000, 30, 0, N'Mở bán'),
+(4, 2, '2026-11-10 07:30', '2026-11-13 17:00', 4690000, 30, 20, 0, N'Mở bán'),
+(5, 2, '2026-12-05 07:30', '2026-12-08 17:00', 4890000, 30, 0, 0, N'Mở bán'),
 
 -- Tour Phú Quốc
-(6, 3, '2026-11-20 09:00', '2026-11-22 16:00', 3890000, 20, 15, N'Mở bán'),
-(7, 3, '2026-12-15 09:00', '2026-12-17 16:00', 4290000, 20, 0, N'Mở bán'),
+(6, 3, '2026-11-20 09:00', '2026-11-22 16:00', 3890000, 20, 15, 0, N'Mở bán'),
+(7, 3, '2026-12-15 09:00', '2026-12-17 16:00', 4290000, 20, 0, 0, N'Mở bán'),
 
 -- Tour Sa Pa
-(8, 4, '2026-11-05 06:30', '2026-11-07 19:00', 2750000, 25, 25, N'Hoàn thành'),
-(9, 4, '2026-11-25 06:30', '2026-11-27 19:00', 2850000, 25, 8, N'Mở bán');
+(8, 4, '2026-11-05 06:30', '2026-11-07 19:00', 2750000, 25, 25, 0, N'Hoàn thành'),
+(9, 4, '2026-11-25 06:30', '2026-11-27 19:00', 2850000, 25, 8, 0, N'Mở bán');
 SET IDENTITY_INSERT dbo.CHUYENKHOIHANH OFF;
 GO
 
@@ -169,15 +169,15 @@ VALUES
 SET IDENTITY_INSERT dbo.CHITIET_HANHKHACH OFF;
 GO
 
--- 9. NẠP DỮ LIỆU BẢNG THANHTOAN
+-- 9. NẠP DỮ LIỆU BẢNG THANHTOAN (Kèm LoaiGiaoDich = N'Thanh toán')
 SET IDENTITY_INSERT dbo.THANHTOAN ON;
-INSERT INTO dbo.THANHTOAN (MaThanhToan, MaDatTour, PhuongThuc, SoTien, NgayThanhToan, MaGiaoDich, TrangThai)
+INSERT INTO dbo.THANHTOAN (MaThanhToan, MaDatTour, LoaiGiaoDich, PhuongThuc, SoTien, NgayThanhToan, MaGiaoDich, TrangThai)
 VALUES 
-(1, 1, N'Chuyển khoản QR', 5500000, '2026-10-15 14:30', 'MBVCB.982312389', N'Thành công'),
-(2, 2, N'Thẻ tín dụng', 8250000, '2026-10-18 09:20', 'VNPAY-891238712', N'Thành công'),
-(3, 3, N'Chuyển khoản QR', 25980000, '2026-10-20 10:15', 'TECH.812391283', N'Thành công'),
-(4, 4, N'Chuyển khoản QR', 51960000, '2026-10-22 17:00', 'VIETIN.561239812', N'Thành công'),
-(5, 5, N'Chuyển khoản QR', 9380000, '2026-10-23 11:30', 'MB.349182391', N'Thành công');
+(1, 1, N'Thanh toán', N'Chuyển khoản QR', 5500000, '2026-10-15 14:30', 'MBVCB.982312389', N'Thành công'),
+(2, 2, N'Thanh toán', N'Thẻ tín dụng', 8250000, '2026-10-18 09:20', 'VNPAY-891238712', N'Thành công'),
+(3, 3, N'Thanh toán', N'Chuyển khoản QR', 25980000, '2026-10-20 10:15', 'TECH.812391283', N'Thành công'),
+(4, 4, N'Thanh toán', N'Chuyển khoản QR', 51960000, '2026-10-22 17:00', 'VIETIN.561239812', N'Thành công'),
+(5, 5, N'Thanh toán', N'Chuyển khoản QR', 9380000, '2026-10-23 11:30', 'MB.349182391', N'Thành công');
 SET IDENTITY_INSERT dbo.THANHTOAN OFF;
 GO
 
@@ -223,12 +223,51 @@ GO
 SET IDENTITY_INSERT dbo.AUDITLOG ON;
 INSERT INTO dbo.AUDITLOG (MaLog, MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
 VALUES 
-(1, 1, N'KHOI_TAO_HE_THONG', NULL, N'Khởi tạo thành công cấu trúc 12 bảng CSDL chuẩn 3NF', '2026-10-01 08:00'),
+(1, 1, N'KHOI_TAO_HE_THONG', NULL, N'Khởi tạo thành công cấu trúc 16 bảng CSDL chuẩn 3NF', '2026-10-01 08:00'),
 (2, 1, N'DANG_TOUR_MOI', NULL, N'Đăng tour mới: Hàn Quốc Seoul - Nami - Lotte World', '2026-10-02 09:30'),
 (3, 2, N'MO_BAN_CHUYEN_DI', NULL, N'Mở bán chuyến khởi hành ngày 15/11/2026 cho Tour Hàn Quốc', '2026-10-05 14:15'),
 (4, 3, N'XAC_NHAN_THANH_TOAN', N'Trạng thái: Chưa thanh toán', N'Xác nhận đơn #3 đã thanh toán 25.980.000 VNĐ qua QR Code', '2026-10-20 10:16');
 SET IDENTITY_INSERT dbo.AUDITLOG OFF;
 GO
 
-PRINT N'==> Đã nạp thành công 100% dữ liệu mẫu thực tế và phong phú cho 12 bảng!';
+-- 13. NẠP DỮ LIỆU BẢNG YEUCAU_HOANTIEN_DOILICH (UC-10)
+SET IDENTITY_INSERT dbo.YEUCAU_HOANTIEN_DOILICH ON;
+INSERT INTO dbo.YEUCAU_HOANTIEN_DOILICH (MaYeuCau, MaDatTour, MaKhachHang, LoaiYeuCau, LyDo, SoTienYeuCauHoan, ThongTinNganHang, TrangThai, PhanHoiAdmin, NgayTao, NgayXuLy, NguoiXuLy)
+VALUES 
+(1, 4, 4, N'Hủy tour hoàn tiền', N'Gia đình có việc đột xuất không thể tham gia chuyến đi đúng ngày.', 4500000, N'NGUYEN THI HUONG - 1903456789 - Techcombank', N'Chờ xử lý', NULL, '2026-10-21 09:00', NULL, NULL),
+(2, 5, 5, N'Đổi thông tin hành khách', N'Thay đổi họ tên và CMND của 1 hành khách do người nhà bận công tác thay bằng người khác.', NULL, NULL, N'Đã duyệt', N'Đã cập nhật lại thông tin hành khách tham gia chuyến bay.', '2026-10-24 14:30', '2026-10-24 16:00', 2);
+SET IDENTITY_INSERT dbo.YEUCAU_HOANTIEN_DOILICH OFF;
+GO
+
+-- 14. NẠP DỮ LIỆU BẢNG TOUR_YEUTHICH (UC-07)
+SET IDENTITY_INSERT dbo.TOUR_YEUTHICH ON;
+INSERT INTO dbo.TOUR_YEUTHICH (MaYeuThich, MaNguoiDung, MaTour, NgayLuu)
+VALUES 
+(1, 3, 1, '2026-10-10 10:00'),
+(2, 3, 3, '2026-10-12 11:30'),
+(3, 4, 2, '2026-10-15 15:45'),
+(4, 5, 1, '2026-10-18 19:20');
+SET IDENTITY_INSERT dbo.TOUR_YEUTHICH OFF;
+GO
+
+-- 15. NẠP DỮ LIỆU BẢNG LIENHE_TUVAN (UC-04)
+SET IDENTITY_INSERT dbo.LIENHE_TUVAN ON;
+INSERT INTO dbo.LIENHE_TUVAN (MaLienHe, HoTen, Email, SoDienThoai, MaTour, NoiDung, TrangThai, GhiChuAdmin, NgayGui, NguoiXuLy)
+VALUES 
+(1, N'Trần Đình Trọng', 'trong.td@gmail.com', '0912345678', 1, N'Cho tôi hỏi tour Sa Pa này vào tháng 12 có tuyết không và trẻ em 4 tuổi có tham gia được không?', N'Đã liên hệ', N'Đã gọi điện tư vấn chính sách giá trẻ em và thời tiết Sa Pa tháng 12, khách hẹn sẽ đặt tour vào tuần tới.', '2026-10-15 14:20', 2),
+(2, N'Vũ Phương Linh', 'linh.vp@outlook.com', '0987654321', 2, N'Nhóm mình có 8 người muốn đặt tour Hàn Quốc khởi hành dịp Tết dương lịch 2027, công ty có ưu đãi cho nhóm không?', N'Chưa xử lý', NULL, '2026-10-25 16:00', NULL);
+SET IDENTITY_INSERT dbo.LIENHE_TUVAN OFF;
+GO
+
+-- 16. NẠP DỮ LIỆU BẢNG BANNER_QUANGCAO (UC-15)
+SET IDENTITY_INSERT dbo.BANNER_QUANGCAO ON;
+INSERT INTO dbo.BANNER_QUANGCAO (MaBanner, TieuDe, HinhAnh, LienKet, ViTri, ThuTuHienThi, TrangThai, NgayBatDau, NgayKetThuc, NgayTao, MaNguoiTao)
+VALUES 
+(1, N'Khám Phá Hàn Quốc Mùa Thu - Giảm Ngay 1.000.000đ', '/images/banners/banner-korea-autumn.jpg', '/tours/han-quoc-seoul-nami', N'TrangChu_Hero', 1, 1, '2026-09-01', '2026-12-31', '2026-09-01 08:00', 1),
+(2, N'Mùa Lúa Chín Sa Pa - Trọn Gói 3N2Đ Chỉ Từ 3.850.000đ', '/images/banners/banner-sapa-harvest.jpg', '/tours/sapa-fansipan-catcat', N'TrangChu_Hero', 2, 1, '2026-09-15', '2026-11-30', '2026-09-15 08:00', 1),
+(3, N'Ưu Đãi Đặt Tour Sớm - Đón Mùa Lễ Hội 2027', '/images/banners/banner-promotion-earlybird.jpg', '/promotions/early-bird-2027', N'TrangChu_GiuaTrang', 1, 1, '2026-10-01', '2027-01-15', '2026-10-01 08:00', 2);
+SET IDENTITY_INSERT dbo.BANNER_QUANGCAO OFF;
+GO
+
+PRINT N'==> Đã nạp thành công 100% dữ liệu mẫu thực tế và phong phú cho 16 bảng!';
 GO

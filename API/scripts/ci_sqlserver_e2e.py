@@ -105,8 +105,8 @@ def main():
         # Execute a real booking through Tham's stored procedure and verify
         # that its INSERT trigger holds seats once, then cancellation returns once.
         with conn.cursor() as cur:
-            cur.execute("SELECT SoChoDaDat FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=5")
-            seats_before = cur.fetchone()[0]
+            cur.execute("SELECT SoChoDaDat, ISNULL(SoChoGiuCho, 0) FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=5")
+            seats_dat_before, seats_giu_before = cur.fetchone()
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -134,11 +134,12 @@ def main():
                 raise AssertionError("Booking stored procedure returned no generated ID")
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT SoChoDaDat FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=5"
+                "SELECT SoChoDaDat, ISNULL(SoChoGiuCho, 0) FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=5"
             )
-            after_booking = cur.fetchone()[0]
-            if after_booking != seats_before + 2:
-                raise AssertionError("Booking trigger must hold exactly two seats")
+            after_dat, after_giu = cur.fetchone()
+            held = (after_dat + after_giu) - (seats_dat_before + seats_giu_before)
+            if held != 2:
+                raise AssertionError(f"Booking trigger must hold exactly two seats, got {held}")
             cur.execute(
                 "EXEC dbo.sp_HuyDonDatTour @MaDatTour=%s, @MaNguoiYeuCau=%s, @LyDoHuy=%s",
                 (created_id, 4, "CI test cancellation"),
@@ -146,10 +147,10 @@ def main():
             while cur.nextset():
                 pass
             cur.execute(
-                "SELECT SoChoDaDat FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=5"
+                "SELECT SoChoDaDat, ISNULL(SoChoGiuCho, 0) FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=5"
             )
-            after_cancel = cur.fetchone()[0]
-            if after_cancel != seats_before:
+            cancel_dat, cancel_giu = cur.fetchone()
+            if (cancel_dat + cancel_giu) != (seats_dat_before + seats_giu_before):
                 raise AssertionError("Cancel trigger must restore exactly two seats")
         print("PASS: SQL Server stored procedures BOOK and CANCEL, inventory holds/restores exactly once")
 
@@ -196,16 +197,16 @@ def main():
             wins = list(pool.map(try_last_seat, range(20)))
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT SoChoDaDat, SoChoToiDa FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=%s",
+                "SELECT SoChoDaDat, ISNULL(SoChoGiuCho, 0), SoChoToiDa FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=%s",
                 (last_seat_schedule,),
             )
-            reserved, total = cur.fetchone()
+            reserved, held, total = cur.fetchone()
             cur.execute("SELECT COUNT(*) FROM dbo.DATTOUR WHERE MaChuyen=%s", (last_seat_schedule,))
             bookings_count = cur.fetchone()[0]
-        if sum(wins) != 1 or reserved != 1 or total != 1 or bookings_count != 1:
+        if sum(wins) != 1 or (reserved + held) != 1 or total != 1 or bookings_count != 1:
             raise AssertionError(
                 f"Last-seat integrity failure: successes={sum(wins)}, "
-                f"reserved={reserved}, bookings={bookings_count}"
+                f"reserved={reserved}, held={held}, bookings={bookings_count}"
             )
         print("PASS: real SQL Server concurrency, 20 simultaneous booking attempts, exactly 1 seat reserved")
 

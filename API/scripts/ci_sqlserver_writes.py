@@ -90,7 +90,7 @@ def run_sqlserver_write_tests(host: str, password: str, engine) -> None:
                            headers={**head, "Idempotency-Key": str(uuid.uuid4())}).status_code == 409
         with engine.connect() as conn:
             from sqlalchemy import text
-            seats = conn.execute(text("SELECT SoChoDaDat FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=:sid"),
+            seats = conn.execute(text("SELECT SoChoDaDat + ISNULL(SoChoGiuCho, 0) FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=:sid"),
                                  {"sid": schedule_id}).scalar_one()
         assert seats == 2, f"Expected exactly 2 holds, got {seats}"
         cancelled = client.post("/api/v1/bookings/" + booking["id"] + "/cancel", headers=head)
@@ -98,7 +98,7 @@ def run_sqlserver_write_tests(host: str, password: str, engine) -> None:
         assert cancelled.json()["status"] == "CANCELLED"
         assert client.post("/api/v1/bookings/" + booking["id"] + "/cancel", headers=head).status_code == 200
         with engine.connect() as conn:
-            seats = conn.execute(text("SELECT SoChoDaDat FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=:sid"),
+            seats = conn.execute(text("SELECT SoChoDaDat + ISNULL(SoChoGiuCho, 0) FROM dbo.CHUYENKHOIHANH WHERE MaChuyen=:sid"),
                                  {"sid": schedule_id}).scalar_one()
         assert seats == 1, f"Expected 1 remaining hold, got {seats}"
         # Other authenticated customer must not read or cancel this booking.

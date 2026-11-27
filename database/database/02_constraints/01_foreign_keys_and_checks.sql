@@ -87,7 +87,59 @@ REFERENCES dbo.NGUOIDUNG (MaNguoiDung)
 ON UPDATE CASCADE
 ON DELETE SET NULL; -- Nếu người dùng bị xóa thì gán Người thực hiện log về NULL, giữ nguyên lịch sử
 
-PRINT N'==> Đã thiết lập xong toàn bộ Foreign Keys chuẩn xác và an toàn.';
+-- 12. Khóa ngoại bảng YEUCAU_HOANTIEN_DOILICH -> DATTOUR & NGUOIDUNG (UC-10)
+ALTER TABLE dbo.YEUCAU_HOANTIEN_DOILICH WITH CHECK
+ADD CONSTRAINT FK_YEUCAU_DATTOUR FOREIGN KEY (MaDatTour)
+REFERENCES dbo.DATTOUR (MaDatTour)
+ON UPDATE NO ACTION
+ON DELETE NO ACTION;
+
+ALTER TABLE dbo.YEUCAU_HOANTIEN_DOILICH WITH CHECK
+ADD CONSTRAINT FK_YEUCAU_KHACHHANG FOREIGN KEY (MaKhachHang)
+REFERENCES dbo.NGUOIDUNG (MaNguoiDung)
+ON UPDATE NO ACTION
+ON DELETE NO ACTION;
+
+ALTER TABLE dbo.YEUCAU_HOANTIEN_DOILICH WITH CHECK
+ADD CONSTRAINT FK_YEUCAU_NGUOIXULY FOREIGN KEY (NguoiXuLy)
+REFERENCES dbo.NGUOIDUNG (MaNguoiDung)
+ON UPDATE NO ACTION
+ON DELETE NO ACTION;
+
+-- 13. Khóa ngoại bảng TOUR_YEUTHICH -> NGUOIDUNG & TOUR (UC-07)
+ALTER TABLE dbo.TOUR_YEUTHICH WITH CHECK
+ADD CONSTRAINT FK_YEUTHICH_NGUOIDUNG FOREIGN KEY (MaNguoiDung)
+REFERENCES dbo.NGUOIDUNG (MaNguoiDung)
+ON UPDATE CASCADE
+ON DELETE CASCADE;
+
+ALTER TABLE dbo.TOUR_YEUTHICH WITH CHECK
+ADD CONSTRAINT FK_YEUTHICH_TOUR FOREIGN KEY (MaTour)
+REFERENCES dbo.TOUR (MaTour)
+ON UPDATE CASCADE
+ON DELETE CASCADE;
+
+-- 14. Khóa ngoại bảng LIENHE_TUVAN -> TOUR & NGUOIDUNG (UC-04)
+ALTER TABLE dbo.LIENHE_TUVAN WITH CHECK
+ADD CONSTRAINT FK_LIENHE_TOUR FOREIGN KEY (MaTour)
+REFERENCES dbo.TOUR (MaTour)
+ON UPDATE SET NULL
+ON DELETE SET NULL;
+
+ALTER TABLE dbo.LIENHE_TUVAN WITH CHECK
+ADD CONSTRAINT FK_LIENHE_NGUOIXULY FOREIGN KEY (NguoiXuLy)
+REFERENCES dbo.NGUOIDUNG (MaNguoiDung)
+ON UPDATE NO ACTION
+ON DELETE NO ACTION;
+
+-- 15. Khóa ngoại bảng BANNER_QUANGCAO -> NGUOIDUNG (UC-15)
+ALTER TABLE dbo.BANNER_QUANGCAO WITH CHECK
+ADD CONSTRAINT FK_BANNER_NGUOITAO FOREIGN KEY (MaNguoiTao)
+REFERENCES dbo.NGUOIDUNG (MaNguoiDung)
+ON UPDATE CASCADE
+ON DELETE NO ACTION;
+
+PRINT N'==> Đã thiết lập xong toàn bộ Foreign Keys chuẩn xác và an toàn cho 16 bảng.';
 GO
 
 -- ==========================================================================================
@@ -95,61 +147,85 @@ GO
 -- ==========================================================================================
 PRINT N'==> Đang thiết lập các ràng buộc Check Constraints...';
 
--- 1. Giá khuyến nghị của Tour phải >= 0
+-- 1. Phân quyền vai trò người dùng chuẩn
+ALTER TABLE dbo.NGUOIDUNG ADD CONSTRAINT CK_NGUOIDUNG_VaiTro
+CHECK (VaiTro IN (N'Admin', N'NhanVien', N'KhachHang'));
+
+-- 2. Giá khuyến nghị của Tour phải >= 0
 ALTER TABLE dbo.TOUR ADD CONSTRAINT CK_TOUR_GiaKhuyenNghi 
 CHECK (GiaKhuyenNghi >= 0);
 
--- 2. Lịch trình ngày thứ phải > 0
+-- 3. Lịch trình ngày thứ phải > 0
 ALTER TABLE dbo.LICH_TRINH_DETAIL ADD CONSTRAINT CK_LICHTRINH_NgayThu 
 CHECK (NgayThu > 0);
 
--- 3. Ngày kết thúc chuyến đi phải >= Ngày khởi hành
+-- 4. Ngày kết thúc chuyến đi phải >= Ngày khởi hành
 ALTER TABLE dbo.CHUYENKHOIHANH ADD CONSTRAINT CK_CHUYEN_ThoiGian 
 CHECK (NgayKetThuc >= NgayKhoiHanh);
 
--- 4. Giá thực tế của chuyến khởi hành phải >= 0
+-- 5. Giá thực tế của chuyến khởi hành phải >= 0
 ALTER TABLE dbo.CHUYENKHOIHANH ADD CONSTRAINT CK_CHUYEN_GiaThucTe 
 CHECK (GiaThucTe >= 0);
 
--- 5. Số chỗ tối đa phải > 0
+-- 6. Số chỗ tối đa phải > 0
 ALTER TABLE dbo.CHUYENKHOIHANH ADD CONSTRAINT CK_CHUYEN_SoChoToiDa 
 CHECK (SoChoToiDa > 0);
 
--- 6. Số chỗ đã đặt phải >= 0 và không vượt quá số chỗ tối đa
+-- 7. Số chỗ đã đặt & số chỗ giữ phải hợp lệ (BR1: SoChoDaDat + SoChoGiuCho <= SoChoToiDa)
 ALTER TABLE dbo.CHUYENKHOIHANH ADD CONSTRAINT CK_CHUYEN_SoChoHopLe 
-CHECK (SoChoDaDat >= 0 AND SoChoDaDat <= SoChoToiDa);
+CHECK (SoChoDaDat >= 0 AND SoChoGiuCho >= 0 AND (SoChoDaDat + SoChoGiuCho) <= SoChoToiDa);
 
--- 7. Trạng thái chuyến khởi hành hợp lệ
+-- 8. Trạng thái chuyến khởi hành hợp lệ
 ALTER TABLE dbo.CHUYENKHOIHANH ADD CONSTRAINT CK_CHUYEN_TrangThai 
 CHECK (TrangThaiChuyen IN (N'Mở bán', N'Hết chỗ', N'Hoàn thành', N'Hủy chuyến', N'Tạm dừng'));
 
--- 8. Số lượng khách trong đơn đặt phải > 0
+-- 9. Số lượng khách trong đơn đặt phải > 0
 ALTER TABLE dbo.DATTOUR ADD CONSTRAINT CK_DATTOUR_SoLuongKhach 
 CHECK (SoLuongKhach > 0);
 
--- 9. Tổng tiền đơn đặt tour phải >= 0
+-- 10. Tổng tiền đơn đặt tour phải >= 0
 ALTER TABLE dbo.DATTOUR ADD CONSTRAINT CK_DATTOUR_TongTien 
 CHECK (TongTien >= 0);
 
--- 10. Trạng thái đơn đặt tour chỉ nhận 4 giá trị quy chuẩn
+-- 11. Trạng thái đơn đặt tour quy chuẩn
 ALTER TABLE dbo.DATTOUR ADD CONSTRAINT CK_DATTOUR_TrangThaiDat 
 CHECK (TrangThaiDat IN (N'Chờ xác nhận', N'Đã xác nhận', N'Đã hoàn thành', N'Đã hủy'));
 
--- 11. Trạng thái thanh toán quy chuẩn
+-- 12. Trạng thái thanh toán quy chuẩn
 ALTER TABLE dbo.DATTOUR ADD CONSTRAINT CK_DATTOUR_TrangThaiThanhToan 
 CHECK (TrangThaiThanhToan IN (N'Chưa thanh toán', N'Đã cọc', N'Đã thanh toán', N'Đã hoàn tiền'));
 
--- 12. Số tiền thanh toán phải > 0
+-- 13. Phân loại giao dịch thanh toán và hoàn tiền
+ALTER TABLE dbo.THANHTOAN ADD CONSTRAINT CK_THANHTOAN_LoaiGiaoDich
+CHECK (LoaiGiaoDich IN (N'Thanh toán', N'Hoàn tiền', N'Phụ thu'));
+
+-- 14. Số tiền thanh toán/hoàn tiền phải > 0 (Phân biệt chiều dòng tiền qua LoaiGiaoDich)
 ALTER TABLE dbo.THANHTOAN ADD CONSTRAINT CK_THANHTOAN_SoTien 
 CHECK (SoTien > 0);
 
--- 13. Điểm số đánh giá bắt buộc từ 1 đến 5 sao
+-- 15. Điểm số đánh giá bắt buộc từ 1 đến 5 sao
 ALTER TABLE dbo.DANHGIA ADD CONSTRAINT CK_DANHGIA_SoSao 
 CHECK (SoSao BETWEEN 1 AND 5);
 
--- 14. Lượt xem bài viết phải >= 0
+-- 16. Lượt xem bài viết phải >= 0
 ALTER TABLE dbo.BAIVIET_QUANGBA ADD CONSTRAINT CK_BAIVIET_LuotXem 
 CHECK (LuotXem >= 0);
 
-PRINT N'==> Đã thiết lập xong toàn bộ Check Constraints đảm bảo tính toàn vẹn nghiệp vụ!';
+-- 17. Loại yêu cầu hỗ trợ đổi/hủy/hoàn tiền (UC-10)
+ALTER TABLE dbo.YEUCAU_HOANTIEN_DOILICH ADD CONSTRAINT CK_YEUCAU_LoaiYeuCau
+CHECK (LoaiYeuCau IN (N'Hủy tour hoàn tiền', N'Đổi lịch khởi hành', N'Đổi thông tin hành khách'));
+
+-- 18. Trạng thái xử lý yêu cầu đổi/hủy/hoàn tiền
+ALTER TABLE dbo.YEUCAU_HOANTIEN_DOILICH ADD CONSTRAINT CK_YEUCAU_TrangThai
+CHECK (TrangThai IN (N'Chờ xử lý', N'Đã duyệt', N'Từ chối'));
+
+-- 19. Trạng thái xử lý yêu cầu tư vấn (UC-04)
+ALTER TABLE dbo.LIENHE_TUVAN ADD CONSTRAINT CK_LIENHE_TrangThai
+CHECK (TrangThai IN (N'Chưa xử lý', N'Đã liên hệ', N'Đã hủy'));
+
+-- 20. Vị trí hiển thị banner quảng cáo (UC-15)
+ALTER TABLE dbo.BANNER_QUANGCAO ADD CONSTRAINT CK_BANNER_ViTri
+CHECK (ViTri IN (N'TrangChu_Hero', N'TrangChu_GiuaTrang', N'Sidebar'));
+
+PRINT N'==> Đã thiết lập xong toàn bộ 20 Check Constraints đảm bảo tính toàn vẹn nghiệp vụ!';
 GO

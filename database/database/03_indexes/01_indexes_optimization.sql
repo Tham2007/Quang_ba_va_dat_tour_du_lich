@@ -70,5 +70,29 @@ ON dbo.AUDITLOG (ThoiGian DESC, MaNguoiThucHien ASC)
 INCLUDE (HanhDong);
 GO
 
+-- 11. Tối ưu tra cứu yêu cầu hoàn tiền/đổi lịch theo đơn đặt tour và trạng thái
+CREATE NONCLUSTERED INDEX IX_YEUCAU_MaDatTour_TrangThai
+ON dbo.YEUCAU_HOANTIEN_DOILICH (MaDatTour ASC, TrangThai ASC)
+INCLUDE (MaKhachHang, LoaiYeuCau, SoTienYeuCauHoan, NgayTao);
+GO
+
+-- 12. Tối ưu danh sách tour yêu thích của khách hàng
+CREATE NONCLUSTERED INDEX IX_TOUR_YEUTHICH_MaNguoiDung
+ON dbo.TOUR_YEUTHICH (MaNguoiDung ASC, NgayLuu DESC)
+INCLUDE (MaTour);
+GO
+
+-- 13. Tối ưu tra cứu yêu cầu tư vấn theo trạng thái xử lý
+CREATE NONCLUSTERED INDEX IX_LIENHE_TUVAN_TrangThai_NgayGui
+ON dbo.LIENHE_TUVAN (TrangThai ASC, NgayGui DESC)
+INCLUDE (HoTen, SoDienThoai, Email, MaTour);
+GO
+
+-- 14. Tối ưu hiển thị banner trang chủ theo vị trí và thứ tự
+CREATE NONCLUSTERED INDEX IX_BANNER_QUANGCAO_ViTri_TrangThai
+ON dbo.BANNER_QUANGCAO (ViTri ASC, TrangThai ASC, ThuTuHienThi ASC)
+INCLUDE (TieuDe, HinhAnh, LienKet);
+GO
+
 PRINT N'==> Khởi tạo hệ thống Indexes tối ưu hóa thành công!';
 GO

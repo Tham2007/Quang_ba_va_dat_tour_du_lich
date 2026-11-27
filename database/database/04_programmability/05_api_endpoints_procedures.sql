@@ -264,8 +264,8 @@ BEGIN
             RETURN;
         END;
 
-        INSERT INTO dbo.NGUOIDUNG (HoTen, Email, SoDienThoai, MatKhau, DiaChi, TrangThai, NgayTao)
-        VALUES (@HoTen, @Email, @SoDienThoai, @MatKhauHash, @DiaChi, 1, GETDATE());
+        INSERT INTO dbo.NGUOIDUNG (HoTen, Email, SoDienThoai, MatKhau, DiaChi, VaiTro, TrangThai, NgayTao)
+        VALUES (@HoTen, @Email, @SoDienThoai, @MatKhauHash, @DiaChi, N'KhachHang', 1, GETDATE());
 
         DECLARE @NewUserId INT = SCOPE_IDENTITY();
 
@@ -301,6 +301,7 @@ BEGIN
         SoDienThoai,
         MatKhau AS PasswordHash,
         DiaChi,
+        VaiTro,
         TrangThai,
         NgayTao
     FROM dbo.NGUOIDUNG
@@ -374,12 +375,14 @@ BEGIN
         DECLARE @GiaThucTe DECIMAL(18,2);
         DECLARE @SoChoToiDa INT;
         DECLARE @SoChoDaDat INT;
+        DECLARE @SoChoGiuCho INT;
         DECLARE @TrangThaiChuyen NVARCHAR(50);
 
         SELECT 
             @GiaThucTe = GiaThucTe,
             @SoChoToiDa = SoChoToiDa,
             @SoChoDaDat = SoChoDaDat,
+            @SoChoGiuCho = ISNULL(SoChoGiuCho, 0),
             @TrangThaiChuyen = TrangThaiChuyen
         FROM dbo.CHUYENKHOIHANH WITH (UPDLOCK, HOLDLOCK)
         WHERE MaChuyen = @MaChuyen;
@@ -398,20 +401,22 @@ BEGIN
             RETURN;
         END;
 
-        IF (@SoChoToiDa - @SoChoDaDat) < @SoLuongKhach
+        DECLARE @SoChoConLai INT = @SoChoToiDa - @SoChoDaDat - @SoChoGiuCho;
+        IF @SoChoConLai < @SoLuongKhach
         BEGIN
             ROLLBACK TRANSACTION;
             SELECT 0 AS Success, 400 AS StatusCode, 
-                   CONCAT(N'Không đủ số chỗ trống. Hiện chỉ còn ', (@SoChoToiDa - @SoChoDaDat), N' chỗ.') AS Message;
+                   CONCAT(N'Không đủ số chỗ trống. Hiện chỉ còn ', @SoChoConLai, N' chỗ.') AS Message;
             RETURN;
         END;
 
-        -- 3. Tạo đơn đặt tour (Trigger TRG_DATTOUR_CheckAndLockSeats sẽ tự động tăng số chỗ)
+        -- 3. Tạo đơn đặt tour (Trigger TRG_DATTOUR_CheckAndLockSeats sẽ tự động tăng số chỗ giữ tạm)
         DECLARE @TongTien DECIMAL(18,2) = @SoLuongKhach * @GiaThucTe;
+        DECLARE @ThoiHanGiuCho DATETIME = DATEADD(MINUTE, 15, GETDATE());
         DECLARE @MaDatTourMoi INT;
 
-        INSERT INTO dbo.DATTOUR (MaKhachHang, MaChuyen, NgayDat, SoLuongKhach, TongTien, TrangThaiDat, TrangThaiThanhToan)
-        VALUES (@MaKhachHang, @MaChuyen, GETDATE(), @SoLuongKhach, @TongTien, N'Chờ xác nhận', N'Chưa thanh toán');
+        INSERT INTO dbo.DATTOUR (MaKhachHang, MaChuyen, NgayDat, ThoiHanGiuCho, SoLuongKhach, TongTien, TrangThaiDat, TrangThaiThanhToan)
+        VALUES (@MaKhachHang, @MaChuyen, GETDATE(), @ThoiHanGiuCho, @SoLuongKhach, @TongTien, N'Chờ xác nhận', N'Chưa thanh toán');
 
         SET @MaDatTourMoi = SCOPE_IDENTITY();
 
@@ -867,7 +872,7 @@ BEGIN
             
             -- Doanh thu tháng hiện tại
             (
-                SELECT ISNULL(SUM(SoTien), 0) 
+                SELECT ISNULL(SUM(CASE WHEN LoaiGiaoDich = N'Thanh toán' THEN SoTien ELSE -SoTien END), 0) 
                 FROM dbo.THANHTOAN 
                 WHERE TrangThai = N'Thành công' 
                   AND MONTH(NgayThanhToan) = MONTH(GETDATE()) 
@@ -877,6 +882,265 @@ BEGIN
     BEGIN CATCH
         SELECT 0 AS Success, 500 AS StatusCode, ERROR_MESSAGE() AS Message;
     END CATCH;
+END;
+GO
+
+-- ==========================================================================================
+-- D1. API KHÁCH HÀNG: GỬI YÊU CẦU ĐỔI / HỦY / HOÀN TIỀN (UC-10)
+-- Backend Endpoint đề xuất: POST /api/bookings/:id/refund-request
+-- ==========================================================================================
+IF OBJECT_ID(N'dbo.sp_api_SubmitRefundRequest', N'P') IS NOT NULL DROP PROCEDURE dbo.sp_api_SubmitRefundRequest;
+GO
+CREATE PROCEDURE dbo.sp_api_SubmitRefundRequest
+    @MaDatTour          INT,
+    @MaKhachHang        INT,
+    @LoaiYeuCau         NVARCHAR(50),
+    @LyDo               NVARCHAR(1000),
+    @SoTienYeuCauHoan   DECIMAL(18,2) = NULL,
+    @ThongTinNganHang   NVARCHAR(255) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        IF NOT EXISTS (SELECT 1 FROM dbo.DATTOUR WHERE MaDatTour = @MaDatTour AND MaKhachHang = @MaKhachHang)
+        BEGIN
+            SELECT 0 AS Success, 404 AS StatusCode, N'Đơn đặt tour không tồn tại hoặc không thuộc quyền sở hữu của bạn.' AS Message;
+            RETURN;
+        END;
+
+        -- Kiểm tra đơn đã bị hủy hoàn tất chưa
+        IF EXISTS (SELECT 1 FROM dbo.DATTOUR WHERE MaDatTour = @MaDatTour AND TrangThaiDat = N'Đã hủy')
+        BEGIN
+            SELECT 0 AS Success, 400 AS StatusCode, N'Đơn đặt tour này đã bị hủy trước đó.' AS Message;
+            RETURN;
+        END;
+
+        INSERT INTO dbo.YEUCAU_HOANTIEN_DOILICH (
+            MaDatTour, MaKhachHang, LoaiYeuCau, LyDo, SoTienYeuCauHoan, ThongTinNganHang, TrangThai, NgayTao
+        )
+        VALUES (
+            @MaDatTour, @MaKhachHang, @LoaiYeuCau, @LyDo, @SoTienYeuCauHoan, @ThongTinNganHang, N'Chờ xử lý', GETDATE()
+        );
+
+        DECLARE @MaYeuCauMoi INT = SCOPE_IDENTITY();
+
+        -- Ghi log
+        INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
+        VALUES (@MaKhachHang, N'GUI_YEU_CAU_HOAN_TIEN_DOI_LICH', NULL, CONCAT(N'Yêu cầu #', @MaYeuCauMoi, N', Mã đơn: ', @MaDatTour, N', Loại: ', @LoaiYeuCau), GETDATE());
+
+        SELECT 
+            1 AS Success, 
+            201 AS StatusCode, 
+            N'Đã gửi yêu cầu đổi/hủy/hoàn tiền thành công. Bộ phận CSKH sẽ phản hồi trong 24h!' AS Message,
+            @MaYeuCauMoi AS MaYeuCau;
+    END TRY
+    BEGIN CATCH
+        SELECT 0 AS Success, 500 AS StatusCode, ERROR_MESSAGE() AS Message;
+    END CATCH;
+END;
+GO
+
+-- ==========================================================================================
+-- D2. API ADMIN: PHÊ DUYỆT HOẶC TỪ CHỐI YÊU CẦU ĐỔI / HỦY / HOÀN TIỀN (UC-10)
+-- Backend Endpoint đề xuất: POST /api/admin/refund-requests/:id/process
+-- ==========================================================================================
+IF OBJECT_ID(N'dbo.sp_api_Admin_ProcessRefundRequest', N'P') IS NOT NULL DROP PROCEDURE dbo.sp_api_Admin_ProcessRefundRequest;
+GO
+CREATE PROCEDURE dbo.sp_api_Admin_ProcessRefundRequest
+    @MaYeuCau           INT,
+    @HanhDong           NVARCHAR(50), -- 'Đã duyệt' hoặc 'Từ chối'
+    @PhanHoiAdmin       NVARCHAR(1000),
+    @MaAdmin            INT,
+    @PhuongThucHoan     NVARCHAR(50) = NULL,
+    @MaGiaoDichHoan     VARCHAR(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRY
+        DECLARE @MaDatTour INT;
+        DECLARE @SoTienHoan DECIMAL(18,2);
+        DECLARE @TrangThaiHienTai NVARCHAR(50);
+
+        SELECT 
+            @MaDatTour = MaDatTour,
+            @SoTienHoan = ISNULL(SoTienYeuCauHoan, 0),
+            @TrangThaiHienTai = TrangThai
+        FROM dbo.YEUCAU_HOANTIEN_DOILICH
+        WHERE MaYeuCau = @MaYeuCau;
+
+        IF @MaDatTour IS NULL
+        BEGIN
+            SELECT 0 AS Success, 404 AS StatusCode, N'Yêu cầu hỗ trợ không tồn tại.' AS Message;
+            RETURN;
+        END;
+
+        IF @TrangThaiHienTai <> N'Chờ xử lý'
+        BEGIN
+            SELECT 0 AS Success, 400 AS StatusCode, N'Yêu cầu này đã được xử lý trước đó.' AS Message;
+            RETURN;
+        END;
+
+        IF @HanhDong = N'Đã duyệt'
+        BEGIN
+            -- Thực thi Procedure xác nhận hoàn tiền chính thức
+            EXEC dbo.sp_XacNhanHoanTienDonTour
+                @MaDatTour = @MaDatTour,
+                @SoTienHoan = @SoTienHoan,
+                @PhuongThuc = ISNULL(@PhuongThucHoan, N'Chuyển khoản hoàn tiền'),
+                @MaGiaoDichHoan = @MaGiaoDichHoan,
+                @GhiChu = @PhanHoiAdmin,
+                @MaAdmin = @MaAdmin;
+        END
+        ELSE
+        BEGIN
+            -- Cập nhật từ chối yêu cầu
+            UPDATE dbo.YEUCAU_HOANTIEN_DOILICH
+            SET TrangThai = N'Từ chối',
+                PhanHoiAdmin = @PhanHoiAdmin,
+                NgayXuLy = GETDATE(),
+                NguoiXuLy = @MaAdmin
+            WHERE MaYeuCau = @MaYeuCau;
+
+            -- Ghi Audit Log
+            INSERT INTO dbo.AUDITLOG (MaNguoiThucHien, HanhDong, DuLieuCu, DuLieuMoi, ThoiGian)
+            VALUES (@MaAdmin, N'TU_CHOI_HOAN_TIEN', CONCAT(N'Yêu cầu #', @MaYeuCau), @PhanHoiAdmin, GETDATE());
+        END;
+
+        SELECT 1 AS Success, 200 AS StatusCode, N'Đã xử lý yêu cầu đổi/hủy/hoàn tiền thành công!' AS Message;
+    END TRY
+    BEGIN CATCH
+        SELECT 0 AS Success, 500 AS StatusCode, ERROR_MESSAGE() AS Message;
+    END CATCH;
+END;
+GO
+
+-- ==========================================================================================
+-- D3. API KHÁCH HÀNG: THÊM HOẶC BỎ LƯU TOUR YÊU THÍCH (UC-07)
+-- Backend Endpoint đề xuất: POST /api/tours/:tourId/favorite
+-- ==========================================================================================
+IF OBJECT_ID(N'dbo.sp_api_ToggleFavoriteTour', N'P') IS NOT NULL DROP PROCEDURE dbo.sp_api_ToggleFavoriteTour;
+GO
+CREATE PROCEDURE dbo.sp_api_ToggleFavoriteTour
+    @MaNguoiDung INT,
+    @MaTour      INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        IF NOT EXISTS (SELECT 1 FROM dbo.TOUR WHERE MaTour = @MaTour)
+        BEGIN
+            SELECT 0 AS Success, 404 AS StatusCode, N'Tour du lịch không tồn tại.' AS Message;
+            RETURN;
+        END;
+
+        IF EXISTS (SELECT 1 FROM dbo.TOUR_YEUTHICH WHERE MaNguoiDung = @MaNguoiDung AND MaTour = @MaTour)
+        BEGIN
+            -- Đã lưu thì xóa bỏ yêu thích
+            DELETE FROM dbo.TOUR_YEUTHICH WHERE MaNguoiDung = @MaNguoiDung AND MaTour = @MaTour;
+            SELECT 1 AS Success, 200 AS StatusCode, N'Đã bỏ lưu khỏi danh sách tour yêu thích.' AS Message, 0 AS IsFavorite;
+        END
+        ELSE
+        BEGIN
+            -- Chưa lưu thì thêm vào danh sách yêu thích
+            INSERT INTO dbo.TOUR_YEUTHICH (MaNguoiDung, MaTour, NgayLuu)
+            VALUES (@MaNguoiDung, @MaTour, GETDATE());
+            SELECT 1 AS Success, 201 AS StatusCode, N'Đã thêm tour vào danh sách yêu thích!' AS Message, 1 AS IsFavorite;
+        END;
+    END TRY
+    BEGIN CATCH
+        SELECT 0 AS Success, 500 AS StatusCode, ERROR_MESSAGE() AS Message;
+    END CATCH;
+END;
+GO
+
+-- ==========================================================================================
+-- D4. API KHÁCH HÀNG: LẤY DANH SÁCH TOUR YÊU THÍCH (UC-07)
+-- Backend Endpoint đề xuất: GET /api/user/favorites
+-- ==========================================================================================
+IF OBJECT_ID(N'dbo.sp_api_GetFavoriteTours', N'P') IS NOT NULL DROP PROCEDURE dbo.sp_api_GetFavoriteTours;
+GO
+CREATE PROCEDURE dbo.sp_api_GetFavoriteTours
+    @MaNguoiDung INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT 
+        yt.MaYeuThich,
+        yt.NgayLuu,
+        t.MaTour,
+        t.TenTour,
+        dm.TenDanhMuc,
+        t.HinhAnhDaiDien,
+        t.LichTrinhTongQuan,
+        t.GiaKhuyenNghi
+    FROM dbo.TOUR_YEUTHICH yt
+    JOIN dbo.TOUR t ON yt.MaTour = t.MaTour
+    JOIN dbo.DANHMUC dm ON t.MaDanhMuc = dm.MaDanhMuc
+    WHERE yt.MaNguoiDung = @MaNguoiDung AND t.TrangThai = 1
+    ORDER BY yt.NgayLuu DESC;
+END;
+GO
+
+-- ==========================================================================================
+-- D5. API PUBLIC: KHÁCH VÃNG LAI GỬI YÊU CẦU TƯ VẤN (UC-04)
+-- Backend Endpoint đề xuất: POST /api/contact/consultation
+-- ==========================================================================================
+IF OBJECT_ID(N'dbo.sp_api_SubmitConsultation', N'P') IS NOT NULL DROP PROCEDURE dbo.sp_api_SubmitConsultation;
+GO
+CREATE PROCEDURE dbo.sp_api_SubmitConsultation
+    @HoTen        NVARCHAR(100),
+    @Email        VARCHAR(100) = NULL,
+    @SoDienThoai  VARCHAR(15),
+    @MaTour       INT = NULL,
+    @NoiDung      NVARCHAR(1000)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        IF @HoTen IS NULL OR @SoDienThoai IS NULL OR @NoiDung IS NULL
+        BEGIN
+            SELECT 0 AS Success, 400 AS StatusCode, N'Vui lòng điền đầy đủ Họ tên, Số điện thoại và Nội dung yêu cầu.' AS Message;
+            RETURN;
+        END;
+
+        INSERT INTO dbo.LIENHE_TUVAN (HoTen, Email, SoDienThoai, MaTour, NoiDung, TrangThai, NgayGui)
+        VALUES (@HoTen, @Email, @SoDienThoai, @MaTour, @NoiDung, N'Chưa xử lý', GETDATE());
+
+        SELECT 1 AS Success, 201 AS StatusCode, N'Đã tiếp nhận yêu cầu tư vấn. Delta Travel sẽ liên hệ với bạn trong thời gian sớm nhất!' AS Message,
+               SCOPE_IDENTITY() AS MaLienHe;
+    END TRY
+    BEGIN CATCH
+        SELECT 0 AS Success, 500 AS StatusCode, ERROR_MESSAGE() AS Message;
+    END CATCH;
+END;
+GO
+
+-- ==========================================================================================
+-- D6. API PUBLIC: LẤY DANH SÁCH BANNER QUẢNG CÁO TRANG CHỦ (UC-15)
+-- Backend Endpoint đề xuất: GET /api/banners
+-- ==========================================================================================
+IF OBJECT_ID(N'dbo.sp_api_GetBanners', N'P') IS NOT NULL DROP PROCEDURE dbo.sp_api_GetBanners;
+GO
+CREATE PROCEDURE dbo.sp_api_GetBanners
+    @ViTri NVARCHAR(50) = N'TrangChu_Hero'
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT 
+        MaBanner,
+        TieuDe,
+        HinhAnh,
+        LienKet,
+        ViTri,
+        ThuTuHienThi
+    FROM dbo.BANNER_QUANGCAO
+    WHERE TrangThai = 1
+      AND (ViTri = @ViTri OR @ViTri IS NULL)
+      AND (NgayBatDau IS NULL OR NgayBatDau <= GETDATE())
+      AND (NgayKetThuc IS NULL OR NgayKetThuc >= GETDATE())
+    ORDER BY ThuTuHienThi ASC, NgayTao DESC;
 END;
 GO
 
