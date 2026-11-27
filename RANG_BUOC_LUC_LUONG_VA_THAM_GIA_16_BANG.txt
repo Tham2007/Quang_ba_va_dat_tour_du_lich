@@ -483,8 +483,143 @@ PHẦN III. ĐẶC TẢ TOÀN BỘ THUỘC TÍNH (ATTRIBUTES), KHÓA CHÍNH (PK)
   + CK_BANNER_ViTri: ViTri IN (N'TrangChu_Hero', N'TrangChu_GiuaTrang', N'Sidebar')
 
 ========================================================================================================================
-PHẦN IV. BẢNG TỔNG HỢP MA TRẬN RÀNG BUỘC LỰC LƯỢNG VÀ RÀNG BUỘC THAM GIA GIỮA CÁC BẢNG
+PHẦN IV. ĐẶC TẢ CÁC MỐI LIÊN KẾT (RELATIONSHIPS / ASSOCIATIONS) TRONG MÔ HÌNH ERD & MA TRẬN RÀNG BUỘC
 ========================================================================================================================
+
+1. PHÂN LOẠI BẢN CHẤT CÁC TẬP THỰC THỂ (ENTITY SETS):
+   - THỰC THỂ MẠNH (Strong Entity Sets): Có khóa chính độc lập, không phụ thuộc sự tồn tại vào thực thể khác.
+     Gồm: NGUOIDUNG, DANHMUC, TOUR, BAIVIET_QUANGBA, BANNER_QUANGCAO.
+   - THỰC THỂ YẾU (Weak Entity Sets): Phụ thuộc tồn tại trực tiếp vào thực thể cha, khi thực thể cha bị xóa thì tự động xóa theo (CASCADE).
+     Gồm:
+     + HINHANH_TOUR (Phụ thuộc vào thực thể cha TOUR)
+     + LICH_TRINH_DETAIL (Phụ thuộc vào thực thể cha TOUR)
+     + CHITIET_HANHKHACH (Phụ thuộc vào thực thể cha DATTOUR)
+   - THỰC THỂ LIÊN KẾT (Associative Entity Sets / Junction Tables): Là thực thể vừa có thuộc tính riêng, vừa đóng vai trò giải quyết mối quan hệ Nhiều - Nhiều (N - N) hoặc quan hệ giao dịch đa chiều.
+     Gồm:
+     + DATTOUR (Liên kết Khách hàng - Chuyến đi khởi hành)
+     + TOUR_YEUTHICH (Hiện thực hóa mối quan hệ Nhiều - Nhiều giữa NGUOIDUNG và TOUR: Khách hàng YÊU THÍCH Tour)
+     + DANHGIA (Hiện thực hóa liên kết Một - Một giữa Đơn đặt tour và Cảm nhận dịch vụ)
+
+------------------------------------------------------------------------------------------------------------------------
+2. SƠ ĐỒ TRỰC QUAN & Ý NGHĨA 19 MỐI LIÊN KẾT (RELATIONSHIPS) GIỮA CÁC THỰC THỂ:
+------------------------------------------------------------------------------------------------------------------------
+
+[LK-01] Mối liên kết: PHÂN LOẠI TOUR (DANHMUC - TOUR)
+        Sơ đồ: [DANHMUC] (1) --------(0, n)------- <Thuộc danh mục> -------(1, 1)-------- (N) [TOUR]
+        - Lực lượng: 1 Danh mục có thể chứa (0, n) Tour; 1 Tour bắt buộc thuộc (1, 1) Danh mục.
+        - Khóa ngoại: TOUR.MaDanhMuc -> DANHMUC.MaDanhMuc (NOT NULL - Tham gia toàn phần).
+        - Ý nghĩa: Mỗi tour du lịch bắt buộc phải được phân loại vào đúng 1 danh mục vùng miền cụ thể.
+
+[LK-02] Mối liên kết: BỘ SƯU TẬP ẢNH (TOUR - HINHANH_TOUR)
+        Sơ đồ: [TOUR] (1) -----------(0, n)------- <Có thư viện ảnh> -------(1, 1)-------- (N) [HINHANH_TOUR]
+        - Lực lượng: 1 Tour có thể có (0, n) Ảnh; 1 Bức ảnh bắt buộc thuộc (1, 1) Tour.
+        - Khóa ngoại: HINHANH_TOUR.MaTour -> TOUR.MaTour (NOT NULL - Tham gia toàn phần).
+        - Ý nghĩa: Lưu trữ các hình ảnh thực tế của tour (chuẩn hóa tách thuộc tính đa trị). Xóa tour xóa ảnh.
+
+[LK-03] Mối liên kết: LỊCH TRÌNH NGÀY (TOUR - LICH_TRINH_DETAIL)
+        Sơ đồ: [TOUR] (1) -----------(1, n)------- <Có lịch trình ngày> ----(1, 1)-------- (N) [LICH_TRINH_DETAIL]
+        - Lực lượng: 1 Tour bắt buộc có (1, n) Ngày lịch trình; 1 Dòng chi tiết thuộc (1, 1) Tour.
+        - Khóa ngoại: LICH_TRINH_DETAIL.MaTour -> TOUR.MaTour (NOT NULL - Tham gia toàn phần).
+        - Ý nghĩa: Chi tiết hành trình từng ngày (Ngày 1, Ngày 2...), món ăn và hoạt động tham quan.
+
+[LK-04] Mối liên kết: LÊN LỊCH KHỞI HÀNH (TOUR - CHUYENKHOIHANH)
+        Sơ đồ: [TOUR] (1) -----------(0, n)------- <Mở đợt khởi hành> -----(1, 1)-------- (N) [CHUYENKHOIHANH]
+        - Lực lượng: 1 Tour có thể mở (0, n) Chuyến đi; 1 Chuyến đi bắt buộc thuộc (1, 1) Tour.
+        - Khóa ngoại: CHUYENKHOIHANH.MaTour -> TOUR.MaTour (NOT NULL - Tham gia toàn phần).
+        - Ý nghĩa: Quản lý lịch khởi hành cụ thể theo thời gian thực (ngày đi, ngày về, sức chứa và giá bán).
+
+[LK-05] Mối liên kết: ĐẶT CHỖ TOUR (NGUOIDUNG - DATTOUR)
+        Sơ đồ: [NGUOIDUNG] (1) ------(0, n)------- <Đặt chỗ tour> ----------(1, 1)-------- (N) [DATTOUR]
+        - Lực lượng: 1 Khách hàng có thể đặt (0, n) Đơn; 1 Đơn đặt bắt buộc do (1, 1) Khách hàng tạo.
+        - Khóa ngoại: DATTOUR.MaKhachHang -> NGUOIDUNG.MaNguoiDung (NOT NULL - Tham gia toàn phần).
+        - Ý nghĩa: Ghi nhận chủ thể sở hữu đơn đặt tour. Không cho phép xóa khách hàng đã có đơn đặt.
+
+[LK-06] Mối liên kết: CHUYẾN ĐI ĐƯỢC ĐẶT (CHUYENKHOIHANH - DATTOUR)
+        Sơ đồ: [CHUYENKHOIHANH] (1) -(0, n)------- <Tiếp nhận chỗ đặt> -----(1, 1)-------- (N) [DATTOUR]
+        - Lực lượng: 1 Chuyến đi tiếp nhận (0, n) Đơn đặt; 1 Đơn đặt bắt buộc gắn với (1, 1) Chuyến đi.
+        - Khóa ngoại: DATTOUR.MaChuyen -> CHUYENKHOIHANH.MaChuyen (NOT NULL - Tham gia toàn phần).
+        - Ý nghĩa: Đơn đặt tour chỉ định chính xác chuyến đi để trừ chỗ và kiểm soát sức chứa (Overbooking).
+
+[LK-07] Mối liên kết: KHAI BÁO HÀNH KHÁCH (DATTOUR - CHITIET_HANHKHACH)
+        Sơ đồ: [DATTOUR] (1) --------(1, n)------- <Gồm các hành khách> ----(1, 1)-------- (N) [CHITIET_HANHKHACH]
+        - Lực lượng: 1 Đơn bắt buộc có (1, n) Hành khách; 1 Hành khách chỉ thuộc (1, 1) Đơn đặt.
+        - Khóa ngoại: CHITIET_HANHKHACH.MaDatTour -> DATTOUR.MaDatTour (NOT NULL - Tham gia toàn phần).
+        - Ý nghĩa: Khai báo đầy đủ danh sách hành khách đi cùng để mua bảo hiểm du lịch. Số khách = SoLuongKhach.
+
+[LK-08] Mối liên kết: PHÁT SINH DÒNG TIỀN (DATTOUR - THANHTOAN)
+        Sơ đồ: [DATTOUR] (1) --------(0, n)------- <Thanh toán / Hoàn tiền> -(1, 1)-------- (N) [THANHTOAN]
+        - Lực lượng: 1 Đơn tour có thể có (0, n) Giao dịch dòng tiền; 1 Giao dịch gắn với (1, 1) Đơn tour.
+        - Khóa ngoại: THANHTOAN.MaDatTour -> DATTOUR.MaDatTour (NOT NULL - Tham gia toàn phần).
+        - Ý nghĩa: Ghi nhận lịch sử nộp tiền, hoàn tiền, phụ thu. Bảo vệ chứng từ tài chính (ON DELETE NO ACTION).
+
+[LK-09] Mối liên kết: ĐÁNH GIÁ CHẤT LƯỢNG (DATTOUR - DANHGIA)
+        Sơ đồ: [DATTOUR] (1) --------(0, 1)------- <Được đánh giá> ---------(1, 1)-------- (1) [DANHGIA]
+        - Lực lượng: 1 Đơn tour đã hoàn thành có thể có (0, 1) Đánh giá; 1 Đánh giá thuộc (1, 1) Đơn tour.
+        - Khóa ngoại: DANHGIA.MaDatTour -> DATTOUR.MaDatTour (NOT NULL, UNIQUE - Quan hệ 1 - 1 Tùy chọn).
+        - Ý nghĩa: Mỗi đơn đặt tour sau khi đi về chỉ được gửi phản hồi đánh giá chất lượng tối đa 1 lần.
+
+[LK-10] Mối liên kết: XUẤT BẢN BÀI VIẾT (NGUOIDUNG - BAIVIET_QUANGBA)
+        Sơ đồ: [NGUOIDUNG] (1) ------(0, n)------- <Đăng bài truyền thông> --(1, 1)-------- (N) [BAIVIET_QUANGBA]
+        - Lực lượng: 1 Quản trị viên/Nhân viên đăng (0, n) Bài viết; 1 Bài viết thuộc (1, 1) Tác giả.
+        - Khóa ngoại: BAIVIET_QUANGBA.MaNguoiDang -> NGUOIDUNG.MaNguoiDung (NOT NULL - Tham gia toàn phần).
+        - Ý nghĩa: Xác định quyền tác giả của bài viết cẩm nang du lịch và truyền thông.
+
+[LK-11] Mối liên kết: GHI NHẬT KÝ KIỂM TOÁN (NGUOIDUNG - AUDITLOG)
+        Sơ đồ: [NGUOIDUNG] (1) ------(0, n)------- <Thực hiện hành động> ----(0, 1)-------- (N) [AUDITLOG]
+        - Lực lượng: 1 Người dùng thực hiện (0, n) Hành vi; 1 Bản ghi log có thể gắn với (0, 1) Người dùng.
+        - Khóa ngoại: AUDITLOG.MaNguoiThucHien -> NGUOIDUNG.MaNguoiDung (NULL - Tham gia một phần).
+        - Ý nghĩa: Ghi vết an ninh. Cho phép NULL khi hành vi do Hệ thống tự động, Trigger hoặc Cron job thực hiện.
+
+[LK-12] Mối liên kết: YÊU CẦU HOÀN HỦY CỦA ĐƠN (DATTOUR - YEUCAU_HOANTIEN_DOILICH)
+        Sơ đồ: [DATTOUR] (1) --------(0, n)------- <Có yêu cầu đổi / hủy> ---(1, 1)-------- (N) [YEUCAU_HOANTIEN_DOILICH]
+        - Lực lượng: 1 Đơn tour có thể có (0, n) Yêu cầu; 1 Yêu cầu thuộc (1, 1) Đơn tour.
+        - Khóa ngoại: YEUCAU_HOANTIEN_DOILICH.MaDatTour -> DATTOUR.MaDatTour (NOT NULL - Tham gia toàn phần).
+        - Ý nghĩa: Tiếp nhận và đối chiếu yêu cầu đổi lịch, hủy tour hoàn tiền gắn với đúng đơn đặt phòng.
+
+[LK-13] Mối liên kết: KHÁCH GỬI YÊU CẦU HOÀN HỦY (NGUOIDUNG - YEUCAU_HOANTIEN_DOILICH)
+        Sơ đồ: [NGUOIDUNG] (1) ------(0, n)------- <Gửi phiếu đổi / hủy> ----(1, 1)-------- (N) [YEUCAU_HOANTIEN_DOILICH]
+        - Lực lượng: 1 Khách hàng có thể gửi (0, n) Yêu cầu; 1 Yêu cầu do (1, 1) Khách hàng tạo.
+        - Khóa ngoại: YEUCAU_HOANTIEN_DOILICH.MaKhachHang -> NGUOIDUNG.MaNguoiDung (NOT NULL - Tham gia toàn phần).
+        - Ý nghĩa: Xác định tài khoản khách hàng đứng tên yêu cầu hoàn tiền hoặc đổi chuyến đi.
+
+[LK-14] Mối liên kết: XỬ LÝ PHIẾU HOÀN HỦY (NGUOIDUNG - YEUCAU_HOANTIEN_DOILICH)
+        Sơ đồ: [NGUOIDUNG] (1) ------(0, n)------- <Xét duyệt yêu cầu> ------(0, 1)-------- (N) [YEUCAU_HOANTIEN_DOILICH]
+        - Lực lượng: 1 Nhân viên xử lý (0, n) Phiếu; 1 Phiếu yêu cầu được giải quyết bởi (0, 1) Nhân viên.
+        - Khóa ngoại: YEUCAU_HOANTIEN_DOILICH.NguoiXuLy -> NGUOIDUNG.MaNguoiDung (NULL - Tham gia một phần).
+        - Ý nghĩa: Ban đầu phiếu ở trạng thái 'Chờ xử lý' (NguoiXuLy là NULL). Khi nhân viên tiếp nhận sẽ gán mã ID.
+
+[LK-15 & 16] Mối liên kết: LƯU TOUR YÊU THÍCH (NGUOIDUNG - TOUR_YEUTHICH - TOUR)
+        Sơ đồ quan hệ gốc:
+        [NGUOIDUNG] (M) ------------(0, n)-------- <Yêu thích tour> ---------(0, n)------- (N) [TOUR]
+        Sơ đồ triển khai vật lý qua Bảng liên kết trung gian TOUR_YEUTHICH:
+        [NGUOIDUNG] (1) -------------(0, n)------- <Người lưu thích> --------(1, 1)-------- (N) [TOUR_YEUTHICH]
+        [TOUR] (1) ------------------(0, n)------- <Được đưa vào Wishlist> --(1, 1)-------- (N) [TOUR_YEUTHICH]
+        - Lực lượng: 1 Khách hàng lưu thích (0, n) Tour; 1 Tour được lưu bởi (0, n) Khách hàng.
+        - Khóa ngoại: TOUR_YEUTHICH.MaNguoiDung -> NGUOIDUNG, TOUR_YEUTHICH.MaTour -> TOUR (Cả 2 đều NOT NULL).
+        - Khóa duy nhất: UQ_TOUR_YEUTHICH (MaNguoiDung, MaTour) ngăn chặn việc bấm thích trùng lặp.
+        - Ý nghĩa: Chức năng Wishlist cho khách hàng. Xóa người dùng hoặc xóa tour thì tự động dọn dẹp (CASCADE).
+
+[LK-17] Mối liên kết: TƯ VẤN VỀ TOUR (TOUR - LIENHE_TUVAN)
+        Sơ đồ: [TOUR] (1) -----------(0, n)------- <Được quan tâm tư vấn> ---(0, 1)-------- (N) [LIENHE_TUVAN]
+        - Lực lượng: 1 Tour có thể nhận (0, n) Câu hỏi tư vấn; 1 Liên hệ tư vấn có thể hỏi về (0, 1) Tour.
+        - Khóa ngoại: LIENHE_TUVAN.MaTour -> TOUR.MaTour (NULL - Tham gia một phần).
+        - Ý nghĩa: Khách có thể điền form hỏi về 1 tour cụ thể, hoặc hỏi chính sách chung (khi đó MaTour là NULL).
+
+[LK-18] Mối liên kết: NHÂN VIÊN CHĂM SÓC TƯ VẤN (NGUOIDUNG - LIENHE_TUVAN)
+        Sơ đồ: [NGUOIDUNG] (1) ------(0, n)------- <Tư vấn hỗ trợ khách> ----(0, 1)-------- (N) [LIENHE_TUVAN]
+        - Lực lượng: 1 Nhân viên CSKH gọi (0, n) Khách; 1 Phiếu tư vấn được hỗ trợ bởi (0, 1) Nhân viên.
+        - Khóa ngoại: LIENHE_TUVAN.NguoiXuLy -> NGUOIDUNG.MaNguoiDung (NULL - Tham gia một phần).
+        - Ý nghĩa: Lúc mới gửi đến phiếu chưa gán nhân viên (NULL). Khi nhân viên gọi điện tư vấn sẽ ghi nhận mã người xử lý.
+
+[LK-19] Mối liên kết: KHỞI TẠO BANNER QUẢNG CÁO (NGUOIDUNG - BANNER_QUANGCAO)
+        Sơ đồ: [NGUOIDUNG] (1) ------(0, n)------- <Thiết lập banner> -------(1, 1)-------- (N) [BANNER_QUANGCAO]
+        - Lực lượng: 1 Quản trị viên cấu hình (0, n) Banner; 1 Banner do (1, 1) Quản trị viên khởi tạo.
+        - Khóa ngoại: BANNER_QUANGCAO.MaNguoiTao -> NGUOIDUNG.MaNguoiDung (NOT NULL - Tham gia toàn phần).
+        - Ý nghĩa: Bắt buộc người đăng tải banner là tài khoản quản trị hệ thống để bảo đảm an toàn hiển thị.
+
+------------------------------------------------------------------------------------------------------------------------
+3. BẢNG MA TRẬN TỔNG HỢP 19 MỐI LIÊN KẾT KHÓA NGOẠI:
+------------------------------------------------------------------------------------------------------------------------
 
 +-----+-----------------------+-----------------------+------------------------------+--------------------+---------------------+----------------------+-------------------+-----------------------------+
 | STT | BẢNG CHA (PARENT)     | BẢNG CON (CHILD)      | TÊN RÀNG BUỘC KHÓA NGOẠI     | CỘT KHÓA NGOẠI     | LỰC LƯỢNG (CHA->CON)| LỰC LƯỢNG (CON->CHA) | TÍNH THAM GIA CON | HÀNH ĐỘNG THAM CHIẾU        |
